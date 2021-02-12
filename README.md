@@ -1,2 +1,2 @@
 # *lsa*BGC
-Lineage Specific Analysis of Biosynthetic Gene Clusters : lsaBGC [el-suh b-g-c]
+Lineage Specific Analysis of Biosynthetic Gene Clusters [el-suh b-g-c]
