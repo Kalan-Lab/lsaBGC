@@ -15,7 +15,7 @@ from lsaBGC import lsaBGC
 def create_parser():
 	""" Parse arguments """
 	parser = argparse.ArgumentParser(description="""
-	Program: delineateSegmentsOnReference.py
+	Program: lsaBGC-HMMExpander.py
 	Author: Rauf Salamzade
 	Affiliation: Kalan Lab, UW Madison, Department of Microbiology and Immunology
 

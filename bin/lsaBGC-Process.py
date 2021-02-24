@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-### Program: createInputsForLsaBGC.py
+### Program: lsaBGC-Process.py
 ### Author: Rauf Salamzade
 ### Kalan Lab
 ### UW Madison, Department of Microbiology and Immunology
@@ -11,10 +11,11 @@ from time import sleep
 import argparse
 from lsaBGC import lsaBGC
 
+
 def create_parser():
 	""" Parse arguments """
 	parser = argparse.ArgumentParser(description="""
-	Program: createInputsForLsaBGC.py
+	Program: lsaBGC-Process.py
 	Author: Rauf Salamzade
 	Affiliation: Kalan Lab, UW Madison, Department of Microbiology and Immunology
 	
@@ -22,19 +23,29 @@ def create_parser():
 	antiSMASH (biosynthetic gene cluster annotation), and OrthoFinder (de novo ortholog group construction).
 	""", formatter_class=argparse.RawTextHelpFormatter)
 
-	parser.add_argument('-i', '--assemblies', type=str, help="Tab delimited text file. First column is the sample name and the second is the path to its assembly in FASTA format. Please remove troublesome characters in the sample name.", required=True)
+	parser.add_argument('-i', '--assemblies', type=str,
+						help="Tab delimited text file. First column is the sample name and the second is the path to its assembly in FASTA format. Please remove troublesome characters in the sample name.",
+						required=True)
 	parser.add_argument('-o', '--outdir', type=str, help="The resulting output directory.", required=True)
-	parser.add_argument('-ae', '--antiSMASH_env_path', type=str, help="Path to conda enviroment for antiSMASH. Database should automatically configured for antiSMASH loaded by the environment.", required=True)
-	parser.add_argument('-pe', '--prokka_env_path', type=str, help="Path to conda enviroment for Prokka.", required=True)
-	parser.add_argument('-oe', '--orthofinder_env_path', type=str, help="Path to conda enviroment for OrthoFinder.", required=True)
-	parser.add_argument('-cp', '--conda_path', type=str, help="Path to anaconda/miniconda installation directory itself.", required=True)
-	parser.add_argument('-l', '--lineage', type=str, help="The lineage under investigation.", required=False, default="Lineage")
+	parser.add_argument('-ae', '--antiSMASH_env_path', type=str,
+						help="Path to conda enviroment for antiSMASH. Database should automatically configured for antiSMASH loaded by the environment.",
+						required=True)
+	parser.add_argument('-pe', '--prokka_env_path', type=str, help="Path to conda enviroment for Prokka.",
+						required=True)
+	parser.add_argument('-oe', '--orthofinder_env_path', type=str, help="Path to conda enviroment for OrthoFinder.",
+						required=True)
+	parser.add_argument('-cp', '--conda_path', type=str,
+						help="Path to anaconda/miniconda installation directory itself.", required=True)
+	parser.add_argument('-l', '--lineage', type=str, help="The lineage under investigation.", required=False,
+						default="Lineage")
 	parser.add_argument('-c', '--cores', type=int, help="The number of cores to use.", required=False, default=8)
-	parser.add_argument('-d', '--dry_run', action='store_true', help="Just create task files with commands for running prodigal, antiSMASH, and OrthoFinder. Useful for parallelizing across an HPC.", required=False, default=False)
+	parser.add_argument('-d', '--dry_run', action='store_true',
+						help="Just create task files with commands for running prodigal, antiSMASH, and OrthoFinder. Useful for parallelizing across an HPC.",
+						required=False, default=False)
 	args = parser.parse_args()
 	return args
 
-def createInputsForLsaBGC():
+def lsaBGC_Process():
 	"""
 	Void function which runs primary workflow for program.
 	"""
@@ -51,20 +62,21 @@ def createInputsForLsaBGC():
 	orthofinder_env_path = os.path.abspath(myargs.orthofinder_env_path) + '/'
 	conda_path = myargs.conda_path
 
-	antismash_load_code = '. %s/etc/profile.d/conda.sh && %s activate %s &&' % (conda_path, antiSMASH_env_path)
-	prokka_load_code = '. %s/etc/profile.d/conda.sh && %s activate %s &&' % (conda_path, prokka_env_path)
-	orthofinder_load_code = '. %s/etc/profile.d/conda.sh && %s activate %s &&' % (conda_path, orthofinder_env_path)
+	antismash_load_code = '. %s/etc/profile.d/conda.sh && conda activate %s &&' % (conda_path, antiSMASH_env_path)
+	prokka_load_code = '. %s/etc/profile.d/conda.sh && conda activate %s &&' % (conda_path, prokka_env_path)
+	orthofinder_load_code = '. %s/etc/profile.d/conda.sh && conda activate %s &&' % (conda_path, orthofinder_env_path)
+
+	try:
+		assert (os.path.isfile(assembly_listing_file))
+	except:
+		raise RuntimeError(
+			'Input file listing the location of assemblies for samples is corrupt or an incorrect path was provided. Exiting now ...')
 
 	if os.path.isdir(outdir):
 		sys.stderr.write("Output directory exists. Overwriting in 5 seconds ...\n ")
 		sleep(5)
 	else:
 		os.system('mkdir %s' % outdir)
-
-	try:
-		assert(os.path.isfile(assembly_listing_file))
-	except:
-		raise RuntimeError('Input file listing the location of assemblies for samples is corrupt or an incorrect path was provided. Exiting now ...')
 
 	"""
 	PARSE OPTIONAL INPUTS
@@ -108,7 +120,8 @@ def createInputsForLsaBGC():
 		raise RuntimeError("Can't create Prokka results directories. Exiting now ...")
 
 	logObject.info("Running/setting-up Prokka for all samples!")
-	lsaBGC.runProkka(sample_assemblies, prokka_outdir, prokka_proteomes_dir, prokka_genbanks_dir, prokka_load_code, dry_run_flag, lineage, cores, logObject)
+	lsaBGC.runProkka(sample_assemblies, prokka_outdir, prokka_proteomes_dir, prokka_genbanks_dir, prokka_load_code,
+					 dry_run_flag, lineage, cores, logObject)
 	logObject.info("Successfully ran/set-up Prokka.")
 
 	# Step 3: Run AntiSMASH for identification of BGCs
@@ -126,12 +139,35 @@ def createInputsForLsaBGC():
 	# Step 4: Run OrthoFinder for de novo ortholog construction
 	orthofinder_outdir = outdir + 'OrthoFinder_Results/'
 	logObject.info("Running/setting-up OrthoFinder!")
-	lsaBGC.runOrthoFinder(prokka_proteomes_dir, orthofinder_outdir, orthofinder_load_code, dry_run_flag, cores, logObject)
+	lsaBGC.runOrthoFinder(prokka_proteomes_dir, orthofinder_outdir, orthofinder_load_code, dry_run_flag, cores,
+						  logObject)
 	logObject.info("Successfully ran/set-up OrthoFinder.")
 
-	# Close logging object, write resulting list of BGC Genbanks, and exit!
+	# Write resulting list of BGC Genbanks (to be used as input for lsaBGC-Cluster)
+	antismash_bgc_listing_file = outdir + 'All_AntiSMASH_BGCs.txt'
+	antismash_bgc_listing_handle = open(antismash_bgc_listing_file, 'w')
+	for s in os.listdir(antismash_outdir):
+		sample_antismash_outdir = antismash_outdir + s + '/'
+		if not os.path.isdir(sample_antismash_outdir): continue
+		for f in os.listdir(sample_antismash_outdir):
+			if '.region' in f and f.endswith('.gbk'):
+				bgc_genbank = sample_antismash_outdir + f
+				antismash_bgc_listing_handle.write(s + '\t' + bgc_genbank + '\n')
+	antismash_bgc_listing_handle.close()
+
+	# Move select result files from OrthoFinder to main directory to make more easy to access/find
+	orthofinder_homolog_matrix = orthofinder_outdir + 'Orthogroups.csv'
+	orthofinder_species_tree = [orthofinder_outdir + od for od in os.listdir(orthofinder_outdir) if od.startswith("Orthologues_")][0] + '/SpeciesTree_rooted.txt'
+	if os.path.isfile(orthofinder_species_tree):
+		os.system('mv %s %s' % (orthofinder_species_tree, outdir))
+
+	if os.path.isfile(orthofinder_homolog_matrix):
+		os.system('mv %s %s' % (orthofinder_homolog_matrix, outdir))
+
+	# Close logging object and exit
 	lsaBGC.closeLoggerObject(logObject)
 	sys.exit(0)
 
+
 if __name__ == '__main__':
-	createInputsForLsaBGC()
+	lsaBGC_Process()

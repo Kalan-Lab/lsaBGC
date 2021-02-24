@@ -1,0 +1,15 @@
+name: ConSequences
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - python=3.8
+  - biopython=
+  - pysam=
+  - bioconda::bowtie2=2.3.4.3
+  - bioconda::samtools=0.1.19
+  - bioconda::mafft=
+  - bioconda::mcl=
+  - bioconda::pal2nal=
+  - bioconda::
