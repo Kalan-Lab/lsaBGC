@@ -11,7 +11,6 @@ from time import sleep
 import argparse
 from lsaBGC import lsaBGC
 
-
 def create_parser():
 	""" Parse arguments """
 	parser = argparse.ArgumentParser(description="""
@@ -114,7 +113,9 @@ def lsaBGC_Process():
 	prokka_proteomes_dir = prokka_outdir + 'Prokka_Proteomes/'
 	prokka_genbanks_dir = prokka_outdir + 'Prokka_Genbanks/'
 	try:
-		os.system('mkdir %s %s %s' % (prokka_outdir, prokka_proteomes_dir, prokka_genbanks_dir))
+		if not os.path.isdir(prokka_outdir): os.system('mkdir %s' % prokka_outdir)
+		if not os.path.isdir(prokka_proteomes_dir): os.system('mkdir %s' % prokka_proteomes_dir)
+		if not os.path.isdir(prokka_genbanks_dir): os.system('mkdir %s' % prokka_genbanks_dir)
 	except:
 		logObject.error("Can't create Prokka results directories. Exiting now ...")
 		raise RuntimeError("Can't create Prokka results directories. Exiting now ...")
@@ -167,7 +168,6 @@ def lsaBGC_Process():
 	# Close logging object and exit
 	lsaBGC.closeLoggerObject(logObject)
 	sys.exit(0)
-
 
 if __name__ == '__main__':
 	lsaBGC_Process()

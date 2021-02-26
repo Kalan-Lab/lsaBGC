@@ -244,39 +244,6 @@ def create_msas(cog):
     os.system('mafft --maxiterate 1000 --localpair %s > %s' % (cog_prot_fasta, cog_prot_msa))
     os.system('pal2nal.pl %s %s -output fasta > %s' % (cog_prot_msa, cog_nucl_fasta, cog_codo_msa))
 
-def runCoinfinder(ortholog_matrix_file, species_phylogeny_file, samples_in_phylogeny, resdir, cores):
-    input_reformatted_file = resdir + '/coinfinder_input.txt'
-    input_reformatted_handle = open(input_reformatted_file, 'w')
-    sample_names = []
-    with open(ortholog_matrix_file) as omf:
-        for i, line in enumerate(omf):
-            line = line.strip('\n')
-            ls = line.split('\t')
-            if i == 0:
-                sample_names = ls[1:-1]
-            else:
-                cog = ls[0]
-                for j, val in enumerate(ls[1:-1]):
-                    if val != '':
-                        if sample_names[j] in samples_in_phylogeny:
-                            input_reformatted_handle.write(cog + '\t' + sample_names[j] + '\n')
-    input_reformatted_handle.close()
-
-    coinfinder_result_prefix = resdir + 'coinfinder'
-    os.system('coinfinder -i %s -p %s -a -d -m -t -x %d -o %s' % (input_reformatted_file, species_phylogeny_file, cores, coinfinder_result_prefix))
-
-    coinfinder_results_file = resdir + '/coinfinder_pairs.tsv'
-    coevolved_cogs = defaultdict(set)
-    with open(coinfinder_results_file) as ocrf:
-        for i, line in enumerate(ocrf):
-            if i == 0: continue
-            line = line.strip()
-            ls = line.split('\t')
-            cog1, cog2 = ls[:2]
-            if cog1 in bgc_cog_genes.keys() and not cog2 in bgc_cog_genes.keys(): coevolved_cogs[cog1].add(cog2)
-            if cog2 in bgc_cog_genes.keys() and not cog1 in bgc_cog_genes.keys(): coevolved_cogs[cog2].add(cog1)
-    return(coevolved_cogs)
-
 def getSpeciesRelationshipsFromPhylogeny(species_phylogeny, samples_in_gcf):
     samples_in_phylogeny = set([])
     t = Tree(species_phylogeny)
