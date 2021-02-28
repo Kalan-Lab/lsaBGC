@@ -50,9 +50,9 @@ def readInBGCGenbanksPerGCF(gcf_specs_file, logObject):
 				bgc_genes_full, bgc_info_full = parseGenbanks(gbk, bgc_id)
 
 				comp_gene_info.update(bgc_genes_full)
-				all_genes = all_genes.union(bgc_genes[gbk])
-				bgc_gbk[bgc_id] = gbk
 				bgc_genes[bgc_id] = set(bgc_genes_full.keys())
+				all_genes = all_genes.union(bgc_genes[bgc_id])
+				bgc_gbk[bgc_id] = gbk
 				bgc_sample[bgc_id] = sample
 				sample_bgcs[sample].add(bgc_id)
 
@@ -82,15 +82,18 @@ def createItolBGCSeeTrack(bgc_genes, gene_to_cog, cog_to_color, comp_gene_info, 
 
 	# write the rest of the iTol track file for illustrating genes across BGC instances
 	ref_cog_directions = {}
-	for i, bgc in enumerate(bgc_genes):
-		curr_bgc_genes = bgc_genes[bgc]
-		#genes[lt] = {'bgc_name': bgc_name, 'start': start, 'end': end, 'direction': direction,
-		#			 'product': product, 'prot_seq': prot_seq, 'nucl_seq': nucl_seq,
-		#			 'gene_domains': gene_domains, 'core_overlap': core_overlap}
 
+	bgc_gene_counts = defaultdict(int)
+	for bgc in bgc_genes:
+		bgc_gene_counts[bgc] = len(bgc_genes[bgc])
+
+	for i, item in enumerate(sorted(bgc_gene_counts.items(), key=itemgetter(1), reverse=True)):
+		bgc = item[0]
+		curr_bgc_genes = bgc_genes[bgc]
 		last_gene_end = max([comp_gene_info[lt]['end'] for lt in curr_bgc_genes])
 		printlist = [bgc, str(last_gene_end)]
 		cog_directions = {}
+		cog_lengths = defaultdict(list)
 		for lt in curr_bgc_genes:
 			ginfo = comp_gene_info[lt]
 			cog = 'singleton'
@@ -110,6 +113,7 @@ def createItolBGCSeeTrack(bgc_genes, gene_to_cog, cog_to_color, comp_gene_info, 
 			printlist.append(gene_string)
 			if cog != 'singleton':
 				cog_directions[cog] = ginfo['direction']
+				cog_lengths[cog].append(gend-gstart)
 		if i == 0:
 			ref_cog_directions = cog_directions
 			track_handle.write('\t'.join(printlist) + '\n')
@@ -118,10 +122,11 @@ def createItolBGCSeeTrack(bgc_genes, gene_to_cog, cog_to_color, comp_gene_info, 
 			keep_support = 0
 			for c in ref_cog_directions:
 				if not c in cog_directions: continue
+				cog_weight = statistics.mean(cog_lengths[c])
 				if cog_directions[c] == ref_cog_directions[c]:
-					keep_support += 1
+					keep_support += cog_weight
 				else:
-					flip_support += 1
+					flip_support += cog_weight
 
 			# flip the genbank visual if necessary, first BGC processed is used as reference guide
 			if flip_support > keep_support:
@@ -143,7 +148,50 @@ def createItolBGCSeeTrack(bgc_genes, gene_to_cog, cog_to_color, comp_gene_info, 
 				track_handle.write('\t'.join(printlist) + '\n')
 	track_handle.close()
 
+def constructBGCPhylogeny(codon_alignments_dir, output_prefix, logObject):
+
+	bgc_sccs = defaultdict(lambda: "")
+	fasta_data = []
+	fasta_data_tr = []
+
+	for f in os.listdir(codon_alignments_dir):
+		cog_align_msa = codon_alignments_dir + f
+		# concatenate gene alignments
+		with open(cog_align_msa) as opm:
+			for rec in SeqIO.parse(opm, 'fasta'):
+				bgc_sccs['>' + rec.id] += str(rec.seq).upper()
+
+	for b in bgc_sccs:
+		fasta_data.append([b] + list(bgc_sccs[b]))
+
+	for i, ls in enumerate(zip(*fasta_data)):
+		if i == 0:
+			fasta_data_tr.append(ls)
+		else:
+			n_count = len([x for x in ls if x == '-'])
+			if (float(n_count) / len(ls)) < 0.1:
+				fasta_data_tr.append(list(ls))
+
+	scc_fna = output_prefix + '.fna'
+	scc_tre = output_prefix + '.tre'
+	scc_handle = open(scc_fna, 'w')
+
+	for rec in zip(*fasta_data_tr):
+		scc_handle.write(rec[0] + '\n' + ''.join(rec[1:]) + '\n')
+	scc_handle.close()
+
+	# use FastTree2 to construct phylogeny
+	fasttree_cmd = ['fasttree', '-nt', scc_fna, '>', scc_tre]
+	logObject.info('Running FastTree2 with the following command: %s' % ' '.join(fasttree_cmd))
+	try:
+		subprocess.call(' '.join(fasttree_cmd), shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+						executable='/bin/bash')
+		logObject.info('Successfully ran: %s' % ' '.join(fasttree_cmd))
+	except:
+		logObject.warning('Had an issue running: %s' % ' '.join(fasttree_cmd))
+
 def constructCodonAlignments(bgc_sample, cog_genes, comp_gene_info, outdir, cores, logObject):
+
 	nucl_seq_dir = os.path.abspath(outdir + 'Nucleotide_Sequences') + '/'
 	prot_seq_dir = os.path.abspath(outdir + 'Protein_Sequences') + '/'
 	prot_alg_dir = os.path.abspath(outdir + 'Protein_Alignments') + '/'
@@ -153,29 +201,38 @@ def constructCodonAlignments(bgc_sample, cog_genes, comp_gene_info, outdir, core
 	if not os.path.isdir(prot_alg_dir): os.system('mkdir %s' % prot_alg_dir)
 	if not os.path.isdir(codo_alg_dir): os.system('mkdir %s' % codo_alg_dir)
 
-	all_samples = set([bgc_sample.values()])
-	try:
-		inputs = []
-		for cog in cog_genes:
-			sample_counts = defaultdict(int)
-			gene_data = {}
-			for gene in cog:
-				gene_info = comp_gene_info[gene]
-				bgc_id = gene_info['bgc_name']
-				sample_id = bgc_sample[bgc_id]
-				sample_counts[sample_id] += 1
-			samples_with_single_copy = set([s[0] for s in sample_counts.items() if s[1] == 1])
-			# check that cog is single-copy-core
-			if len(samples_with_single_copy.symmetric_difference(all_samples)) > 0: continue
-			logObject.info
-			cog, nucl_seq_dir, prot_seq_dir, prot_alg_dir, codo_alg_dir])
+	all_samples = set(bgc_sample.values())
+	#try:
+	inputs = []
+	for cog in cog_genes:
+		sample_counts = defaultdict(int)
+		sample_sequences = {}
+		for gene in cog_genes[cog]:
+			gene_info = comp_gene_info[gene]
+			bgc_id = gene_info['bgc_name']
+			sample_id = bgc_sample[bgc_id]
+			nucl_seq = gene_info['nucl_seq']
+			prot_seq = gene_info['prot_seq']
+			sample_counts[sample_id] += 1
+			sample_sequences[sample_id] = tuple([nucl_seq, prot_seq])
+		samples_with_single_copy = set([s[0] for s in sample_counts.items() if s[1] == 1])
+		# check that cog is single-copy-core
+		if len(samples_with_single_copy.symmetric_difference(all_samples)) > 0: continue
+		logObject.info('Homolog group %s detected as SCC across samples (not individual BGCs).' % cog)
+		inputs.append([cog, sample_sequences, nucl_seq_dir, prot_seq_dir, prot_alg_dir, codo_alg_dir, logObject])
 
-		p = multiprocessing.Pool(cores)
-		p.map(create_msas, )
-	except:
 
-def create_msas(input):
-	cog, = input
+	p = multiprocessing.Pool(cores)
+	p.map(create_codon_msas, inputs)
+
+	return codo_alg_dir
+	#except:
+	#	logObject.error("Issues with create protein/codon alignments of SCC homologs for BGC.")
+	#	raise RuntimeError("Issues with create protein/codon alignments of SCC homologs for BGC.")
+
+def create_codon_msas(inputs):
+	cog, sample_sequences, nucl_seq_dir, prot_seq_dir, prot_alg_dir, codo_alg_dir, logObject = inputs
+
 	cog_nucl_fasta = nucl_seq_dir + '/' + cog + '.fna'
 	cog_prot_fasta = prot_seq_dir + '/' + cog + '.faa'
 	cog_prot_msa = prot_alg_dir + '/' + cog + '.msa.faa'
@@ -183,34 +240,54 @@ def create_msas(input):
 
 	cog_nucl_handle = open(cog_nucl_fasta, 'w')
 	cog_prot_handle = open(cog_prot_fasta, 'w')
-	for gene in bgc_cog_genes[cog]:
-		cog_nucl_handle.write(
-			'>' + comp_gene_info[gene]['bgc_name'] + '|' + gene + '\n' + comp_gene_info[gene]['nucl_seq'] + '\n')
-		cog_prot_handle.write(
-			'>' + comp_gene_info[gene]['bgc_name'] + '|' + gene + '\n' + comp_gene_info[gene]['prot_seq'] + '\n')
+	for s in sample_sequences:
+		cog_nucl_handle.write('>' + s + '\n' + str(sample_sequences[s][0]) + '\n')
+		cog_prot_handle.write('>' + s + '\n' + str(sample_sequences[s][1]) + '\n')
 	cog_nucl_handle.close()
 	cog_prot_handle.close()
 
-	os.system('mafft --maxiterate 1000 --localpair %s > %s' % (cog_prot_fasta, cog_prot_msa))
-	os.system('pal2nal.pl %s %s -output fasta > %s' % (cog_prot_msa, cog_nucl_fasta, cog_codo_msa))
-def parseSpeciesPhylogeny(species_phylogeny, sample_bgcs, outdir, logObject):
+	mafft_cmd = ['mafft', '--maxiterate', '1000', '--localpair', cog_prot_fasta, '>', cog_prot_msa]
+	pal2nal_cmd = ['pal2nal.pl', cog_prot_msa, cog_nucl_fasta, '-output', 'fasta', '>', cog_codo_msa]
+
+	logObject.info('Running mafft with the following command: %s' % ' '.join(mafft_cmd))
+	try:
+		subprocess.call(' '.join(mafft_cmd), shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+						executable='/bin/bash')
+		logObject.info('Successfully ran: %s' % ' '.join(mafft_cmd))
+	except:
+		logObject.error('Had an issue running: %s' % ' '.join(mafft_cmd))
+		raise RuntimeError('Had an issue running: %s' % ' '.join(mafft_cmd))
+
+	logObject.info('Running PAL2NAL with the following command: %s' % ' '.join(pal2nal_cmd))
+	try:
+		subprocess.call(' '.join(pal2nal_cmd), shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+						executable='/bin/bash')
+		logObject.info('Successfully ran: %s' % ' '.join(pal2nal_cmd))
+	except:
+		logObject.error('Had an issue running: %s' % ' '.join(pal2nal_cmd))
+		raise RuntimeError('Had an issue running: %s' % ' '.join(pal2nal_cmd))
+
+	logObject.info('Achieved codon alignment for homolog group %s' % cog)
+
+def modifyPhylogenyForSamplesWithMultipleBGCs(phylogeny, sample_bgcs, output_phylogeny, logObject):
 	try:
 		number_of_added_leaves = 0
-		t = Tree(species_phylogeny)
+		t = Tree(phylogeny)
 		for node in t.traverse('postorder'):
 			if node.name in sample_bgcs and len(sample_bgcs[node.name]) > 1:
-				for bgc_id in sample_bgcs[node.name]:
-					if bgc_id == node.name: continue
-					node.add_sister(name=bgc_id)
-					sister_node = t.search_nodes(name=bgc_id)[0]
-					sister_node.dist = node.dist
-					number_of_added_leaves += 1
-		edited_species_phylogeny = outdir + 'species.expanded.nwk'
-		t.write(format=1, outfile=edited_species_phylogeny)
-		logObject.info("New phylogeny with an additional %d leafs to reflect samples with multiple BGCs can be found at: %s." % (number_of_added_leaves, edited_species_phylogeny))
+				og_node_name = node.name
+				node.name = node.name + '_INNERNODE'
+				for bgc_id in sample_bgcs[og_node_name]:
+					# if bgc_id == node.name: continue
+					node.add_child(name=bgc_id)
+					child_node = t.search_nodes(name=bgc_id)[0]
+					child_node.dist = 0
+					if bgc_id != og_node_name: number_of_added_leaves += 1
+		t.write(format=1, outfile=output_phylogeny)
+		logObject.info("New phylogeny with an additional %d leafs to reflect samples with multiple BGCs can be found at: %s." % (number_of_added_leaves, output_phylogeny))
 	except:
-		logObject.error("Had difficulties properly editing species phylogeny to duplicate leafs for samples with multiple BGCs for GCF.")
-		raise RuntimeError("Had difficulties properly editing species phylogeny to duplicate leafs for samples with multiple BGCs for GCF.")
+		logObject.error("Had difficulties properly editing phylogeny to duplicate leafs for samples with multiple BGCs for GCF.")
+		raise RuntimeError("Had difficulties properly editing phylogeny to duplicate leafs for samples with multiple BGCs for GCF.")
 
 def readInBGCGenbanksComprehensive(bgc_specs_file, logObject):
 	bgc_sample = {}
@@ -242,6 +319,224 @@ def readInBGCGenbanksComprehensive(bgc_specs_file, logObject):
 
 	return [bgc_sample, bgc_product, bgc_genes, all_genes]
 
+
+def getSpeciesRelationshipsFromPhylogeny(species_phylogeny, samples_in_gcf):
+    samples_in_phylogeny = set([])
+    t = Tree(species_phylogeny)
+    for leaf in t:
+        samples_in_phylogeny.add(str(leaf).strip('\n').lstrip('-'))
+
+    pairwise_distances = defaultdict(lambda: defaultdict(float))
+    for s1 in samples_in_gcf.intersection(samples_in_phylogeny):
+        for s2 in samples_in_gcf.intersection(samples_in_phylogeny):
+            try:
+                s1_s2_dist = t.get_distance(s1, s2)
+                pairwise_distances[s1][s2] = s1_s2_dist
+            except:
+                pass
+    return ([pairwise_distances, samples_in_phylogeny])
+
+"""
+gencode = {'ATA':'I', 'ATC':'I', 'ATT':'I', 'ATG':'M',
+    'ACA':'T', 'ACC':'T', 'ACG':'T', 'ACT':'T',
+    'AAC':'N', 'AAT':'N', 'AAA':'K', 'AAG':'K',
+    'AGC':'S', 'AGT':'S', 'AGA':'R', 'AGG':'R',
+    'CTA':'L', 'CTC':'L', 'CTG':'L', 'CTT':'L',
+    'CCA':'P', 'CCC':'P', 'CCG':'P', 'CCT':'P',
+    'CAC':'H', 'CAT':'H', 'CAA':'Q', 'CAG':'Q',
+    'CGA':'R', 'CGC':'R', 'CGG':'R', 'CGT':'R',
+    'GTA':'V', 'GTC':'V', 'GTG':'V', 'GTT':'V',
+    'GCA':'A', 'GCC':'A', 'GCG':'A', 'GCT':'A',
+    'GAC':'D', 'GAT':'D', 'GAA':'E', 'GAG':'E',
+    'GGA':'G', 'GGC':'G', 'GGG':'G', 'GGT':'G',
+    'TCA':'S', 'TCC':'S', 'TCG':'S', 'TCT':'S',
+    'TTC':'F', 'TTT':'F', 'TTA':'L', 'TTG':'L',
+    'TAC':'Y', 'TAT':'Y', 'TAA':'*', 'TAG':'*',
+    'TGC':'C', 'TGT':'C', 'TGA':'*', 'TGG':'W'}
+
+def parseCodonAlignmentStats(cog, codon_alignment_fasta,  phylogenetic_distances, plots_dir):
+    domain_plot_file = codo_plo_dir + cog + '_domain.txt'
+    position_plot_file = codo_plo_dir + cog + '_position.txt'
+    popgen_plot_file = codo_plo_dir + cog + '_popgen.txt'
+    plot_pdf_file = codo_plo_dir + cog + '.pdf'
+
+    domain_plot_handle = open(domain_plot_file, 'w')
+    position_plot_handle = open(position_plot_file, 'w')
+    popgen_plot_handle = open(popgen_plot_file, 'w')
+
+    seqs = []
+    bgc_codons = defaultdict(list)
+    num_codons = None
+    samples = set([])
+    gene_lengths = []
+    gene_locs = defaultdict(dict)
+    core_counts = defaultdict(int)
+    products = set([])
+    with open(codon_alignment_fasta) as ocaf:
+        for rec in SeqIO.parse(ocaf, 'fasta'):
+            sample_id, gene_id = rec.id.split('|')
+            if comp_gene_info[gene_id]['core_overlap']: core_counts['core'] += 1
+            else: core_counts['auxiliary'] += 1
+            products.add(comp_gene_info[gene_id]['product'])
+            real_pos = 1
+            seqs.append(list(str(rec.seq)))
+            codons = [str(rec.seq)[i:i+3] for i in range(0, len(str(rec.seq)), 3)]
+            num_codons = len(codons)
+            bgc_codons[rec.id] = codons
+            samples.add(sample_id)
+            for msa_pos, bp in enumerate(str(rec.seq)):
+                if bp != '-':
+                    gene_locs[gene_id][real_pos] = msa_pos+1
+                    real_pos += 1
+            gene_lengths.append(len(str(rec.seq).replace('-', '')))
+
+    is_core = False
+    if float(core_counts['core'])/sum(core_counts.values()) >= 0.8: is_core = True
+
+    median_gene_length = statistics.median(gene_lengths)
+
+    tot_phylogenetic_breadth = 0
+    for i, s1 in enumerate(samples):
+        for j, s2 in enumerate(samples):
+            if i < j and s1 in phylogenetic_distances and s2 in phylogenetic_distances:
+                tot_phylogenetic_breadth += phylogenetic_distances[s1][s2]
+
+    variable_sites = set([])
+    conserved_sites = set([])
+    position_plot_handle.write('\t'.join(['pos', 'num_seqs', 'num_alleles', 'num_gaps', 'maj_allele_freq']) + '\n')
+    for i, ls in enumerate(zip(*seqs)):
+        al_counts = defaultdict(int)
+        for al in ls:
+            if al != '-': al_counts[al] += 1
+        maj_allele_count = max(al_counts.values())
+        tot_count = sum(al_counts.values())
+        num_seqs = len(ls)
+        num_alleles = len(al_counts.keys())
+        num_gaps = num_seqs - tot_count
+        maj_allele_freq = float(maj_allele_count)/tot_count
+        position_plot_handle.write('\t'.join([str(x) for x in [i+1, num_seqs, num_alleles, num_gaps, maj_allele_freq]]) + '\n')
+        if maj_allele_freq <= 0.90:
+            variable_sites.add(i)
+        else:
+            conserved_sites.add(i)
+    position_plot_handle.close()
+
+    differential_domains = set([])
+    domain_positions_msa = defaultdict(set)
+    domain_min_position_msa = defaultdict(lambda: 100000)
+    all_domains = set([])
+    for gene in bgc_cog_genes[cog]:
+        gene_start = comp_gene_info[gene]['start']
+        gene_end = comp_gene_info[gene]['end']
+        for domain in comp_gene_info[gene]['gene_domains']:
+            domain_start = max(domain['start'], gene_start)
+            domain_end = min(domain['end'], gene_end)
+            domain_name = domain['aSDomain'] + '_|_' + domain['description']
+            relative_start = domain_start-gene_start
+            assert(len(gene_locs[gene])+3 >= (domain_end-gene_start))
+            relative_end = min([len(gene_locs[gene]), domain_end-gene_start])
+            domain_range = range(relative_start, relative_end)
+            for pos in domain_range:
+                msa_pos = gene_locs[gene][pos+1]
+                domain_positions_msa[domain_name].add(msa_pos)
+                if domain_min_position_msa[domain_name] > msa_pos:
+                    domain_min_position_msa[domain_name] = msa_pos
+
+            domain_variable = variable_sites.intersection(domain_positions_msa[domain_name])
+            domain_conserved = conserved_sites.intersection(domain_positions_msa[domain_name])
+            other_variable = variable_sites.difference(domain_positions_msa[domain_name])
+            other_conserved = conserved_sites.difference(domain_positions_msa[domain_name])
+
+            oddsratio, pvalue = fisher_exact([[len(domain_variable), len(domain_conserved)], [len(other_variable), len(other_conserved)]])
+            if pvalue < 0.001: differential_domains.add(domain_name)
+            all_domains.add(domain['type'] + '_|_' + domain['aSDomain'] + '_|_' + domain['description'])
+
+    domain_plot_handle.write('\t'.join(['domain', 'domain_index', 'min_pos', 'max_pos']) + '\n')
+    for i, dom in enumerate(sorted(domain_min_position_msa.items(), key=itemgetter(1))):
+        tmp = []
+        old_pos = None
+        for j, pos in enumerate(sorted(domain_positions_msa[dom[0]])):
+            if j == 0:
+                old_pos = pos-1
+            if pos-1 != old_pos:
+                if len(tmp) > 0:
+                    min_pos = min(tmp)
+                    max_pos = max(tmp)
+                    domain_plot_handle.write('\t'.join([str(x) for x in [dom[0], i, min_pos, max_pos]]) + '\n')
+                tmp = []
+            tmp.append(pos)
+            old_pos = pos
+        if len(tmp) > 0:
+            min_pos = min(tmp)
+            max_pos = max(tmp)
+            domain_plot_handle.write('\t'.join([str(x) for x in [dom[0], i, min_pos, max_pos]]) + '\n')
+    domain_plot_handle.close()
+
+    a = egglib.io.from_fasta(codon_alignment_fasta, alphabet=egglib.alphabets.DNA)
+    struct = egglib.get_structure(a)
+    cs = egglib.stats.ComputeStats()
+    cs.set_structure(struct)
+    cs.add_stats('S', 'thetaW', 'Pi', 'D', 'lseff', 'nseff')
+    cs_stats = cs.process_align(a)
+    a.to_codons()
+    cd = egglib.stats.CodingDiversity()
+    cd.process(a, skipstop=True, max_missing=0.0, multiple_alleles=False, multiple_hits=False)
+    effective_dn_positions = set([x.position for x in cd.positions_NS])
+    effective_ds_positions = set([x.position for x in cd.positions_S])
+    effective_dn_ds = "NA"
+    if cd.num_pol_S > 0: effective_dn_ds =  float(cd.num_pol_NS) / cd.num_pol_S
+
+    popgen_plot_handle.write('\t'.join(['pos', 'type', 'effective']) + '\n')
+    core_codons = 0
+    total_variable_codons = 0
+    nonsynonymous_sites = 0
+    synonymous_sites = 0
+    for cod_index in range(0, num_codons):
+        first_bp = (cod_index+1)*3
+        second_bp = ((cod_index + 1)*3) + 1
+        third_bp = ((cod_index + 1)*3) + 2
+        cod_positions = set([first_bp, second_bp, third_bp])
+        aa_count = defaultdict(int)
+        cod_count = defaultdict(int)
+        core = True
+        for bgc in bgc_codons:
+            cod = bgc_codons[bgc][cod_index]
+            if '-' in cod or 'N' in cod:
+                core = False
+            else:
+                aa_count[gencode[cod]] += 1
+                cod_count[cod] += 1
+        maj_allele_count = max(cod_count.values())
+        tot_valid_codons = sum(cod_count.values())
+        residues = len(aa_count.keys())
+        maj_allele_freq = float(maj_allele_count)/tot_valid_codons
+
+        nonsyn_flag = False; syn_flag = False
+        if maj_allele_freq <= 0.9:
+            total_variable_codons += 1
+            if len(cod_count.keys()) > 1:
+                if residues > 1: nonsynonymous_sites += 1; nonsyn_flag = True
+                else: synonymous_sites += 1; syn_flag = True
+        if core: core_codons += 1
+        if nonsyn_flag or syn_flag:
+            type = 'S'
+            effective = 'False'
+            if nonsyn_flag:
+                type = 'NS'
+                if len(cod_positions.intersection(effective_dn_positions)) > 0: effective = 'True'
+            elif len(cod_positions.intersection(effective_ds_positions)): effective = 'True'
+            popgen_plot_handle.write('\t'.join([str(x) for x in [first_bp, type, effective]]) + '\n')
+    popgen_plot_handle.close()
+    dn_ds = "NA"
+    if synonymous_sites > 0: dn_ds =  float(nonsynonymous_sites) / synonymous_sites
+
+    os.system('Rscript %s %s %s %s %s' % (rscript_for_plotting, domain_plot_file, position_plot_file, popgen_plot_file, plot_pdf_file))
+    return (
+        ['; '.join(products), is_core, median_gene_length, len(seqs), len(samples), cs_stats['D'], core_codons, total_variable_codons,
+         nonsynonymous_sites, synonymous_sites,
+         dn_ds, cd.num_codons_eff, cd.num_pol_NS, cd.num_pol_S,
+         effective_dn_ds, tot_phylogenetic_breadth, '; '.join(differential_domains), '; '.join(all_domains)])
+"""
 
 def parseGenbanks(gbk, bgc_name):
 	"""
@@ -384,7 +679,7 @@ def runMCLAndReportGCFs(mip, outdir, sf_handle, pairwise_relations, pair_relatio
 		logObject.error('Had an issue running: %s' % ' '.join(mcxdump_cmd))
 		raise RuntimeError('Had an issue running: %s' % ' '.join(mcxdump_cmd))
 
-	logObject.info('Successfully ran MCL and MCXDUMP with inflation parameter set to %f!' % mip)
+	logObject.info('Successfully ran MCL and MCXDUMP with inflatimulti_same_sampleon parameter set to %f!' % mip)
 
 	clustered_bgcs = set([])
 	with open(mcxdump_out_file) as omo:
@@ -397,9 +692,10 @@ def runMCLAndReportGCFs(mip, outdir, sf_handle, pairwise_relations, pair_relatio
 			samp_ogs = defaultdict(set)
 			products = set([])
 			for a, bgc1 in enumerate(gcf_mems):
-				samp_counts[bgc1] += 1
+				samp1 = bgc_sample[bgc1]
+				samp_counts[samp1] += 1
 				for prod in bgc_product[bgc1]: products.add(prod)
-				samp_ogs[bgc1] = samp_ogs[bgc1].union(bgc_cogs[bgc1])
+				samp_ogs[samp1] = samp_ogs[samp1].union(bgc_cogs[bgc1])
 				clustered_bgcs.add(bgc1)
 				for b, bgc2 in enumerate(gcf_mems):
 					if a < b:
@@ -414,8 +710,15 @@ def runMCLAndReportGCFs(mip, outdir, sf_handle, pairwise_relations, pair_relatio
 				else:
 					scc = scc.intersection(samp_ogs[s])
 				num_ogs.append(len(samp_ogs[s]))
-			gcf_stats = ['GCF_' + str(j+1), len(gcf_mems), multi_same_sample, len(scc), statistics.mean(num_ogs),
-						 statistics.stdev(num_ogs), min(diffs), max(diffs), '; '.join(products)]
+			stdev = "NA"
+			mean = "NA"
+			try:
+				mean = statistics.mean(num_ogs)
+				stdev = statistics.stdev(num_ogs)
+			except:
+				pass
+			gcf_stats = ['GCF_' + str(j+1), len(gcf_mems), multi_same_sample, len(scc), mean, stdev, min(diffs),
+						 max(diffs), '; '.join(products)]
 			if inflation_testing:
 				gcf_stats = [mip] + gcf_stats
 			sf_handle.write('\t'.join([str(x) for x in gcf_stats]) + '\n')
@@ -523,7 +826,57 @@ def runProkka(sample_assemblies, prokka_outdir, prokka_proteomes, prokka_genbank
 		p.map(multiProcess, prokka_cmds)
 		p.close()
 
-def runAntiSMASH(prokka_genbanks_dir, antismash_outdir, antismash_load_code, dry_run_flag, cores, logObject, assemblies_draft=False):
+def extractBGCProteomes(s, bgc_genbank, bgc_proteomes_outdir, logObject):
+	b = bgc_genbank.split('/')[-1].split('.gbk')[0]
+	bgc_genbank_proteome = bgc_proteomes_outdir + s + '_BGC_' + b + '.faa'
+	try:
+		bgc_genbank_proteome_handle = open(bgc_genbank_proteome, 'w')
+		with open(bgc_genbank) as ogbk:
+			for rec in SeqIO.parse(ogbk, 'genbank'):
+				for feature in rec.features:
+					if feature.type == "CDS":
+						lt = feature.qualifiers.get('locus_tag')[0]
+						prot_seq = feature.qualifiers.get('translation')[0]
+						prot_id = s + '|' + b + '|' + lt
+						bgc_genbank_proteome_handle.write('>' + prot_id + '\n' + str(prot_seq) + '\n')
+		bgc_genbank_proteome_handle.close()
+		return bgc_genbank_proteome
+	except:
+		logObject.error("Had problems extracting protein sequences of CDS features in genbank %s" % bgc_genbank)
+		raise RuntimeError("Had problems extracting protein sequences of CDS features in genbank %s" % bgc_genbank)
+
+def runAntiSMASHBareBones(sample_assemblies, antismash_outdir, antismash_load_code, dry_run_flag, cores, logObject):
+	task_file = antismash_outdir + 'antismash.cmds'
+	if dry_run_flag:
+		logObject.info("Dry run on: will just be writing AntiSMASH commands to following: %s" % task_file)
+		if os.path.isfile(task_file): os.system('rm -f %s' % task_file)
+
+	asm_cores = 1
+	pool_size = 1
+	if cores < 4:
+		asm_cores = cores
+	else:
+		asm_cores = 4
+		pool_size = int(cores / 4)
+	antismash_cmds = []
+	for sample in sample_assemblies:
+		sample_resdir = antismash_outdir + sample + '/'
+		antismash_cmd = []
+		antismash_cmd = [antismash_load_code, 'antismash', '--taxon', 'bacteria', '--genefinding-tool',
+						'prodigal-m', '--output-dir', sample_resdir, '-c', str(asm_cores), sample_assemblies[sample]]
+
+		antismash_cmds.append(antismash_cmd + [logObject])
+		if dry_run_flag:
+			task_handle = open(task_file, 'a+')
+			task_handle.write(' '.join(antismash_cmd) + '\n')
+			task_handle.close()
+
+	if not dry_run_flag:
+		p = multiprocessing.Pool(pool_size)
+		p.map(multiProcess, antismash_cmds)
+		p.close()
+
+def runAntiSMASH(prokka_genbanks_dir, antismash_outdir, antismash_load_code, dry_run_flag, cores, logObject):
 	task_file = antismash_outdir + 'antismash.cmds'
 	if dry_run_flag:
 		logObject.info("Dry run on: will just be writing AntiSMASH commands to following: %s" % task_file)
@@ -540,12 +893,10 @@ def runAntiSMASH(prokka_genbanks_dir, antismash_outdir, antismash_load_code, dry
 	for sample_gbk in os.listdir(prokka_genbanks_dir):
 		sample = sample_gbk.split('.gbk')[0]
 		sample_resdir = antismash_outdir + sample + '/'
-		genefinding_tool = 'prodigal'
-		if assemblies_draft: genefinding_tool = 'prodigal-m'
-		antismash_cmd = [antismash_load_code, 'antismash', '--taxon', 'bacteria', '--genefinding-tool', genefinding_tool,
-						 '--output-dir', sample_resdir, '--fullhmmer', '--asf', '--cb-general', '--cb-subclusters',
-						 '--cb-knownclusters', '--cf-create-clusters', '-c', str(asm_cores),
-						 prokka_genbanks_dir + sample_gbk]
+		antismash_cmd = [antismash_load_code, 'antismash', '--taxon', 'bacteria', '--genefinding-tool', 'prodigal',
+					 	'--output-dir', sample_resdir, '--fullhmmer', '--asf', '--cb-general', '--cb-subclusters',
+						'--cb-knownclusters', '--cf-create-clusters', '-c', str(asm_cores),
+							 prokka_genbanks_dir + sample_gbk]
 		antismash_cmds.append(antismash_cmd + [logObject])
 		if dry_run_flag:
 			task_handle = open(task_file, 'a+')
@@ -556,7 +907,6 @@ def runAntiSMASH(prokka_genbanks_dir, antismash_outdir, antismash_load_code, dry
 		p = multiprocessing.Pool(pool_size)
 		p.map(multiProcess, antismash_cmds)
 		p.close()
-
 
 def runOrthoFinder(prokka_proteomes_dir, orthofinder_outdir, orthofinder_load_code, dry_run_flag, cores, logObject):
 	task_file = orthofinder_outdir + 'orthofinder.cmd'
@@ -581,7 +931,6 @@ def runOrthoFinder(prokka_proteomes_dir, orthofinder_outdir, orthofinder_load_co
 		except:
 			logObject.warning('Had an issue running: %s' % ' '.join(orthofinder_cmd))
 			raise RuntimeError('Had an issue running: %s' % ' '.join(orthofinder_cmd))
-
 
 def is_fasta(fasta):
 	try:

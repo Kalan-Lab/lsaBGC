@@ -12,4 +12,5 @@ dependencies:
   - bioconda::mafft=
   - bioconda::mcl=
   - bioconda::pal2nal=
+  - bioconda::fasttree=
   - bioconda::ete3

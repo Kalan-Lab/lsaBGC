@@ -22,8 +22,8 @@ def create_parser():
 	absence data. Clustering uses MCL.""", formatter_class=argparse.RawTextHelpFormatter)
 
 	parser.add_argument('-b', '--bgc_listings', help='BGC listing file. Tab delimited: 1st column contains path to AntiSMASH BGC Genbank and 2nd column contains sample name.', required=True)
-	parser.add_argument('-m', '--orthofinder_matrix_file', help="OrthoFinder matrix.", required=True)
-	parser.add_argument('-o', '--outdir', help="Output directory.", required=True)
+	parser.add_argument('-m', '--orthofinder_matrix', help="OrthoFinder matrix.", required=True)
+	parser.add_argument('-o', '--output_directory', help="Output directory.", required=True)
 	parser.add_argument('-c', '--cores', type=int, help="Number of cores to use for MCL step.", required=False, default=1)
 	parser.add_argument('-i', '--mcl_inflation', type=float, help="Inflation parameter to be used for MCL.", required=False,default=1.4)
 	parser.add_argument('-r', '--run_inflation_tests', action='store_true', help="Run tests for selecting best inflation parameter for MCL analysis and exit.", default=False, required=False)
@@ -42,7 +42,7 @@ def lsaBGC_Cluster():
 
 	bgc_listings_file = os.path.abspath(myargs.bgc_listings)
 	orthofinder_matrix_file = os.path.abspath(myargs.orthofinder_matrix)
-	outdir = os.path.abspath(myargs.outdir) + '/'
+	outdir = os.path.abspath(myargs.output_directory) + '/'
 
 	### vet input files quickly
 	try:
