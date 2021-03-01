@@ -336,29 +336,11 @@ def getSpeciesRelationshipsFromPhylogeny(species_phylogeny, samples_in_gcf):
                 pass
     return ([pairwise_distances, samples_in_phylogeny])
 
-"""
-gencode = {'ATA':'I', 'ATC':'I', 'ATT':'I', 'ATG':'M',
-    'ACA':'T', 'ACC':'T', 'ACG':'T', 'ACT':'T',
-    'AAC':'N', 'AAT':'N', 'AAA':'K', 'AAG':'K',
-    'AGC':'S', 'AGT':'S', 'AGA':'R', 'AGG':'R',
-    'CTA':'L', 'CTC':'L', 'CTG':'L', 'CTT':'L',
-    'CCA':'P', 'CCC':'P', 'CCG':'P', 'CCT':'P',
-    'CAC':'H', 'CAT':'H', 'CAA':'Q', 'CAG':'Q',
-    'CGA':'R', 'CGC':'R', 'CGG':'R', 'CGT':'R',
-    'GTA':'V', 'GTC':'V', 'GTG':'V', 'GTT':'V',
-    'GCA':'A', 'GCC':'A', 'GCG':'A', 'GCT':'A',
-    'GAC':'D', 'GAT':'D', 'GAA':'E', 'GAG':'E',
-    'GGA':'G', 'GGC':'G', 'GGG':'G', 'GGT':'G',
-    'TCA':'S', 'TCC':'S', 'TCG':'S', 'TCT':'S',
-    'TTC':'F', 'TTT':'F', 'TTA':'L', 'TTG':'L',
-    'TAC':'Y', 'TAT':'Y', 'TAA':'*', 'TAG':'*',
-    'TGC':'C', 'TGT':'C', 'TGA':'*', 'TGG':'W'}
-
-def parseCodonAlignmentStats(cog, codon_alignment_fasta,  phylogenetic_distances, plots_dir):
-    domain_plot_file = codo_plo_dir + cog + '_domain.txt'
-    position_plot_file = codo_plo_dir + cog + '_position.txt'
-    popgen_plot_file = codo_plo_dir + cog + '_popgen.txt'
-    plot_pdf_file = codo_plo_dir + cog + '.pdf'
+def parseCodonAlignmentStats(cog, codon_alignment_fasta, comp_gene_info, plots_dir, sample_population=None):
+    domain_plot_file = plots_dir + cog + '_domain.txt'
+    position_plot_file = plots_dir + cog + '_position.txt'
+    popgen_plot_file = plots_dir + cog + '_popgen.txt'
+    plot_pdf_file = plots_dir + cog + '.pdf'
 
     domain_plot_handle = open(domain_plot_file, 'w')
     position_plot_handle = open(position_plot_file, 'w')
@@ -394,12 +376,6 @@ def parseCodonAlignmentStats(cog, codon_alignment_fasta,  phylogenetic_distances
     if float(core_counts['core'])/sum(core_counts.values()) >= 0.8: is_core = True
 
     median_gene_length = statistics.median(gene_lengths)
-
-    tot_phylogenetic_breadth = 0
-    for i, s1 in enumerate(samples):
-        for j, s2 in enumerate(samples):
-            if i < j and s1 in phylogenetic_distances and s2 in phylogenetic_distances:
-                tot_phylogenetic_breadth += phylogenetic_distances[s1][s2]
 
     variable_sites = set([])
     conserved_sites = set([])
@@ -536,7 +512,6 @@ def parseCodonAlignmentStats(cog, codon_alignment_fasta,  phylogenetic_distances
          nonsynonymous_sites, synonymous_sites,
          dn_ds, cd.num_codons_eff, cd.num_pol_NS, cd.num_pol_S,
          effective_dn_ds, tot_phylogenetic_breadth, '; '.join(differential_domains), '; '.join(all_domains)])
-"""
 
 def parseGenbanks(gbk, bgc_name):
 	"""

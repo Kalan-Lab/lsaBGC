@@ -1,4 +1,4 @@
-name: ConSequences
+name: lsaBGC
 channels:
   - conda-forge
   - bioconda
@@ -14,3 +14,5 @@ dependencies:
   - bioconda::pal2nal=
   - bioconda::fasttree=
   - bioconda::ete3
+  - conda-forge::r-base
+  - conda-forge::r-pegas

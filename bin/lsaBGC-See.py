@@ -78,6 +78,16 @@ def lsaBGC_See():
     log_file = outdir + 'Progress.log'
     logObject = lsaBGC.createLoggerObject(log_file)
 
+    # Step 0: Log input arguments and update reference and query FASTA files.
+    logObject.info("Saving parameters for future provedance.")
+    parameters_file = outdir + 'Parameter_Inputs.txt'
+    parameter_values = [gcf_listing_file, orthofinder_matrix_file, outdir, dataset_label, species_phylogeny, cores,
+                        create_core_gcf_phylogeny, codon_alignments_dir]
+    parameter_names = ["GCF Listing File", "OrthoFinder Orthogroups.csv File", "Output Directory", "Dataset Label",
+                       "Species Phylogeny Newick File", "Cores", "Create GCF Phylogeny?", "Codon Alignments Directory"]
+    lsaBGC.logParametersToFile(parameters_file, parameter_names, parameter_values)
+    logObject.info("Done saving parameters!")
+
     # Step 1: Process GCF listings file
     logObject.info("Processing BGC Genbanks from GCF listing file.")
     bbgc_gbk, bgc_genes, comp_gene_info, all_genes, bgc_sample, sample_bgcs = lsaBGC.readInBGCGenbanksPerGCF(gcf_listing_file, logObject)
