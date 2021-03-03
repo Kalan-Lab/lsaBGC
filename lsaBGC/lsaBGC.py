@@ -12,6 +12,10 @@ import itertools
 import statistics
 import random
 
+lsaBGC_main_directory = '/'.join(os.path.realpath(__file__).split('/')[:-2])
+RSCRIPT_FOR_PLOTTING = lsaBGC_main_directory + 'plotCogConservation.R'
+RSCRIPT_FOR_POPGEN = lsaBGC_main_directory + 'popGenStatisticsUsingPegas.R'
+
 def multiProcess(input):
 	input_cmd = input[:-1]
 	logObject = input[-1]
@@ -148,6 +152,50 @@ def createItolBGCSeeTrack(bgc_genes, gene_to_cog, cog_to_color, comp_gene_info, 
 				track_handle.write('\t'.join(printlist) + '\n')
 	track_handle.close()
 
+def determineCogOrderIndex(bgc_genes, gene_to_cog, comp_gene_info):
+	ref_cog_directions = {}
+	bgc_gene_counts = defaultdict(int)
+	for bgc in bgc_genes:
+		bgc_gene_counts[bgc] = len(bgc_genes[bgc])
+
+	cog_order_scores = {}
+	for i, item in enumerate(sorted(bgc_gene_counts.items(), key=itemgetter(1), reverse=True)):
+		bgc = item[0]
+		curr_bgc_genes = bgc_genes[bgc]
+		cog_directions = {}
+		cog_lengths = defaultdict(list)
+		cog_starts = {}
+		for g in curr_bgc_genes:
+			ginfo = comp_gene_info[g]
+			gstart = ginfo['start']
+			gend = ginfo['end']
+			if g in gene_to_cog:
+				cog = gene_to_cog[g]
+				cog_directions[cog] = ginfo['direction']
+				cog_lengths[cog].append(gend-gstart)
+				cog_starts[cog] = ginfo['start']
+		reverse_flag = False
+		if i == 0:
+			ref_cog_directions = cog_directions
+		else:
+			flip_support = 0
+			keep_support = 0
+			for c in ref_cog_directions:
+				if not c in cog_directions: continue
+				cog_weight = statistics.mean(cog_lengths[c])
+				if cog_directions[c] == ref_cog_directions[c]:
+					keep_support += cog_weight
+				else:
+					flip_support += cog_weight
+
+			# reverse ordering
+			if flip_support > keep_support:
+				reverse_flag = True
+		for c in sorted(cog_starts.items(), key=itemgetter(1), reverse=reverse_flag):
+			cog_order_scores[c[0]] += c[1]
+
+	return cog_order_scores
+
 def constructBGCPhylogeny(codon_alignments_dir, output_prefix, logObject):
 
 	bgc_sccs = defaultdict(lambda: "")
@@ -202,33 +250,34 @@ def constructCodonAlignments(bgc_sample, cog_genes, comp_gene_info, outdir, core
 	if not os.path.isdir(codo_alg_dir): os.system('mkdir %s' % codo_alg_dir)
 
 	all_samples = set(bgc_sample.values())
-	#try:
-	inputs = []
-	for cog in cog_genes:
-		sample_counts = defaultdict(int)
-		sample_sequences = {}
-		for gene in cog_genes[cog]:
-			gene_info = comp_gene_info[gene]
-			bgc_id = gene_info['bgc_name']
-			sample_id = bgc_sample[bgc_id]
-			nucl_seq = gene_info['nucl_seq']
-			prot_seq = gene_info['prot_seq']
-			sample_counts[sample_id] += 1
-			sample_sequences[sample_id] = tuple([nucl_seq, prot_seq])
-		samples_with_single_copy = set([s[0] for s in sample_counts.items() if s[1] == 1])
-		# check that cog is single-copy-core
-		if len(samples_with_single_copy.symmetric_difference(all_samples)) > 0: continue
-		logObject.info('Homolog group %s detected as SCC across samples (not individual BGCs).' % cog)
-		inputs.append([cog, sample_sequences, nucl_seq_dir, prot_seq_dir, prot_alg_dir, codo_alg_dir, logObject])
+	try:
+		inputs = []
+		for cog in cog_genes:
+			sample_counts = defaultdict(int)
+			sample_sequences = {}
+			for gene in cog_genes[cog]:
+				gene_info = comp_gene_info[gene]
+				bgc_id = gene_info['bgc_name']
+				sample_id = bgc_sample[bgc_id]
+				nucl_seq = gene_info['nucl_seq']
+				prot_seq = gene_info['prot_seq']
+				sample_counts[sample_id] += 1
+				sample_sequences[sample_id] = tuple([nucl_seq, prot_seq])
+			samples_with_single_copy = set([s[0] for s in sample_counts.items() if s[1] == 1])
+			# check that cog is single-copy-core
+			if len(samples_with_single_copy.symmetric_difference(all_samples)) > 0: continue
+			logObject.info('Homolog group %s detected as SCC across samples (not individual BGCs).' % cog)
+			inputs.append([cog, sample_sequences, nucl_seq_dir, prot_seq_dir, prot_alg_dir, codo_alg_dir, logObject])
 
 
-	p = multiprocessing.Pool(cores)
-	p.map(create_codon_msas, inputs)
+		p = multiprocessing.Pool(cores)
+		p.map(create_codon_msas, inputs)
 
-	return codo_alg_dir
-	#except:
-	#	logObject.error("Issues with create protein/codon alignments of SCC homologs for BGC.")
-	#	raise RuntimeError("Issues with create protein/codon alignments of SCC homologs for BGC.")
+		return codo_alg_dir
+	except:
+		logObject.error("Issues with create protein/codon alignments of SCC homologs for BGC.")
+		raise RuntimeError("Issues with create protein/codon alignments of SCC homologs for BGC.")
+
 
 def create_codon_msas(inputs):
 	cog, sample_sequences, nucl_seq_dir, prot_seq_dir, prot_alg_dir, codo_alg_dir, logObject = inputs
@@ -268,6 +317,162 @@ def create_codon_msas(inputs):
 		raise RuntimeError('Had an issue running: %s' % ' '.join(pal2nal_cmd))
 
 	logObject.info('Achieved codon alignment for homolog group %s' % cog)
+
+def mapComprehensiveBGCsList(all_bgcs_file, logObject):
+	logObject.info("Reading in file listing comprehensive list of BGCs.")
+	comprehensive_bgcs = []
+	try:
+		with open(all_bgcs_file) as oabf:
+			for line in oabf:
+				line = line.strip()
+				sample, bgc_genbank, bgc_proteome = line.split('\t')
+				assert(is_genbank(bgc_genbank))
+				assert(is_fasta(bgc_proteome))
+				comprehensive_bgcs.append(tuple([sample, bgc_genbank, bgc_proteome]))
+		return comprehensive_bgcs
+	except:
+		logObject.error("Had difficulties in processing file listing comprehensive set of BGCs and paths to genbanks and extracted proteins.")
+		raise RuntimeError("Had difficulties in processing file listing comprehensive set of BGCs and paths to genbanks and extracted proteins.")
+
+def runHMMScanAndAssignBGCsToGCF(comprehensive_bgcs, concat_hmm_profiles, scc_homologs, outdir, cores, logObject):
+	search_res_dir = os.path.abspath(outdir + 'HMMScan_Results') + '/'
+	if not os.path.isdir(search_res_dir): os.system('mkdir %s' % search_res_dir)
+
+	hmmscan_cmds = []
+	for i, cb_tuple in enumerate(comprehensive_bgcs):
+		sample, bgc_genbank, bgc_proteome = cb_tuple
+		result_file = search_res_dir + str(i) + '.txt'
+		hmmscan_cmd = ['hmmscan', '--max', '--cpu', '1', '--tblout', result_file, concat_hmm_profiles, bgc_proteome, logObject]
+		hmmscan_cmds.append(hmmscan_cmd)
+
+	p = multiprocessing.Pool(cores)
+	p.map(multiProcess, hmmscan_cmds)
+	p.close()
+
+	sample_cogs = defaultdict(set)
+	bgc_cogs = defaultdict(set)
+	sample_bgcs = defaultdict(set)
+	sample_cog_proteins = defaultdict(lambda: defaultdict(set))
+	for i, cb_tuple in enumerate(comprehensive_bgcs):
+		sample, bgc_genbank, bgc_proteome = cb_tuple
+		sample_bgcs[sample].add(bgc_genbank)
+		result_file = search_res_dir + str(i) + '.txt'
+		assert(os.path.isfile(result_file))
+		with open(result_file) as orf:
+			for line in orf:
+				if line.startswith("#"): continue
+				line = line.strip()
+				ls = line.split()
+				cog = ls[0]
+				samp, bgc, protein_id = ls[2]
+				eval = float(ls[4])
+				if eval <= 1e-5:
+					sample_cogs[sample].add(cog)
+					bgc_cogs[bgc_genbank].add(cog)
+					sample_cog_proteins[sample][cog].add(protein_id)
+
+	expanded_orthofinder_matrix_file = outdir + 'Orthogroups.expanded.csv'
+	expanded_bgc_list_file = outdir + 'GCF_Expanded.txt'
+
+	expanded_orthofinder_matrix_handle = open(expanded_orthofinder_matrix_file, 'w')
+	expanded_bgc_list_handle = open(expanded_bgc_list_file, 'w')
+
+	for s in sample_cogs:
+		if len(scc_homologs.difference(sample_cogs[s])) == 0:
+			for bgc_gbk in sample_bgcs:
+				if len(bgc_cogs[bgc_gbk]) >= 3 and len(scc_homologs.intersection(bgc_cogs[bgc_gbk])) >= 1:
+					expanded_bgc_list_handle.write('\t'.join([sample, bgc_gbk]) + '\n')
+
+
+
+
+def constructHMMProfiles(bgc_sample, cog_genes, comp_gene_info, outdir, cores, logObject):
+
+	prot_seq_dir = os.path.abspath(outdir + 'Protein_Sequences') + '/'
+	prot_alg_dir = os.path.abspath(outdir + 'Protein_Alignments') + '/'
+	prot_hmm_dir = os.path.abspath(outdir + 'Profile_HMMs') + '/'
+	if not os.path.isdir(prot_seq_dir): os.system('mkdir %s' % prot_seq_dir)
+	if not os.path.isdir(prot_alg_dir): os.system('mkdir %s' % prot_alg_dir)
+	if not os.path.isdir(prot_hmm_dir): os.system('mkdir %s' % prot_hmm_dir)
+
+	all_samples = set(bgc_sample.values())
+	scc_homologs = set([])
+	try:
+		inputs = []
+		for cog in cog_genes:
+			sample_counts = defaultdict(int)
+			sample_sequences = {}
+			for gene in cog_genes[cog]:
+				gene_info = comp_gene_info[gene]
+				bgc_id = gene_info['bgc_name']
+				sample_id = bgc_sample[bgc_id]
+				prot_seq = gene_info['prot_seq']
+				sample_counts[sample_id] += 1
+				sample_sequences[sample_id] = prot_seq
+			samples_with_single_copy = set([s[0] for s in sample_counts.items() if s[1] == 1])
+			# check that cog is single-copy-core
+			if len(samples_with_single_copy.symmetric_difference(all_samples)) == 0: scc_homologs.add(cog)
+			logObject.info('Homolog group %s detected as SCC across samples (not individual BGCs).' % cog)
+			inputs.append([cog, sample_sequences, prot_seq_dir, prot_alg_dir, prot_hmm_dir, logObject])
+
+		p = multiprocessing.Pool(cores)
+		p.map(create_hmm_profiles, inputs)
+
+		logObject.info("Successfully created profile HMMs for each homolog group. Now beginning concatenation into single file.")
+		concatenated_profile_HMM = outdir + 'All_GCF_Homologs.hmm'
+		os.system('rm -f %s' % concatenated_profile_HMM)
+		for f in os.listdir(prot_hmm_dir):
+			os.system('cat %s >> %s' % (prot_hmm_dir + f, concatenated_profile_HMM))
+
+		hmmpress_cmd = ['hmmpress', concatenated_profile_HMM]
+		logObject.info('Running hmmpress on concatenated profiles with the following command: %s' % ' '.join(hmmpress_cmd))
+		try:
+			subprocess.call(' '.join(hmmpress_cmd), shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+							executable='/bin/bash')
+			logObject.info('Successfully ran: %s' % ' '.join(hmmpress_cmd))
+		except:
+			logObject.error('Had an issue running: %s' % ' '.join(hmmpress_cmd))
+			raise RuntimeError('Had an issue running: %s' % ' '.join(hmmpress_cmd))
+
+		return scc_homologs, concatenated_profile_HMM
+	except:
+		logObject.error("Issues with running hmmpress on profile HMMs.")
+		raise RuntimeError("Issues with running hmmpress on profile HMMs.")
+
+def create_hmm_profiles(inputs):
+	cog, sample_sequences, prot_seq_dir, prot_alg_dir, prot_hmm_dir, logObject = inputs
+
+	cog_prot_fasta = prot_seq_dir + '/' + cog + '.faa'
+	cog_prot_msa = prot_alg_dir + '/' + cog + '.msa.faa'
+	cog_prot_hmm = prot_hmm_dir + '/' + cog + '.hmm'
+
+	cog_prot_handle = open(cog_prot_fasta, 'w')
+	for s in sample_sequences:
+		cog_prot_handle.write('>' + s + '\n' + str(sample_sequences[s]) + '\n')
+	cog_prot_handle.close()
+
+	mafft_cmd = ['mafft', '--maxiterate', '1000', '--localpair', cog_prot_fasta, '>', cog_prot_msa]
+	logObject.info('Running mafft with the following command: %s' % ' '.join(mafft_cmd))
+	try:
+		subprocess.call(' '.join(mafft_cmd), shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+						executable='/bin/bash')
+		logObject.info('Successfully ran: %s' % ' '.join(mafft_cmd))
+	except:
+		logObject.error('Had an issue running: %s' % ' '.join(mafft_cmd))
+		raise RuntimeError('Had an issue running: %s' % ' '.join(mafft_cmd))
+
+	hmmbuild_cmd = ['hmmbuild', '--amino', '-n', cog, cog_prot_hmm, cog_prot_msa]
+	logObject.info('Running hmmbuild (from HMMER3) with the following command: %s' % ' '.join(hmmbuild_cmd))
+	try:
+		subprocess.call(' '.join(hmmbuild_cmd), shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+						executable='/bin/bash')
+		logObject.info('Successfully ran: %s' % ' '.join(hmmbuild_cmd))
+	except:
+		logObject.error('Had an issue running: %s' % ' '.join(hmmbuild_cmd))
+		raise RuntimeError('Had an issue running: %s' % ' '.join(hmmbuild_cmd))
+
+	logObject.info('Constructed profile HMM for homolog group %s' % cog)
+
 
 def modifyPhylogenyForSamplesWithMultipleBGCs(phylogeny, sample_bgcs, output_phylogeny, logObject):
 	try:
@@ -321,203 +526,232 @@ def readInBGCGenbanksComprehensive(bgc_specs_file, logObject):
 
 
 def getSpeciesRelationshipsFromPhylogeny(species_phylogeny, samples_in_gcf):
-    samples_in_phylogeny = set([])
-    t = Tree(species_phylogeny)
-    for leaf in t:
-        samples_in_phylogeny.add(str(leaf).strip('\n').lstrip('-'))
+	samples_in_phylogeny = set([])
+	t = Tree(species_phylogeny)
+	for leaf in t:
+		samples_in_phylogeny.add(str(leaf).strip('\n').lstrip('-'))
 
-    pairwise_distances = defaultdict(lambda: defaultdict(float))
-    for s1 in samples_in_gcf.intersection(samples_in_phylogeny):
-        for s2 in samples_in_gcf.intersection(samples_in_phylogeny):
-            try:
-                s1_s2_dist = t.get_distance(s1, s2)
-                pairwise_distances[s1][s2] = s1_s2_dist
-            except:
-                pass
-    return ([pairwise_distances, samples_in_phylogeny])
+	pairwise_distances = defaultdict(lambda: defaultdict(float))
+	for s1 in samples_in_gcf.intersection(samples_in_phylogeny):
+		for s2 in samples_in_gcf.intersection(samples_in_phylogeny):
+			try:
+				s1_s2_dist = t.get_distance(s1, s2)
+				pairwise_distances[s1][s2] = s1_s2_dist
+			except:
+				pass
+	return ([pairwise_distances, samples_in_phylogeny])
 
-def parseCodonAlignmentStats(cog, codon_alignment_fasta, comp_gene_info, plots_dir, sample_population=None):
-    domain_plot_file = plots_dir + cog + '_domain.txt'
-    position_plot_file = plots_dir + cog + '_position.txt'
-    popgen_plot_file = plots_dir + cog + '_popgen.txt'
-    plot_pdf_file = plots_dir + cog + '.pdf'
+def readInPopulationsSpecification(pop_specs_file, logObject):
+	try:
+		populations = set([])
+		sample_population = {}
+		with open(pop_specs_file) as opsf:
+			for line in opsf:
+				line = line.strip()
+				sample, population = line.split('\t')
+				sample_population[sample] = population
+				populations.add(population)
+		logObject.info("Successfully parsed population specifications file. There are %d populations" % len(population))
+		return sample_population
+	except Exception as e:
+		logObject.error('Failed to upload to ftp: ' + str(e))
+		logObject.error("Had issues parsing parsed population specifications file. Exiting now.")
+		raise RuntimeError("Had issues parsing parsed population specifications file. Exiting now.")
 
-    domain_plot_handle = open(domain_plot_file, 'w')
-    position_plot_handle = open(position_plot_file, 'w')
-    popgen_plot_handle = open(popgen_plot_file, 'w')
+def writeLociFileForPegas(codon_msa, outfile, logObject, sample_populations=None):
+	outfile_handle = open(outfile, 'w')
+	number_of_loci = 0
+	with open(codon_msa) as ocmf:
+		for i, rec in enumerate(SeqIO.parse(ocmf, 'fasta')):
+			if i == 0:
+				number_of_loci = len(str(rec.seq))
+				header = ['Sample'] + ['Pos' + str(p) for p in range(1, len(str(rec.seq))+1)]
+				if sample_populations:
+					header += ['population']
+				outfile_handle.write('\t'.join(header) + '\n')
+			sample_data = [rec.id] + '\t' + [p.replace('-', 'NA').upper() for p in str(rec.seq)]
+			if sample_populations:
+				try:
+					sample_data += [sample_populations[rec.id]]
+				except:
+					logObject.warning("Didn't find population for sample %s, filling in population as NA." % rec.id)
+					sample_data += ['NA']
+			outfile_handle.write('\t'.join(sample_data) + '\n')
 
-    seqs = []
-    bgc_codons = defaultdict(list)
-    num_codons = None
-    samples = set([])
-    gene_lengths = []
-    gene_locs = defaultdict(dict)
-    core_counts = defaultdict(int)
-    products = set([])
-    with open(codon_alignment_fasta) as ocaf:
-        for rec in SeqIO.parse(ocaf, 'fasta'):
-            sample_id, gene_id = rec.id.split('|')
-            if comp_gene_info[gene_id]['core_overlap']: core_counts['core'] += 1
-            else: core_counts['auxiliary'] += 1
-            products.add(comp_gene_info[gene_id]['product'])
-            real_pos = 1
-            seqs.append(list(str(rec.seq)))
-            codons = [str(rec.seq)[i:i+3] for i in range(0, len(str(rec.seq)), 3)]
-            num_codons = len(codons)
-            bgc_codons[rec.id] = codons
-            samples.add(sample_id)
-            for msa_pos, bp in enumerate(str(rec.seq)):
-                if bp != '-':
-                    gene_locs[gene_id][real_pos] = msa_pos+1
-                    real_pos += 1
-            gene_lengths.append(len(str(rec.seq).replace('-', '')))
+	outfile_handle.close()
+	return [number_of_loci, outfile]
 
-    is_core = False
-    if float(core_counts['core'])/sum(core_counts.values()) >= 0.8: is_core = True
+def parseCodonAlignmentStats(cog, codon_alignment_fasta, comp_gene_info, cog_genes, cog_order_index, cog_median_copy_numbers, plots_dir, popgen_dir, logObject, sample_population=None):
+	domain_plot_file = plots_dir + cog + '_domain.txt'
+	position_plot_file = plots_dir + cog + '_position.txt'
+	popgen_plot_file = plots_dir + cog + '_popgen.txt'
+	plot_pdf_file = plots_dir + cog + '.pdf'
 
-    median_gene_length = statistics.median(gene_lengths)
+	domain_plot_handle = open(domain_plot_file, 'w')
+	position_plot_handle = open(position_plot_file, 'w')
+	popgen_plot_handle = open(popgen_plot_file, 'w')
 
-    variable_sites = set([])
-    conserved_sites = set([])
-    position_plot_handle.write('\t'.join(['pos', 'num_seqs', 'num_alleles', 'num_gaps', 'maj_allele_freq']) + '\n')
-    for i, ls in enumerate(zip(*seqs)):
-        al_counts = defaultdict(int)
-        for al in ls:
-            if al != '-': al_counts[al] += 1
-        maj_allele_count = max(al_counts.values())
-        tot_count = sum(al_counts.values())
-        num_seqs = len(ls)
-        num_alleles = len(al_counts.keys())
-        num_gaps = num_seqs - tot_count
-        maj_allele_freq = float(maj_allele_count)/tot_count
-        position_plot_handle.write('\t'.join([str(x) for x in [i+1, num_seqs, num_alleles, num_gaps, maj_allele_freq]]) + '\n')
-        if maj_allele_freq <= 0.90:
-            variable_sites.add(i)
-        else:
-            conserved_sites.add(i)
-    position_plot_handle.close()
+	seqs = []
+	bgc_codons = defaultdict(list)
+	num_codons = None
+	samples = set([])
+	gene_lengths = []
+	gene_locs = defaultdict(dict)
+	core_counts = defaultdict(int)
+	products = set([])
+	with open(codon_alignment_fasta) as ocaf:
+		for rec in SeqIO.parse(ocaf, 'fasta'):
+			sample_id, gene_id = rec.id.split('|')
+			if comp_gene_info[gene_id]['core_overlap']: core_counts['core'] += 1
+			else: core_counts['auxiliary'] += 1
+			products.add(comp_gene_info[gene_id]['product'])
+			real_pos = 1
+			seqs.append(list(str(rec.seq)))
+			codons = [str(rec.seq)[i:i+3] for i in range(0, len(str(rec.seq)), 3)]
+			num_codons = len(codons)
+			bgc_codons[rec.id] = codons
+			samples.add(sample_id)
+			for msa_pos, bp in enumerate(str(rec.seq)):
+				if bp != '-':
+					gene_locs[gene_id][real_pos] = msa_pos+1
+					real_pos += 1
+			gene_lengths.append(len(str(rec.seq).replace('-', '')))
 
-    differential_domains = set([])
-    domain_positions_msa = defaultdict(set)
-    domain_min_position_msa = defaultdict(lambda: 100000)
-    all_domains = set([])
-    for gene in bgc_cog_genes[cog]:
-        gene_start = comp_gene_info[gene]['start']
-        gene_end = comp_gene_info[gene]['end']
-        for domain in comp_gene_info[gene]['gene_domains']:
-            domain_start = max(domain['start'], gene_start)
-            domain_end = min(domain['end'], gene_end)
-            domain_name = domain['aSDomain'] + '_|_' + domain['description']
-            relative_start = domain_start-gene_start
-            assert(len(gene_locs[gene])+3 >= (domain_end-gene_start))
-            relative_end = min([len(gene_locs[gene]), domain_end-gene_start])
-            domain_range = range(relative_start, relative_end)
-            for pos in domain_range:
-                msa_pos = gene_locs[gene][pos+1]
-                domain_positions_msa[domain_name].add(msa_pos)
-                if domain_min_position_msa[domain_name] > msa_pos:
-                    domain_min_position_msa[domain_name] = msa_pos
+	is_core = False
+	if float(core_counts['core'])/sum(core_counts.values()) >= 0.8: is_core = True
 
-            domain_variable = variable_sites.intersection(domain_positions_msa[domain_name])
-            domain_conserved = conserved_sites.intersection(domain_positions_msa[domain_name])
-            other_variable = variable_sites.difference(domain_positions_msa[domain_name])
-            other_conserved = conserved_sites.difference(domain_positions_msa[domain_name])
+	median_gene_length = statistics.median(gene_lengths)
 
-            oddsratio, pvalue = fisher_exact([[len(domain_variable), len(domain_conserved)], [len(other_variable), len(other_conserved)]])
-            if pvalue < 0.001: differential_domains.add(domain_name)
-            all_domains.add(domain['type'] + '_|_' + domain['aSDomain'] + '_|_' + domain['description'])
+	variable_sites = set([])
+	conserved_sites = set([])
+	position_plot_handle.write('\t'.join(['pos', 'num_seqs', 'num_alleles', 'num_gaps', 'maj_allele_freq']) + '\n')
+	for i, ls in enumerate(zip(*seqs)):
+		al_counts = defaultdict(int)
+		for al in ls:
+			if al != '-': al_counts[al] += 1
+		maj_allele_count = max(al_counts.values())
+		tot_count = sum(al_counts.values())
+		num_seqs = len(ls)
+		num_alleles = len(al_counts.keys())
+		num_gaps = num_seqs - tot_count
+		maj_allele_freq = float(maj_allele_count)/tot_count
+		position_plot_handle.write('\t'.join([str(x) for x in [i+1, num_seqs, num_alleles, num_gaps, maj_allele_freq]]) + '\n')
+		if maj_allele_freq <= 0.90:
+			variable_sites.add(i)
+		else:
+			conserved_sites.add(i)
+	position_plot_handle.close()
 
-    domain_plot_handle.write('\t'.join(['domain', 'domain_index', 'min_pos', 'max_pos']) + '\n')
-    for i, dom in enumerate(sorted(domain_min_position_msa.items(), key=itemgetter(1))):
-        tmp = []
-        old_pos = None
-        for j, pos in enumerate(sorted(domain_positions_msa[dom[0]])):
-            if j == 0:
-                old_pos = pos-1
-            if pos-1 != old_pos:
-                if len(tmp) > 0:
-                    min_pos = min(tmp)
-                    max_pos = max(tmp)
-                    domain_plot_handle.write('\t'.join([str(x) for x in [dom[0], i, min_pos, max_pos]]) + '\n')
-                tmp = []
-            tmp.append(pos)
-            old_pos = pos
-        if len(tmp) > 0:
-            min_pos = min(tmp)
-            max_pos = max(tmp)
-            domain_plot_handle.write('\t'.join([str(x) for x in [dom[0], i, min_pos, max_pos]]) + '\n')
-    domain_plot_handle.close()
+	differential_domains = set([])
+	domain_positions_msa = defaultdict(set)
+	domain_min_position_msa = defaultdict(lambda: 1e8)
+	all_domains = set([])
+	for gene in cog_genes[cog]:
+		gene_start = comp_gene_info[gene]['start']
+		gene_end = comp_gene_info[gene]['end']
+		for domain in comp_gene_info[gene]['gene_domains']:
+			domain_start = max(domain['start'], gene_start)
+			domain_end = min(domain['end'], gene_end)
+			domain_name = domain['aSDomain'] + '_|_' + domain['description']
+			relative_start = domain_start-gene_start
+			assert(len(gene_locs[gene])+3 >= (domain_end-gene_start))
+			relative_end = min([len(gene_locs[gene]), domain_end-gene_start])
+			domain_range = range(relative_start, relative_end)
+			for pos in domain_range:
+				msa_pos = gene_locs[gene][pos+1]
+				domain_positions_msa[domain_name].add(msa_pos)
+				if domain_min_position_msa[domain_name] > msa_pos:
+					domain_min_position_msa[domain_name] = msa_pos
+			all_domains.add(domain['type'] + '_|_' + domain['aSDomain'] + '_|_' + domain['description'])
 
-    a = egglib.io.from_fasta(codon_alignment_fasta, alphabet=egglib.alphabets.DNA)
-    struct = egglib.get_structure(a)
-    cs = egglib.stats.ComputeStats()
-    cs.set_structure(struct)
-    cs.add_stats('S', 'thetaW', 'Pi', 'D', 'lseff', 'nseff')
-    cs_stats = cs.process_align(a)
-    a.to_codons()
-    cd = egglib.stats.CodingDiversity()
-    cd.process(a, skipstop=True, max_missing=0.0, multiple_alleles=False, multiple_hits=False)
-    effective_dn_positions = set([x.position for x in cd.positions_NS])
-    effective_ds_positions = set([x.position for x in cd.positions_S])
-    effective_dn_ds = "NA"
-    if cd.num_pol_S > 0: effective_dn_ds =  float(cd.num_pol_NS) / cd.num_pol_S
+	domain_plot_handle.write('\t'.join(['domain', 'domain_index', 'min_pos', 'max_pos']) + '\n')
+	for i, dom in enumerate(sorted(domain_min_position_msa.items(), key=itemgetter(1))):
+		tmp = []
+		old_pos = None
+		for j, pos in enumerate(sorted(domain_positions_msa[dom[0]])):
+			if j == 0:
+				old_pos = pos-1
+			if pos-1 != old_pos:
+				if len(tmp) > 0:
+					min_pos = min(tmp)
+					max_pos = max(tmp)
+					domain_plot_handle.write('\t'.join([str(x) for x in [dom[0], i, min_pos, max_pos]]) + '\n')
+				tmp = []
+			tmp.append(pos)
+			old_pos = pos
+		if len(tmp) > 0:
+			min_pos = min(tmp)
+			max_pos = max(tmp)
+			domain_plot_handle.write('\t'.join([str(x) for x in [dom[0], i, min_pos, max_pos]]) + '\n')
+	domain_plot_handle.close()
 
-    popgen_plot_handle.write('\t'.join(['pos', 'type', 'effective']) + '\n')
-    core_codons = 0
-    total_variable_codons = 0
-    nonsynonymous_sites = 0
-    synonymous_sites = 0
-    for cod_index in range(0, num_codons):
-        first_bp = (cod_index+1)*3
-        second_bp = ((cod_index + 1)*3) + 1
-        third_bp = ((cod_index + 1)*3) + 2
-        cod_positions = set([first_bp, second_bp, third_bp])
-        aa_count = defaultdict(int)
-        cod_count = defaultdict(int)
-        core = True
-        for bgc in bgc_codons:
-            cod = bgc_codons[bgc][cod_index]
-            if '-' in cod or 'N' in cod:
-                core = False
-            else:
-                aa_count[gencode[cod]] += 1
-                cod_count[cod] += 1
-        maj_allele_count = max(cod_count.values())
-        tot_valid_codons = sum(cod_count.values())
-        residues = len(aa_count.keys())
-        maj_allele_freq = float(maj_allele_count)/tot_valid_codons
+	popgen_plot_handle.write('\t'.join(['pos', 'type']) + '\n')
+	core_codons = 0
+	total_variable_codons = 0
+	nonsynonymous_sites = 0
+	synonymous_sites = 0
+	for cod_index in range(0, num_codons):
+		first_bp = (cod_index+1)*3
+		aa_count = defaultdict(int)
+		cod_count = defaultdict(int)
+		core = True
+		for bgc in bgc_codons:
+			cod = bgc_codons[bgc][cod_index]
+			if '-' in cod or 'N' in cod:
+				core = False
+			else:
+				cod_obj = Seq(cod)
+				aa_count[str(cod_obj.translate().seq)] += 1
+				cod_count[cod] += 1
+		maj_allele_count = max(cod_count.values())
+		tot_valid_codons = sum(cod_count.values())
+		residues = len(aa_count.keys())
+		maj_allele_freq = float(maj_allele_count)/tot_valid_codons
 
-        nonsyn_flag = False; syn_flag = False
-        if maj_allele_freq <= 0.9:
-            total_variable_codons += 1
-            if len(cod_count.keys()) > 1:
-                if residues > 1: nonsynonymous_sites += 1; nonsyn_flag = True
-                else: synonymous_sites += 1; syn_flag = True
-        if core: core_codons += 1
-        if nonsyn_flag or syn_flag:
-            type = 'S'
-            effective = 'False'
-            if nonsyn_flag:
-                type = 'NS'
-                if len(cod_positions.intersection(effective_dn_positions)) > 0: effective = 'True'
-            elif len(cod_positions.intersection(effective_ds_positions)): effective = 'True'
-            popgen_plot_handle.write('\t'.join([str(x) for x in [first_bp, type, effective]]) + '\n')
-    popgen_plot_handle.close()
-    dn_ds = "NA"
-    if synonymous_sites > 0: dn_ds =  float(nonsynonymous_sites) / synonymous_sites
+		nonsyn_flag = False; syn_flag = False
+		if maj_allele_freq <= 0.9:
+			total_variable_codons += 1
+			if len(cod_count.keys()) > 1:
+				if residues > 1: nonsynonymous_sites += 1; nonsyn_flag = True
+				else: synonymous_sites += 1; syn_flag = True
 
-    os.system('Rscript %s %s %s %s %s' % (rscript_for_plotting, domain_plot_file, position_plot_file, popgen_plot_file, plot_pdf_file))
-    return (
-        ['; '.join(products), is_core, median_gene_length, len(seqs), len(samples), cs_stats['D'], core_codons, total_variable_codons,
-         nonsynonymous_sites, synonymous_sites,
-         dn_ds, cd.num_codons_eff, cd.num_pol_NS, cd.num_pol_S,
-         effective_dn_ds, tot_phylogenetic_breadth, '; '.join(differential_domains), '; '.join(all_domains)])
+		if core: core_codons += 1
+		if nonsyn_flag or syn_flag:
+			type = 'S'
+			if nonsyn_flag: type = 'NS'
+			popgen_plot_handle.write('\t'.join([str(x) for x in [first_bp, type]]) + '\n')
+	popgen_plot_handle.close()
+	dn_ds = "NA"
+	if synonymous_sites > 0: dn_ds =  float(nonsynonymous_sites) / synonymous_sites
+
+	os.system('Rscript %s %s %s %s %s' % (RSCRIPT_FOR_PLOTTING, domain_plot_file, position_plot_file, popgen_plot_file, plot_pdf_file))
+
+	popgen_loci_file = popgen_dir + cog + '_loci.txt'
+	number_of_loci = writeLociFileForPegas(codon_alignment_fasta, popgen_loci_file, logObject, sample_population=sample_population)
+
+	header = ['cog', 'annotation', 'cog_order_index', 'cog_median_copy_count', 'is_core', 'median_gene_length',
+			  'bgcs_with_cog',
+			  'samples_with_cog', 'Tajimas_D', 'core_codons', 'total_variable_codons', 'nonsynonymous_codons',
+			  'synonymous_codons',
+			  'dn_ds', 'all_domains']
+	if sample_population:
+		header += ['populations_with_cog', 'max_population_specificity', 'Fst']
+
+
+
+	return (
+		['; '.join(products), is_core, median_gene_length, len(seqs), len(samples), cs_stats['D'], core_codons, total_variable_codons,
+		 nonsynonymous_sites, synonymous_sites,
+		 dn_ds, cd.num_codons_eff, cd.num_pol_NS, cd.num_pol_S,
+		 effective_dn_ds, tot_phylogenetic_breadth, '; '.join(differential_domains), '; '.join(all_domains)])
+
+
 
 def parseGenbanks(gbk, bgc_name):
 	"""
-    :param gbk: AntiSMASH Genbank file
-    :return:
-    """
+	:param gbk: AntiSMASH Genbank file
+	:return:
+	"""
 	bgc_info = []
 	domains = []
 	core_positions = set([])
@@ -614,7 +848,7 @@ def calculateBGCPairwiseRelations(bgc_genes, gene_to_cog, avg_nz_cog_counts, out
 		raise RuntimeError("Problem with creating relations file between pairs of BGCs.")
 
 	mcxload_cmd = ['mcxload', '-abc', pair_relations_txt_file, '--stream-mirror', '-write-tab', pair_relations_tab_file,
-	               '-o', pair_relations_mci_file]
+				   '-o', pair_relations_mci_file]
 
 	logObject.info('Running the following command: %s' % ' '.join(mcxload_cmd))
 	try:
@@ -725,10 +959,10 @@ def runMCLAndReportGCFs(mip, outdir, sf_handle, pairwise_relations, pair_relatio
 
 def parseOrthoFinderMatrix(orthofinder_matrix_file, all_gene_lts):
 	"""
-    :param orthofinder_matrix: OrthoFinderV2 matrix Orthogroups.csv file, should also include singleton orthologroups
-    :param all_gene_lts: Set of all the relevant gene locus tag identifiers found in BGC Genbanks
-    :return: dictionary mapping gene locus tags to CoGs
-    """
+	:param orthofinder_matrix: OrthoFinderV2 matrix Orthogroups.csv file, should also include singleton orthologroups
+	:param all_gene_lts: Set of all the relevant gene locus tag identifiers found in BGC Genbanks
+	:return: dictionary mapping gene locus tags to CoGs
+	"""
 	gene_to_cog = {}
 	cog_genes = defaultdict(set)
 	cog_median_gene_counts = defaultdict(lambda: 'NA')
@@ -820,7 +1054,7 @@ def extractBGCProteomes(s, bgc_genbank, bgc_proteomes_outdir, logObject):
 		logObject.error("Had problems extracting protein sequences of CDS features in genbank %s" % bgc_genbank)
 		raise RuntimeError("Had problems extracting protein sequences of CDS features in genbank %s" % bgc_genbank)
 
-def runAntiSMASHBareBones(sample_assemblies, antismash_outdir, antismash_load_code, dry_run_flag, cores, logObject):
+def runAntiSMASHFromAssemblies(sample_assemblies, antismash_outdir, antismash_load_code, dry_run_flag, cores, logObject, barebone=True):
 	task_file = antismash_outdir + 'antismash.cmds'
 	if dry_run_flag:
 		logObject.info("Dry run on: will just be writing AntiSMASH commands to following: %s" % task_file)
@@ -837,9 +1071,13 @@ def runAntiSMASHBareBones(sample_assemblies, antismash_outdir, antismash_load_co
 	for sample in sample_assemblies:
 		sample_resdir = antismash_outdir + sample + '/'
 		antismash_cmd = []
-		antismash_cmd = [antismash_load_code, 'antismash', '--taxon', 'bacteria', '--genefinding-tool',
-						'prodigal-m', '--output-dir', sample_resdir, '-c', str(asm_cores), sample_assemblies[sample]]
-
+		if barebone:
+			antismash_cmd = [antismash_load_code, 'antismash', '--taxon', 'bacteria', '--genefinding-tool',
+							'prodigal-m', '--output-dir', sample_resdir, '-c', str(asm_cores), sample_assemblies[sample]]
+		else:
+			antismash_cmd = [antismash_load_code, 'antismash', '--taxon', 'bacteria', '--genefinding-tool', 'prodigal',
+							 '--output-dir', sample_resdir, '--fullhmmer', '--asf', '--cb-general', '--cb-subclusters',
+							 '--cb-knownclusters', '--cf-create-clusters', '-c', str(asm_cores), sample_assemblies[sample]]
 		antismash_cmds.append(antismash_cmd + [logObject])
 		if dry_run_flag:
 			task_handle = open(task_file, 'a+')
@@ -869,7 +1107,7 @@ def runAntiSMASH(prokka_genbanks_dir, antismash_outdir, antismash_load_code, dry
 		sample = sample_gbk.split('.gbk')[0]
 		sample_resdir = antismash_outdir + sample + '/'
 		antismash_cmd = [antismash_load_code, 'antismash', '--taxon', 'bacteria', '--genefinding-tool', 'prodigal',
-					 	'--output-dir', sample_resdir, '--fullhmmer', '--asf', '--cb-general', '--cb-subclusters',
+						'--output-dir', sample_resdir, '--fullhmmer', '--asf', '--cb-general', '--cb-subclusters',
 						'--cb-knownclusters', '--cf-create-clusters', '-c', str(asm_cores),
 							 prokka_genbanks_dir + sample_gbk]
 		antismash_cmds.append(antismash_cmd + [logObject])
@@ -988,9 +1226,9 @@ def logParametersToObject(logObject, parameter_names, parameter_values):
 
 def assignColorsToCOGs(cogs):
 	"""
-    :param cogs: set of CoGs.
-    :return: dictionary mapping each CoG to a hex color value.
-    """
+	:param cogs: set of CoGs.
+	:return: dictionary mapping each CoG to a hex color value.
+	"""
 
 	# read in list of colors
 	dir_path = os.path.dirname(os.path.realpath(__file__)) + '/'

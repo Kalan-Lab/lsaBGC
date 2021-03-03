@@ -103,14 +103,12 @@ def runAntiSMASHOnDraftGenomes():
 		raise RuntimeError("Can't create AntiSMASH results directories. Exiting now ...")
 
 	logObject.info("Running/setting-up AntiSMASH for all samples!")
-	lsaBGC.runAntiSMASHBareBones(sample_assemblies, antismash_outdir, antismash_load_code, dry_run_flag, cores, logObject)
+	lsaBGC.runAntiSMASHFromAssemblies(sample_assemblies, antismash_outdir, antismash_load_code, dry_run_flag, cores, logObject, barebone=False)
 	logObject.info("Successfully ran/set-up AntiSMASH.")
 
 	# Step 3: Extract proteomes from BGC genbanks and write resulting list of BGC Genbanks
 	antismash_bgc_gbk_listing_file = outdir + 'All_AntiSMASH_BGCs.txt'
-	antismash_bgc_pro_listing_file = outdir + 'All_AntiSMASH_BGC_Proteomes.txt'
 	abg_handle = open(antismash_bgc_gbk_listing_file, 'w')
-	abp_handle = open(antismash_bgc_pro_listing_file, 'w')
 	for s in os.listdir(antismash_outdir):
 		sample_antismash_outdir = antismash_outdir + s + '/'
 		if not os.path.isdir(sample_antismash_outdir): continue
@@ -118,12 +116,10 @@ def runAntiSMASHOnDraftGenomes():
 			if '.region' in f and f.endswith('.gbk'):
 				bgc_genbank = sample_antismash_outdir + f
 				bgc_proteome = lsaBGC.extractBGCProteomes(s, bgc_genbank, bgc_proteomes_outdir, logObject)
-				abg_handle.write(s + '\t' + bgc_genbank + '\n')
-				abp_handle.write(s + '\t' + bgc_proteome + '\n')
+				abg_handle.write(s + '\t' + bgc_genbank + '\t' + bgc_proteome + '\n')
 			else:
 				os.system('rm -rf %s' % sample_antismash_outdir + f)
 	abg_handle.close()
-	abp_handle.close()
 
 	# Close logging object and exit
 	lsaBGC.closeLoggerObject(logObject)

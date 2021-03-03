@@ -22,7 +22,7 @@ comp_gene_info = {}
 bgc_cog_genes = {}
 nucl_seq_dir, prot_seq_dir, prot_alg_dir, codo_alg_dir, codo_plo_dir = [None]*5
 dir_path = os.path.dirname(os.path.realpath(__file__)) + '/'
-rscript_for_plotting = dir_path + 'plotCogConservation.r'
+rscript_for_plotting = dir_path + 'plotCogConservation.R'
 
 gencode = {'ATA':'I', 'ATC':'I', 'ATT':'I', 'ATG':'M',
     'ACA':'T', 'ACC':'T', 'ACG':'T', 'ACT':'T',

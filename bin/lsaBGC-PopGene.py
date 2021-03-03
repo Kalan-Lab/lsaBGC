@@ -96,12 +96,16 @@ def lsaBGC_PopGene():
     gene_to_cog, cog_genes, cog_median_gene_counts = lsaBGC.parseOrthoFinderMatrix(orthofinder_matrix_file, all_genes)
     logObject.info("Successfully parsed homolog matrix.")
 
-    # Step 3: (Optional) Parse population specifications file, if provided by user
+    # Step 3: Calculate homolog order index (which can be used to roughly predict order of homologs within BGCs)
+    cog_order_index = lsaBGC.determineCogOrderIndex(bgc_genes, gene_to_cog, comp_gene_info)
+
+    # Step 4: (Optional) Parse population specifications file, if provided by user
     sample_population = None
     if population_classification_file:
         logObject.info("User provided information on populations, parsing this information.")
-        logObject.info("")
-    # Step 4: Create codon alignments if not provided a directory with them (e.g. one produced by lsaBGC-See.py)
+        sample_population = lsaBGC.readInPopulationsSpecification(population_classification_file, logObject)
+
+    # Step 5: Create codon alignments if not provided a directory with them (e.g. one produced by lsaBGC-See.py)
     logObject.info("User requested construction of phylogeny from SCCs in BGC! Beginning phylogeny construction.")
     if codon_alignments_dir == None:
         logObject.info("Codon alignments were not provided, so beginning process of creating protein alignments for each homolog group using mafft, then translating these to codon alignments using PAL2NAL.")
@@ -110,25 +114,30 @@ def lsaBGC_PopGene():
     else:
         logObject.info("Codon alignments were provided by user. Moving forward to phylogeny construction with FastTree2.")
 
-    # Step 5: Analyze codon alignments and parse population genetics and conservation stats
+    # Step 6: Analyze codon alignments and parse population genetics and conservation stats
+    popgen_dir = outdir + 'Codon_PopGen_Analyses/'
     plots_dir = outdir + 'Codon_MSA_Plots/'
+    if not os.path.isdir(popgen_dir): os.system('mkdir %s' % popgen_dir)
     if not os.path.isdir(plots_dir): os.system('mkdir %s' % plots_dir)
-    cog_stats = {}
+
+    final_output_handle = open(outdir + 'Ortholog_Group_Information.txt', 'w')
+    header = ['cog', 'annotation',  'cog_order_index', 'cog_median_copy_count', 'is_core', 'median_gene_length', 'bgcs_with_cog',
+              'samples_with_cog', 'Tajimas_D', 'core_codons', 'total_variable_codons', 'nonsynonymous_codons', 'synonymous_codons',
+              'dn_ds', 'all_domains']
+    if sample_population:
+        header += ['populations_with_cog', 'max_population_specificity', 'Fst']
+    final_output_handle.write('\t'.join(header) + '\n')
+
     for f in os.listdir(codon_alignments_dir):
         cog = f.split('.msa.fna')[0]
         codon_alignment_fasta = codon_alignments_dir + f
-        parsed_stats = lsaBGC.parseCodonAlignmentStats(cog, codon_alignment_fasta, comp_gene_info, cog_genes, plots_dir)
-        cog_stats[cog] = parsed_stats
+        lsaBGC.parseCodonAlignmentStats(cog, codon_alignment_fasta, comp_gene_info, cog_genes, cog_order_index, cog_median_gene_counts, plots_dir, popgen_dir, final_output_handle, sample_population=sample_population)
 
-    final_output_handle = open(outdir + 'Ortholog_Group_Information.txt', 'w')
-    final_output_handle.write('\t'.join(['cog', 'cog_order_index', 'cog_median_copy_count', 'annotation', 'is_core', 'median_gene_length', 'bgcs_with_cog',
-     'samples_with_cog', 'Tajimas_D', 'core_codons', 'total_variable_codons', 'nonsynonymous_codons',
-     'synonymous_codons', 'dn_ds', 'total_effective_codons', 'nonsynonymous_effective_codons',
-     'synonymous_effective_codons', 'effective_dn_ds', 'cog_phylogenetic_breadth', 'differentially_variable_domains',
-     'all_domains', 'coinfinder_coevolved_genes']) + '\n')
-    for cog, order_rank in sorted(cog_order_scores.items(), key=itemgetter(1)):
-        final_output_handle.write('\t'.join([str(x) for x in [cog, order_rank, cog_median_counts[cog]] + cog_stats[cog] + ['; '.join(coevolved_cogs[cog])]]) + '\n')
     final_output_handle.close()
+
+    # Close logging object and exit
+    lsaBGC.closeLoggerObject(logObject)
+    sys.exit(0)
 
 if __name__ == '__main__':
     lsaBGC_PopGene()
