@@ -105,7 +105,7 @@ def lsaBGC_HMMExpansion():
     # Step 4: Search HMMs in proteomes from comprehensive set of BGCs
     logObject.info("Searching for homolog group HMMs in proteins extracted from comprehensive list of BGCs.")
     comprehensive_bgcs = lsaBGC.mapComprehensiveBGCsList(all_bgcs_file, logObject)
-    lsaBGC.runHMMScanAndAssignBGCsToGCF(comprehensive_bgcs, concat_hmm_profiles, scc_homologs, outdir, cores, logObject)
+    lsaBGC.runHMMScanAndAssignBGCsToGCF(comprehensive_bgcs, concat_hmm_profiles, scc_homologs, orthofinder_matrix_file, outdir, cores, logObject)
 
     # Close logging object and exit
     lsaBGC.closeLoggerObject(logObject)

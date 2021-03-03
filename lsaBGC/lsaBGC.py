@@ -158,7 +158,7 @@ def determineCogOrderIndex(bgc_genes, gene_to_cog, comp_gene_info):
 	for bgc in bgc_genes:
 		bgc_gene_counts[bgc] = len(bgc_genes[bgc])
 
-	cog_order_scores = {}
+	cog_order_scores = defaultdict(int)
 	for i, item in enumerate(sorted(bgc_gene_counts.items(), key=itemgetter(1), reverse=True)):
 		bgc = item[0]
 		curr_bgc_genes = bgc_genes[bgc]
@@ -238,7 +238,9 @@ def constructBGCPhylogeny(codon_alignments_dir, output_prefix, logObject):
 	except:
 		logObject.warning('Had an issue running: %s' % ' '.join(fasttree_cmd))
 
-def constructCodonAlignments(bgc_sample, cog_genes, comp_gene_info, outdir, cores, logObject):
+	return scc_tre
+
+def constructCodonAlignments(bgc_sample, cog_genes, comp_gene_info, outdir, cores, logObject, only_scc=False):
 
 	nucl_seq_dir = os.path.abspath(outdir + 'Nucleotide_Sequences') + '/'
 	prot_seq_dir = os.path.abspath(outdir + 'Protein_Sequences') + '/'
@@ -254,7 +256,7 @@ def constructCodonAlignments(bgc_sample, cog_genes, comp_gene_info, outdir, core
 		inputs = []
 		for cog in cog_genes:
 			sample_counts = defaultdict(int)
-			sample_sequences = {}
+			gene_sequences = {}
 			for gene in cog_genes[cog]:
 				gene_info = comp_gene_info[gene]
 				bgc_id = gene_info['bgc_name']
@@ -262,13 +264,17 @@ def constructCodonAlignments(bgc_sample, cog_genes, comp_gene_info, outdir, core
 				nucl_seq = gene_info['nucl_seq']
 				prot_seq = gene_info['prot_seq']
 				sample_counts[sample_id] += 1
-				sample_sequences[sample_id] = tuple([nucl_seq, prot_seq])
+				gid = sample_id + '|' + gene
+				if only_scc:
+					gid = sample_id
+				gene_sequences[gid] = tuple([nucl_seq, prot_seq])
 			samples_with_single_copy = set([s[0] for s in sample_counts.items() if s[1] == 1])
 			# check that cog is single-copy-core
-			if len(samples_with_single_copy.symmetric_difference(all_samples)) > 0: continue
-			logObject.info('Homolog group %s detected as SCC across samples (not individual BGCs).' % cog)
-			inputs.append([cog, sample_sequences, nucl_seq_dir, prot_seq_dir, prot_alg_dir, codo_alg_dir, logObject])
-
+			if only_scc and len(samples_with_single_copy.symmetric_difference(all_samples)) > 0:
+				continue
+			elif only_scc:
+				logObject.info('Homolog group %s detected as SCC across samples (not individual BGCs).' % cog)
+			inputs.append([cog, gene_sequences, nucl_seq_dir, prot_seq_dir, prot_alg_dir, codo_alg_dir, logObject])
 
 		p = multiprocessing.Pool(cores)
 		p.map(create_codon_msas, inputs)
@@ -280,7 +286,7 @@ def constructCodonAlignments(bgc_sample, cog_genes, comp_gene_info, outdir, core
 
 
 def create_codon_msas(inputs):
-	cog, sample_sequences, nucl_seq_dir, prot_seq_dir, prot_alg_dir, codo_alg_dir, logObject = inputs
+	cog, gene_sequences, nucl_seq_dir, prot_seq_dir, prot_alg_dir, codo_alg_dir, logObject = inputs
 
 	cog_nucl_fasta = nucl_seq_dir + '/' + cog + '.fna'
 	cog_prot_fasta = prot_seq_dir + '/' + cog + '.faa'
@@ -289,9 +295,9 @@ def create_codon_msas(inputs):
 
 	cog_nucl_handle = open(cog_nucl_fasta, 'w')
 	cog_prot_handle = open(cog_prot_fasta, 'w')
-	for s in sample_sequences:
-		cog_nucl_handle.write('>' + s + '\n' + str(sample_sequences[s][0]) + '\n')
-		cog_prot_handle.write('>' + s + '\n' + str(sample_sequences[s][1]) + '\n')
+	for s in gene_sequences:
+		cog_nucl_handle.write('>' + s + '\n' + str(gene_sequences[s][0]) + '\n')
+		cog_prot_handle.write('>' + s + '\n' + str(gene_sequences[s][1]) + '\n')
 	cog_nucl_handle.close()
 	cog_prot_handle.close()
 
@@ -334,7 +340,7 @@ def mapComprehensiveBGCsList(all_bgcs_file, logObject):
 		logObject.error("Had difficulties in processing file listing comprehensive set of BGCs and paths to genbanks and extracted proteins.")
 		raise RuntimeError("Had difficulties in processing file listing comprehensive set of BGCs and paths to genbanks and extracted proteins.")
 
-def runHMMScanAndAssignBGCsToGCF(comprehensive_bgcs, concat_hmm_profiles, scc_homologs, outdir, cores, logObject):
+def runHMMScanAndAssignBGCsToGCF(comprehensive_bgcs, concat_hmm_profiles, scc_homologs, orthofinder_matrix_file, outdir, cores, logObject):
 	search_res_dir = os.path.abspath(outdir + 'HMMScan_Results') + '/'
 	if not os.path.isdir(search_res_dir): os.system('mkdir %s' % search_res_dir)
 
@@ -364,7 +370,7 @@ def runHMMScanAndAssignBGCsToGCF(comprehensive_bgcs, concat_hmm_profiles, scc_ho
 				line = line.strip()
 				ls = line.split()
 				cog = ls[0]
-				samp, bgc, protein_id = ls[2]
+				samp, bgc, protein_id = ls[2].split('|')
 				eval = float(ls[4])
 				if eval <= 1e-5:
 					sample_cogs[sample].add(cog)
@@ -372,19 +378,44 @@ def runHMMScanAndAssignBGCsToGCF(comprehensive_bgcs, concat_hmm_profiles, scc_ho
 					sample_cog_proteins[sample][cog].add(protein_id)
 
 	expanded_orthofinder_matrix_file = outdir + 'Orthogroups.expanded.csv'
-	expanded_bgc_list_file = outdir + 'GCF_Expanded.txt'
+	expanded_gcf_list_file = outdir + 'GCF_Expanded.txt'
 
 	expanded_orthofinder_matrix_handle = open(expanded_orthofinder_matrix_file, 'w')
-	expanded_bgc_list_handle = open(expanded_bgc_list_file, 'w')
+	expanded_gcf_list_handle = open(expanded_gcf_list_file, 'w')
 
-	for s in sample_cogs:
-		if len(scc_homologs.difference(sample_cogs[s])) == 0:
-			for bgc_gbk in sample_bgcs:
+	all_samples = set([])
+	for sample in sample_cogs:
+		if len(scc_homologs.difference(sample_cogs[sample])) == 0:
+			for bgc_gbk in sample_bgcs[sample]:
 				if len(bgc_cogs[bgc_gbk]) >= 3 and len(scc_homologs.intersection(bgc_cogs[bgc_gbk])) >= 1:
-					expanded_bgc_list_handle.write('\t'.join([sample, bgc_gbk]) + '\n')
+					expanded_gcf_list_handle.write('\t'.join([sample, bgc_gbk]) + '\n')
+					all_samples.add(sample)
 
+	original_samples = []
+	all_cogs = set([])
+	with open(orthofinder_matrix_file) as omf:
+		for i, line in enumerate(omf):
+			line = line.strip('\n')
+			ls = line.split('\t')
+			if i == 0:
+				original_samples = ls[1:]
+				all_samples = all_samples.union(set(original_samples))
+			else:
+				cog = ls[0]
+				all_cogs.add(cog)
+				for j, prot in enumerate(ls[1:]):
+					sample_cog_proteins[original_samples[j]][cog] = sample_cog_proteins[original_samples[j]][cog].union(set(prot.split(', ')))
 
+	header = [''] + [s for s in sorted(all_samples)]
+	expanded_orthofinder_matrix_handle.write('\t'.join(header) + '\n')
+	for c in sorted(all_cogs):
+		printlist = [cog]
+		for s in sorted(all_samples):
+			printlist.append(', '.join(sample_cog_proteins[s][c]))
+		expanded_orthofinder_matrix_handle.write('\t'.join(printlist) + '\n')
 
+	expanded_gcf_list_handle.close()
+	expanded_orthofinder_matrix_handle.close()
 
 def constructHMMProfiles(bgc_sample, cog_genes, comp_gene_info, outdir, cores, logObject):
 
@@ -558,7 +589,7 @@ def readInPopulationsSpecification(pop_specs_file, logObject):
 		logObject.error("Had issues parsing parsed population specifications file. Exiting now.")
 		raise RuntimeError("Had issues parsing parsed population specifications file. Exiting now.")
 
-def writeLociFileForPegas(codon_msa, outfile, logObject, sample_populations=None):
+def writeLociFileForPegas(codon_msa, outfile, logObject, sample_population=None):
 	outfile_handle = open(outfile, 'w')
 	number_of_loci = 0
 	with open(codon_msa) as ocmf:
@@ -566,13 +597,13 @@ def writeLociFileForPegas(codon_msa, outfile, logObject, sample_populations=None
 			if i == 0:
 				number_of_loci = len(str(rec.seq))
 				header = ['Sample'] + ['Pos' + str(p) for p in range(1, len(str(rec.seq))+1)]
-				if sample_populations:
+				if sample_population:
 					header += ['population']
 				outfile_handle.write('\t'.join(header) + '\n')
-			sample_data = [rec.id] + '\t' + [p.replace('-', 'NA').upper() for p in str(rec.seq)]
-			if sample_populations:
+			sample_data = [rec.id] + [p.replace('-', 'NA').upper() for p in str(rec.seq)]
+			if sample_population:
 				try:
-					sample_data += [sample_populations[rec.id]]
+					sample_data += [sample_population[rec.id]]
 				except:
 					logObject.warning("Didn't find population for sample %s, filling in population as NA." % rec.id)
 					sample_data += ['NA']
@@ -701,7 +732,8 @@ def parseCodonAlignmentStats(cog, codon_alignment_fasta, comp_gene_info, cog_gen
 				core = False
 			else:
 				cod_obj = Seq(cod)
-				aa_count[str(cod_obj.translate().seq)] += 1
+				print(cod_obj.translate())
+				aa_count[str(cod_obj.translate())] += 1
 				cod_count[cod] += 1
 		maj_allele_count = max(cod_count.values())
 		tot_valid_codons = sum(cod_count.values())
@@ -759,6 +791,7 @@ def parseGenbanks(gbk, bgc_name):
 	with open(gbk) as ogbk:
 		domain_feature_types = ['PFAM_domain', 'CDS_motif', 'aSDomain']
 		for rec in SeqIO.parse(ogbk, 'genbank'):
+			full_sequence = str(rec.seq)
 			for feature in rec.features:
 				if feature.type in domain_feature_types:
 					start = min([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')])
@@ -779,7 +812,6 @@ def parseGenbanks(gbk, bgc_name):
 					detection_rule = feature.qualifiers.get('detection_rule')[0]
 					product = feature.qualifiers.get('product')[0]
 					contig_edge = feature.qualifiers.get('contig_edge')[0]
-					full_sequence = str(rec.seq)
 					bgc_info.append({'detection_rule': detection_rule, 'product': product, 'contig_edge': contig_edge,
 									 'full_sequence': str(rec.seq)})
 				elif feature.type == 'proto_core':
@@ -1224,11 +1256,22 @@ def logParametersToObject(logObject, parameter_names, parameter_values):
 		logObject.info(pn + ': ' + str(pv))
 
 
-def assignColorsToCOGs(cogs):
+def assignColorsToCOGs(gene_to_cog, bgc_genes):
 	"""
 	:param cogs: set of CoGs.
 	:return: dictionary mapping each CoG to a hex color value.
 	"""
+
+	cog_bgc_counts = defaultdict(int)
+	for b in bgc_genes:
+		for g in bgc_genes[b]:
+			if g in gene_to_cog:
+				cog_bgc_counts[gene_to_cog[g]] += 1
+
+	cogs = set([])
+	for c in cog_bgc_counts:
+		if cog_bgc_counts[c] > 1:
+			cogs.add(c)
 
 	# read in list of colors
 	dir_path = os.path.dirname(os.path.realpath(__file__)) + '/'

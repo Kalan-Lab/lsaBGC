@@ -44,14 +44,12 @@ def lsaBGC_PopGene():
 
     gcf_listing_file = os.path.abspath(myargs.gcf_listing)
     orthofinder_matrix_file = os.path.abspath(myargs.orthofinder_matrix)
-    species_phylogeny_file = os.path.abspath(myargs.species_phylogeny)
     outdir = os.path.abspath(myargs.output_directory) + '/'
 
     ### vet input files quickly
     try:
         assert (os.path.isfile(orthofinder_matrix_file))
         assert (os.path.isfile(gcf_listing_file))
-        assert (os.path.isfile(species_phylogeny_file))
     except:
         raise RuntimeError('One or more of the input files provided, does not exist. Exiting now ...')
 
@@ -88,10 +86,10 @@ def lsaBGC_PopGene():
 
     # Step 1: Process GCF listings file
     logObject.info("Processing BGC Genbanks from GCF listing file.")
-    bbgc_gbk, bgc_genes, comp_gene_info, all_genes, bgc_sample, sample_bgcs = lsaBGC.readInBGCGenbanksPerGCF(gcf_listing_file, logObject)
+    bgc_gbk, bgc_genes, comp_gene_info, all_genes, bgc_sample, sample_bgcs = lsaBGC.readInBGCGenbanksPerGCF(gcf_listing_file, logObject)
     logObject.info("Successfully parsed BGC Genbanks and associated with unique IDs.")
 
-    # Step 2: Parse OrthoFinder Homolog vs Sample Matrix
+    # Step 2: Parse OrthoFinder Homolog vs Sample Matrix and associate each homolog group with a color
     logObject.info("Starting to parse OrthoFinder homolog vs sample information.")
     gene_to_cog, cog_genes, cog_median_gene_counts = lsaBGC.parseOrthoFinderMatrix(orthofinder_matrix_file, all_genes)
     logObject.info("Successfully parsed homolog matrix.")

@@ -90,7 +90,7 @@ def lsaBGC_See():
 
     # Step 1: Process GCF listings file
     logObject.info("Processing BGC Genbanks from GCF listing file.")
-    bbgc_gbk, bgc_genes, comp_gene_info, all_genes, bgc_sample, sample_bgcs = lsaBGC.readInBGCGenbanksPerGCF(gcf_listing_file, logObject)
+    bgc_gbk, bgc_genes, comp_gene_info, all_genes, bgc_sample, sample_bgcs = lsaBGC.readInBGCGenbanksPerGCF(gcf_listing_file, logObject)
     logObject.info("Successfully parsed BGC Genbanks and associated with unique IDs.")
 
     # Step 2: If species phylogeny was provided, edit it to feature duplicate leaves for isolates which have multiple
@@ -103,7 +103,7 @@ def lsaBGC_See():
     # Step 3: Parse OrthoFinder Homolog vs Sample Matrix and associate each homolog group with a color
     logObject.info("Starting to parse OrthoFinder homolog vs sample information.")
     gene_to_cog, cog_genes, cog_median_gene_counts = lsaBGC.parseOrthoFinderMatrix(orthofinder_matrix_file, all_genes)
-    cog_to_color = lsaBGC.assignColorsToCOGs(gene_to_cog.values())
+    cog_to_color = lsaBGC.assignColorsToCOGs(gene_to_cog, bgc_genes)
     logObject.info("Successfully parsed homolog matrix.")
 
     # Step 4: Create iTol tracks for viewing BGCs of GCF across phylogeny.
@@ -116,7 +116,7 @@ def lsaBGC_See():
         logObject.info("User requested construction of phylogeny from SCCs in BGC! Beginning phylogeny construction.")
         if codon_alignments_dir == None:
             logObject.info("Codon alignments were not provided, so beginning process of creating protein alignments for each homolog group using mafft, then translating these to codon alignments using PAL2NAL.")
-            codon_alignments_dir = lsaBGC.constructCodonAlignments(bgc_sample, cog_genes, comp_gene_info, outdir, cores, logObject)
+            codon_alignments_dir = lsaBGC.constructCodonAlignments(bgc_sample, cog_genes, comp_gene_info, outdir, cores, logObject, only_scc=True)
             logObject.info("All codon alignments for SCC homologs now successfully achieved!")
         else:
             logObject.info("Codon alignments were provided by user. Moving forward to phylogeny construction with FastTree2.")
@@ -124,8 +124,8 @@ def lsaBGC_See():
         # Step 6: Create phylogeny using FastTree2 after creating concatenated BGC alignment and processing to remove
         # sites with high rates of missing data.
         logObject.info("Creating phylogeny using FastTree2 after creating concatenated BGC alignment and processing to remove sites with high rates of missing data!")
-        lsaBGC.constructBGCPhylogeny(codon_alignments_dir, outdir + 'BGC_SCCs_Concatenated', logObject)
-        lsaBGC.modifyPhylogenyForSamplesWithMultipleBGCs(species_phylogeny, sample_bgcs, outdir + 'BGC_SCCs_Concatenated.edited.nwk', logObject)
+        bgc_scc_phylogeny = lsaBGC.constructBGCPhylogeny(codon_alignments_dir, outdir + 'BGC_SCCs_Concatenated', logObject)
+        lsaBGC.modifyPhylogenyForSamplesWithMultipleBGCs(bgc_scc_phylogeny, sample_bgcs, outdir + 'BGC_SCCs_Concatenated.edited.nwk', logObject)
         logObject.info("Phylogeny created successfully!")
 
     # Close logging object and exit

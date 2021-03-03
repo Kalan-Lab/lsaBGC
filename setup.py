@@ -10,5 +10,5 @@ setup(name='lsaBGC',
       packages=['lsaBGC'],
       scripts=['bin/lsaBGC-Process.py', 'bin/summarizePopGeneResultsAcrossGCFs.py', 'bin/lsaBGC-See.py',
 			   'bin/lsaBGC-Cluster.py', 'bin/lsaBGC-PopGene.py', 'bin/lsaBGC-MetaNovelty.py',
-			   'bin/lsaBGC-Select.py', 'bin/lsaBGC-HMMExpansion.py'],
+			   'bin/lsaBGC-RelativeDivergance.py', 'bin/lsaBGC-HMMExpansion.py'],
       zip_safe=False)
