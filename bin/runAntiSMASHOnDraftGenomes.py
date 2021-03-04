@@ -115,6 +115,7 @@ def runAntiSMASHOnDraftGenomes():
 		for f in os.listdir(sample_antismash_outdir):
 			if '.region' in f and f.endswith('.gbk'):
 				bgc_genbank = sample_antismash_outdir + f
+
 				bgc_proteome = lsaBGC.extractBGCProteomes(s, bgc_genbank, bgc_proteomes_outdir, logObject)
 				abg_handle.write(s + '\t' + bgc_genbank + '\t' + bgc_proteome + '\n')
 			else:

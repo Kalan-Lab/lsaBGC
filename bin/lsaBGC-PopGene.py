@@ -119,18 +119,18 @@ def lsaBGC_PopGene():
     if not os.path.isdir(plots_dir): os.system('mkdir %s' % plots_dir)
 
     final_output_handle = open(outdir + 'Ortholog_Group_Information.txt', 'w')
-    header = ['cog', 'annotation',  'cog_order_index', 'cog_median_copy_count', 'is_core', 'median_gene_length', 'bgcs_with_cog',
-              'samples_with_cog', 'Tajimas_D', 'core_codons', 'total_variable_codons', 'nonsynonymous_codons', 'synonymous_codons',
-              'dn_ds', 'all_domains']
+    header = ['cog', 'annotation', 'cog_order_index', 'cog_median_copy_count', 'median_gene_length', 'is_core_to_bgc',
+              'bgcs_with_cog', 'proportion_of_samples_with_cog', 'Tajimas_D', 'core_codons', 'total_variable_codons',
+              'nonsynonymous_codons', 'synonymous_codons', 'dn_ds', 'all_domains']
     if sample_population:
-        header += ['populations_with_cog', 'max_population_specificity', 'Fst']
+        header += ['populations_with_cog', 'population_proportion_of_members_with_cog', 'one_way_ANOVA_pvalues']
+
     final_output_handle.write('\t'.join(header) + '\n')
 
     for f in os.listdir(codon_alignments_dir):
         cog = f.split('.msa.fna')[0]
         codon_alignment_fasta = codon_alignments_dir + f
-        lsaBGC.parseCodonAlignmentStats(cog, codon_alignment_fasta, comp_gene_info, cog_genes, cog_order_index, cog_median_gene_counts, plots_dir, popgen_dir, final_output_handle, sample_population=sample_population)
-
+        lsaBGC.parseCodonAlignmentStats(cog, codon_alignment_fasta, comp_gene_info, cog_genes, cog_order_index, cog_median_gene_counts, plots_dir, popgen_dir, bgc_sample, final_output_handle, logObject, sample_population=sample_population)
     final_output_handle.close()
 
     # Close logging object and exit

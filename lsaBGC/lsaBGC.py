@@ -11,10 +11,11 @@ from operator import itemgetter
 import itertools
 import statistics
 import random
+from scipy.stats import f_oneway
 
 lsaBGC_main_directory = '/'.join(os.path.realpath(__file__).split('/')[:-2])
-RSCRIPT_FOR_PLOTTING = lsaBGC_main_directory + 'plotCogConservation.R'
-RSCRIPT_FOR_POPGEN = lsaBGC_main_directory + 'popGenStatisticsUsingPegas.R'
+RSCRIPT_FOR_PLOTTING = lsaBGC_main_directory + '/lsaBGC/plotCogConservation.R'
+RSCRIPT_FOR_TAJIMA = lsaBGC_main_directory + '/lsaBGC/calculateTajimasD.R'
 
 def multiProcess(input):
 	input_cmd = input[:-1]
@@ -555,7 +556,6 @@ def readInBGCGenbanksComprehensive(bgc_specs_file, logObject):
 
 	return [bgc_sample, bgc_product, bgc_genes, all_genes]
 
-
 def getSpeciesRelationshipsFromPhylogeny(species_phylogeny, samples_in_gcf):
 	samples_in_phylogeny = set([])
 	t = Tree(species_phylogeny)
@@ -573,22 +573,18 @@ def getSpeciesRelationshipsFromPhylogeny(species_phylogeny, samples_in_gcf):
 	return ([pairwise_distances, samples_in_phylogeny])
 
 def readInPopulationsSpecification(pop_specs_file, logObject):
-	try:
-		populations = set([])
-		sample_population = {}
-		with open(pop_specs_file) as opsf:
-			for line in opsf:
-				line = line.strip()
-				sample, population = line.split('\t')
-				sample_population[sample] = population
-				populations.add(population)
-		logObject.info("Successfully parsed population specifications file. There are %d populations" % len(population))
-		return sample_population
-	except Exception as e:
-		logObject.error('Failed to upload to ftp: ' + str(e))
-		logObject.error("Had issues parsing parsed population specifications file. Exiting now.")
-		raise RuntimeError("Had issues parsing parsed population specifications file. Exiting now.")
+	populations = set([])
+	sample_population = defaultdict(lambda: "NA")
+	with open(pop_specs_file) as opsf:
+		for line in opsf:
+			line = line.strip()
+			sample, population = line.split('\t')
+			sample_population[sample] = population
+			populations.add(population)
+	logObject.info("Successfully parsed population specifications file. There are %d populations" % len(population))
+	return sample_population
 
+"""
 def writeLociFileForPegas(codon_msa, outfile, logObject, sample_population=None):
 	outfile_handle = open(outfile, 'w')
 	number_of_loci = 0
@@ -598,9 +594,9 @@ def writeLociFileForPegas(codon_msa, outfile, logObject, sample_population=None)
 				number_of_loci = len(str(rec.seq))
 				header = ['Sample'] + ['Pos' + str(p) for p in range(1, len(str(rec.seq))+1)]
 				if sample_population:
-					header += ['population']
+					header += ['Pop']
 				outfile_handle.write('\t'.join(header) + '\n')
-			sample_data = [rec.id] + [p.replace('-', 'NA').upper() for p in str(rec.seq)]
+			sample_data = [rec.id] + [p.replace('-', 'NA').upper() + '/' + p.replace('-', 'NA').upper() for p in str(rec.seq)]
 			if sample_population:
 				try:
 					sample_data += [sample_population[rec.id]]
@@ -611,8 +607,9 @@ def writeLociFileForPegas(codon_msa, outfile, logObject, sample_population=None)
 
 	outfile_handle.close()
 	return [number_of_loci, outfile]
+"""
 
-def parseCodonAlignmentStats(cog, codon_alignment_fasta, comp_gene_info, cog_genes, cog_order_index, cog_median_copy_numbers, plots_dir, popgen_dir, logObject, sample_population=None):
+def parseCodonAlignmentStats(cog, codon_alignment_fasta, comp_gene_info, cog_genes, cog_order_index, cog_median_copy_numbers, plots_dir, popgen_dir, bgc_sample, final_output_handle, logObject, sample_population=None):
 	domain_plot_file = plots_dir + cog + '_domain.txt'
 	position_plot_file = plots_dir + cog + '_position.txt'
 	popgen_plot_file = plots_dir + cog + '_popgen.txt'
@@ -717,7 +714,7 @@ def parseCodonAlignmentStats(cog, codon_alignment_fasta, comp_gene_info, cog_gen
 	domain_plot_handle.close()
 
 	popgen_plot_handle.write('\t'.join(['pos', 'type']) + '\n')
-	core_codons = 0
+	total_core_codons = 0
 	total_variable_codons = 0
 	nonsynonymous_sites = 0
 	synonymous_sites = 0
@@ -732,7 +729,6 @@ def parseCodonAlignmentStats(cog, codon_alignment_fasta, comp_gene_info, cog_gen
 				core = False
 			else:
 				cod_obj = Seq(cod)
-				print(cod_obj.translate())
 				aa_count[str(cod_obj.translate())] += 1
 				cod_count[cod] += 1
 		maj_allele_count = max(cod_count.values())
@@ -747,7 +743,7 @@ def parseCodonAlignmentStats(cog, codon_alignment_fasta, comp_gene_info, cog_gen
 				if residues > 1: nonsynonymous_sites += 1; nonsyn_flag = True
 				else: synonymous_sites += 1; syn_flag = True
 
-		if core: core_codons += 1
+		if core and not nonsyn_flag and not syn_flag: total_core_codons += 1
 		if nonsyn_flag or syn_flag:
 			type = 'S'
 			if nonsyn_flag: type = 'NS'
@@ -756,26 +752,91 @@ def parseCodonAlignmentStats(cog, codon_alignment_fasta, comp_gene_info, cog_gen
 	dn_ds = "NA"
 	if synonymous_sites > 0: dn_ds =  float(nonsynonymous_sites) / synonymous_sites
 
-	os.system('Rscript %s %s %s %s %s' % (RSCRIPT_FOR_PLOTTING, domain_plot_file, position_plot_file, popgen_plot_file, plot_pdf_file))
+	rscript_plot_cmd = ["Rscript", RSCRIPT_FOR_PLOTTING, domain_plot_file, position_plot_file, popgen_plot_file, plot_pdf_file]
+	logObject.info('Running R-based plotting with the following command: %s' % ' '.join(rscript_plot_cmd))
+	try:
+		subprocess.call(' '.join(rscript_plot_cmd), shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+						executable='/bin/bash')
+		logObject.info('Successfully ran: %s' % ' '.join(rscript_plot_cmd))
+	except:
+		logObject.error('Had an issue running: %s' % ' '.join(rscript_plot_cmd))
+		raise RuntimeError('Had an issue running: %s' % ' '.join(rscript_plot_cmd))
+	logObject.info('Plotting completed!')
 
-	popgen_loci_file = popgen_dir + cog + '_loci.txt'
-	number_of_loci = writeLociFileForPegas(codon_alignment_fasta, popgen_loci_file, logObject, sample_population=sample_population)
+	tajima_results = popgen_dir + cog + '.tajima.txt'
+	rscript_tajimaD_cmd = ["Rscript", RSCRIPT_FOR_TAJIMA, codon_alignment_fasta, tajima_results]
+	logObject.info('Running R pegas for calculating Tajima\'s D from codon alignment with the following command: %s' % ' '.join(rscript_tajimaD_cmd))
+	try:
+		subprocess.call(' '.join(rscript_tajimaD_cmd), shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+						executable='/bin/bash')
+		logObject.info('Successfully ran: %s' % ' '.join(rscript_tajimaD_cmd))
+	except:
+		logObject.error('Had an issue running: %s' % ' '.join(rscript_tajimaD_cmd))
+		raise RuntimeError('Had an issue running: %s' % ' '.join(rscript_tajimaD_cmd))
+	logObject.info('Tajima\'s D has been calculated!')
 
-	header = ['cog', 'annotation', 'cog_order_index', 'cog_median_copy_count', 'is_core', 'median_gene_length',
-			  'bgcs_with_cog',
-			  'samples_with_cog', 'Tajimas_D', 'core_codons', 'total_variable_codons', 'nonsynonymous_codons',
-			  'synonymous_codons',
-			  'dn_ds', 'all_domains']
+	tajimas_d = "NA"
+	if os.path.isfile(tajima_results):
+		with open(tajima_results) as otrf:
+			for i, line in enumerate(otrf):
+				if i == 4:
+					try: tajimas_d = float(line.strip())
+					except: pass
+
+	prop_samples_with_cog = len(samples)/float(len(set(bgc_sample.values())))
+
+	cog_info = [cog, '; '.join(products), cog_order_index[cog], cog_median_copy_numbers[cog], median_gene_length,
+				is_core, len(seqs), prop_samples_with_cog, tajimas_d, total_core_codons, total_variable_codons,
+				nonsynonymous_sites, synonymous_sites, dn_ds, '; '.join(all_domains)]
+
 	if sample_population:
-		header += ['populations_with_cog', 'max_population_specificity', 'Fst']
+
+		population_samples = defaultdict(set)
+		for sp in sample_population.items():
+			population_samples[sp[1]].add(sp[0])
+
+		sample_seqs = {}
+		with open(codon_alignment_fasta) as ocaf:
+			for rec in SeqIO.parse(ocaf, 'fasta'):
+				sample_seqs[rec.id.split('|')[0]] = str(rec.seq).upper()
+
+		pairwise_differences = defaultdict(lambda: defaultdict(int))
+		for i, s1 in enumerate(sample_seqs):
+			for j, s2 in enumerate(sample_seqs):
+				if i < j:
+					for p, s1b in enumerate(sample_seqs[s1]):
+						s2b = sample_seqs[s2][p]
+						if s1b != s2b:
+							pairwise_differences[s1][s2] += 1
+							pairwise_differences[s2][s1] += 1
+
+		pop_prop_with_cog = defaultdict(float)
+		pops_with_cog = 0
+		populations_order = []
+		within_population_differences = []
+		for pop in population_samples:
+			pop_prop_with_cog[pop] = len(population_samples[pop].intersection(samples))/len(population_samples[pop])
+			if pop_prop_with_cog[pop] > 0: pops_with_cog += 1
+			if len(population_samples[pop]) >= 2:
+				within_pop = []
+				for i, s1 in enumerate(population_samples[pop]):
+					for j, s2 in enumerate(population_samples[pop]):
+						if i < j:
+							within_pop.append(pairwise_differences[s1][s2])
+				within_population_differences.append(within_pop)
+				populations_order.append(pop)
+
+		anova_pval = "NA"
+		if len(within_population_differences) >= 2:
+			print(within_population_differences)
+			F, anova_pval = f_oneway(*within_population_differences)
+			print(f_oneway(*within_population_differences))
+		cog_population_info = [pops_with_cog, '|'.join([str(x[0]) + '=' + str(x[1]) for x in pop_prop_with_cog.items()]),
+								anova_pval]
+		cog_info += cog_population_info
 
 
-
-	return (
-		['; '.join(products), is_core, median_gene_length, len(seqs), len(samples), cs_stats['D'], core_codons, total_variable_codons,
-		 nonsynonymous_sites, synonymous_sites,
-		 dn_ds, cd.num_codons_eff, cd.num_pol_NS, cd.num_pol_S,
-		 effective_dn_ds, tot_phylogenetic_breadth, '; '.join(differential_domains), '; '.join(all_domains)])
+	final_output_handle.write('\t'.join([str(x) for x in cog_info]) + '\n')
 
 
 
@@ -1040,22 +1101,28 @@ def readInAssemblyListing(assembly_listing_file, logObject):
 		raise RuntimeError('Input file listing the location of assemblies for samples leads to incorrect path was provided. Exiting now ...')
 
 def runProkka(sample_assemblies, prokka_outdir, prokka_proteomes, prokka_genbanks, prokka_load_code, dry_run_flag,
-			  lineage, cores, logObject):
+			  lineage, cores, locus_tag_length, skip_annotation, logObject):
 	task_file = prokka_outdir + 'prokka.cmds'
 	if dry_run_flag:
 		logObject.info("Dry run on: will just be writing Prokka commands to following: %s" % task_file)
 		if os.path.isfile(task_file): os.system('rm -f %s' % task_file)
 	alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-	possible_locustags = list(itertools.product(alphabet, repeat=3))
+	possible_locustags = list(itertools.product(alphabet, repeat=locus_tag_length))
 	prokka_cmds = []
 	for i, sample in enumerate(sample_assemblies):
 		sample_assembly = sample_assemblies[sample]
 		sample_outdir = prokka_outdir + sample + '/'
-		prokka_cmd = [prokka_load_code, 'prokka', '--cpus', '1', '--outdir', sample_outdir, '--prefix', sample,
-					  '--genus', lineage, '--locustag', ''.join(list(possible_locustags[i])),
-					  sample_assembly, ';', 'mv', sample_outdir + sample + '.gbf', prokka_genbanks + sample + '.gbk',
-					  ';', 'mv',
-					  sample_outdir + sample + '.faa', prokka_proteomes]
+		prokka_cmd = None
+		if skip_annotation:
+			prokka_cmd = [prokka_load_code, 'prokka', '--norrna', '--notrna', '--fast', '--cpus', '1', '--outdir', sample_outdir, '--prefix', sample,
+						  '--genus', lineage, '--locustag', ''.join(list(possible_locustags[i])),
+						  sample_assembly, ';', 'mv', sample_outdir + sample + '.gbf', prokka_genbanks + sample + '.gbk',
+						  ';', 'mv', sample_outdir + sample + '.faa', prokka_proteomes]
+		else:
+			prokka_cmd = [prokka_load_code, 'prokka', '--cpus', '1', '--outdir', sample_outdir, '--prefix', sample,
+						  '--genus', lineage, '--locustag', ''.join(list(possible_locustags[i])),
+						  sample_assembly, ';', 'mv', sample_outdir + sample + '.gbf', prokka_genbanks + sample + '.gbk',
+						  ';', 'mv', sample_outdir + sample + '.faa', prokka_proteomes]
 		prokka_cmds.append(prokka_cmd + [logObject])
 		if dry_run_flag:
 			task_handle = open(task_file, 'a+')

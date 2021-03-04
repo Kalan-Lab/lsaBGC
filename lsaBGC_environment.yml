@@ -16,3 +16,5 @@ dependencies:
   - bioconda::ete3
   - conda-forge::r-base
   - conda-forge::r-pegas
+  - conda-forge::r-ggplot2
+  - conda-forge::r-cowplot
