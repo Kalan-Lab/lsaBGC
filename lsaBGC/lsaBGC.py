@@ -12,10 +12,12 @@ import itertools
 import statistics
 import random
 from scipy.stats import f_oneway
+import pysam
 
 lsaBGC_main_directory = '/'.join(os.path.realpath(__file__).split('/')[:-2])
 RSCRIPT_FOR_PLOTTING = lsaBGC_main_directory + '/lsaBGC/plotCogConservation.R'
 RSCRIPT_FOR_TAJIMA = lsaBGC_main_directory + '/lsaBGC/calculateTajimasD.R'
+FLANK_SIZE = 500
 
 def multiProcess(input):
 	input_cmd = input[:-1]
@@ -256,6 +258,7 @@ def constructCodonAlignments(bgc_sample, cog_genes, comp_gene_info, outdir, core
 	try:
 		inputs = []
 		for cog in cog_genes:
+			if len(cog_genes[cog]) < 2: continue
 			sample_counts = defaultdict(int)
 			gene_sequences = {}
 			for gene in cog_genes[cog]:
@@ -345,9 +348,13 @@ def runHMMScanAndAssignBGCsToGCF(comprehensive_bgcs, concat_hmm_profiles, scc_ho
 	search_res_dir = os.path.abspath(outdir + 'HMMScan_Results') + '/'
 	if not os.path.isdir(search_res_dir): os.system('mkdir %s' % search_res_dir)
 
+	tot_bgc_proteins = defaultdict(int)
 	hmmscan_cmds = []
 	for i, cb_tuple in enumerate(comprehensive_bgcs):
 		sample, bgc_genbank, bgc_proteome = cb_tuple
+		with open(bgc_proteome) as obp:
+			for rec in SeqIO.parse(obp, 'fasta'):
+				tot_bgc_proteins[bgc_genbank] += 1
 		result_file = search_res_dir + str(i) + '.txt'
 		hmmscan_cmd = ['hmmscan', '--max', '--cpu', '1', '--tblout', result_file, concat_hmm_profiles, bgc_proteome, logObject]
 		hmmscan_cmds.append(hmmscan_cmd)
@@ -356,6 +363,7 @@ def runHMMScanAndAssignBGCsToGCF(comprehensive_bgcs, concat_hmm_profiles, scc_ho
 	p.map(multiProcess, hmmscan_cmds)
 	p.close()
 
+	protein_hits = defaultdict(list)
 	sample_cogs = defaultdict(set)
 	bgc_cogs = defaultdict(set)
 	sample_bgcs = defaultdict(set)
@@ -374,9 +382,14 @@ def runHMMScanAndAssignBGCsToGCF(comprehensive_bgcs, concat_hmm_profiles, scc_ho
 				samp, bgc, protein_id = ls[2].split('|')
 				eval = float(ls[4])
 				if eval <= 1e-5:
-					sample_cogs[sample].add(cog)
-					bgc_cogs[bgc_genbank].add(cog)
-					sample_cog_proteins[sample][cog].add(protein_id)
+					protein_hits[protein_id].append([cog, eval, sample, bgc_genbank])
+
+	for p in protein_hits:
+		for i, hits in enumerate(sorted(protein_hits[p], key=itemgetter(1))):
+			if i == 0:
+				sample_cogs[hits[2]].add(hits[0])
+				bgc_cogs[hits[3]].add(hits[0])
+				sample_cog_proteins[hits[2]][hits[0]].add(p)
 
 	expanded_orthofinder_matrix_file = outdir + 'Orthogroups.expanded.csv'
 	expanded_gcf_list_file = outdir + 'GCF_Expanded.txt'
@@ -384,13 +397,31 @@ def runHMMScanAndAssignBGCsToGCF(comprehensive_bgcs, concat_hmm_profiles, scc_ho
 	expanded_orthofinder_matrix_handle = open(expanded_orthofinder_matrix_file, 'w')
 	expanded_gcf_list_handle = open(expanded_gcf_list_file, 'w')
 
-	all_samples = set([])
+	valid_bgcs = set([])
 	for sample in sample_cogs:
 		if len(scc_homologs.difference(sample_cogs[sample])) == 0:
 			for bgc_gbk in sample_bgcs[sample]:
-				if len(bgc_cogs[bgc_gbk]) >= 3 and len(scc_homologs.intersection(bgc_cogs[bgc_gbk])) >= 1:
-					expanded_gcf_list_handle.write('\t'.join([sample, bgc_gbk]) + '\n')
-					all_samples.add(sample)
+				if float(len(bgc_cogs[bgc_gbk]))/tot_bgc_proteins[bgc_gbk] >= 0.5 and len(bgc_cogs[bgc_gbk]) >= 3 and len(scc_homologs.intersection(bgc_cogs[bgc_gbk])) >= 1:
+					valid_bgcs.add(bgc_gbk)
+
+	bgc_cogs = defaultdict(set)
+	sample_cog_proteins = defaultdict(lambda: defaultdict(set))
+	for p in protein_hits:
+		for i, hits in enumerate(sorted(protein_hits[p], key=itemgetter(1))):
+			if i != 0 or not hits[3] in valid_bgcs: continue
+			bgc_cogs[hits[3]].add(hits[0])
+			sample_cog_proteins[hits[2]][hits[0]].add(p)
+
+	all_samples = set([])
+	for sample in sample_cogs:
+		scc_check = True
+		for cog in scc_homologs:
+			if len(sample_cog_proteins[sample][cog]) != 1: scc_check = False
+		if not scc_check: continue
+		for bgc_gbk in sample_bgcs[sample]:
+			if float(len(bgc_cogs[bgc_gbk])) / tot_bgc_proteins[bgc_gbk] >= 0.5 and len(bgc_cogs[bgc_gbk]) >= 3 and len(scc_homologs.intersection(bgc_cogs[bgc_gbk])) >= 1:
+				expanded_gcf_list_handle.write('\t'.join([sample, bgc_gbk]) + '\n')
+				all_samples.add(sample)
 
 	original_samples = []
 	all_cogs = set([])
@@ -410,7 +441,7 @@ def runHMMScanAndAssignBGCsToGCF(comprehensive_bgcs, concat_hmm_profiles, scc_ho
 	header = [''] + [s for s in sorted(all_samples)]
 	expanded_orthofinder_matrix_handle.write('\t'.join(header) + '\n')
 	for c in sorted(all_cogs):
-		printlist = [cog]
+		printlist = [c]
 		for s in sorted(all_samples):
 			printlist.append(', '.join(sample_cog_proteins[s][c]))
 		expanded_orthofinder_matrix_handle.write('\t'.join(printlist) + '\n')
@@ -721,6 +752,7 @@ def parseCodonAlignmentStats(cog, codon_alignment_fasta, comp_gene_info, cog_gen
 	for cod_index in range(0, num_codons):
 		first_bp = (cod_index+1)*3
 		aa_count = defaultdict(int)
+		aa_codons = defaultdict(set)
 		cod_count = defaultdict(int)
 		core = True
 		for bgc in bgc_codons:
@@ -731,20 +763,29 @@ def parseCodonAlignmentStats(cog, codon_alignment_fasta, comp_gene_info, cog_gen
 				cod_obj = Seq(cod)
 				aa_count[str(cod_obj.translate())] += 1
 				cod_count[cod] += 1
+				aa_codons[str(cod_obj.translate())].add(cod)
+
+		residues = len([r for r in aa_count if aa_count[r] >= 2])
+		residues_with_multicodons = 0
+		for r in aa_codons:
+			supported_cods = 0
+			for cod in aa_codons[r]:
+				if cod_count[cod] >= 2: supported_cods += 1
+			if supported_cods >= 2: residues_with_multicodons += 1
+
 		maj_allele_count = max(cod_count.values())
 		tot_valid_codons = sum(cod_count.values())
-		residues = len(aa_count.keys())
-		maj_allele_freq = float(maj_allele_count)/tot_valid_codons
+		maj_allele_freq = float(maj_allele_count) / tot_valid_codons
 
 		nonsyn_flag = False; syn_flag = False
 		if maj_allele_freq <= 0.9:
 			total_variable_codons += 1
 			if len(cod_count.keys()) > 1:
-				if residues > 1: nonsynonymous_sites += 1; nonsyn_flag = True
-				else: synonymous_sites += 1; syn_flag = True
+				if residues >= 2: nonsynonymous_sites += 1; nonsyn_flag = True
+				if residues_with_multicodons >= 1: synonymous_sites += 1; syn_flag = True
 
 		if core and not nonsyn_flag and not syn_flag: total_core_codons += 1
-		if nonsyn_flag or syn_flag:
+		if (nonsyn_flag and not syn_flag) or (not nonsyn_flag and syn_flag):
 			type = 'S'
 			if nonsyn_flag: type = 'NS'
 			popgen_plot_handle.write('\t'.join([str(x) for x in [first_bp, type]]) + '\n')
@@ -828,9 +869,7 @@ def parseCodonAlignmentStats(cog, codon_alignment_fasta, comp_gene_info, cog_gen
 
 		anova_pval = "NA"
 		if len(within_population_differences) >= 2:
-			print(within_population_differences)
 			F, anova_pval = f_oneway(*within_population_differences)
-			print(f_oneway(*within_population_differences))
 		cog_population_info = [pops_with_cog, '|'.join([str(x[0]) + '=' + str(x[1]) for x in pop_prop_with_cog.items()]),
 								anova_pval]
 		cog_info += cog_population_info
@@ -871,7 +910,10 @@ def parseGenbanks(gbk, bgc_name):
 									'description': description})
 				elif feature.type == 'protocluster':
 					detection_rule = feature.qualifiers.get('detection_rule')[0]
-					product = feature.qualifiers.get('product')[0]
+					try:
+						product = feature.qualifiers.get('product')[0]
+					except:
+						product = "NA"
 					contig_edge = feature.qualifiers.get('contig_edge')[0]
 					bgc_info.append({'detection_rule': detection_rule, 'product': product, 'contig_edge': contig_edge,
 									 'full_sequence': str(rec.seq)})
@@ -883,6 +925,7 @@ def parseGenbanks(gbk, bgc_name):
 	if len(bgc_info) == 0:
 		bgc_info = [{'detection_rule': 'NA', 'product': 'NA', 'contig_edge': 'NA', 'full_sequence': full_sequence}]
 
+	print(gbk)
 	genes = {}
 	with open(gbk) as ogbk:
 		for rec in SeqIO.parse(ogbk, 'genbank'):
@@ -893,24 +936,255 @@ def parseGenbanks(gbk, bgc_name):
 					start = min([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')])
 					end = max([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')])
 					direction = str(feature.location).split('(')[1].split(')')[0]
-					product = feature.qualifiers.get('product')[0]
+					try:
+						product = feature.qualifiers.get('product')[0]
+					except:
+						product = "hypothetical protein"
 					grange = set(range(start, end + 1))
 					gene_domains = []
 					for d in domains:
 						drange = set(range(d['start'], d['end'] + 1))
 						if len(drange.intersection(grange)) > 0:
 							gene_domains.append(d)
-					nucl_seq = full_sequence[start:end]
+
+					flank_start = start - FLANK_SIZE
+					flank_end = end + FLANK_SIZE
+					if flank_start < 0: flank_start = 0
+					if flank_end >= len(full_sequence): flank_end = None
+					if end >= len(full_sequence): end = None
+					if end:
+						nucl_seq = full_sequence[start:end]
+					else:
+						nucl_seq = full_sequence[start:]
+					if flank_end:
+						nucl_seq_with_flanks = full_sequence[flank_start:flank_end]
+					else:
+						nucl_seq_with_flanks = full_sequence[flank_start:]
 					core_overlap = False
 					if len(grange.intersection(core_positions)) > 0: core_overlap = True
 					if direction == '-':
 						nucl_seq = str(Seq(full_sequence[start:end]).reverse_complement())
 					genes[lt] = {'bgc_name': bgc_name, 'start': start, 'end': end, 'direction': direction,
 								 'product': product, 'prot_seq': prot_seq, 'nucl_seq': nucl_seq,
-								 'gene_domains': gene_domains, 'core_overlap': core_overlap}
+								 'nucl_seq_with_flanks': nucl_seq_with_flanks, 'gene_domains': gene_domains,
+								 'core_overlap': core_overlap}
 	return ([genes, bgc_info])
 
-def calculateBGCPairwiseRelations(bgc_genes, gene_to_cog, avg_nz_cog_counts, outdir, logObject):
+def extractGeneWithFlanksAndCluster(bgc_genes, comp_gene_info, gene_to_cog, outdir, logObject):
+
+	genes_with_flanks_fasta = outdir + 'GCF_Genes.fasta'
+	gwff_handle = open(genes_with_flanks_fasta, 'w')
+	for bgc in bgc_genes:
+		for gene in bgc_genes[bgc]:
+			gwff_handle.write('>' + gene + '|' + bgc + '|' + gene_to_cog[gene] + '\n' + comp_gene_info[gene]['nucl_seq_with_flanks'] + '\n')
+	gwff_handle.close()
+
+	cd_hit_nr_fasta_file = outdir + 'GCF_Genes_NR.fasta'
+	cd_hit_clusters_fasta_file = outdir + 'GCF_Genes_Clusters.fasta'
+
+	os.system("cd-hit-est -i %s -o %s -G 1 -g 1 -d 0 -n 10 -M 2000 -c 0.98 -aL 0.95 -aS 0.95 -T 1" % (genes_with_flanks_fasta, cd_hit_nr_fasta_file))
+	os.system("cd-hit-est -i %s -o %s -G 1 -g 1 -d 0 -n 10 -M 2000 -c 1.0 -aL 0.0 -aS 1.0 -T 1" % (genes_with_flanks_fasta, cd_hit_clusters_fasta_file))
+
+	cd_hit_nr = ['cd-hit-est', '-i', genes_with_flanks_fasta, '-o', cd_hit_nr_fasta_file, '-G', '1', '-g',
+					  '1', '-d', '0', '-n', '10', '-M', '2000', '-c', '1.0', '-aL', '0.0', '-aS', '1.0', '-T', '1']
+	logObject.info('Running the following command: %s' % ' '.join(cd_hit_nr))
+	try:
+		subprocess.call(' '.join(cd_hit_nr), shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+						executable='/bin/bash')
+		logObject.info('Successfully ran: %s' % ' '.join(cd_hit_nr))
+	except:
+		logObject.error('Had an issue running: %s' % ' '.join(cd_hit_nr))
+		raise RuntimeError('Had an issue running: %s' % ' '.join(cd_hit_nr))
+	logObject.info('Ran CD-HIT for collapsing redundancy.')
+
+	cd_hit_cluster = ['cd-hit-est', '-i', genes_with_flanks_fasta, '-o', cd_hit_clusters_fasta_file, '-G', '1', '-g',
+					  '1', '-d', '0', '-n', '10', '-M', '2000', '-c', '0.98', '-aL', '0.95', '-aS', '0.95', '-T', '1']
+	logObject.info('Running the following command: %s' % ' '.join(cd_hit_cluster))
+	try:
+		subprocess.call(' '.join(cd_hit_cluster), shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+						executable='/bin/bash')
+		logObject.info('Successfully ran: %s' % ' '.join(cd_hit_cluster))
+	except:
+		logObject.error('Had an issue running: %s' % ' '.join(cd_hit_cluster))
+		raise RuntimeError('Had an issue running: %s' % ' '.join(cd_hit_cluster))
+	logObject.info('Ran CD-HIT for clustering genes, with their flanks, into haplotype groups.')
+
+	bowtie2_build = ['bowtie2-build', cd_hit_nr_fasta_file, cd_hit_nr_fasta_file.split('.fasta')[0]]
+	logObject.info('Running the following command: %s' % ' '.join(bowtie2_build))
+	try:
+		subprocess.call(' '.join(cd_hit_cluster), shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+						executable='/bin/bash')
+		logObject.info('Successfully ran: %s' % ' '.join(cd_hit_cluster))
+	except:
+		logObject.error('Had an issue running: %s' % ' '.join(cd_hit_cluster))
+		raise RuntimeError('Had an issue running: %s' % ' '.join(bowtie2_build))
+	logObject.info('Build Bowtie2 database/index for %s' % cd_hit_nr_fasta_file)
+
+	cd_hit_clusters_cltr_file = '.clstr'
+	assert(os.path.isfile(cd_hit_clusters_cltr_file))
+
+	instance_to_haplotype = {}
+	cluster = []
+	with open(cd_hit_clusters_cltr_file) as off:
+		for line in off:
+			line = line.strip()
+			ls = line.split()
+			if line.startswith('>'):
+				if len(cluster) > 0:
+					for g in cluster:
+						instance_to_haplotype[g] = rep
+				cluster = []
+				rep = None
+			else:
+				gene_id = ls[2][1:-3]
+				cluster.append(gene_id)
+				if line.endswith('*'): rep = gene_id
+	if len(cluster) > 0:
+		if len(cluster) > 0:
+			for g in cluster:
+				instance_to_haplotype[g] = rep
+
+	return cd_hit_nr_fasta_file, instance_to_haplotype
+
+def createSummaryMatricesForMetaNovelty():
+	samples = set([])
+	cog_allele_representatives = set([])
+	sample_allele_reads = defaultdict(lambda: defaultdict(int))
+	sample_allele_unique_reads = defaultdict(lambda: defaultdict(int))
+	sample_allele_novelty_reads = defaultdict(lambda: defaultdict(int))
+	sample_allele_unique_novelty_reads = defaultdict(lambda: defaultdict(int))
+	with open(sequence_specs_file) as ossf:
+		for line in ossf:
+			sample = line.strip().split('\t')[0]
+			result_file = cog_read_dir + sample + '.txt'
+			samples.add(sample)
+			if not os.path.isfile(result_file): continue
+			with open(result_file) as orf:
+				for i, cog_al in enumerate(orf):
+					if i == 0: continue
+					cog_al = cog_al.strip()
+					cog, allele_representative, reads, reads_with_novelty, reads_uniquely_mapping, reads_uniquely_mapping_with_novelty = cog_al.split(
+						'\t')
+					car = cog + '|' + allele_representative
+					cog_allele_representatives.add(car)
+					sample_allele_reads[sample][car] = int(reads)
+					sample_allele_unique_reads[sample][car] = int(reads_uniquely_mapping)
+					sample_allele_novelty_reads[sample][car] = int(reads_with_novelty)
+					sample_allele_unique_novelty_reads[sample][car] = int(reads_uniquely_mapping_with_novelty)
+
+	final_matrix_reads_file = outdir + 'Sample_by_OG_Allele_Read_Counts.matrix.txt'
+	final_matrix_novelty_reads_file = outdir + 'Sample_by_OG_Allele_Novelty_Read_Counts.matrix.txt'
+	final_matrix_unique_reads_file = outdir + 'Final_OG_Allele_Unique_Read_Counts.matrix.txt'
+	final_matrix_unique_and_novelty_reads_file = outdir + 'Final_OG_Allele_Unique_and_Novelty_Read_Counts.matrix.txt'
+
+	final_matrix_reads_handle = open(final_matrix_reads_file, 'w')
+	final_matrix_novelty_reads_handle = open(final_matrix_novelty_reads_file, 'w')
+	final_matrix_unique_reads_handle = open(final_matrix_unique_reads_file, 'w')
+	final_matrix_unique_and_novelty_reads_handle = open(final_matrix_unique_and_novelty_reads_file, 'w')
+
+	final_matrix_reads_handle.write('\t'.join(['Sample/OG_Allele'] + list(sorted(cog_allele_representatives))) + '\n')
+	final_matrix_novelty_reads_handle.write(
+		'\t'.join(['Sample/OG_Allele'] + list(sorted(cog_allele_representatives))) + '\n')
+	final_matrix_unique_reads_handle.write(
+		'\t'.join(['Sample/OG_Allele'] + list(sorted(cog_allele_representatives))) + '\n')
+	final_matrix_unique_and_novelty_reads_handle.write(
+		'\t'.join(['Sample/OG_Allele'] + list(sorted(cog_allele_representatives))) + '\n')
+
+	for s in samples:
+		printlist_all = [s]
+		printlist_uni = [s]
+		printlist_nov = [s]
+		printlist_uni_nov = [s]
+		for c in cog_allele_representatives:
+			printlist_all.append(str(sample_allele_reads[s][c]))
+			printlist_uni.append(str(sample_allele_unique_reads[s][c]))
+			printlist_nov.append(str(sample_allele_novelty_reads[s][c]))
+			printlist_uni_nov.append(str(sample_allele_unique_novelty_reads[s][c]))
+		final_matrix_reads_handle.write('\t'.join(printlist_all) + '\n')
+		final_matrix_novelty_reads_handle.write('\t'.join(printlist_nov) + '\n')
+		final_matrix_unique_reads_handle.write('\t'.join(printlist_uni) + '\n')
+		final_matrix_unique_and_novelty_reads_handle.write('\t'.join(printlist_uni_nov) + '\n')
+
+	final_matrix_reads_handle.close()
+	final_matrix_novelty_reads_handle.close()
+	final_matrix_unique_reads_handle.close()
+
+def runBowtie2Alignments():
+
+def run_cmd(cmd, logObject):
+	logObject.info('Running the following command: %s' % ' '.join(cmd))
+	try:
+		subprocess.call(' '.join(cmd), shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+						executable='/bin/bash')
+		logObject.info('Successfully ran: %s' % ' '.join(cmd))
+	except:
+		logObject.error('Had an issue running: %s' % ' '.join(cmd))
+		raise RuntimeError('Had an issue running: %s' % ' '.join(cmd))
+
+def bowtie2_alignment(input_args):
+	sample, frw_read, rev_read, bgc_cdhit, bowtie2_dir, cores, logObject = input_args
+
+	sam_file = bowtie2_dir + sample + '.sam'
+	bam_file = bowtie2_dir + sample + '.bam'
+	bam_file_sorted = bowtie2_dir + sample + '.sorted.bam'
+	bam_file_filtered = bowtie2_dir + sample + '.filtered.bam'
+	bam_file_filtered_sorted = bowtie2_dir + sample + '.filtered.sorted.bam'
+
+	bowtie2_cmd = ['bowtie2', '--very-sensitive', '--no-mixed', '--no-discordant', '--no-unal', '-a', '-x',
+				   bgc_cdhit, '-1', frw_read, '-2', rev_read, '-S', sam_file, '-p', cores]
+	samtools_view_cmd = ['samtools', 'view', '-h', '-Sb', sam_file, '>', bam_file]
+	samtools_sort_cmd = ['samtools', 'sort', '-@', cores, bam_file, '-o', bam_file_sorted]
+	samtools_index_cmd = ['samtools', 'index', bam_file_sorted]
+	samtools_sort_cmd_2 = ['samtools', 'sort', '-@', cores, bam_file_filtered, '-o', bam_file_filtered_sorted]
+	samtools_index_cmd_2 = ['samtools', 'index', bam_file_filtered_sorted]
+
+	try:
+		run_cmd(bowtie2_cmd)
+		run_cmd(samtools_view_cmd)
+		run_cmd(samtools_index_cmd)
+
+		bam_handle = pysam.AlignmentFile(bam_file_sorted, 'rb')
+		filt_bam_handle = pysam.AlignmentFile(bam_file_filtered, "wb", template=bam_handle)
+
+		for read in bam_handle.fetch():
+			if not read.is_proper_pair or read.is_supplementary: continue
+			filt_bam_handle.write(read)
+
+		filt_bam_handle.close()
+		bam_handle.close()
+
+		run_cmd(samtools_sort_cmd_2)
+		run_cmd(samtools_index_cmd_2)
+
+		os.system("rm -f %s %s %s %s %s" % (sam_file, bam_file, bam_file_sorted, bam_file_filtered, bam_file_sorted + '.bai'))
+	except:
+		os.system('rm -f %s/%s*' % (bowtie2_dir, sample))
+		raise RuntimeError()
+
+def read_pair_generator(bam, region_string=None, start=None, stop=None):
+    """
+    Function taken from: https://www.biostars.org/p/306041/
+    Generate read pairs in a BAM file or within a region string.
+    Reads are added to read_dict until a pair is found.
+    """
+    read_dict = defaultdict(lambda: [None, None])
+    for read in bam.fetch(region_string, start=start, stop=stop):
+        if not read.is_proper_pair or read.is_supplementary:
+            continue
+        qname = read.query_name
+        if qname not in read_dict:
+            if read.is_read1:
+                read_dict[qname][0] = read
+            else:
+                read_dict[qname][1] = read
+        else:
+            if read.is_read1:
+                yield read, read_dict[qname][1]
+            else:
+                yield read_dict[qname][0], read
+            del read_dict[qname]
+
+def calculateBGCPairwiseRelations(bgc_genes, gene_to_cog, prop_multi_copy, outdir, logObject):
 	pair_relations_txt_file = outdir + 'bgc_pair_relationships.txt'
 	pair_relations_mci_file = outdir + 'bgc_pair_relationships.mci'
 	pair_relations_tab_file = outdir + 'bgc_pair_relationships.tab'
@@ -924,15 +1198,18 @@ def calculateBGCPairwiseRelations(bgc_genes, gene_to_cog, avg_nz_cog_counts, out
 		prf_handle = open(pair_relations_txt_file, 'w')
 		pairwise_relations = defaultdict(lambda: defaultdict(float))
 		for i, bgc1 in enumerate(bgc_cogs):
-			bgc1_cogs = set([x for x in bgc_cogs[bgc1] if avg_nz_cog_counts[x] < 2])
+			bgc1_cogs_sc = set([x for x in bgc_cogs[bgc1] if prop_multi_copy[x] <= 0.05])
+			bgc1_cogs = bgc_cogs[bgc1]
 			for j, bgc2 in enumerate(bgc_cogs):
 				if i < j:
-					bgc2_cogs = set([x for x in bgc_cogs[bgc2] if avg_nz_cog_counts[x] < 2])
-					overlap_metric = float(len(bgc1_cogs.intersection(bgc2_cogs)))/float(min([len(bgc1_cogs), len(bgc2_cogs)]))
+					bgc2_cogs_sc = set([x for x in bgc_cogs[bgc2] if prop_multi_copy[x] <= 0.05])
+					bgc2_cogs = bgc_cogs[bgc2]
+					if len(bgc1_cogs_sc.intersection(bgc2_cogs_sc)) < 3: continue
+					overlap_metric = float(len(bgc1_cogs.intersection(bgc2_cogs)))/float(len(bgc1_cogs.union(bgc2_cogs)))
 					overlap_metric_scaled = 100.00*overlap_metric
-					if overlap_metric_scaled > 0:
-						pairwise_relations[bgc1][bgc2] = overlap_metric_scaled
-						pairwise_relations[bgc2][bgc1] = overlap_metric_scaled
+					pairwise_relations[bgc1][bgc2] = overlap_metric_scaled
+					pairwise_relations[bgc2][bgc1] = overlap_metric_scaled
+					if overlap_metric_scaled >= 50.0:
 						prf_handle.write('%s\t%s\t%f\n' % (bgc1, bgc2, overlap_metric_scaled))
 		prf_handle.close()
 		logObject.info("Calculated pairwise relations and wrote to: %s" % pair_relations_txt_file)
@@ -954,6 +1231,137 @@ def calculateBGCPairwiseRelations(bgc_genes, gene_to_cog, avg_nz_cog_counts, out
 	logObject.info('Converted format of pair relationship file via mxcload.')
 
 	return bgc_cogs, pairwise_relations, pair_relations_txt_file, pair_relations_mci_file, pair_relations_tab_file
+
+def assessBestAllelicMatches(input_args):
+	try:
+		sample, bam_alignment, ref_fasta, cog_gene_to_rep, res_dir = input_args
+		cog_rep_genes = defaultdict(set)
+		for g, r in cog_gene_to_rep.items():
+			cog_rep_genes[r].add(g)
+
+		if not os.path.isfile(bam_alignment): return
+		result_file = res_dir + sample + '.txt'
+		outf = open(result_file, 'w')
+		outf.write('\t'.join(['# cog', 'allele_representative', 'reads', 'reads_with_novelty', 'reads_uniquely_mapping', 'reads_uniquely_mapping_with_novelty']) + '\n')
+
+		bam_handle = pysam.AlignmentFile(bam_alignment, 'rb')
+
+		topaligns_file = res_dir + sample + '_topaligns.bam'
+		topaligns_file_sorted = res_dir + sample + '_topaligns.sorted.bam'
+		topaligns_handle = pysam.AlignmentFile(topaligns_file, "wb", template=bam_handle)
+
+		unialigns_file = res_dir + sample + '_unialigns.bam'
+		unialigns_file_sorted = res_dir + sample + '_unialigns.sorted.bam'
+		unialigns_handle = pysam.AlignmentFile(unialigns_file, "wb", template=bam_handle)
+
+		for cog, cog_genes in bgc_cog_genes.items():
+			read_ascores_per_allele = defaultdict(list)
+			read_genes_mapped = defaultdict(set)
+			snv_counts = defaultdict(int)
+			cog_genes_covered = 0
+			rep_alignments = defaultdict(lambda: defaultdict(set))
+			with open(ref_fasta) as opff:
+				for rec in SeqIO.parse(opff, 'fasta'):
+					cog_genes_for_bgc = set([x for x in cog_genes if comp_gene_info[x]['bgc_name'] == rec.id])
+					for i, g in enumerate(cog_genes_for_bgc):
+						ginfo = comp_gene_info[g]
+						gstart = ginfo['start']
+						gend = ginfo['end']
+
+						gene_length = gend-gstart+1
+						gene_covered_1 = 0
+						gene_covered_3 = 0
+						for pileupcolumn in bam_handle.pileup(contig=rec.id, start=gstart, stop=gend+1, stepper="nofilter", truncate=True):
+							pos_depth = 0
+							for pileupread in pileupcolumn.pileups:
+								read = pileupread.alignment
+								if pileupread.is_del or pileupread.is_refskip or not read.is_proper_pair: continue
+								if read.query_qualities[pileupread.query_position] < 20: continue
+								pos_depth += 1
+							if pos_depth >= 1:
+								gene_covered_1 += 1
+								if pos_depth >= 3:
+									gene_covered_3 += 1
+
+						for read1_alignment, read2_alignment in read_pair_generator(bam_handle, region_string=rec.id, start=gstart, stop=gend):
+							read1_ascore = read1_alignment.tags[0][1]
+							read2_ascore = read2_alignment.tags[0][1]
+							combined_ascore = read1_ascore + read2_ascore
+
+							snvs = set([])
+							g_rep = cog_gene_to_rep[rec.id + '|' + g]
+							for b in read1_alignment.get_aligned_pairs(with_seq=True):
+								if b[-1] is not None and b[-1].islower():
+									ref_pos, alt_al = b[1:]
+									alt_al = alt_al.upper()
+									snvs.add(str(rec.id) + '_|_' + str(ref_pos) + '_|_' + alt_al)
+									snv_counts[str(rec.id) + '_|_' + str(ref_pos) + '_|_' + alt_al] += 1
+							for b in read2_alignment.get_aligned_pairs(with_seq=True):
+								if b[-1] is not None and b[-1].islower():
+									ref_pos, alt_al = b[1:]
+									alt_al = alt_al.upper()
+									snvs.add(str(rec.id) + '_|_' + str(ref_pos) + '_|_' + alt_al)
+									snv_counts[str(rec.id) + '_|_' + str(ref_pos) + '_|_' + alt_al] += 1
+							read_genes_mapped[read1_alignment.query_name].add(rec.id + '|' + g)
+							r1a = copy.deepcopy(read1_alignment)
+							r2a = copy.deepcopy(read2_alignment)
+							rep_alignments[rec.id + '|' + g][read1_alignment.query_name].add(tuple([r1a, r2a]))
+							read_ascores_per_allele[read1_alignment.query_name].append([g_rep.split('|')[1], g_rep.split('|')[0], combined_ascore, snvs, g])
+
+						gene_coverage_1 = gene_covered_1/float(gene_length)
+						gene_coverage_3 = gene_covered_3/float(gene_length)
+						if gene_coverage_1 < 0.90: continue
+						cog_genes_covered += 1
+
+			if cog_genes_covered/float(len(cog_genes)) < 0.80: continue
+
+			allele_reads = defaultdict(set)
+			allele_reads_with_mismatch = defaultdict(set)
+			multi_partitioned_reads = set([])
+			for read in read_ascores_per_allele:
+				top_score = -1000000
+				top_score_grep = None
+				for i, align in enumerate(sorted(read_ascores_per_allele[read], key=itemgetter(2), reverse=True)):
+					g_rep = align[1] + '|' + align[0]
+					if i == 0: top_score = align[2]; top_score_grep = g_rep
+					if align[2] == top_score:
+						g_map = read_genes_mapped[read].intersection(cog_rep_genes[g_rep])
+						g_map_prop = len(g_map)/float(len(cog_rep_genes[g_rep]))
+						if g_map_prop < 0.80: continue
+
+						allele_reads[g_rep].add(read)
+						for snv in align[3]:
+							if snv_counts[snv] >= 2:
+								allele_reads_with_mismatch[g_rep].add(read)
+
+					if g_rep != top_score_grep and align[2] == top_score and i > 0:
+						multi_partitioned_reads.add(read)
+
+			for al in allele_reads:
+				for r in allele_reads[al]:
+					for pa in rep_alignments[al][r]:
+						topaligns_handle.write(pa[0])
+						topaligns_handle.write(pa[1])
+						if not r in multi_partitioned_reads:
+							unialigns_handle.write(pa[0])
+							unialigns_handle.write(pa[1])
+				outf.write('\t'.join([str(x) for x in [cog, al, len(allele_reads[al]), len(allele_reads_with_mismatch[al]),
+													   len(allele_reads[al].difference(multi_partitioned_reads)),
+													   len(allele_reads_with_mismatch[al].difference(multi_partitioned_reads))]]) + '\n')
+
+
+		outf.close()
+		topaligns_handle.close()
+		unialigns_handle.close()
+		bam_handle.close()
+
+		os.system("samtools sort -@ %d %s -o %s" % (1, unialigns_file, unialigns_file_sorted))
+		os.system("samtools index %s" % unialigns_file_sorted)
+
+		os.system("samtools sort -@ %d %s -o %s" % (1, topaligns_file, topaligns_file_sorted))
+		os.system("samtools index %s" % topaligns_file_sorted)
+	except:
+		pass
 
 def runMCLAndReportGCFs(mip, outdir, sf_handle, pairwise_relations, pair_relations_mci_file, pair_relations_tab_file, bgc_cogs, bgc_product, bgc_sample, inflation_testing, cores, logObject):
 	relations_mcl_file = outdir + 'mcl.' + str(mip).replace('.', '_') + '.out'
@@ -1050,7 +1458,7 @@ def runMCLAndReportGCFs(mip, outdir, sf_handle, pairwise_relations, pair_relatio
 		logObject.info("Successfully wrote lists of BGCs for each GCF.")
 	return
 
-def parseOrthoFinderMatrix(orthofinder_matrix_file, all_gene_lts):
+def parseOrthoFinderMatrix(orthofinder_matrix_file, all_gene_lts, calc_prop_multicopy=False):
 	"""
 	:param orthofinder_matrix: OrthoFinderV2 matrix Orthogroups.csv file, should also include singleton orthologroups
 	:param all_gene_lts: Set of all the relevant gene locus tag identifiers found in BGC Genbanks
@@ -1062,7 +1470,7 @@ def parseOrthoFinderMatrix(orthofinder_matrix_file, all_gene_lts):
 	with open(orthofinder_matrix_file) as ofm:
 		for i, line in enumerate(ofm):
 			if i == 0: continue
-			line = line.strip()
+			line = line.strip('\n')
 			ls = line.split('\t')
 			cog = ls[0]
 			flag_in_bgc = False
@@ -1075,8 +1483,12 @@ def parseOrthoFinderMatrix(orthofinder_matrix_file, all_gene_lts):
 			if flag_in_bgc:
 				gene_counts = []
 				for sgs in ls[1:]:
-					gene_counts.append(len(sgs.split(', ')))
-				cog_median_gene_counts[cog] = statistics.median(gene_counts)
+					gene_counts.append(len([x for x in sgs.split(', ') if len(x.split('_')[0]) == 3]))
+				if calc_prop_multicopy:
+					cog_median_gene_counts[cog] = float(sum([1 for x in gene_counts if x > 1]))/sum([1 for x in gene_counts if x > 0])
+				else:
+					cog_median_gene_counts[cog] = statistics.median(gene_counts)
+
 	return ([gene_to_cog, cog_genes, cog_median_gene_counts])
 
 def readInAssemblyListing(assembly_listing_file, logObject):

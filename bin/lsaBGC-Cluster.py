@@ -90,7 +90,7 @@ def lsaBGC_Cluster():
 
 	# Step 2: Parse OrthoFinder Homolog vs Sample Matrix
 	logObject.info("Starting to parse OrthoFinder homolog vs sample information.")
-	gene_to_cog, cog_genes, cog_median_gene_counts = lsaBGC.parseOrthoFinderMatrix(orthofinder_matrix_file, all_genes)
+	gene_to_cog, cog_genes, prop_multi_copy = lsaBGC.parseOrthoFinderMatrix(orthofinder_matrix_file, all_genes, calc_prop_multicopy=True)
 	logObject.info("Successfully parsed homolog matrix.")
 
 	# Step 3: Calculate overlap in homolog profiles between pairs of BGCs and prepare for MCL
@@ -98,7 +98,7 @@ def lsaBGC_Cluster():
 	mcl_outdir = outdir + 'MCL_tmp_files/'
 	if not run_inflation_tests: mcl_outdir = outdir
 	elif not os.path.isdir(mcl_outdir): os.system('mkdir %s' % mcl_outdir)
-	bgc_cogs, pairwise_relations, pair_relations_txt_file, pair_relations_mci_file, pair_relations_tab_file = lsaBGC.calculateBGCPairwiseRelations(bgc_genes, gene_to_cog, cog_median_gene_counts, mcl_outdir, logObject)
+	bgc_cogs, pairwise_relations, pair_relations_txt_file, pair_relations_mci_file, pair_relations_tab_file = lsaBGC.calculateBGCPairwiseRelations(bgc_genes, gene_to_cog, prop_multi_copy, mcl_outdir, logObject)
 	logObject.info("Successfully calculated pairwise distances between BGCs based on homolog profiles.")
 
 	# Step 4: Run MCL clustering, iterating through multiple inflation parameters if necessary.
@@ -118,7 +118,7 @@ def lsaBGC_Cluster():
 
 	mcl_inflation_params = [mcl_inflation]
 	if run_inflation_tests:
-		mcl_inflation_params = [0.8, 1.4, 2, 4, 8]
+		mcl_inflation_params = [0.8, 1.4, 2, 2.5, 3, 3.5, 4, 5]
 	for mip in mcl_inflation_params:
 		lsaBGC.runMCLAndReportGCFs(mip, mcl_outdir, sf_handle, pairwise_relations, pair_relations_mci_file, pair_relations_tab_file, bgc_cogs, bgc_product, bgc_sample, run_inflation_tests, cores, logObject)
 	sf_handle.close()

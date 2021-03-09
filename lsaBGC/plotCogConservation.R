@@ -31,7 +31,7 @@ doms_gg <- ggplot(domains.dat, aes(color=domain, x= min_pos, xend=max_pos, y=reo
 
 pdf(args[4], height=10, width=21)
 
-if (nrow(popgen.dat) > 0 && nrow(doms_gg) > 0) {
+if (nrow(popgen.dat) > 0 && nrow(domains.dat) > 0) {
   plot_grid(site_coverage_gg,
             allele_count_gg,
             dnds_gg,
@@ -50,12 +50,20 @@ if (nrow(popgen.dat) > 0 && nrow(doms_gg) > 0) {
             align='v',
             axis='b',
             ncol=1)
-} else {
+} else if (nrow(domains.dat) > 0){
     plot_grid(site_coverage_gg,
             allele_count_gg,
             maj_allele_gg,
             doms_gg,
             rel_heights=c(0.85,0.85,4,2.5),
+            align='v',
+            axis='b',
+            ncol=1)
+} else{
+      plot_grid(site_coverage_gg,
+            allele_count_gg,
+            maj_allele_gg,
+            rel_heights=c(0.85,0.85,4),
             align='v',
             axis='b',
             ncol=1)

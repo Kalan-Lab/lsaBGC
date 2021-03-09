@@ -108,6 +108,7 @@ def lsaBGC_PopGene():
     if codon_alignments_dir == None:
         logObject.info("Codon alignments were not provided, so beginning process of creating protein alignments for each homolog group using mafft, then translating these to codon alignments using PAL2NAL.")
         codon_alignments_dir = lsaBGC.constructCodonAlignments(bgc_sample, cog_genes, comp_gene_info, outdir, cores, logObject)
+        codon_alignments_dir = outdir + 'Codon_Alignments/'
         logObject.info("All codon alignments for SCC homologs now successfully achieved!")
     else:
         logObject.info("Codon alignments were provided by user. Moving forward to phylogeny construction with FastTree2.")

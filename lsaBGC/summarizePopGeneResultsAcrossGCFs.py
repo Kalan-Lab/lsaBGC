@@ -2,7 +2,7 @@ import os
 import sys
 import argparse
 
-def bgreport(parent_dir, output):
+def popgen_summarize(parent_dir, output):
 	try:
 		assert(os.path.isdir(parent_dir))
 	except:
@@ -35,4 +35,4 @@ if __name__ == '__main__':
 	parser.add_argument('-o', '--output', help='Path to output aggregate file.', required=False, default='bgreport_summary.txt')
 	args = parser.parse_args()
 
-	bgreport(args.parent_dir, args.output)
+	popgen_summarize(args.parent_dir, args.output)
