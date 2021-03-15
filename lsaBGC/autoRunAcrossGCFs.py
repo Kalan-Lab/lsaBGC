@@ -4,9 +4,9 @@ import sys
 all_bgcs = '/home/salamzade/lsaBGC_Development/Micrococcus_luteus_Dataset/Mluteus_Process_All_V4/All_AntiSMASH_BGCs.txt'
 species_tree = '/home/salamzade/lsaBGC_Development/Micrococcus_luteus_Dataset/Processing/SpeciesTree_rooted.txt'
 og_orthogroups = '/home/salamzade/lsaBGC_Development/Micrococcus_luteus_Dataset/Processing/Orthogroups.csv'
-gcf_listing_dir = '/home/salamzade/lsaBGC_Development/Micrococcus_luteus_Dataset/GCF_Clustering_Results/GCF_Listings/'
+gcf_listing_dir = '/home/salamzade/lsaBGC_Development/Micrococcus_luteus_Dataset/BGC_Clustering_I14_Jaccard//GCF_Listings/'
 expansion_dir = '/home/salamzade/lsaBGC_Development/Micrococcus_luteus_Dataset/GCF_Clustering_Expanded/'
-see_dir = '/home/salamzade/lsaBGC_Development/Micrococcus_luteus_Dataset/Visualization_Results/'
+see_dir = '/home/salamzade/lsaBGC_Development/Micrococcus_luteus_Dataset/GCF_Visualization/'
 popgene_dir = '/home/salamzade/lsaBGC_Development/Micrococcus_luteus_Dataset/GCF_PopGen_Analyses/'
 
 lsabin_dir = "/home/salamzade/Git_Repos/lsaBGC/bin/"

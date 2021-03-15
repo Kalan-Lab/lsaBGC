@@ -10,6 +10,7 @@ import sys
 from time import sleep
 import argparse
 from lsaBGC import lsaBGC
+import argcomplete
 
 def create_parser():
     """ Parse arguments """
@@ -26,8 +27,10 @@ def create_parser():
     parser.add_argument('-i', '--paired_end_sequencing', help="Sequencing data specifications file. Tab delimited: 1st column contains metagenomic sample name, whereas 2nd and 3rd columns contain full paths to forward and reverse reads, respectively.", required=True)
     parser.add_argument('-m', '--orthofinder_matrix', help="OrthoFinder matrix.", required=True)
     parser.add_argument('-o', '--output_directory', help="Prefix for output files.", required=True)
-    parser.add_argument('-s', '--popgene_stats', help="Resulting output from lsaBGC-PopGene for focal GCF.")
+    parser.add_argument('-a', '--codon_alignments', help="File listing the codon alignments for each homolog group in the GCF. Can be found as part of PopGene output.", required=True)
     parser.add_argument('-c', '--cores', type=int, help="The number of cores to use.", required=False, default=1)
+
+    argcomplete.autocomplete(parser)
     args = parser.parse_args()
 
     return args
@@ -45,6 +48,7 @@ def lsaBGC_MetaNovelty():
     gcf_listing_file = os.path.abspath(myargs.gcf_listing)
     paired_end_sequencing_file = os.path.abspath(myargs.paired_end_sequencing)
     orthofinder_matrix_file = os.path.abspath(myargs.orthofinder_matrix)
+    codon_alignments_file = os.path.abspath(myargs.codon_alignments)
     outdir = os.path.abspath(myargs.output_directory) + '/'
 
     ### vet input files quickly
@@ -91,70 +95,40 @@ def lsaBGC_MetaNovelty():
 
     # Step 2: Parse OrthoFinder Homolog vs Sample Matrix and associate each homolog group with a color
     logObject.info("Starting to parse OrthoFinder homolog vs sample information.")
-    gene_to_cog, cog_genes, cog_median_gene_counts = lsaBGC.parseOrthoFinderMatrix(orthofinder_matrix_file, all_genes)
+    gene_to_cog, cog_genes, cog_prop_multicopy = lsaBGC.parseOrthoFinderMatrix(orthofinder_matrix_file, all_genes, calc_prop_multicopy=True)
     logObject.info("Successfully parsed homolog matrix.")
 
     # Step 3: Create database of genes with surrounding flanks and, independently, cluster them into allele groups / haplotypes.
     logObject.info("Extracting and clustering GCF genes with their flanks.")
-    bowtie2_reference, instances_to_haplotypes = lsaBGC.extractGeneWithFlanksAndCluster(gene_to_cog,)
+    #bowtie2_reference, instances_to_haplotypes = lsaBGC.extractGeneWithFlanksAndCluster(bgc_genes, comp_gene_info, gene_to_cog, outdir, logObject)
     logObject.info("Successfully extracted genes with flanks and clustered them into discrete haplotypes.")
 
     # Step 4: Align paired-end reads to database genes with surrounding flanks
-    bowtie2_dir = outdir + 'Bowtie2_Alignments/'
-    if not os.path.isfile(bowtie2_dir): os.system('mkdir %s' % bowtie2_dir)
-
-    bowtie2_cores = cores
-    bowtie2_pool_size = 1
-    if cores >= 4:
-        bowtie2_cores = 4
-        bowtie2_pool_size = int(cores / 4)
-
-    bowtie2_args = []
-    process_args = []
-    with open(sequence_specs_file) as ossf:
-        for line in ossf:
-            line = line.strip()
-            sample, frw_read, rev_read = line.split('\t')
-            bowtie2_args.append([sample, frw_read, rev_read, bgc_ref_concat_fasta.split('.fasta')[0], bowtie2_dir, bowtie2_cores])
-            process_args.append([sample, bowtie2_dir + sample + '.filtered.sorted.bam', bgc_ref_concat_fasta, cog_gene_to_rep, cog_read_dir])
-
+    bowtie2_outdir = outdir + 'Bowtie2_Alignments/'
+    if not os.path.isfile(bowtie2_outdir): os.system('mkdir %s' % bowtie2_outdir)
+    logObject.info("")
+    #lsaBGC.runBowtie2Alignments(bowtie2_reference, paired_end_sequencing_file, bowtie2_outdir, cores, logObject)
+    logObject.info("")
 
     # Step 5: Determine haplotypes found in samples and identify supported novelty SNVs
-    results_dir = outdir + 'Parsed_Results/'
+    results_outdir = outdir + 'Parsed_Results/'
+    if not os.path.isdir(results_outdir): os.system('mkdir %s' % results_outdir)
+    logObject.info("")
+    #lsaBGC.runSNVMining(cog_genes, comp_gene_info, bowtie2_reference, paired_end_sequencing_file, instances_to_haplotypes, bowtie2_outdir, results_outdir, cores, logObject)
+    logObject.info("")
 
     # Step 6: Construct summary matrices
+    logObject.info("")
+    #lsaBGC.createSummaryMatricesForMetaNovelty(paired_end_sequencing_file, results_outdir, outdir, logObject)
+    logObject.info("")
 
-def bgmeta(bgc_specs_file, sequence_specs_file, orthofinder_matrix, outdir, cores):
-    bgc_ref_concat_fasta = outdir + 'BGCs_Collapsed.fasta'
-    bowtie2_dir = outdir + 'Bowtie2_Alignments_BGCs/'
-    cog_read_dir = outdir + 'Read_Partitioning_Among_COG_Alleles/'
-    #os.system('mkdir %s %s' % (bowtie2_dir, cog_read_dir))
+    # Step 7: Create Novelty Report
+    logObject.info("")
+    lsaBGC.generateNoveltyReport(results_outdir, codon_alignments_file, cog_prop_multicopy, comp_gene_info, outdir, logObject)
+    logObject.info("")
 
-    bowtie2_cores = cores
-    bowtie2_pool_size = 1
-    if cores >= 4:
-        bowtie2_cores = 4
-        bowtie2_pool_size = int(cores / 4)
-
-    bowtie2_args = []
-    process_args = []
-    with open(sequence_specs_file) as ossf:
-        for line in ossf:
-            line = line.strip()
-            sample, frw_read, rev_read = line.split('\t')
-            bowtie2_args.append([sample, frw_read, rev_read, bgc_ref_concat_fasta.split('.fasta')[0], bowtie2_dir, bowtie2_cores])
-            process_args.append([sample, bowtie2_dir + sample + '.filtered.sorted.bam', bgc_ref_concat_fasta, cog_gene_to_rep, cog_read_dir])
-
-    #p = multiprocessing.Pool(bowtie2_pool_size)
-    #p.map(bowtie2Alignment, bowtie2_args)
-    #p.close()
-
-    p = multiprocessing.Pool(cores)
-    p.map(assessBestAllelicMatches, process_args)
-    p.close()
-
-
-
+    # Close logging object and exit
+    lsaBGC.closeLoggerObject(logObject)
     sys.exit(0)
 
 if __name__ == '__main__':
