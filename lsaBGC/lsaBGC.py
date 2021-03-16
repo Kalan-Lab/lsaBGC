@@ -1003,18 +1003,26 @@ def parseGenbanks(gbk, bgc_name):
 						nucl_seq_with_flanks = full_sequence[flank_start:]
 						flank_end = len(full_sequence)
 
-					gene_length = end - start
+					gene_length = end - start 
+                                    
 					relative_start = start - flank_start
 					relative_end = relative_start + gene_length
+                                        
+					if direction == '-':
+						nucl_seq = str(Seq(nucl_seq).reverse_complement())
+						nucl_seq_with_flanks = str(Seq(nucl_seq_with_flanks).reverse_complement())
+						relative_end = len(nucl_seq_with_flanks) - relative_start
+						relative_start = relative_end - gene_length
+
 					core_overlap = False
 					if len(grange.intersection(core_positions)) > 0: core_overlap = True
-					if direction == '-':
-						nucl_seq = str(Seq(full_sequence[start:end]).reverse_complement())
+					
 					genes[lt] = {'bgc_name': bgc_name, 'start': start, 'end': end, 'direction': direction,
 								 'product': product, 'prot_seq': prot_seq, 'nucl_seq': nucl_seq,
 								 'nucl_seq_with_flanks': nucl_seq_with_flanks, 'gene_domains': gene_domains,
 								 'core_overlap': core_overlap, 'relative_start': relative_start,
 								 'relative_end': relative_end}
+					#print(genes[lt])
 	return ([genes, bgc_info])
 
 
@@ -1193,10 +1201,10 @@ def generateNoveltyReport(results_outdir, codon_alignment_file, cog_prop_multico
 				if any(word in comp_gene_info[gene]['product'].lower() for word in mges): continue
 				#if any(word in ' '.join(comp_gene_info[gene]['gene_domains']).lower() for word in mges): continue
 				
-				offset = comp_gene_info[gene]['relative_start']
-				ref_pos = int(ref_pos) - offset + 1
+				#offset = comp_gene_info[gene]['relative_start']
+				ref_pos = int(ref_pos)# - offset + 2
 				print(ref_pos)
-				print(offset)
+				#print(offset)
 				print(line)
 				print(comp_gene_info[gene])
 				if not int(ref_pos) in gene_pos_to_msa_pos[cog][gene]: continue
@@ -1288,7 +1296,7 @@ def snv_miner(input_args):
 				if gene_coverage_1 < 0.95: continue
 				cog_genes_covered += 1
 
-				for read1_alignment, read2_alignment in read_pair_generator(bam_handle, region_string=rec.id, start=gstart, stop=gend, truncate=True):
+				for read1_alignment, read2_alignment in read_pair_generator(bam_handle, region_string=rec.id, start=gstart, stop=gend):
 					read_name = read1_alignment.query_name
 					read1_ascore = read1_alignment.tags[0][1]
 					read2_ascore = read2_alignment.tags[0][1]
@@ -1296,13 +1304,22 @@ def snv_miner(input_args):
 
 					snvs = set([])
 					g_rep = cog_gene_to_rep[rec.id]
+					
+					read1_ref_positions = set(read1_alignment.get_reference_positions())
+					read2_ref_positions = set(read2_alignment.get_reference_positions())
 
-					min_read1_ref_pos = min(read1_alignment.get_reference_positions())
+					read_intersect = len(read1_ref_positions.intersection(read2_ref_positions))
+					min_read_length = min(len(read1_ref_positions), len(read2_ref_positions))
+					read_overlap_prop = read_intersect/min_read_length
+					
+					if read_overlap_prop >= 0.25 or min_read_length < 75: continue
+				
+					min_read1_ref_pos = min(read1_ref_positions)
 					read1_referseq = read1_alignment.get_reference_sequence().upper()
 					read1_queryseq = read1_alignment.query_sequence #read1_alignment.get_forward_sequence().upper()
 					#read1_queryqual = read1_alignment.get_forward_qualities()
 
-					min_read2_ref_pos = min(read2_alignment.get_reference_positions())
+					min_read2_ref_pos = min(read2_ref_positions)
 					read2_referseq = read2_alignment.get_reference_sequence().upper()
 					read2_queryseq = read2_alignment.query_sequence # read2_alignment.get_forward_sequence().upper()
 					#read2_queryqual = read2_alignment.get_forward_qualities()
@@ -1320,8 +1337,8 @@ def snv_miner(input_args):
 						#print(b[2])
 						assert(ref_al == str(rec.seq).upper()[b[1]])
 						assert(alt_al != ref_al)
-						snvs.add(str(rec.id) + '_|_' + str(ref_pos-offset) + '_|_' + ref_al + '_|_' + alt_al)
-						snv_counts[str(rec.id) + '_|_' + str(ref_pos-offset) + '_|_' + ref_al + '_|_' + alt_al].add(read_name)
+						snvs.add(str(rec.id) + '_|_' + str(ref_pos-offset+1) + '_|_' + ref_al + '_|_' + alt_al)
+						snv_counts[str(rec.id) + '_|_' + str(ref_pos-offset+1) + '_|_' + ref_al + '_|_' + alt_al].add(read_name)
 
 					for b in read2_alignment.get_aligned_pairs(with_seq=True):
 						if b[0] == None or b[1] == None: continue
@@ -1336,8 +1353,8 @@ def snv_miner(input_args):
 						#print(b[2])
 						assert(ref_al == str(rec.seq).upper()[b[1]])
 						assert (alt_al != ref_al)
-						snvs.add(str(rec.id) + '_|_' + str(ref_pos-offset) + '_|_' + ref_al + '_|_' + alt_al)
-						snv_counts[str(rec.id) + '_|_' + str(ref_pos-offset) + '_|_' + ref_al + '_|_' + alt_al].add(read_name)
+						snvs.add(str(rec.id) + '_|_' + str(ref_pos-offset+1) + '_|_' + ref_al + '_|_' + alt_al)
+						snv_counts[str(rec.id) + '_|_' + str(ref_pos-offset+1) + '_|_' + ref_al + '_|_' + alt_al].add(read_name)
 
 					read_genes_mapped[read1_alignment.query_name].add(rec.id)
 					rep_alignments[rec.id][read1_alignment.query_name].add(tuple([read1_alignment, read2_alignment]))
@@ -1368,7 +1385,7 @@ def snv_miner(input_args):
 
 					allele_reads[g_rep].add(read)
 					for snv in align[3]:
-						if len(snv_counts[snv]) >= 2:
+						if len(snv_counts[snv]) >= 5:
 							allele_reads_with_mismatch[g_rep].add(read)
 
 				if g_rep != top_score_grep and align[2] == top_score and i > 0:

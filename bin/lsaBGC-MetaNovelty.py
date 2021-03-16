@@ -93,6 +93,22 @@ def lsaBGC_MetaNovelty():
     bgc_gbk, bgc_genes, comp_gene_info, all_genes, bgc_sample, sample_bgcs = lsaBGC.readInBGCGenbanksPerGCF(gcf_listing_file, logObject)
     logObject.info("Successfully parsed BGC Genbanks and associated with unique IDs.")
 
+    """
+    import json
+    with open('bgc_gbk.json', 'w') as fp: json.dump(bgc_gbk, fp)
+    with open('comp_gene_info.json', 'w') as fp: json.dump(comp_gene_info, fp)
+    with open('all_genes.json', 'w') as fp: json.dump(all_genes, fp)
+    with open('bgc_sample.json', 'w') as fp: json.dump(bgc_sample, fp)
+    with open('sample_bgcs.json', 'w') as fp: json.dump(sample_bgcs, fp)
+
+    with open('bgc_gbk.json', 'w') as fp: bgc_gbk = json.load(fp)
+    with open('comp_gene_info.json', 'w') as fp: comp_gene_info = json.load(fp)
+    with open('all_genes.json', 'w') as fp: all_genes = json.load(fp)
+    with open('bgc_sample.json', 'w') as fp: bgc_sample = json.load(fp)
+    with open('sample_bgcs.json', 'w') as fp: sample_bgcs = json.load(fp)
+    """
+
+    
     # Step 2: Parse OrthoFinder Homolog vs Sample Matrix and associate each homolog group with a color
     logObject.info("Starting to parse OrthoFinder homolog vs sample information.")
     gene_to_cog, cog_genes, cog_prop_multicopy = lsaBGC.parseOrthoFinderMatrix(orthofinder_matrix_file, all_genes, calc_prop_multicopy=True)
@@ -100,7 +116,7 @@ def lsaBGC_MetaNovelty():
 
     # Step 3: Create database of genes with surrounding flanks and, independently, cluster them into allele groups / haplotypes.
     logObject.info("Extracting and clustering GCF genes with their flanks.")
-    #bowtie2_reference, instances_to_haplotypes = lsaBGC.extractGeneWithFlanksAndCluster(bgc_genes, comp_gene_info, gene_to_cog, outdir, logObject)
+    bowtie2_reference, instances_to_haplotypes = lsaBGC.extractGeneWithFlanksAndCluster(bgc_genes, comp_gene_info, gene_to_cog, outdir, logObject)
     logObject.info("Successfully extracted genes with flanks and clustered them into discrete haplotypes.")
 
     # Step 4: Align paired-end reads to database genes with surrounding flanks
@@ -114,12 +130,12 @@ def lsaBGC_MetaNovelty():
     results_outdir = outdir + 'Parsed_Results/'
     if not os.path.isdir(results_outdir): os.system('mkdir %s' % results_outdir)
     logObject.info("")
-    #lsaBGC.runSNVMining(cog_genes, comp_gene_info, bowtie2_reference, paired_end_sequencing_file, instances_to_haplotypes, bowtie2_outdir, results_outdir, cores, logObject)
+    lsaBGC.runSNVMining(cog_genes, comp_gene_info, bowtie2_reference, paired_end_sequencing_file, instances_to_haplotypes, bowtie2_outdir, results_outdir, cores, logObject)
     logObject.info("")
 
     # Step 6: Construct summary matrices
     logObject.info("")
-    #lsaBGC.createSummaryMatricesForMetaNovelty(paired_end_sequencing_file, results_outdir, outdir, logObject)
+    lsaBGC.createSummaryMatricesForMetaNovelty(paired_end_sequencing_file, results_outdir, outdir, logObject)
     logObject.info("")
 
     # Step 7: Create Novelty Report
