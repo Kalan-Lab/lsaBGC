@@ -31,6 +31,111 @@ def multiProcess(input):
 	except:
 		logObject.warning('Had an issue running: %s' % ' '.join(input_cmd))
 
+def convertGCFGenbanksIntoFastas(gcf_specs_file, outdir, logObject):
+	gcf_fasta_listing_file = outdir + 'GCF_FASTA_Listings.txt'
+	outf = open(gcf_fasta_listing_file, 'w')
+ 	fasta_dir = outdir + 'Sample_GCF_FASTAs/'
+	if os.path.isdir(fasta_dir): os.system('mkdir %s' % fasta_dir)
+	sample_index = defaultdict(int)
+
+	all_samples = set([])
+	with open(gcf_specs_file) as obsf:
+		for i, line in enumerate(obsf):
+			line = line.strip()
+			try:
+				assert (len(line.split('\t')) == 2)
+			except:
+				logObject.error("More than two columns exist at line %d in BGC specification/listing file. Exiting now ..." % (i + 1))
+				raise RuntimeError("More than two columns exist at line %d in BGC specification/listing file. Exiting now ..." % (i + 1))
+			sample, gbk = line.split('\t')
+			try:
+				assert (is_genbank(gbk))
+				bgc_id = sample
+				if sample_index[sample] > 0:
+					bgc_id = sample + '_' + str(sample_index[sample] + 1)
+				sample_index[sample] += 1
+
+				sample_fasta = fasta_dir + sample + '.fasta'
+				sample_handle = open(sample_fasta, 'a+')
+				with open(gbk) as ogbk:
+					for rec in SeqIO.parse(ogbk, 'genbank'):
+						sample_handle.write('>' + bgc_id + '\n' + str(rec.seq))
+				sample_handle.close()
+				all_samples.add(sample)
+				logObject.info("Added Genbank %s into sample %s's GCF relevant FASTA." % (gbk, sample))
+			except:
+				logObject.warning("Unable to validate %s as Genbank. Skipping its incorporation into analysis.")
+				raise RuntimeWarning("Unable to validate %s as Genbank. Skipping ...")
+
+	for s in all_samples:
+		outf.write(s + '\t' + fasta_dir + s + '.fasta\n')
+	outf.close()
+	return(gcf_fasta_listing_file)
+
+def calculateMashPairwiseDifferences(fasta_listing_file, outdir, name, sketch_size, cores, logObject):
+	mash_db = outdir + name
+	fastas = []
+	fasta_to_name = {}
+	try:
+		with open(fasta_listing_file) as oflf:
+			for line in oflf:
+				line = line.strip()
+				ls = line.split('\t')
+				fastas.append(ls[1])
+				fasta_to_name[ls[1]] = ls[0]
+	except:
+		error_message = "Had issues reading the FASTA listing file %s" % fasta_listing_file
+		logObject.error(error_message)
+		raise RuntimeError(error_message)
+
+	# create mash database (using mash sketch)
+	mash_sketch_cmd = ['mash', 'sketch', '-p', str(cores), '-s', str(sketch_size), '-o', mash_db] + fastas
+	logObject.info('Running mash sketch with the following command: %s' % ' '.join(mash_sketch_cmd))
+	try:
+		subprocess.call(' '.join(mash_sketch_cmd), shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+						executable='/bin/bash')
+		logObject.info('Successfully ran: %s' % ' '.join(mash_sketch_cmd))
+	except:
+		error_message = 'Had an issue running: %s' % ' '.join(mash_sketch_cmd)
+		logObject.error(error_message)
+		raise RuntimeError(error_message)
+	mash_db = mash_db + '.msh'
+
+	try:
+		assert(os.path.isfile(mash_db))
+	except:
+		error_message = "Had issue validating that MASH sketching worked properly, couldn't find: %s" % mash_db
+		logObject.error(error_message)
+		raise RuntimeError(error_message)
+
+	# run mash distance estimation
+	mash_dist_cmd = ['mash', 'dist', '-s', str(sketch_size), '-p', str(cores), mash_db, mash_db, '>', outdir + name + '.out']
+	logObject.info('Running mash dist with the following command: %s' % ' '.join(mash_dist_cmd))
+	try:
+		subprocess.call(' '.join(mash_dist_cmd), shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+						executable='/bin/bash')
+		logObject.info('Successfully ran: %s' % ' '.join(mash_dist_cmd))
+	except:
+		error_message = 'Had an issue running: %s' % ' '.join(mash_dist_cmd)
+		logObject.error(error_message)
+		raise RuntimeError(error_message)
+
+	pairwise_distances = defaultdict(lambda: defaultdict(float))
+	try:
+		with open(outdir + name+ '.out') as of:
+			for line in of:
+				line = line.strip()
+				ls = line.split('\t')
+				f1, f2, dist = ls[:3]
+				dist = float(dist)
+				n1 = fasta_to_name[f1]
+				n2 = fasta_to_name[f2]
+				pairwise_distances[n1][n2] = dist
+	except:
+		error_message = 'Had issues reading the output of MASH dist anlaysis in: %s' % outdir + name + '.out'
+		logObject.error(error_message)
+		raise RuntimeError(error_message)
+	return pairwise_distances
 
 def readInBGCGenbanksPerGCF(gcf_specs_file, logObject):
 	sample_index = defaultdict(int)
@@ -206,7 +311,6 @@ def determineCogOrderIndex(bgc_genes, gene_to_cog, comp_gene_info):
 			cog_order_scores[c[0]] += c[1]
 
 	return cog_order_scores
-
 
 def constructBGCPhylogeny(codon_alignments_dir, output_prefix, logObject):
 	bgc_sccs = defaultdict(lambda: "")
@@ -1311,23 +1415,37 @@ def snv_miner(input_args):
 					read_intersect = len(read1_ref_positions.intersection(read2_ref_positions))
 					min_read_length = min(len(read1_ref_positions), len(read2_ref_positions))
 					read_overlap_prop = read_intersect/min_read_length
-					
-					if read_overlap_prop >= 0.25 or min_read_length < 75: continue
-				
+
 					min_read1_ref_pos = min(read1_ref_positions)
 					read1_referseq = read1_alignment.get_reference_sequence().upper()
-					read1_queryseq = read1_alignment.query_sequence #read1_alignment.get_forward_sequence().upper()
-					#read1_queryqual = read1_alignment.get_forward_qualities()
+					read1_queryseq = read1_alignment.query_sequence
+					read1_queryqua = read1_alignment.query_qualities
 
 					min_read2_ref_pos = min(read2_ref_positions)
 					read2_referseq = read2_alignment.get_reference_sequence().upper()
-					read2_queryseq = read2_alignment.query_sequence # read2_alignment.get_forward_sequence().upper()
-					#read2_queryqual = read2_alignment.get_forward_qualities()
+					read2_queryseq = read2_alignment.query_sequence
+					read2_queryqua = read2_alignment.query_qualities
+
+					alignment_has_indel = False
+					mismatch_count = 0
+					for b in read1_alignment.get_aligned_pairs(with_seq=True):
+						if b[0] == None or b[1] == None:
+							alignment_has_indel = True
+						elif b[2].islower():
+							que_qual = read1_queryqua[b[0]]
+							if que_qual >= 30: mismatch_count += 1
+					for b in read2_alignment.get_aligned_pairs(with_seq=True):
+						if b[0] == None or b[1] == None:
+							alignment_has_indel = True
+						elif b[2].islower():
+							que_qual = read2_queryqua[b[0]]
+							if que_qual >= 30: mismatch_count += 1
 
 					for b in read1_alignment.get_aligned_pairs(with_seq=True):
 						if b[0] == None or b[1] == None: continue
 						if not b[2].islower(): continue
 						ref_pos = b[1]
+						que_qual = read1_queryqua[b[0]]
 						alt_al = read1_queryseq[b[0]].upper()
 						ref_al = read1_referseq[b[1] - min_read1_ref_pos].upper()
 						#print(alt_al)
@@ -1337,13 +1455,15 @@ def snv_miner(input_args):
 						#print(b[2])
 						assert(ref_al == str(rec.seq).upper()[b[1]])
 						assert(alt_al != ref_al)
-						snvs.add(str(rec.id) + '_|_' + str(ref_pos-offset+1) + '_|_' + ref_al + '_|_' + alt_al)
-						snv_counts[str(rec.id) + '_|_' + str(ref_pos-offset+1) + '_|_' + ref_al + '_|_' + alt_al].add(read_name)
+						if que_qual >= 30 and not alignment_has_indel and mismatch_count <= 5 and read_overlap_prop <= 0.25 and min_read_length >= 75:
+							snvs.add(str(rec.id) + '_|_' + str(ref_pos-offset+1) + '_|_' + ref_al + '_|_' + alt_al)
+							snv_counts[str(rec.id) + '_|_' + str(ref_pos-offset+1) + '_|_' + ref_al + '_|_' + alt_al].add(read_name)
 
 					for b in read2_alignment.get_aligned_pairs(with_seq=True):
 						if b[0] == None or b[1] == None: continue
 						if not b[2].islower(): continue
 						ref_pos = b[1]
+						que_qual = read2_queryqua[b[0]]
 						alt_al = read2_queryseq[b[0]].upper()
 						ref_al = read2_referseq[b[1] - min_read2_ref_pos].upper()
 						#print(alt_al)
@@ -1353,8 +1473,9 @@ def snv_miner(input_args):
 						#print(b[2])
 						assert(ref_al == str(rec.seq).upper()[b[1]])
 						assert (alt_al != ref_al)
-						snvs.add(str(rec.id) + '_|_' + str(ref_pos-offset+1) + '_|_' + ref_al + '_|_' + alt_al)
-						snv_counts[str(rec.id) + '_|_' + str(ref_pos-offset+1) + '_|_' + ref_al + '_|_' + alt_al].add(read_name)
+						if que_qual >= 30 and not alignment_has_indel and mismatch_count <= 5 and read_overlap_prop <= 0.25 and min_read_length >= 75:
+							snvs.add(str(rec.id) + '_|_' + str(ref_pos-offset+1) + '_|_' + ref_al + '_|_' + alt_al)
+							snv_counts[str(rec.id) + '_|_' + str(ref_pos-offset+1) + '_|_' + ref_al + '_|_' + alt_al].add(read_name)
 
 					read_genes_mapped[read1_alignment.query_name].add(rec.id)
 					rep_alignments[rec.id][read1_alignment.query_name].add(tuple([read1_alignment, read2_alignment]))
@@ -1376,7 +1497,7 @@ def snv_miner(input_args):
 				if i == 0: top_score = align[2]; top_score_grep = g_rep
 				if (i == 0 and align[2] == top_score) and (len(score_sorted_alignments) == 1 or align[2] > score_sorted_alignments[i+1][2]):
 					for snv in align[3]:
-						if len(snv_counts[snv]) >= 2:
+						if len(snv_counts[snv]) >= 5:
 							supported_snvs.add(snv)
 				if align[2] == top_score:
 					g_map = read_genes_mapped[read].intersection(cog_rep_genes[g_rep])
@@ -1524,8 +1645,6 @@ def read_pair_generator(bam, region_string=None, start=None, stop=None):
 
 def calculateBGCPairwiseRelations(bgc_genes, gene_to_cog, prop_multi_copy, outdir, logObject):
 	pair_relations_txt_file = outdir + 'bgc_pair_relationships.txt'
-	pair_relations_mci_file = outdir + 'bgc_pair_relationships.mci'
-	pair_relations_tab_file = outdir + 'bgc_pair_relationships.tab'
 
 	bgc_cogs = defaultdict(set)
 	for bgc in bgc_genes:
@@ -1548,16 +1667,38 @@ def calculateBGCPairwiseRelations(bgc_genes, gene_to_cog, prop_multi_copy, outdi
 					overlap_metric_scaled = 100.00 * overlap_metric
 					pairwise_relations[bgc1][bgc2] = overlap_metric_scaled
 					pairwise_relations[bgc2][bgc1] = overlap_metric_scaled
-					if overlap_metric_scaled >= 50.0:
-						prf_handle.write('%s\t%s\t%f\n' % (bgc1, bgc2, overlap_metric_scaled))
+					prf_handle.write('%s\t%s\t%f\n' % (bgc1, bgc2, overlap_metric_scaled))
 		prf_handle.close()
 		logObject.info("Calculated pairwise relations and wrote to: %s" % pair_relations_txt_file)
 	except:
 		logObject.error("Problem with creating relations file between pairs of BGCs.")
 		raise RuntimeError("Problem with creating relations file between pairs of BGCs.")
 
-	mcxload_cmd = ['mcxload', '-abc', pair_relations_txt_file, '--stream-mirror', '-write-tab', pair_relations_tab_file,
+	return bgc_cogs, pairwise_relations, pair_relations_txt_file
+
+
+def runMCLAndReportGCFs(mip, jcp, outdir, sf_handle, pairwise_relations, pair_relations_txt_file,
+						bgc_cogs, bgc_product, bgc_sample, inflation_testing, cores, logObject):
+
+	pair_relations_filt_txt_file = outdir + 'bgc_pair_relationships.%f.txt' % jcp
+	prftf_handle = open(pair_relations_filt_txt_file, 'w')
+	with open(pair_relations_txt_file) as oprtf:
+		for line in open(oprtf):
+			line = line.strip()
+			ls = line.split('\t')
+			prftf_handle.write('')
+
+	prftf_handle.close()
+
+	pair_relations_mci_file = outdir + 'bgc_pair_relationships.mci'
+	pair_relations_tab_file = outdir + 'bgc_pair_relationships.tab'
+	relations_mcl_file = outdir + 'mcl.' + str(mip).replace('.', '_') + '.out'
+	mcxdump_out_file = outdir + 'final_mcl.' + str(mip).replace('.', '_') + '.out'
+
+	mcxload_cmd = ['mcxload', '-abc', pair_relations_filt_txt_file, '--stream-mirror', '-write-tab', pair_relations_tab_file,
 				   '-o', pair_relations_mci_file]
+	mcl_cmd = ['mcl', pair_relations_mci_file, '-I', str(mip), '-o', relations_mcl_file, '-te', str(cores)]
+	mcxdump_cmd = ['mcxdump', '-icl', relations_mcl_file, '-tabr', pair_relations_tab_file, '-o', mcxdump_out_file]
 
 	logObject.info('Running the following command: %s' % ' '.join(mcxload_cmd))
 	try:
@@ -1569,15 +1710,6 @@ def calculateBGCPairwiseRelations(bgc_genes, gene_to_cog, prop_multi_copy, outdi
 		raise RuntimeError('Had an issue running: %s' % ' '.join(mcxload_cmd))
 	logObject.info('Converted format of pair relationship file via mxcload.')
 
-	return bgc_cogs, pairwise_relations, pair_relations_txt_file, pair_relations_mci_file, pair_relations_tab_file
-
-
-def runMCLAndReportGCFs(mip, outdir, sf_handle, pairwise_relations, pair_relations_mci_file, pair_relations_tab_file,
-						bgc_cogs, bgc_product, bgc_sample, inflation_testing, cores, logObject):
-	relations_mcl_file = outdir + 'mcl.' + str(mip).replace('.', '_') + '.out'
-	mcxdump_out_file = outdir + 'final_mcl.' + str(mip).replace('.', '_') + '.out'
-	mcl_cmd = ['mcl', pair_relations_mci_file, '-I', str(mip), '-o', relations_mcl_file, '-te', str(cores)]
-	mcxdump_cmd = ['mcxdump', '-icl', relations_mcl_file, '-tabr', pair_relations_tab_file, '-o', mcxdump_out_file]
 
 	logObject.info('Running MCL and MCXDUMP with inflation parameter set to %f' % mip)
 	logObject.info('Running the following command: %s' % ' '.join(mcl_cmd))
@@ -1766,7 +1898,6 @@ def runProkka(sample_assemblies, prokka_outdir, prokka_proteomes, prokka_genbank
 		p = multiprocessing.Pool(cores)
 		p.map(multiProcess, prokka_cmds)
 		p.close()
-
 
 def extractBGCProteomes(s, bgc_genbank, bgc_proteomes_outdir, logObject):
 	b = bgc_genbank.split('/')[-1].split('.gbk')[0]

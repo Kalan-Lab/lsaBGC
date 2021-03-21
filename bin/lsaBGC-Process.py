@@ -22,10 +22,10 @@ def create_parser():
 	antiSMASH (biosynthetic gene cluster annotation), and OrthoFinder (de novo ortholog group construction).
 	""", formatter_class=argparse.RawTextHelpFormatter)
 
-	parser.add_argument('-i', '--assemblies', type=str,
+	parser.add_argument('-i', '--assembly_listing', type=str,
 						help="Tab delimited text file. First column is the sample name and the second is the path to its assembly in FASTA format. Please remove troublesome characters in the sample name.",
 						required=True)
-	parser.add_argument('-o', '--outdir', type=str, help="The resulting output directory.", required=True)
+	parser.add_argument('-o', '--output_directory', help="Prefix for output files.", required=True)
 	parser.add_argument('-ae', '--antiSMASH_env_path', type=str,
 						help="Path to conda environment for antiSMASH. Database should automatically configured for antiSMASH loaded by the environment.",
 						required=True)
@@ -57,7 +57,7 @@ def lsaBGC_Process():
 	myargs = create_parser()
 
 	assembly_listing_file = os.path.abspath(myargs.assemblies)
-	outdir = os.path.abspath(myargs.outdir) + '/'
+	outdir = os.path.abspath(myargs.output_directory) + '/'
 	antiSMASH_env_path = os.path.abspath(myargs.antiSMASH_env_path) + '/'
 	prokka_env_path = os.path.abspath(myargs.prokka_env_path) + '/'
 	conda_path = myargs.conda_path

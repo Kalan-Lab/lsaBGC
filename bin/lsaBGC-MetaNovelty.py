@@ -123,7 +123,7 @@ def lsaBGC_MetaNovelty():
     bowtie2_outdir = outdir + 'Bowtie2_Alignments/'
     if not os.path.isfile(bowtie2_outdir): os.system('mkdir %s' % bowtie2_outdir)
     logObject.info("")
-    #lsaBGC.runBowtie2Alignments(bowtie2_reference, paired_end_sequencing_file, bowtie2_outdir, cores, logObject)
+    lsaBGC.runBowtie2Alignments(bowtie2_reference, paired_end_sequencing_file, bowtie2_outdir, cores, logObject)
     logObject.info("")
 
     # Step 5: Determine haplotypes found in samples and identify supported novelty SNVs

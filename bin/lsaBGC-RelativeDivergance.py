@@ -24,7 +24,9 @@ def create_parser():
 
     parser.add_argument('-g', '--gcf_listing', help='BGC specifications file. Tab delimited: 1st column contains path to AntiSMASH BGC Genbank and 2nd column contains sample name.', required=True)
     parser.add_argument('-i', '--assembly_listing', help="Sequencing data specifications file. Tab delimited: 1st column contains metagenomic sample name, whereas 2nd and 3rd columns contain full paths to forward and reverse reads, respectively.", required=True)
+    parser.add_argument('-o', '--output_directory', help="Prefix for output files.", required=True)
     parser.add_argument('-c', '--cores', type=int, help="The number of cores to use.", required=False, default=1)
+    parser.add_argument('-s', '--sketch_size', type=int, help="The sketch size, number of kmers to use in fingerprinting", required=False, default=10000)
 
     args = parser.parse_args()
 
@@ -41,16 +43,13 @@ def lsaBGC_RelativeDivergance():
     myargs = create_parser()
 
     gcf_listing_file = os.path.abspath(myargs.gcf_listing)
-    paired_end_sequencing_file = os.path.abspath(myargs.paired_end_sequencing)
-    orthofinder_matrix_file = os.path.abspath(myargs.orthofinder_matrix)
-    codon_alignments_file = os.path.abspath(myargs.codon_alignments)
+    assembly_listing_file = os.path.abspath(myargs.assembly_listing_file)
     outdir = os.path.abspath(myargs.output_directory) + '/'
 
     ### vet input files quickly
     try:
-        assert (os.path.isfile(orthofinder_matrix_file))
+        assert (os.path.isfile(assembly_listing_file))
         assert (os.path.isfile(gcf_listing_file))
-        assert (os.path.isfile(paired_end_sequencing_file))
     except:
         raise RuntimeError('One or more of the input files provided, does not exist. Exiting now ...')
 
@@ -65,6 +64,7 @@ def lsaBGC_RelativeDivergance():
     """
 
     cores = myargs.cores
+    sketch_size = myargs.sketch_size
 
     """
     START WORKFLOW
@@ -77,50 +77,53 @@ def lsaBGC_RelativeDivergance():
     # Step 0: Log input arguments and update reference and query FASTA files.
     logObject.info("Saving parameters for future provedance.")
     parameters_file = outdir + 'Parameter_Inputs.txt'
-    parameter_values = [gcf_listing_file, orthofinder_matrix_file, paired_end_sequencing_file, outdir, cores]
-    parameter_names = ["GCF Listing File", "OrthoFinder Orthogroups.csv File", "Paired-Sequencing Listing File",
-                       "Output Directory", "Cores"]
+    parameter_values = [gcf_listing_file, assembly_listing_file, outdir, sketch_size, cores]
+    parameter_names = ["GCF Listing File", "Assembly Listing File", "Output Directory", "MASH Sketch Size", "Cores"]
     lsaBGC.logParametersToFile(parameters_file, parameter_names, parameter_values)
     logObject.info("Done saving parameters!")
 
-    # Step 1: Process GCF listings file
-    logObject.info("Processing BGC Genbanks from GCF listing file.")
-    bgc_gbk, bgc_genes, comp_gene_info, all_genes, bgc_sample, sample_bgcs = lsaBGC.readInBGCGenbanksPerGCF(gcf_listing_file, logObject)
-    logObject.info("Successfully parsed BGC Genbanks and associated with unique IDs.")
+    # Step 1: Extract Genbank Sequences into FASTA
+    logObject.info("Converting BGC Genbanks from GCF listing file into FASTA per sample.")
+    gcf_fasta_listing_file = lsaBGC.convertGCFGenbanksIntoFastas(gcf_listing_file, logObject)
+    logObject.info("Successfully performed conversion and partitioning by sample.")
 
-    # Step 2: Parse OrthoFinder Homolog vs Sample Matrix and associate each homolog group with a color
-    logObject.info("Starting to parse OrthoFinder homolog vs sample information.")
-    gene_to_cog, cog_genes, cog_prop_multicopy = lsaBGC.parseOrthoFinderMatrix(orthofinder_matrix_file, all_genes, calc_prop_multicopy=True)
-    logObject.info("Successfully parsed homolog matrix.")
+    # Step 2: Run MASH Analysis Between BGCs in GCF
+    logObject.info("Running MASH Analysis Between BGCs in GCF.")
+    gcf_pairwise_differences = lsaBGC.calculateMashPairwiseDifferences(gcf_fasta_listing_file, outdir, 'gcf', sketch_size, cores, logObject)
+    logObject.info("Ran MASH Analysis Between BGCs in GCF.")
 
-    # Step 3: Create database of genes with surrounding flanks and, independently, cluster them into allele groups / haplotypes.
-    logObject.info("Extracting and clustering GCF genes with their flanks.")
-    #bowtie2_reference, instances_to_haplotypes = lsaBGC.extractGeneWithFlanksAndCluster(bgc_genes, comp_gene_info, gene_to_cog, outdir, logObject)
-    logObject.info("Successfully extracted genes with flanks and clustered them into discrete haplotypes.")
+    # Step 3: Run MASH Analysis Between Genomic Assemblies
+    logObject.info("Running MASH Analysis Between Genomes.")
+    gw_pairwise_differences = lsaBGC.calculateMashPairwiseDifferences(assembly_listing_file, outdir, 'genome_wide', sketch_size, cores, logObject)
+    logObject.info("Ran MASH Analysis Between Genomes.")
 
-    # Step 4: Align paired-end reads to database genes with surrounding flanks
-    bowtie2_outdir = outdir + 'Bowtie2_Alignments/'
-    if not os.path.isfile(bowtie2_outdir): os.system('mkdir %s' % bowtie2_outdir)
+    # Step 4: Calculate and report Beta-RD statistic for all pairs of samples/isolates
     logObject.info("")
-    #lsaBGC.runBowtie2Alignments(bowtie2_reference, paired_end_sequencing_file, bowtie2_outdir, cores, logObject)
-    logObject.info("")
+    samples_gcf = gcf_pairwise_differences.keys()
+    samples_gw = gw_pairwise_differences.keys()
+    samples_intersect = samples_gw.intersection(samples_gcf)
+    try:
+        final_report = outdir + 'relative_divergance_report.txt'
+        final_report_handle = open(final_report, 'w')
+        for i, s1 in enumerate(samples_intersect):
+            for j, s2 in enumerate(samples_intersect):
+                if i < j:
+                    gcf_dist = gcf_pairwise_differences[s1][s2]
+                    gcf_sim = 1.0 - gcf_dist
+                    gw_dist = gw_pairwise_differences[s1][s2]
+                    gw_sim = 1.0 - gw_dist
 
-    # Step 5: Determine haplotypes found in samples and identify supported novelty SNVs
-    results_outdir = outdir + 'Parsed_Results/'
-    if not os.path.isdir(results_outdir): os.system('mkdir %s' % results_outdir)
-    logObject.info("")
-    #lsaBGC.runSNVMining(cog_genes, comp_gene_info, bowtie2_reference, paired_end_sequencing_file, instances_to_haplotypes, bowtie2_outdir, results_outdir, cores, logObject)
-    logObject.info("")
-
-    # Step 6: Construct summary matrices
-    logObject.info("")
-    lsaBGC.createSummaryMatricesForMetaNovelty(paired_end_sequencing_file, results_outdir, outdir, logObject)
-    logObject.info("")
-
-    # Step 7: Create Novelty Report
-    logObject.info("")
-    lsaBGC.generateNoveltyReport(results_outdir, codon_alignments_file, cog_prop_multicopy, comp_gene_info, outdir, logObject)
-    logObject.info("")
+                    if gw_sim != 0.0:
+                        beta_rd = gcf_sim/gw_sim
+                        final_report_handle.write('%s\t%s\t%f\n' % (s1, s2, beta_rd))
+                    else:
+                        logObject.warning('Samples %s and %s had an estimated ANI of 0.0 and thus not reported!' % (s1, s2))
+        final_report_handle.close()
+        logObject.info("Successfully computed Beta-RD statistic between pairs of samples to measure BGC similarity relative to Genome-Wide similarity.")
+    except:
+        error_message = "Had issues attempting to calculate Beta-RD stat between pairs of samples to measure BGC similarity relative to Genome-Wide similarity."
+        logObject.error(error_message)
+        raise RuntimeError(error_message)
 
     # Close logging object and exit
     lsaBGC.closeLoggerObject(logObject)

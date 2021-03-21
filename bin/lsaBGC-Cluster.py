@@ -25,8 +25,9 @@ def create_parser():
 	parser.add_argument('-m', '--orthofinder_matrix', help="OrthoFinder matrix.", required=True)
 	parser.add_argument('-o', '--output_directory', help="Output directory.", required=True)
 	parser.add_argument('-c', '--cores', type=int, help="Number of cores to use for MCL step.", required=False, default=1)
-	parser.add_argument('-i', '--mcl_inflation', type=float, help="Inflation parameter to be used for MCL.", required=False,default=1.4)
-	parser.add_argument('-r', '--run_inflation_tests', action='store_true', help="Run tests for selecting best inflation parameter for MCL analysis and exit.", default=False, required=False)
+	parser.add_argument('-i', '--mcl_inflation', type=float, help="Inflation parameter to be used for MCL.", required=False, default=1.4)
+	parser.add_argument('-j', '--jaccard_cutoff', type=float, help="Cutoff for Jaccard similarity of homolog groups shared between two BGCs.", default=50.0)
+	parser.add_argument('-r', '--run_parameter_tests', action='store_true', help="Run tests for selecting the best inflation parameter and jaccard for MCL analysis and exit.", default=False, required=False)
 	args = parser.parse_args()
 	return args
 
@@ -63,7 +64,8 @@ def lsaBGC_Cluster():
 
 	cores = myargs.cores
 	mcl_inflation = myargs.mcl_inflation
-	run_inflation_tests = myargs.run_inflation_tests
+	jaccard_cutoff = myargs.jacard_cutoff
+	run_parameter_tests = myargs.run_inflation_tests
 
 
 	"""
@@ -77,9 +79,9 @@ def lsaBGC_Cluster():
 	# Step 0: Log input arguments and update reference and query FASTA files.
 	logObject.info("Saving parameters for future provedance.")
 	parameters_file = outdir + 'Parameter_Inputs.txt'
-	parameter_values = [bgc_listings_file, orthofinder_matrix_file, outdir, cores, mcl_inflation, run_inflation_tests]
+	parameter_values = [bgc_listings_file, orthofinder_matrix_file, outdir, cores, mcl_inflation, jaccard_cutoff, run_parameter_tests]
 	parameter_names = ["BGC Listing File", "OrthoFinder Orthogroups.csv File", "Output Directory", "Cores",
-					   "MCL Inflation Parameter", "Whether to Run Inflation Parameter Tests"]
+					   "MCL Inflation Parameter", "Jaccard Similarity Cutoff", "Run Inflation Parameter Tests?"]
 	lsaBGC.logParametersToFile(parameters_file, parameter_names, parameter_values)
 	logObject.info("Done saving parameters!")
 
@@ -96,9 +98,9 @@ def lsaBGC_Cluster():
 	# Step 3: Calculate overlap in homolog profiles between pairs of BGCs and prepare for MCL
 	logObject.info('Calculating overlap in single copy ortholog Groups between BGC GBKs.')
 	mcl_outdir = outdir + 'MCL_tmp_files/'
-	if not run_inflation_tests: mcl_outdir = outdir
+	if not run_parameter_tests: mcl_outdir = outdir
 	elif not os.path.isdir(mcl_outdir): os.system('mkdir %s' % mcl_outdir)
-	bgc_cogs, pairwise_relations, pair_relations_txt_file, pair_relations_mci_file, pair_relations_tab_file = lsaBGC.calculateBGCPairwiseRelations(bgc_genes, gene_to_cog, prop_multi_copy, mcl_outdir, logObject)
+	bgc_cogs, pairwise_relations, pair_relations_txt_file = lsaBGC.calculateBGCPairwiseRelations(bgc_genes, gene_to_cog, prop_multi_copy, mcl_outdir, logObject)
 	logObject.info("Successfully calculated pairwise distances between BGCs based on homolog profiles.")
 
 	# Step 4: Run MCL clustering, iterating through multiple inflation parameters if necessary.
@@ -106,7 +108,7 @@ def lsaBGC_Cluster():
 	# Create and write to file which will detail the GCFs found from MCL clustering
 	stats_file = outdir + 'GCF_details.txt'
 	sf_handle = open(stats_file, 'w')
-	if run_inflation_tests:
+	if run_parameter_tests:
 		sf_handle.write('\t'.join(['inflation parameter', 'GCF id', 'number of BGCs',
 								   'samples with multiple BGCs in GCF', 'size of the SCC', 'mean number of OGs',
 								   'stdev for number of OGs', 'min difference', 'max difference',
@@ -117,11 +119,15 @@ def lsaBGC_Cluster():
 								   'min difference', 'max difference', 'annotations']) + '\n')
 
 	mcl_inflation_params = [mcl_inflation]
-	if run_inflation_tests:
+	jaccard_cutoff_params = [jaccard_cutoff]
+	if run_parameter_tests:
 		mcl_inflation_params = [0.8, 1.4, 2, 2.5, 3, 3.5, 4, 5]
+		jaccard_cutoff_params = [0, 20, 30, 50, 75, 90]
 	for mip in mcl_inflation_params:
-		lsaBGC.runMCLAndReportGCFs(mip, mcl_outdir, sf_handle, pairwise_relations, pair_relations_mci_file, pair_relations_tab_file, bgc_cogs, bgc_product, bgc_sample, run_inflation_tests, cores, logObject)
+		for jcp in jaccard_cutoff_params:
+			lsaBGC.runMCLAndReportGCFs(mip, jcp, mcl_outdir, sf_handle, pairwise_relations, pair_relations_txt_file, bgc_cogs, bgc_product, bgc_sample, run_parameter_tests, cores, logObject)
 	sf_handle.close()
+
 	logObject.info("Successfully ran MCL clustering analysis to determine GCFs!")
 
 	# Close logging object and exit

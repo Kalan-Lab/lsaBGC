@@ -14,6 +14,7 @@ dependencies:
   - bioconda::pal2nal=
   - bioconda::fasttree=
   - bioconda::ete3
+  - bioconda::mash=
   - conda-forge::r-base
   - conda-forge::r-pegas
   - conda-forge::r-ggplot2
