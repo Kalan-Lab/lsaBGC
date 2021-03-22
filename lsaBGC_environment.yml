@@ -19,3 +19,4 @@ dependencies:
   - conda-forge::r-pegas
   - conda-forge::r-ggplot2
   - conda-forge::r-cowplot
+  - conda-forge::r-scatterpie

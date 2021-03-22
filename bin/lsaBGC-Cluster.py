@@ -64,8 +64,8 @@ def lsaBGC_Cluster():
 
 	cores = myargs.cores
 	mcl_inflation = myargs.mcl_inflation
-	jaccard_cutoff = myargs.jacard_cutoff
-	run_parameter_tests = myargs.run_inflation_tests
+	jaccard_cutoff = myargs.jaccard_cutoff
+	run_parameter_tests = myargs.run_parameter_tests
 
 
 	"""
@@ -87,7 +87,7 @@ def lsaBGC_Cluster():
 
 	# Step 1: Parse BGCs from Listing File
 	logObject.info("Starting to process BGC Genbanks from listing file.")
-	bgc_sample, bgc_product, bgc_genes, all_genes = lsaBGC.readInBGCGenbanksComprehensive(bgc_listings_file, logObject)
+	bgc_sample, bgc_product, bgc_genes, all_genes = lsaBGC.readInBGCGenbanksComprehensive(bgc_listings_file, logObject, comprehensive_parsing=False)
 	logObject.info("Successfully parsed BGC Genbanks.")
 
 	# Step 2: Parse OrthoFinder Homolog vs Sample Matrix
@@ -109,7 +109,7 @@ def lsaBGC_Cluster():
 	stats_file = outdir + 'GCF_details.txt'
 	sf_handle = open(stats_file, 'w')
 	if run_parameter_tests:
-		sf_handle.write('\t'.join(['inflation parameter', 'GCF id', 'number of BGCs',
+		sf_handle.write('\t'.join(['MCL inflation parameter', 'Jaccard similarity cutoff', 'GCF id', 'number of BGCs',
 								   'samples with multiple BGCs in GCF', 'size of the SCC', 'mean number of OGs',
 								   'stdev for number of OGs', 'min difference', 'max difference',
 								   'annotations']) + '\n')
@@ -127,6 +127,9 @@ def lsaBGC_Cluster():
 		for jcp in jaccard_cutoff_params:
 			lsaBGC.runMCLAndReportGCFs(mip, jcp, mcl_outdir, sf_handle, pairwise_relations, pair_relations_txt_file, bgc_cogs, bgc_product, bgc_sample, run_parameter_tests, cores, logObject)
 	sf_handle.close()
+
+	if run_parameter_tests:
+		lsaBGC.plotResultsFromUsingDifferentParameters()
 
 	logObject.info("Successfully ran MCL clustering analysis to determine GCFs!")
 

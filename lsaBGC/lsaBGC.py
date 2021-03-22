@@ -31,10 +31,11 @@ def multiProcess(input):
 	except:
 		logObject.warning('Had an issue running: %s' % ' '.join(input_cmd))
 
+
 def convertGCFGenbanksIntoFastas(gcf_specs_file, outdir, logObject):
 	gcf_fasta_listing_file = outdir + 'GCF_FASTA_Listings.txt'
 	outf = open(gcf_fasta_listing_file, 'w')
- 	fasta_dir = outdir + 'Sample_GCF_FASTAs/'
+	fasta_dir = outdir + 'Sample_GCF_FASTAs/'
 	if os.path.isdir(fasta_dir): os.system('mkdir %s' % fasta_dir)
 	sample_index = defaultdict(int)
 
@@ -45,8 +46,12 @@ def convertGCFGenbanksIntoFastas(gcf_specs_file, outdir, logObject):
 			try:
 				assert (len(line.split('\t')) == 2)
 			except:
-				logObject.error("More than two columns exist at line %d in BGC specification/listing file. Exiting now ..." % (i + 1))
-				raise RuntimeError("More than two columns exist at line %d in BGC specification/listing file. Exiting now ..." % (i + 1))
+				logObject.error(
+					"More than two columns exist at line %d in BGC specification/listing file. Exiting now ..." % (
+							i + 1))
+				raise RuntimeError(
+					"More than two columns exist at line %d in BGC specification/listing file. Exiting now ..." % (
+							i + 1))
 			sample, gbk = line.split('\t')
 			try:
 				assert (is_genbank(gbk))
@@ -70,7 +75,8 @@ def convertGCFGenbanksIntoFastas(gcf_specs_file, outdir, logObject):
 	for s in all_samples:
 		outf.write(s + '\t' + fasta_dir + s + '.fasta\n')
 	outf.close()
-	return(gcf_fasta_listing_file)
+	return (gcf_fasta_listing_file)
+
 
 def calculateMashPairwiseDifferences(fasta_listing_file, outdir, name, sketch_size, cores, logObject):
 	mash_db = outdir + name
@@ -102,14 +108,15 @@ def calculateMashPairwiseDifferences(fasta_listing_file, outdir, name, sketch_si
 	mash_db = mash_db + '.msh'
 
 	try:
-		assert(os.path.isfile(mash_db))
+		assert (os.path.isfile(mash_db))
 	except:
 		error_message = "Had issue validating that MASH sketching worked properly, couldn't find: %s" % mash_db
 		logObject.error(error_message)
 		raise RuntimeError(error_message)
 
 	# run mash distance estimation
-	mash_dist_cmd = ['mash', 'dist', '-s', str(sketch_size), '-p', str(cores), mash_db, mash_db, '>', outdir + name + '.out']
+	mash_dist_cmd = ['mash', 'dist', '-s', str(sketch_size), '-p', str(cores), mash_db, mash_db, '>',
+					 outdir + name + '.out']
 	logObject.info('Running mash dist with the following command: %s' % ' '.join(mash_dist_cmd))
 	try:
 		subprocess.call(' '.join(mash_dist_cmd), shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
@@ -122,7 +129,7 @@ def calculateMashPairwiseDifferences(fasta_listing_file, outdir, name, sketch_si
 
 	pairwise_distances = defaultdict(lambda: defaultdict(float))
 	try:
-		with open(outdir + name+ '.out') as of:
+		with open(outdir + name + '.out') as of:
 			for line in of:
 				line = line.strip()
 				ls = line.split('\t')
@@ -137,7 +144,8 @@ def calculateMashPairwiseDifferences(fasta_listing_file, outdir, name, sketch_si
 		raise RuntimeError(error_message)
 	return pairwise_distances
 
-def readInBGCGenbanksPerGCF(gcf_specs_file, logObject):
+
+def readInBGCGenbanksPerGCF(gcf_specs_file, logObject, comprehensive_parsing=True):
 	sample_index = defaultdict(int)
 	bgc_gbk = {}
 	bgc_sample = {}
@@ -165,7 +173,7 @@ def readInBGCGenbanksPerGCF(gcf_specs_file, logObject):
 					bgc_id = sample + '_' + str(sample_index[sample] + 1)
 				sample_index[sample] += 1
 
-				bgc_genes_full, bgc_info_full = parseGenbanks(gbk, bgc_id)
+				bgc_genes_full, bgc_info_full = parseGenbanks(gbk, bgc_id, comprehensive_parsing=comprehensive_parsing)
 
 				comp_gene_info.update(bgc_genes_full)
 				bgc_genes[bgc_id] = set(bgc_genes_full.keys())
@@ -311,6 +319,7 @@ def determineCogOrderIndex(bgc_genes, gene_to_cog, comp_gene_info):
 			cog_order_scores[c[0]] += c[1]
 
 	return cog_order_scores
+
 
 def constructBGCPhylogeny(codon_alignments_dir, output_prefix, logObject):
 	bgc_sccs = defaultdict(lambda: "")
@@ -686,7 +695,7 @@ def modifyPhylogenyForSamplesWithMultipleBGCs(phylogeny, sample_bgcs, output_phy
 			"Had difficulties properly editing phylogeny to duplicate leafs for samples with multiple BGCs for GCF.")
 
 
-def readInBGCGenbanksComprehensive(bgc_specs_file, logObject):
+def readInBGCGenbanksComprehensive(bgc_specs_file, logObject, comprehensive_parsing=True):
 	bgc_sample = {}
 	bgc_product = {}
 	bgc_genes = {}
@@ -706,7 +715,7 @@ def readInBGCGenbanksComprehensive(bgc_specs_file, logObject):
 			sample, gbk = line.split('\t')
 			try:
 				assert (is_genbank(gbk))
-				bgc_genes_full, bgc_info_full = parseGenbanks(gbk, gbk)
+				bgc_genes_full, bgc_info_full = parseGenbanks(gbk, gbk, comprehensive_parsing=comprehensive_parsing)
 				bgc_product[gbk] = [x['product'] for x in bgc_info_full]
 				bgc_genes[gbk] = set(bgc_genes_full.keys())
 				all_genes = all_genes.union(bgc_genes[gbk])
@@ -717,6 +726,7 @@ def readInBGCGenbanksComprehensive(bgc_specs_file, logObject):
 				raise RuntimeWarning("Unable to validate %s as Genbank. Skipping ...")
 
 	return [bgc_sample, bgc_product, bgc_genes, all_genes]
+
 
 def getSpeciesRelationshipsFromPhylogeny(species_phylogeny, samples_in_gcf):
 	samples_in_phylogeny = set([])
@@ -1023,7 +1033,7 @@ def parseCodonAlignmentStats(cog, codon_alignment_fasta, comp_gene_info, cog_gen
 	final_output_handle.write('\t'.join([str(x) for x in cog_info]) + '\n')
 
 
-def parseGenbanks(gbk, bgc_name):
+def parseGenbanks(gbk, bgc_name, comprehensive_parsing=True):
 	"""
 	:param gbk: AntiSMASH Genbank file
 	:return:
@@ -1037,7 +1047,7 @@ def parseGenbanks(gbk, bgc_name):
 		for rec in SeqIO.parse(ogbk, 'genbank'):
 			full_sequence = str(rec.seq)
 			for feature in rec.features:
-				if feature.type in domain_feature_types:
+				if comprehensive_parsing and feature.type in domain_feature_types:
 					start = min([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')])
 					end = max([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')])
 					aSDomain = "NA"
@@ -1059,8 +1069,9 @@ def parseGenbanks(gbk, bgc_name):
 					except:
 						product = "NA"
 					contig_edge = feature.qualifiers.get('contig_edge')[0]
-					bgc_info.append({'detection_rule': detection_rule, 'product': product, 'contig_edge': contig_edge,
-									 'full_sequence': str(rec.seq)})
+					bgc_info.append(
+						{'detection_rule': detection_rule, 'product': product, 'contig_edge': contig_edge,
+						 'full_sequence': str(rec.seq)})
 				elif feature.type == 'proto_core':
 					core_start = min([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')])
 					core_end = max([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')])
@@ -1069,64 +1080,68 @@ def parseGenbanks(gbk, bgc_name):
 	if len(bgc_info) == 0:
 		bgc_info = [{'detection_rule': 'NA', 'product': 'NA', 'contig_edge': 'NA', 'full_sequence': full_sequence}]
 
-	print(gbk)
+	sys.stderr.write('Processing %s\n' % gbk)
 	genes = {}
 	with open(gbk) as ogbk:
 		for rec in SeqIO.parse(ogbk, 'genbank'):
 			for feature in rec.features:
 				if feature.type == "CDS":
 					lt = feature.qualifiers.get('locus_tag')[0]
-					prot_seq = feature.qualifiers.get('translation')[0]
 					start = min([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')])
 					end = max([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')])
 					direction = str(feature.location).split('(')[1].split(')')[0]
+
 					try:
 						product = feature.qualifiers.get('product')[0]
 					except:
 						product = "hypothetical protein"
+
 					grange = set(range(start, end + 1))
-					gene_domains = []
-					for d in domains:
-						drange = set(range(d['start'], d['end'] + 1))
-						if len(drange.intersection(grange)) > 0:
-							gene_domains.append(d)
-
-					flank_start = start - FLANK_SIZE
-					flank_end = end + FLANK_SIZE
-					if flank_start < 0: flank_start = 0
-					if flank_end >= len(full_sequence): flank_end = None
-					if end >= len(full_sequence): end = None
-					if end:
-						nucl_seq = full_sequence[start:end]
-					else:
-						nucl_seq = full_sequence[start:]
-						end = len(full_sequence)
-					if flank_end:
-						nucl_seq_with_flanks = full_sequence[flank_start:flank_end]
-					else:
-						nucl_seq_with_flanks = full_sequence[flank_start:]
-						flank_end = len(full_sequence)
-
-					gene_length = end - start 
-                                    
-					relative_start = start - flank_start
-					relative_end = relative_start + gene_length
-                                        
-					if direction == '-':
-						nucl_seq = str(Seq(nucl_seq).reverse_complement())
-						nucl_seq_with_flanks = str(Seq(nucl_seq_with_flanks).reverse_complement())
-						relative_end = len(nucl_seq_with_flanks) - relative_start
-						relative_start = relative_end - gene_length
-
 					core_overlap = False
 					if len(grange.intersection(core_positions)) > 0: core_overlap = True
-					
+
+					prot_seq, nucl_seq, nucl_seq_with_flanks, relative_start, relative_end, gene_domains = [None]*6
+					if comprehensive_parsing:
+						prot_seq = feature.qualifiers.get('translation')[0]
+						gene_domains = []
+						for d in domains:
+							drange = set(range(d['start'], d['end'] + 1))
+							if len(drange.intersection(grange)) > 0:
+								gene_domains.append(d)
+
+						flank_start = start - FLANK_SIZE
+						flank_end = end + FLANK_SIZE
+						if flank_start < 0: flank_start = 0
+						if flank_end >= len(full_sequence): flank_end = None
+						if end >= len(full_sequence): end = None
+						if end:
+							nucl_seq = full_sequence[start:end]
+						else:
+							nucl_seq = full_sequence[start:]
+							end = len(full_sequence)
+						if flank_end:
+							nucl_seq_with_flanks = full_sequence[flank_start:flank_end]
+						else:
+							nucl_seq_with_flanks = full_sequence[flank_start:]
+							flank_end = len(full_sequence)
+
+						gene_length = end - start
+
+						relative_start = start - flank_start
+						relative_end = relative_start + gene_length
+
+						if direction == '-':
+							nucl_seq = str(Seq(nucl_seq).reverse_complement())
+							nucl_seq_with_flanks = str(Seq(nucl_seq_with_flanks).reverse_complement())
+							relative_end = len(nucl_seq_with_flanks) - relative_start
+							relative_start = relative_end - gene_length
+
 					genes[lt] = {'bgc_name': bgc_name, 'start': start, 'end': end, 'direction': direction,
 								 'product': product, 'prot_seq': prot_seq, 'nucl_seq': nucl_seq,
 								 'nucl_seq_with_flanks': nucl_seq_with_flanks, 'gene_domains': gene_domains,
 								 'core_overlap': core_overlap, 'relative_start': relative_start,
 								 'relative_end': relative_end}
-					#print(genes[lt])
+				# print(genes[lt])
 	return ([genes, bgc_info])
 
 
@@ -1268,6 +1283,7 @@ def createSummaryMatricesForMetaNovelty(paired_end_sequencing_file, results_outd
 	final_matrix_novelty_reads_handle.close()
 	final_matrix_unique_reads_handle.close()
 
+
 def generateNoveltyReport(results_outdir, codon_alignment_file, cog_prop_multicopy, comp_gene_info, outdir, logObject):
 	novelty_report_file = outdir + 'Novelty_Report.txt'
 	no_handle = open(novelty_report_file, 'w')
@@ -1286,7 +1302,7 @@ def generateNoveltyReport(results_outdir, codon_alignment_file, cog_prop_multico
 						if bp != '-':
 							gene_pos_to_msa_pos[cog][gene_id][real_pos] = msa_pos + 1
 							real_pos += 1
-							msa_pos_alleles[cog][msa_pos+1].add(bp.upper())
+							msa_pos_alleles[cog][msa_pos + 1].add(bp.upper())
 
 	for f in os.listdir(results_outdir):
 		if not f.endswith('.snvs'): continue
@@ -1303,12 +1319,12 @@ def generateNoveltyReport(results_outdir, codon_alignment_file, cog_prop_multico
 				gene, sample, cog = gsc.split('|')
 				if cog_prop_multicopy[cog] >= 0.05: continue
 				if any(word in comp_gene_info[gene]['product'].lower() for word in mges): continue
-				#if any(word in ' '.join(comp_gene_info[gene]['gene_domains']).lower() for word in mges): continue
-				
-				#offset = comp_gene_info[gene]['relative_start']
-				ref_pos = int(ref_pos)# - offset + 2
+				# if any(word in ' '.join(comp_gene_info[gene]['gene_domains']).lower() for word in mges): continue
+
+				# offset = comp_gene_info[gene]['relative_start']
+				ref_pos = int(ref_pos)  # - offset + 2
 				print(ref_pos)
-				#print(offset)
+				# print(offset)
 				print(line)
 				print(comp_gene_info[gene])
 				if not int(ref_pos) in gene_pos_to_msa_pos[cog][gene]: continue
@@ -1316,14 +1332,16 @@ def generateNoveltyReport(results_outdir, codon_alignment_file, cog_prop_multico
 				msa_pos_als = msa_pos_alleles[cog][msa_pos]
 				print(msa_pos)
 				print(msa_pos_als)
-				print(msa_pos_alleles[cog][msa_pos-1])
-				print(msa_pos_alleles[cog][msa_pos+1])
+				print(msa_pos_alleles[cog][msa_pos - 1])
+				print(msa_pos_alleles[cog][msa_pos + 1])
 				print('\t'.join([metsample, cog, str(msa_pos), sample, gene, str(ref_pos), ref_al, alt_al, snv_count]))
-				assert(ref_al in msa_pos_alleles[cog][msa_pos])
+				assert (ref_al in msa_pos_alleles[cog][msa_pos])
 				if not alt_al in msa_pos_als:
-					no_handle.write('\t'.join([metsample, cog, str(msa_pos), alt_al, snv_count, sample, gene, str(ref_pos), ref_al]) + '\n')
+					no_handle.write('\t'.join(
+						[metsample, cog, str(msa_pos), alt_al, snv_count, sample, gene, str(ref_pos), ref_al]) + '\n')
 
 	no_handle.close()
+
 
 def runSNVMining(cog_genes, comp_gene_info, bowtie2_ref_fasta, paired_end_sequencing_file, instance_to_haplotype,
 				 bowtie2_outdir, results_outdir, cores, logObject):
@@ -1339,6 +1357,7 @@ def runSNVMining(cog_genes, comp_gene_info, bowtie2_ref_fasta, paired_end_sequen
 	p = multiprocessing.Pool(cores)
 	p.map(snv_miner, process_args)
 	p.close()
+
 
 def snv_miner(input_args):
 	# try:
@@ -1400,7 +1419,8 @@ def snv_miner(input_args):
 				if gene_coverage_1 < 0.95: continue
 				cog_genes_covered += 1
 
-				for read1_alignment, read2_alignment in read_pair_generator(bam_handle, region_string=rec.id, start=gstart, stop=gend):
+				for read1_alignment, read2_alignment in read_pair_generator(bam_handle, region_string=rec.id,
+																			start=gstart, stop=gend):
 					read_name = read1_alignment.query_name
 					read1_ascore = read1_alignment.tags[0][1]
 					read2_ascore = read2_alignment.tags[0][1]
@@ -1408,13 +1428,13 @@ def snv_miner(input_args):
 
 					snvs = set([])
 					g_rep = cog_gene_to_rep[rec.id]
-					
+
 					read1_ref_positions = set(read1_alignment.get_reference_positions())
 					read2_ref_positions = set(read2_alignment.get_reference_positions())
 
 					read_intersect = len(read1_ref_positions.intersection(read2_ref_positions))
 					min_read_length = min(len(read1_ref_positions), len(read2_ref_positions))
-					read_overlap_prop = read_intersect/min_read_length
+					read_overlap_prop = read_intersect / min_read_length
 
 					min_read1_ref_pos = min(read1_ref_positions)
 					read1_referseq = read1_alignment.get_reference_sequence().upper()
@@ -1448,16 +1468,18 @@ def snv_miner(input_args):
 						que_qual = read1_queryqua[b[0]]
 						alt_al = read1_queryseq[b[0]].upper()
 						ref_al = read1_referseq[b[1] - min_read1_ref_pos].upper()
-						#print(alt_al)
-						#print(ref_al)
-						#print(read1_queryqual[b[0]])
-						#print(str(rec.seq).upper()[b[1]])
-						#print(b[2])
-						assert(ref_al == str(rec.seq).upper()[b[1]])
-						assert(alt_al != ref_al)
+						# print(alt_al)
+						# print(ref_al)
+						# print(read1_queryqual[b[0]])
+						# print(str(rec.seq).upper()[b[1]])
+						# print(b[2])
+						assert (ref_al == str(rec.seq).upper()[b[1]])
+						assert (alt_al != ref_al)
 						if que_qual >= 30 and not alignment_has_indel and mismatch_count <= 5 and read_overlap_prop <= 0.25 and min_read_length >= 75:
-							snvs.add(str(rec.id) + '_|_' + str(ref_pos-offset+1) + '_|_' + ref_al + '_|_' + alt_al)
-							snv_counts[str(rec.id) + '_|_' + str(ref_pos-offset+1) + '_|_' + ref_al + '_|_' + alt_al].add(read_name)
+							snvs.add(str(rec.id) + '_|_' + str(ref_pos - offset + 1) + '_|_' + ref_al + '_|_' + alt_al)
+							snv_counts[
+								str(rec.id) + '_|_' + str(ref_pos - offset + 1) + '_|_' + ref_al + '_|_' + alt_al].add(
+								read_name)
 
 					for b in read2_alignment.get_aligned_pairs(with_seq=True):
 						if b[0] == None or b[1] == None: continue
@@ -1466,22 +1488,24 @@ def snv_miner(input_args):
 						que_qual = read2_queryqua[b[0]]
 						alt_al = read2_queryseq[b[0]].upper()
 						ref_al = read2_referseq[b[1] - min_read2_ref_pos].upper()
-						#print(alt_al)
-						#print(ref_al)
-						#print(read2_queryqual[b[0]])
-						#print(str(rec.seq).upper()[b[1]])
-						#print(b[2])
-						assert(ref_al == str(rec.seq).upper()[b[1]])
+						# print(alt_al)
+						# print(ref_al)
+						# print(read2_queryqual[b[0]])
+						# print(str(rec.seq).upper()[b[1]])
+						# print(b[2])
+						assert (ref_al == str(rec.seq).upper()[b[1]])
 						assert (alt_al != ref_al)
 						if que_qual >= 30 and not alignment_has_indel and mismatch_count <= 5 and read_overlap_prop <= 0.25 and min_read_length >= 75:
-							snvs.add(str(rec.id) + '_|_' + str(ref_pos-offset+1) + '_|_' + ref_al + '_|_' + alt_al)
-							snv_counts[str(rec.id) + '_|_' + str(ref_pos-offset+1) + '_|_' + ref_al + '_|_' + alt_al].add(read_name)
+							snvs.add(str(rec.id) + '_|_' + str(ref_pos - offset + 1) + '_|_' + ref_al + '_|_' + alt_al)
+							snv_counts[
+								str(rec.id) + '_|_' + str(ref_pos - offset + 1) + '_|_' + ref_al + '_|_' + alt_al].add(
+								read_name)
 
 					read_genes_mapped[read1_alignment.query_name].add(rec.id)
 					rep_alignments[rec.id][read1_alignment.query_name].add(tuple([read1_alignment, read2_alignment]))
 					read_ascores_per_allele[read1_alignment.query_name].append(
 						[g_rep.split('|')[0], g_rep.split('|')[1], combined_ascore, snvs, g])
-					
+
 		if cog_genes_covered / float(len(cog_genes)) < 0.80: continue
 
 		supported_snvs = set([])
@@ -1495,7 +1519,8 @@ def snv_miner(input_args):
 			for i, align in enumerate(score_sorted_alignments):
 				g_rep = align[0] + '|' + align[1] + '|' + cog
 				if i == 0: top_score = align[2]; top_score_grep = g_rep
-				if (i == 0 and align[2] == top_score) and (len(score_sorted_alignments) == 1 or align[2] > score_sorted_alignments[i+1][2]):
+				if (i == 0 and align[2] == top_score) and (
+						len(score_sorted_alignments) == 1 or align[2] > score_sorted_alignments[i + 1][2]):
 					for snv in align[3]:
 						if len(snv_counts[snv]) >= 5:
 							supported_snvs.add(snv)
@@ -1649,7 +1674,8 @@ def calculateBGCPairwiseRelations(bgc_genes, gene_to_cog, prop_multi_copy, outdi
 	bgc_cogs = defaultdict(set)
 	for bgc in bgc_genes:
 		for gene in bgc_genes[bgc]:
-			if gene in gene_to_cog:    bgc_cogs[bgc].add(gene_to_cog[gene])
+			if gene in gene_to_cog:
+				bgc_cogs[bgc].add(gene_to_cog[gene])
 
 	try:
 		prf_handle = open(pair_relations_txt_file, 'w')
@@ -1676,26 +1702,64 @@ def calculateBGCPairwiseRelations(bgc_genes, gene_to_cog, prop_multi_copy, outdi
 
 	return bgc_cogs, pairwise_relations, pair_relations_txt_file
 
+def plotResultsFromUsingDifferentParameters(gcf_details_file, outdir, logObject):
+	try:
+		singleton_counts = defaultdict(int)
+		with open(gcf_details_file) as ogdf:
+			for i, line in enumerate(ogdf):
+				line = line.strip()
+				ls = line.split("\t")
+				if i == 0: continue
+				mcl = int(ls[0])
+				jcp = int(ls[1])
+				param_id = '%d_%d' % (mcl, jcp)
+				gcf_id = ls[2]
+				if gcf_id == 'singletons':
+					singleton_counts[param_id] = int(ls[3])
+
+		with open(gcf_details_file) as ogdf:
+			for i, line in enumerate(ogdf):
+				line = line.strip()
+				ls = line.split("\t")
+				if i == 0: continue
+				mcl = float(ls[0])
+				jcp = float(ls[1])
+				param_id = '%f_%f' % (mcl, jcp)
+				gcf_id = ls[2]
+				if gcf_id == 'singletons': continue
+
+				param_mod_id = 'Inf: %f JacSim: %f (%d Singletons)' % (mcl, jcp, singleton_counts[param_id])
+				# get stats for plotting
+				samples_with_multi_bgcs = ls[4]
+				size_of_scc = ls[5]
+				annotations = ls[-1].split('; ')
+
+	except:
 
 def runMCLAndReportGCFs(mip, jcp, outdir, sf_handle, pairwise_relations, pair_relations_txt_file,
 						bgc_cogs, bgc_product, bgc_sample, inflation_testing, cores, logObject):
-
 	pair_relations_filt_txt_file = outdir + 'bgc_pair_relationships.%f.txt' % jcp
-	prftf_handle = open(pair_relations_filt_txt_file, 'w')
-	with open(pair_relations_txt_file) as oprtf:
-		for line in open(oprtf):
-			line = line.strip()
-			ls = line.split('\t')
-			prftf_handle.write('')
-
-	prftf_handle.close()
+	try:
+		prftf_handle = open(pair_relations_filt_txt_file, 'w')
+		with open(pair_relations_txt_file) as oprtf:
+			for line in oprtf:
+				line = line.strip('\n')
+				s1, s2, jaccard_sim = line.split('\t')
+				if float(jaccard_sim) >= jcp:
+					prftf_handle.write(line + '\n')
+		prftf_handle.close()
+	except:
+		error_msg = "Problem with parsing paired sample jaccard similarity relationship file."
+		logObject.info(error_msg)
+		raise RuntimeError(error_msg)
 
 	pair_relations_mci_file = outdir + 'bgc_pair_relationships.mci'
 	pair_relations_tab_file = outdir + 'bgc_pair_relationships.tab'
 	relations_mcl_file = outdir + 'mcl.' + str(mip).replace('.', '_') + '.out'
 	mcxdump_out_file = outdir + 'final_mcl.' + str(mip).replace('.', '_') + '.out'
 
-	mcxload_cmd = ['mcxload', '-abc', pair_relations_filt_txt_file, '--stream-mirror', '-write-tab', pair_relations_tab_file,
+	mcxload_cmd = ['mcxload', '-abc', pair_relations_filt_txt_file, '--stream-mirror', '-write-tab',
+				   pair_relations_tab_file,
 				   '-o', pair_relations_mci_file]
 	mcl_cmd = ['mcl', pair_relations_mci_file, '-I', str(mip), '-o', relations_mcl_file, '-te', str(cores)]
 	mcxdump_cmd = ['mcxdump', '-icl', relations_mcl_file, '-tabr', pair_relations_tab_file, '-o', mcxdump_out_file]
@@ -1710,7 +1774,6 @@ def runMCLAndReportGCFs(mip, jcp, outdir, sf_handle, pairwise_relations, pair_re
 		raise RuntimeError('Had an issue running: %s' % ' '.join(mcxload_cmd))
 	logObject.info('Converted format of pair relationship file via mxcload.')
 
-
 	logObject.info('Running MCL and MCXDUMP with inflation parameter set to %f' % mip)
 	logObject.info('Running the following command: %s' % ' '.join(mcl_cmd))
 	try:
@@ -1722,7 +1785,6 @@ def runMCLAndReportGCFs(mip, jcp, outdir, sf_handle, pairwise_relations, pair_re
 		logObject.error('Had an issue running: %s' % ' '.join(mcl_cmd))
 		raise RuntimeError('Had an issue running: %s' % ' '.join(mcl_cmd))
 
-	sys.stderr.write('Dumping results in human-readable format ...')
 	logObject.info('Running the following command: %s' % ' '.join(mcxdump_cmd))
 	try:
 		subprocess.call(' '.join(mcxdump_cmd), shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
@@ -1744,11 +1806,11 @@ def runMCLAndReportGCFs(mip, jcp, outdir, sf_handle, pairwise_relations, pair_re
 			diffs = set([])
 			samp_counts = defaultdict(int)
 			samp_ogs = defaultdict(set)
-			products = set([])
+			products = defaultdict(float)
 			for a, bgc1 in enumerate(gcf_mems):
 				samp1 = bgc_sample[bgc1]
 				samp_counts[samp1] += 1
-				for prod in bgc_product[bgc1]: products.add(prod)
+				for prod in bgc_product[bgc1]: products[prod] += 1.0/len(bgc_product[bgc1])
 				samp_ogs[samp1] = samp_ogs[samp1].union(bgc_cogs[bgc1])
 				clustered_bgcs.add(bgc1)
 				for b, bgc2 in enumerate(gcf_mems):
@@ -1772,10 +1834,11 @@ def runMCLAndReportGCFs(mip, jcp, outdir, sf_handle, pairwise_relations, pair_re
 			except:
 				pass
 			gcf_stats = ['GCF_' + str(j + 1), len(gcf_mems), multi_same_sample, len(scc), mean, stdev, min(diffs),
-						 max(diffs), '; '.join(products)]
+						 max(diffs), '; '.join([x[0] + ':' + str(x[1]) for x in products])]
 			if inflation_testing:
-				gcf_stats = [mip] + gcf_stats
+				gcf_stats = [mip, jcp] + gcf_stats
 			sf_handle.write('\t'.join([str(x) for x in gcf_stats]) + '\n')
+
 	singleton_bgcs = set([])
 	for bgc in bgc_cogs:
 		if not bgc in clustered_bgcs: singleton_bgcs.add(bgc)
@@ -1898,6 +1961,7 @@ def runProkka(sample_assemblies, prokka_outdir, prokka_proteomes, prokka_genbank
 		p = multiprocessing.Pool(cores)
 		p.map(multiProcess, prokka_cmds)
 		p.close()
+
 
 def extractBGCProteomes(s, bgc_genbank, bgc_proteomes_outdir, logObject):
 	b = bgc_genbank.split('/')[-1].split('.gbk')[0]
