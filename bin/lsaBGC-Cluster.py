@@ -87,7 +87,7 @@ def lsaBGC_Cluster():
 
 	# Step 1: Parse BGCs from Listing File
 	logObject.info("Starting to process BGC Genbanks from listing file.")
-	bgc_sample, bgc_product, bgc_genes, all_genes = lsaBGC.readInBGCGenbanksComprehensive(bgc_listings_file, logObject, comprehensive_parsing=False)
+	bgc_sample, bgc_product, bgc_genes, bgc_core_counts, all_genes = lsaBGC.readInBGCGenbanksComprehensive(bgc_listings_file, logObject, comprehensive_parsing=False)
 	logObject.info("Successfully parsed BGC Genbanks.")
 
 	# Step 2: Parse OrthoFinder Homolog vs Sample Matrix
@@ -109,13 +109,13 @@ def lsaBGC_Cluster():
 	stats_file = outdir + 'GCF_details.txt'
 	sf_handle = open(stats_file, 'w')
 	if run_parameter_tests:
-		sf_handle.write('\t'.join(['MCL inflation parameter', 'Jaccard similarity cutoff', 'GCF id', 'number of BGCs',
+		sf_handle.write('\t'.join(['MCL inflation parameter', 'Jaccard similarity cutoff', 'GCF id', 'number of BGCs', 'number of samples',
 								   'samples with multiple BGCs in GCF', 'size of the SCC', 'mean number of OGs',
-								   'stdev for number of OGs', 'min difference', 'max difference',
+								   'stdev for number of OGs', 'min difference', 'max difference', 'number of core gene aggregates',
 								   'annotations']) + '\n')
 	else:
-		sf_handle.write('\t'.join(['GCF id', 'number of BGCs', 'samples with multiple BGCs in GCF',
-								   'size of the SCC', 'mean number of OGs', 'stdev for number of OGs',
+		sf_handle.write('\t'.join(['GCF id', 'number of BGCs', 'number of samples', 'samples with multiple BGCs in GCF',
+								   'size of the SCC', 'mean number of OGs', 'stdev for number of OGs', 'number of core gene aggregates',
 								   'min difference', 'max difference', 'annotations']) + '\n')
 
 	mcl_inflation_params = [mcl_inflation]
@@ -125,11 +125,11 @@ def lsaBGC_Cluster():
 		jaccard_cutoff_params = [0, 20, 30, 50, 75, 90]
 	for mip in mcl_inflation_params:
 		for jcp in jaccard_cutoff_params:
-			lsaBGC.runMCLAndReportGCFs(mip, jcp, mcl_outdir, sf_handle, pairwise_relations, pair_relations_txt_file, bgc_cogs, bgc_product, bgc_sample, run_parameter_tests, cores, logObject)
+			lsaBGC.runMCLAndReportGCFs(mip, jcp, mcl_outdir, sf_handle, pairwise_relations, pair_relations_txt_file, bgc_cogs, bgc_product, bgc_core_counts, bgc_sample, run_parameter_tests, cores, logObject)
 	sf_handle.close()
 
 	if run_parameter_tests:
-		lsaBGC.plotResultsFromUsingDifferentParameters()
+		lsaBGC.plotResultsFromUsingDifferentParameters(stats_file, outdir, logObject)
 
 	logObject.info("Successfully ran MCL clustering analysis to determine GCFs!")
 

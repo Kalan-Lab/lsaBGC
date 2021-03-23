@@ -13,12 +13,13 @@ import statistics
 import random
 from scipy.stats import f_oneway
 import pysam
+import random
 
 lsaBGC_main_directory = '/'.join(os.path.realpath(__file__).split('/')[:-2])
 RSCRIPT_FOR_PLOTTING = lsaBGC_main_directory + '/lsaBGC/plotCogConservation.R'
+RSCRIPT_FOR_CLUSTER_ASSESSMENT_PLOTTING = lsaBGC_main_directory + '/lsaBGC/clusterParameterSelectionPlotting.R'
 RSCRIPT_FOR_TAJIMA = lsaBGC_main_directory + '/lsaBGC/calculateTajimasD.R'
 FLANK_SIZE = 500
-
 
 def multiProcess(input):
 	input_cmd = input[:-1]
@@ -699,6 +700,7 @@ def readInBGCGenbanksComprehensive(bgc_specs_file, logObject, comprehensive_pars
 	bgc_sample = {}
 	bgc_product = {}
 	bgc_genes = {}
+	bgc_core_counts = {}
 	all_genes = set([])
 	with open(bgc_specs_file) as obsf:
 		for i, line in enumerate(obsf):
@@ -717,6 +719,7 @@ def readInBGCGenbanksComprehensive(bgc_specs_file, logObject, comprehensive_pars
 				assert (is_genbank(gbk))
 				bgc_genes_full, bgc_info_full = parseGenbanks(gbk, gbk, comprehensive_parsing=comprehensive_parsing)
 				bgc_product[gbk] = [x['product'] for x in bgc_info_full]
+				bgc_core_counts[gbk] = bgc_info_full[0]['count_core_gene_groups']
 				bgc_genes[gbk] = set(bgc_genes_full.keys())
 				all_genes = all_genes.union(bgc_genes[gbk])
 				bgc_sample[gbk] = sample
@@ -725,8 +728,7 @@ def readInBGCGenbanksComprehensive(bgc_specs_file, logObject, comprehensive_pars
 				logObject.warning("Unable to validate %s as Genbank. Skipping its incorporation into analysis.")
 				raise RuntimeWarning("Unable to validate %s as Genbank. Skipping ...")
 
-	return [bgc_sample, bgc_product, bgc_genes, all_genes]
-
+	return [bgc_sample, bgc_product, bgc_genes, bgc_core_counts, all_genes]
 
 def getSpeciesRelationshipsFromPhylogeny(species_phylogeny, samples_in_gcf):
 	samples_in_phylogeny = set([])
@@ -1082,6 +1084,8 @@ def parseGenbanks(gbk, bgc_name, comprehensive_parsing=True):
 
 	sys.stderr.write('Processing %s\n' % gbk)
 	genes = {}
+	core_genes = set([])
+	gene_order = {}
 	with open(gbk) as ogbk:
 		for rec in SeqIO.parse(ogbk, 'genbank'):
 			for feature in rec.features:
@@ -1098,7 +1102,11 @@ def parseGenbanks(gbk, bgc_name, comprehensive_parsing=True):
 
 					grange = set(range(start, end + 1))
 					core_overlap = False
-					if len(grange.intersection(core_positions)) > 0: core_overlap = True
+					if len(grange.intersection(core_positions)) > 0:
+						core_overlap = True
+						core_genes.add(lt)
+
+					gene_order[lt] = start
 
 					prot_seq, nucl_seq, nucl_seq_with_flanks, relative_start, relative_end, gene_domains = [None]*6
 					if comprehensive_parsing:
@@ -1141,7 +1149,22 @@ def parseGenbanks(gbk, bgc_name, comprehensive_parsing=True):
 								 'nucl_seq_with_flanks': nucl_seq_with_flanks, 'gene_domains': gene_domains,
 								 'core_overlap': core_overlap, 'relative_start': relative_start,
 								 'relative_end': relative_end}
-				# print(genes[lt])
+
+	number_of_core_gene_groups = 0
+	tmp = []
+	for lt in sorted(gene_order.items(), key=itemgetter(1), reverse=True):
+		if lt[0] in core_genes:
+			tmp.append(lt[0])
+		elif len(tmp) > 0:
+			number_of_core_gene_groups += 1
+			tmp = []
+	if len(tmp) > 0:
+		number_of_core_gene_groups += 1
+		tmp = []
+
+	for i, pc in enumerate(bgc_info):
+		bgc_info[i]['count_core_gene_groups'] = number_of_core_gene_groups
+
 	return ([genes, bgc_info])
 
 
@@ -1705,39 +1728,86 @@ def calculateBGCPairwiseRelations(bgc_genes, gene_to_cog, prop_multi_copy, outdi
 def plotResultsFromUsingDifferentParameters(gcf_details_file, outdir, logObject):
 	try:
 		singleton_counts = defaultdict(int)
+		all_annotation_classes = set([])
 		with open(gcf_details_file) as ogdf:
 			for i, line in enumerate(ogdf):
 				line = line.strip()
 				ls = line.split("\t")
 				if i == 0: continue
-				mcl = int(ls[0])
-				jcp = int(ls[1])
-				param_id = '%d_%d' % (mcl, jcp)
+				mcl = round(float(ls[0]), 2)
+				jcp = round(float(ls[1]), 2)
+				param_id = '%f_%f' % (mcl, jcp)
 				gcf_id = ls[2]
 				if gcf_id == 'singletons':
 					singleton_counts[param_id] = int(ls[3])
+				else:
+					annotations = set([x.split(':')[0].replace('-', '.') for x in ls[-1].split('; ') if x.split(':')[0] != 'NA'])
+					all_annotation_classes = all_annotation_classes.union(annotations)
 
+		plot_annot_file = outdir + 'annotation_classes.txt'
+		plot_annot_handle = open(plot_annot_file, 'w')
+		plot_annot_handle.write('\n'.join(['Unknown'] + sorted(list(all_annotation_classes))))
+		plot_annot_handle.close()
+
+		plot_input_file = outdir + 'plotting_input.txt'
+		plot_input_handle = open(plot_input_file, 'w')
+		coord_tuples = defaultdict(set)
+		plot_input_handle.write('\t'.join(['GCF', 'Parameters', 'Samples', 'MultiBGCSamples', 'SCCExists', 'CoreGeneClusters', 'Unknown'] + sorted(list(all_annotation_classes))) + '\n')
 		with open(gcf_details_file) as ogdf:
 			for i, line in enumerate(ogdf):
 				line = line.strip()
 				ls = line.split("\t")
 				if i == 0: continue
-				mcl = float(ls[0])
-				jcp = float(ls[1])
+				mcl = round(float(ls[0]), 2)
+				jcp = round(float(ls[1]), 2)
 				param_id = '%f_%f' % (mcl, jcp)
 				gcf_id = ls[2]
 				if gcf_id == 'singletons': continue
 
-				param_mod_id = 'Inf: %f JacSim: %f (%d Singletons)' % (mcl, jcp, singleton_counts[param_id])
+				param_mod_id = 'Inf: %.1f JacSim: %.1f (%d Singletons)' % (mcl, jcp, singleton_counts[param_id])
 				# get stats for plotting
-				samples_with_multi_bgcs = ls[4]
-				size_of_scc = ls[5]
+
+				samples = int(ls[4])
+				samples_with_multi_bgcs = int(ls[5])
+				size_of_scc = int(ls[6])
+				number_of_core_genes = ls[-2]
 				annotations = ls[-1].split('; ')
 
+				unique_coord = False
+				random_offset_1 = random.randint(-50, 51) / 100.0
+				random_offset_2 = random.randint(-50, 51) / 100.0
+				coord_tuple = tuple([samples + random_offset_1, samples_with_multi_bgcs + random_offset_2])
+				while not unique_coord:
+					if not coord_tuple in coord_tuples[param_mod_id]:
+						unique_coord = True
+					else:
+						random_offset_1 = random.randint(-50, 51) / 100.0
+						random_offset_2 = random.randint(-50, 51) / 100.0
+						coord_tuple = tuple([samples + random_offset_1, samples_with_multi_bgcs + random_offset_2])
+				coord_tuples[param_mod_id].add(coord_tuple)
+				binary_size_of_scc = 1
+				if size_of_scc > 0:
+					binary_size_of_scc = 2
+
+				annot_count = defaultdict(float)
+				for an in annotations:
+					ans = an.split(':')
+					annot_count[ans[0].replace('-', '.')] = ans[1]
+
+				annotation_class_abd = [annot_count['NA']]
+				for ac in sorted(all_annotation_classes):
+					annotation_class_abd.append(annot_count[ac])
+
+				plot_input_handle.write('\t'.join([str(x) for x in [gcf_id + ' - ' + param_mod_id, param_mod_id, samples+random_offset_1, samples_with_multi_bgcs+random_offset_2, binary_size_of_scc, number_of_core_genes] + annotation_class_abd]) + '\n')
+		plot_input_handle.close()
+
 	except:
+		error_msg = 'Problem creating plot(s) for assessing best parameter choices for GCF clustering.'
+		logObject.info(error_msg)
+		raise RuntimeError(error_msg)
 
 def runMCLAndReportGCFs(mip, jcp, outdir, sf_handle, pairwise_relations, pair_relations_txt_file,
-						bgc_cogs, bgc_product, bgc_sample, inflation_testing, cores, logObject):
+						bgc_cogs, bgc_product, bgc_core_counts, bgc_sample, inflation_testing, cores, logObject):
 	pair_relations_filt_txt_file = outdir + 'bgc_pair_relationships.%f.txt' % jcp
 	try:
 		prftf_handle = open(pair_relations_filt_txt_file, 'w')
@@ -1807,10 +1877,12 @@ def runMCLAndReportGCFs(mip, jcp, outdir, sf_handle, pairwise_relations, pair_re
 			samp_counts = defaultdict(int)
 			samp_ogs = defaultdict(set)
 			products = defaultdict(float)
+			core_gene_cluster_counts = 0
 			for a, bgc1 in enumerate(gcf_mems):
 				samp1 = bgc_sample[bgc1]
 				samp_counts[samp1] += 1
 				for prod in bgc_product[bgc1]: products[prod] += 1.0/len(bgc_product[bgc1])
+				if core_gene_cluster_counts < bgc_core_counts[bgc1]: core_gene_cluster_counts = bgc_core_counts[bgc1]
 				samp_ogs[samp1] = samp_ogs[samp1].union(bgc_cogs[bgc1])
 				clustered_bgcs.add(bgc1)
 				for b, bgc2 in enumerate(gcf_mems):
@@ -1833,8 +1905,8 @@ def runMCLAndReportGCFs(mip, jcp, outdir, sf_handle, pairwise_relations, pair_re
 				stdev = statistics.stdev(num_ogs)
 			except:
 				pass
-			gcf_stats = ['GCF_' + str(j + 1), len(gcf_mems), multi_same_sample, len(scc), mean, stdev, min(diffs),
-						 max(diffs), '; '.join([x[0] + ':' + str(x[1]) for x in products])]
+			gcf_stats = ['GCF_' + str(j + 1), len(gcf_mems), len(samp_counts.keys()), multi_same_sample, len(scc), mean, stdev, min(diffs),
+						 max(diffs), core_gene_cluster_counts, '; '.join([x[0] + ':' + str(x[1]) for x in products.items()])]
 			if inflation_testing:
 				gcf_stats = [mip, jcp] + gcf_stats
 			sf_handle.write('\t'.join([str(x) for x in gcf_stats]) + '\n')
@@ -1844,7 +1916,7 @@ def runMCLAndReportGCFs(mip, jcp, outdir, sf_handle, pairwise_relations, pair_re
 		if not bgc in clustered_bgcs: singleton_bgcs.add(bgc)
 	singleton_stats = ['singletons', len(singleton_bgcs)] + (['NA'] * 7)
 	if inflation_testing:
-		singleton_stats = [mip] + singleton_stats
+		singleton_stats = [mip, jcp] + singleton_stats
 	sf_handle.write('\t'.join([str(x) for x in singleton_stats]) + '\n')
 
 	if not inflation_testing:
