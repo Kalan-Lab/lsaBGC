@@ -106,9 +106,10 @@ def lsaBGC_See():
     cog_to_color = lsaBGC.assignColorsToCOGs(gene_to_cog, bgc_genes)
     logObject.info("Successfully parsed homolog matrix.")
 
-    # Step 4: Create iTol tracks for viewing BGCs of GCF across phylogeny.
+    # Step 4: Create iTol and gggenes (R) tracks for visualizing BGCs of GCF across a phylogeny.
     logObject.info("Create iTol tracks for viewing BGCs of GCF across phylogeny. Note, should be used to annotate edited species phylogeny or BGC SCC phylogeny as some samples could have multiple BGCs!")
     lsaBGC.createItolBGCSeeTrack(bgc_genes, gene_to_cog, cog_to_color, comp_gene_info, dataset_label, outdir, logObject)
+    lsaBGC.visualizeViaGggenesAndGgtree(outdir + 'species_phylogeny.edited.nwk', bgc_genes, gene_to_cog, cog_to_color, comp_gene_info, dataset_label, outdir, logObject)
     logObject.info("iTol track written!")
 
     # Step 5: (Optional) Create phylogeny from single-copy-core homologs from BGCs across samples (single copy in samples, not BGCs)

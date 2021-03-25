@@ -1,0 +1,87 @@
+library(scatterpie)
+library(ggplot2)
+library(RColorBrewer)
+library(cowplot)
+
+args = commandArgs(trailingOnly=TRUE)
+
+# read in plotting inputs
+data <- read.table(args[1], header=T, sep='\t')
+annot_classes <- scan(args[2], what="", sep="\n")
+largest_gcfs_data <- read.table(args[3], header=T, sep='\t')
+overview_data <- read.table(args[4], header=T, sep='\t')
+
+# define color scheme for plots
+nb.cols <- length(annot_classes)-1
+annot_colors <- colorRampPalette(brewer.pal(nb.cols, "Set2"))(nb.cols)
+annot_colors <- c("#808080", annot_colors)
+names(annot_colors) <- annot_classes
+scc_colors <- c("#737574", "#222422", "#ed665f")
+names(scc_colors) <- c("Not Applicable", "SCC Exists", "SCC DNE")
+
+# GCF     Parameters      JaccardSim      Inflation       Samples Samples_Offset  MultiBGCSamples_Offset  SCCExists       SCCSize CoreGeneClusters        AvgGeneCount    StdDevGeneCount Unknown NRPS.like
+#        betalactone     ectoine linaridin       siderophore     terpene
+
+# determine number of parameter combinations tested and axes boundaries for scatter plots
+params <- unique(data$Parameters)
+npages <- length(params)
+xmin <- min(data[!is.na(data$Samples_Offset),]$Samples_Offset)
+ymin <- min(data[!is.na(data$MultiBGCSamples),]$MultiBGCSamples)
+xmax <- max(data[!is.na(data$Samples_Offset),]$Samples_Offset)
+ymax <- max(data[!is.na(data$MultiBGCSamples),]$MultiBGCSamples)
+
+# open pdf for the report
+pdf(args[5], height=8, width=11)
+
+# Title page + overview heatmaps
+repname <- ggplot()+theme_void() + ggtitle("Parameter Impact on\nGCF Clustering") + theme(plot.title = element_text(hjust = 0.5, size=70, face='bold'))
+gheat1 <- ggplot(overview_data, aes(x=as.factor(Inflation), y=as.factor(JaccardSim), fill=SingletonToClustered)) +
+  geom_tile() + theme_classic() +  scale_fill_gradient(low = "white", high = "darkblue") + xlab("MCL Inflation") +
+  ylab("Jaccard Similarity Cutoff") + ggtitle("Ratio of BGCs which are\nsingletons to those in GCFs")+ theme(legend.title = element_blank())
+gheat2 <- ggplot(overview_data, aes(x=as.factor(Inflation), y=as.factor(JaccardSim), fill=MixedAnnotationProportion)) +
+  geom_tile() + theme_classic() +   scale_fill_gradient(low = "yellow", high = "darkorange") + xlab("MCL Inflation") +
+  ylab("Jaccard Similarity Cutoff") + ggtitle("Proportion of GCFs which feature\nmultiple BGC annotation categories")+ theme(legend.title = element_blank())
+gheatmaps <- plot_grid(gheat1, gheat2)
+print(plot_grid(repname, gheatmaps, rel_heights=c(1,2), ncol=1))
+
+boxpl1 <- ggplot(data, aes(x=as.factor(Inflation), y=SCCSize, fill=as.factor(Inflation))) + geom_boxplot(show.legend=F) + facet_wrap(~JaccardSim, ncol=length(data$JaccardSim)) + theme_classic() + xlab("MCL Inflation") + ylab("") + ggtitle("Size of GCF's Single Copy Cores") + scale_fill_brewer(palette="Set2")
+boxpl2 <- ggplot(data, aes(x=as.factor(Inflation), y=Samples, fill=as.factor(Inflation))) + geom_boxplot(show.legend=F) + facet_wrap(~JaccardSim, ncol=length(data$JaccardSim)) + theme_classic() + xlab("MCL Inflation") + ylab("") + ggtitle("Number of Samples with GCF") + scale_fill_brewer(palette="Set2")
+boxpl3 <- ggplot(data, aes(x=as.factor(Inflation), y=AvgGeneCount, fill=as.factor(Inflation))) + geom_boxplot(show.legend=F) + facet_wrap(~JaccardSim, ncol=length(data$JaccardSim)) + theme_classic() + xlab("MCL Inflation") + ylab("") + ggtitle("Avg. Gene Count per BGC in GCF") + scale_fill_brewer(palette="Set2")
+boxpl4 <- ggplot(data, aes(x=as.factor(Inflation), y=StdDevGeneCount, fill=as.factor(Inflation))) + geom_boxplot(show.legend=F) + facet_wrap(~JaccardSim, ncol=length(data$JaccardSim)) + theme_classic() + xlab("MCL Inflation") + ylab("") + ggtitle("Std. Deviation of Gene Count for BGCs in GCF") + scale_fill_brewer(palette="Set2")
+
+top_row <- plot_grid(boxpl1, boxpl2)
+bot_row <- plot_grid(boxpl3, boxpl4)
+
+print(plot_grid(boxpl1, boxpl2, boxpl3, boxpl4, rel_heights=c(1,1,1,1), ncol=1))
+
+for(i in 1:npages) {
+  curr_param = params[i]
+
+  data_filt <- data[data$Parameters == curr_param,]
+  data_filt_scatter <- data_filt[!is.na(data_filt$Samples_Offset),]
+  largest_gcfs_data_filt <- largest_gcfs_data[largest_gcfs_data$Parameters == curr_param,]
+
+  paramname <- ggplot()+theme_void() + ggtitle(curr_param) + theme(plot.title = element_text(hjust = 0.5, size=50, face='bold'))
+
+  gscat <- ggplot()  +
+    scale_fill_manual(values=annot_colors) + theme_classic() +
+    xlab("Number of Samples with GCF") + ylab("Number of Samples with\n>= 2 BGCs for GCF") +
+    geom_point(aes(x=Samples_Offset, y=MultiBGCSamples_Offset, shape=as.factor(SCCExists)), data=data_filt_scatter, size=1.3, show.legend=F, alpha=0.5) +
+    geom_scatterpie(aes(x=Samples_Offset, y=MultiBGCSamples_Offset), data=data_filt_scatter, alpha=0.4, cols=annot_classes, show.legend=F) +
+    coord_fixed(xlim=c(xmin, xmax), ylim=c(ymin, ymax), expand=T)
+
+
+  ghist_1 <- ggplot(data_filt, aes(x=Samples, fill=SCCExists)) + geom_histogram(color="black", size=0.3) + theme_classic() +
+    theme(legend.position = c(0.8, 0.8)) + scale_fill_manual(values=scc_colors) + xlab("Sample Count") + guides(fill=guide_legend(title=""))
+
+  ghist_2 <- ggplot(data_filt, aes(x=StdDevGeneCount)) + xlab("Std. Deviation in Gene Count") + geom_histogram(color="black", fill="black") + theme_classic() + scale_y_log10()
+
+  gbar <- ggplot(largest_gcfs_data_filt, aes(x=reorder(GCF, Total.BGCs), y=Count, fill=Annotation)) +
+    geom_bar(stat='identity', color='black', show.legend=F) + theme_classic() + scale_fill_manual(values=annot_colors) +
+    theme(axis.text.x=element_blank(), axis.ticks.x=element_blank()) + xlab("Top 50 GCFs with Most BGCs")
+
+  mid_row <- plot_grid(ghist_1, ghist_2)
+  print(plot_grid(paramname, mid_row, gscat, gbar, rel_heights=c(1,2,4,2), ncol=1))
+}
+
+dev.off()

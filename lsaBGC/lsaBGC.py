@@ -17,7 +17,7 @@ import random
 
 lsaBGC_main_directory = '/'.join(os.path.realpath(__file__).split('/')[:-2])
 RSCRIPT_FOR_PLOTTING = lsaBGC_main_directory + '/lsaBGC/plotCogConservation.R'
-RSCRIPT_FOR_CLUSTER_ASSESSMENT_PLOTTING = lsaBGC_main_directory + '/lsaBGC/clusterParameterSelectionPlotting.R'
+RSCRIPT_FOR_CLUSTER_ASSESSMENT_PLOTTING = lsaBGC_main_directory + '/lsaBGC/plotParameterImpactsOnGCF.R'
 RSCRIPT_FOR_TAJIMA = lsaBGC_main_directory + '/lsaBGC/calculateTajimasD.R'
 FLANK_SIZE = 500
 
@@ -190,12 +190,84 @@ def readInBGCGenbanksPerGCF(gcf_specs_file, logObject, comprehensive_parsing=Tru
 
 	return [bgc_gbk, bgc_genes, comp_gene_info, all_genes, bgc_sample, sample_bgcs]
 
+def visualizeViaGggenesAndGgtree(phylogeny_file, bgc_genes, gene_to_cog, cog_to_color, comp_gene_info, dataset_label, outdir, logObject):
+	track_file = outdir + 'BGCs_Visualization.gggenes.txt'
+	track_handle = open(track_file, 'w')
+
+	logObject.info("Writing gggenes input file to: %s" % track_file)
+
+	# write header for iTol track file
+	track_handle.write('bgc\tgene\tstart\tend\tforward\tog\tog_color\n')
+	# write the rest of the iTol track file for illustrating genes across BGC instances
+	ref_cog_directions = {}
+
+	bgc_gene_counts = defaultdict(int)
+	for bgc in bgc_genes:
+		bgc_gene_counts[bgc] = len(bgc_genes[bgc])
+
+	for i, item in enumerate(sorted(bgc_gene_counts.items(), key=itemgetter(1), reverse=True)):
+		bgc = item[0]
+		curr_bgc_genes = bgc_genes[bgc]
+		last_gene_end = max([comp_gene_info[lt]['end'] for lt in curr_bgc_genes])
+		printlist = []
+		cog_directions = {}
+		cog_lengths = defaultdict(list)
+		for lt in curr_bgc_genes:
+			ginfo = comp_gene_info[lt]
+			cog = 'singleton'
+			if lt in gene_to_cog:
+				cog = gene_to_cog[lt]
+
+			gstart = ginfo['start']
+			gend = ginfo['end']
+			forward = "FALSE"
+			if ginfo['direction'] == '+': forward = "TRUE"
+
+			cog_color = '"#dbdbdb"'
+			if cog in cog_to_color:
+				cog_color = '"' + cog_to_color[cog] + '"'
+
+			gene_string = '\t'.join([str(x) for x in [bgc, lt, gstart, gend, forward, cog, cog_color]])
+			printlist.append(gene_string)
+			if cog != 'singleton':
+				cog_directions[cog] = ginfo['direction']
+				cog_lengths[cog].append(gend - gstart)
+		if i == 0:
+			ref_cog_directions = cog_directions
+			track_handle.write('\t'.join(printlist) + '\n')
+		else:
+			flip_support = 0
+			keep_support = 0
+			for c in ref_cog_directions:
+				if not c in cog_directions: continue
+				cog_weight = statistics.mean(cog_lengths[c])
+				if cog_directions[c] == ref_cog_directions[c]:
+					keep_support += cog_weight
+				else:
+					flip_support += cog_weight
+
+			# flip the genbank visual if necessary, first BGC processed is used as reference guide
+			if flip_support > keep_support:
+				flip_printlist = []
+				for gene_string in printlist:
+					gene_info = gene_string.split('\t')
+					new_forward = 'TRUE'
+					if gene_info[4] == 'TRUE': new_forward = 'FALSE'
+					new_gstart = int(last_gene_end) - int(gene_info[3])
+					new_gend = int(last_gene_end) - int(gene_info[2])
+					new_gene_string = '\t'.join([str(x) for x in [gene_info[0], gene_info[1], new_gstart, new_gend, new_forward, gene_info[-2], gene_info[-1]]])
+					flip_printlist.append(new_gene_string)
+				track_handle.write('\n'.join(flip_printlist) + '\n')
+			else:
+				track_handle.write('\n'.join(printlist) + '\n')
+	track_handle.close()
+
 
 def createItolBGCSeeTrack(bgc_genes, gene_to_cog, cog_to_color, comp_gene_info, dataset_label, outdir, logObject):
 	track_file = outdir + 'BGCs_Visualization.iTol.txt'
 	track_handle = open(track_file, 'w')
 
-	logObject.info("Writing track file to: %s" % track_file)
+	logObject.info("Writing iTol track file to: %s" % track_file)
 	logObject.info("Track will have label: %s" % dataset_label)
 
 	# write header for iTol track file
@@ -259,7 +331,6 @@ def createItolBGCSeeTrack(bgc_genes, gene_to_cog, cog_to_color, comp_gene_info, 
 			# flip the genbank visual if necessary, first BGC processed is used as reference guide
 			if flip_support > keep_support:
 				flip_printlist = printlist[:2]
-				bgc_end = int(printlist[1])
 				for gene_string in printlist[2:]:
 					gene_info = gene_string.split('|')
 					new_shape = None
@@ -267,8 +338,8 @@ def createItolBGCSeeTrack(bgc_genes, gene_to_cog, cog_to_color, comp_gene_info, 
 						new_shape = 'TL'
 					elif gene_info[0] == 'TL':
 						new_shape = 'TR'
-					new_gstart = int(bgc_end) - int(gene_info[2])
-					new_gend = int(bgc_end) - int(gene_info[1])
+					new_gstart = int(last_gene_end) - int(gene_info[2])
+					new_gend = int(last_gene_end) - int(gene_info[1])
 					new_gene_info = '|'.join([new_shape, str(new_gstart), str(new_gend)] + gene_info[-2:])
 					flip_printlist.append(new_gene_info)
 				track_handle.write('\t'.join(flip_printlist) + '\n')
@@ -1691,7 +1762,7 @@ def read_pair_generator(bam, region_string=None, start=None, stop=None):
 			del read_dict[qname]
 
 
-def calculateBGCPairwiseRelations(bgc_genes, gene_to_cog, prop_multi_copy, outdir, logObject):
+def calculateBGCPairwiseRelations(bgc_genes, gene_to_cog, prop_multi_copy, outdir, bgc_product, split_by_annotation, logObject):
 	pair_relations_txt_file = outdir + 'bgc_pair_relationships.txt'
 
 	bgc_cogs = defaultdict(set)
@@ -1716,7 +1787,8 @@ def calculateBGCPairwiseRelations(bgc_genes, gene_to_cog, prop_multi_copy, outdi
 					overlap_metric_scaled = 100.00 * overlap_metric
 					pairwise_relations[bgc1][bgc2] = overlap_metric_scaled
 					pairwise_relations[bgc2][bgc1] = overlap_metric_scaled
-					prf_handle.write('%s\t%s\t%f\n' % (bgc1, bgc2, overlap_metric_scaled))
+					if not split_by_annotation or (split_by_annotation and bgc_product[bgc1] == bgc_product[bgc2]):
+						prf_handle.write('%s\t%s\t%f\n' % (bgc1, bgc2, overlap_metric_scaled))
 		prf_handle.close()
 		logObject.info("Calculated pairwise relations and wrote to: %s" % pair_relations_txt_file)
 	except:
@@ -1727,7 +1799,13 @@ def calculateBGCPairwiseRelations(bgc_genes, gene_to_cog, prop_multi_copy, outdi
 
 def plotResultsFromUsingDifferentParameters(gcf_details_file, outdir, logObject):
 	try:
+		plot_input_dir = outdir + 'plotting_input/'
+		if not os.path.isdir(plot_input_dir): os.system('mkdir %s' % plot_input_dir)
+
 		singleton_counts = defaultdict(int)
+		clustered_counts = defaultdict(int)
+		cluster_counts = defaultdict(int)
+		cluster_mixedannot_counts = defaultdict(int)
 		all_annotation_classes = set([])
 		with open(gcf_details_file) as ogdf:
 			for i, line in enumerate(ogdf):
@@ -1741,18 +1819,30 @@ def plotResultsFromUsingDifferentParameters(gcf_details_file, outdir, logObject)
 				if gcf_id == 'singletons':
 					singleton_counts[param_id] = int(ls[3])
 				else:
+					clustered_counts[param_id] += int(ls[3])
+					cluster_counts[param_id] += 1
 					annotations = set([x.split(':')[0].replace('-', '.') for x in ls[-1].split('; ') if x.split(':')[0] != 'NA'])
+					if len(ls[-1].split('; ')) > 1: cluster_mixedannot_counts[param_id] += 1
 					all_annotation_classes = all_annotation_classes.union(annotations)
 
-		plot_annot_file = outdir + 'annotation_classes.txt'
+		plot_overview_file = plot_input_dir + 'plotting_overview.txt'
+		plot_annot_file = plot_input_dir + 'annotation_classes.txt'
+		plot_input_1_file = plot_input_dir + 'plotting_input_g123.txt'
+		plot_input_2_file = plot_input_dir + 'plotting_input_g4.txt'
+
+		plot_input_1_handle = open(plot_input_1_file, 'w')
+		plot_input_2_handle = open(plot_input_2_file, 'w')
 		plot_annot_handle = open(plot_annot_file, 'w')
+		plot_overview_handle = open(plot_overview_file, 'w')
+
 		plot_annot_handle.write('\n'.join(['Unknown'] + sorted(list(all_annotation_classes))))
 		plot_annot_handle.close()
 
-		plot_input_file = outdir + 'plotting_input.txt'
-		plot_input_handle = open(plot_input_file, 'w')
 		coord_tuples = defaultdict(set)
-		plot_input_handle.write('\t'.join(['GCF', 'Parameters', 'Samples', 'MultiBGCSamples', 'SCCExists', 'CoreGeneClusters', 'Unknown'] + sorted(list(all_annotation_classes))) + '\n')
+		plot_input_1_handle.write('\t'.join(['GCF', 'Parameters', 'JaccardSim', 'Inflation', 'Samples', 'Samples_Offset', 'MultiBGCSamples_Offset', 'SCCExists', 'SCCSize', 'CoreGeneClusters', 'AvgGeneCount', 'StdDevGeneCount', 'Unknown'] + sorted(list(all_annotation_classes))) + '\n')
+		plot_input_2_handle.write('\t'.join(['GCF', 'Parameters', 'Annotation', 'Count', 'Total BGCs']) + '\n')
+		plot_overview_handle.write('\t'.join(['JaccardSim', 'Inflation', 'Clustered', 'Singletons', 'SingletonToClustered', 'MixedAnnotations', 'NumberClusters', 'MixedAnnotationProportion']) + '\n')
+
 		with open(gcf_details_file) as ogdf:
 			for i, line in enumerate(ogdf):
 				line = line.strip()
@@ -1764,13 +1854,15 @@ def plotResultsFromUsingDifferentParameters(gcf_details_file, outdir, logObject)
 				gcf_id = ls[2]
 				if gcf_id == 'singletons': continue
 
-				param_mod_id = 'Inf: %.1f JacSim: %.1f (%d Singletons)' % (mcl, jcp, singleton_counts[param_id])
+				param_mod_id = 'Inf: %.1f JacSim: %.1f' % (mcl, jcp)
 				# get stats for plotting
 
 				samples = int(ls[4])
 				samples_with_multi_bgcs = int(ls[5])
 				size_of_scc = int(ls[6])
 				number_of_core_genes = ls[-2]
+				avg_gene_count = ls[-6]
+				stdev_gene_count = ls[-5]
 				annotations = ls[-1].split('; ')
 
 				unique_coord = False
@@ -1785,21 +1877,56 @@ def plotResultsFromUsingDifferentParameters(gcf_details_file, outdir, logObject)
 						random_offset_2 = random.randint(-50, 51) / 100.0
 						coord_tuple = tuple([samples + random_offset_1, samples_with_multi_bgcs + random_offset_2])
 				coord_tuples[param_mod_id].add(coord_tuple)
-				binary_size_of_scc = 1
+				scc_exists = "SCC DNE"
 				if size_of_scc > 0:
-					binary_size_of_scc = 2
+					scc_exists = "SCC Exists"
 
 				annot_count = defaultdict(float)
 				for an in annotations:
 					ans = an.split(':')
-					annot_count[ans[0].replace('-', '.')] = ans[1]
+					annot_count[ans[0].replace('-', '.')] = float(ans[1])
 
 				annotation_class_abd = [annot_count['NA']]
 				for ac in sorted(all_annotation_classes):
 					annotation_class_abd.append(annot_count[ac])
 
-				plot_input_handle.write('\t'.join([str(x) for x in [gcf_id + ' - ' + param_mod_id, param_mod_id, samples+random_offset_1, samples_with_multi_bgcs+random_offset_2, binary_size_of_scc, number_of_core_genes] + annotation_class_abd]) + '\n')
-		plot_input_handle.close()
+				plot_input_1_handle.write('\t'.join([str(x) for x in [gcf_id + ' - ' + param_mod_id, param_mod_id, jcp, mcl, samples, samples+random_offset_1, samples_with_multi_bgcs+random_offset_2, scc_exists, size_of_scc, number_of_core_genes, avg_gene_count, stdev_gene_count] + annotation_class_abd]) + '\n')
+				if int(gcf_id.split('_')[1]) <= 50:
+					tot_count = sum(annot_count.values())
+					for an in annot_count:
+						an_count = annot_count[an]
+						if an == 'NA':
+							an = 'Unknown'
+						plot_input_2_handle.write('\t'.join([str(x) for x in [gcf_id + ' - ' + param_mod_id, param_mod_id, an, an_count, tot_count ]]) + '\n')
+
+		for pid in clustered_counts:
+			mcl, jcp = [float(x) for x in pid.split('_')]
+			param_mod_id = 'Inf: %.1f JacSim: %.1f' % (mcl, jcp)
+
+			plot_overview_handle.write('\t'.join([str(x) for x in [jcp, mcl, clustered_counts[pid], singleton_counts[pid], singleton_counts[pid]/clustered_counts[pid], cluster_mixedannot_counts[pid], cluster_counts[pid], cluster_mixedannot_counts[pid]/float(cluster_counts[pid])]]) + '\n')
+
+			for sgcf_id in range(1, singleton_counts[pid] + 1):
+				sgcf_name = 'SGCF_' + str(sgcf_id)
+				plot_input_1_handle.write('\t'.join([sgcf_name + ' - ' + param_mod_id, param_mod_id, str(jcp), str(mcl), '1', 'NA', 'NA', 'Not Applicable'] + ['NA']*(5+len(all_annotation_classes))) + '\n')
+
+		plot_input_1_handle.close()
+		plot_input_2_handle.close()
+		plot_overview_handle.close()
+
+		plot_pdf_file = outdir + 'Plots_Depicting_Parameter_Influence_on_GCF_Clustering.pdf'
+		rscript_plot_cmd = ["Rscript", RSCRIPT_FOR_CLUSTER_ASSESSMENT_PLOTTING, plot_input_1_file, plot_annot_file,
+							plot_input_2_file, plot_overview_file, plot_pdf_file]
+		logObject.info('Running R-based plotting with the following command: %s' % ' '.join(rscript_plot_cmd))
+		try:
+			subprocess.call(' '.join(rscript_plot_cmd), shell=True, stdout=subprocess.DEVNULL,
+							stderr=sys.stderr,
+							executable='/bin/bash')
+			logObject.info('Successfully ran: %s' % ' '.join(rscript_plot_cmd))
+		except:
+			logObject.error('Had an issue running: %s' % ' '.join(rscript_plot_cmd))
+			raise RuntimeError('Had an issue running: %s' % ' '.join(rscript_plot_cmd))
+		logObject.info('Plotting completed!')
+
 
 	except:
 		error_msg = 'Problem creating plot(s) for assessing best parameter choices for GCF clustering.'

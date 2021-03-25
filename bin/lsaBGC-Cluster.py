@@ -27,6 +27,7 @@ def create_parser():
 	parser.add_argument('-c', '--cores', type=int, help="Number of cores to use for MCL step.", required=False, default=1)
 	parser.add_argument('-i', '--mcl_inflation', type=float, help="Inflation parameter to be used for MCL.", required=False, default=1.4)
 	parser.add_argument('-j', '--jaccard_cutoff', type=float, help="Cutoff for Jaccard similarity of homolog groups shared between two BGCs.", default=50.0)
+	parser.add_argument('-s', '--split_by_annotation', action='store_true', help="Partition BGCs into groups based on annotation first.", default=False)
 	parser.add_argument('-r', '--run_parameter_tests', action='store_true', help="Run tests for selecting the best inflation parameter and jaccard for MCL analysis and exit.", default=False, required=False)
 	args = parser.parse_args()
 	return args
@@ -66,7 +67,7 @@ def lsaBGC_Cluster():
 	mcl_inflation = myargs.mcl_inflation
 	jaccard_cutoff = myargs.jaccard_cutoff
 	run_parameter_tests = myargs.run_parameter_tests
-
+	split_by_annotation = myargs.split_by_annotation
 
 	"""
 	START WORKFLOW
@@ -79,9 +80,10 @@ def lsaBGC_Cluster():
 	# Step 0: Log input arguments and update reference and query FASTA files.
 	logObject.info("Saving parameters for future provedance.")
 	parameters_file = outdir + 'Parameter_Inputs.txt'
-	parameter_values = [bgc_listings_file, orthofinder_matrix_file, outdir, cores, mcl_inflation, jaccard_cutoff, run_parameter_tests]
+	parameter_values = [bgc_listings_file, orthofinder_matrix_file, outdir, cores, mcl_inflation, jaccard_cutoff, run_parameter_tests, split_by_annotation]
 	parameter_names = ["BGC Listing File", "OrthoFinder Orthogroups.csv File", "Output Directory", "Cores",
-					   "MCL Inflation Parameter", "Jaccard Similarity Cutoff", "Run Inflation Parameter Tests?"]
+					   "MCL Inflation Parameter", "Jaccard Similarity Cutoff", "Run Inflation Parameter Tests?",
+					   "Split BGCs into Annotation Categories First Prior to Clustering?"]
 	lsaBGC.logParametersToFile(parameters_file, parameter_names, parameter_values)
 	logObject.info("Done saving parameters!")
 
@@ -100,7 +102,7 @@ def lsaBGC_Cluster():
 	mcl_outdir = outdir + 'MCL_tmp_files/'
 	if not run_parameter_tests: mcl_outdir = outdir
 	elif not os.path.isdir(mcl_outdir): os.system('mkdir %s' % mcl_outdir)
-	bgc_cogs, pairwise_relations, pair_relations_txt_file = lsaBGC.calculateBGCPairwiseRelations(bgc_genes, gene_to_cog, prop_multi_copy, mcl_outdir, logObject)
+	bgc_cogs, pairwise_relations, pair_relations_txt_file = lsaBGC.calculateBGCPairwiseRelations(bgc_genes, gene_to_cog, prop_multi_copy, mcl_outdir, bgc_product, split_by_annotation, logObject)
 	logObject.info("Successfully calculated pairwise distances between BGCs based on homolog profiles.")
 
 	# Step 4: Run MCL clustering, iterating through multiple inflation parameters if necessary.
