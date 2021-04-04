@@ -16,6 +16,7 @@ import pysam
 import random
 
 lsaBGC_main_directory = '/'.join(os.path.realpath(__file__).split('/')[:-2])
+RSCRIPT_FOR_BGSEE = lsaBGC_main_directory + '/lsaBGC/bgSee.R'
 RSCRIPT_FOR_PLOTTING = lsaBGC_main_directory + '/lsaBGC/plotCogConservation.R'
 RSCRIPT_FOR_CLUSTER_ASSESSMENT_PLOTTING = lsaBGC_main_directory + '/lsaBGC/plotParameterImpactsOnGCF.R'
 RSCRIPT_FOR_TAJIMA = lsaBGC_main_directory + '/lsaBGC/calculateTajimasD.R'
@@ -31,7 +32,6 @@ def multiProcess(input):
 		logObject.info('Successfully ran: %s' % ' '.join(input_cmd))
 	except:
 		logObject.warning('Had an issue running: %s' % ' '.join(input_cmd))
-
 
 def convertGCFGenbanksIntoFastas(gcf_specs_file, outdir, logObject):
 	gcf_fasta_listing_file = outdir + 'GCF_FASTA_Listings.txt'
@@ -190,81 +190,106 @@ def readInBGCGenbanksPerGCF(gcf_specs_file, logObject, comprehensive_parsing=Tru
 
 	return [bgc_gbk, bgc_genes, comp_gene_info, all_genes, bgc_sample, sample_bgcs]
 
-def visualizeViaGggenesAndGgtree(phylogeny_file, bgc_genes, gene_to_cog, cog_to_color, comp_gene_info, dataset_label, outdir, logObject):
-	track_file = outdir + 'BGCs_Visualization.gggenes.txt'
-	track_handle = open(track_file, 'w')
+def visualizeGCFViaR(gggenes_track_file, heatmap_track_file, phylogeny_file, result_pdf_file, bgc_genes, gene_to_cog, cog_to_color, comp_gene_info, logObject):
 
-	logObject.info("Writing gggenes input file to: %s" % track_file)
+	if not os.path.isfile(gggenes_track_file) or not os.path.isfile(heatmap_track_file):
+		gggenes_track_handle = open(gggenes_track_file, 'w')
+		heatmap_track_handle = open(heatmap_track_file, 'w')
+		logObject.info("Writing gggenes input file to: %s" % gggenes_track_file)
+		logObject.info("Writing heatmap input file to: %s" % heatmap_track_file)
+		# write header for track files
+		gggenes_track_handle.write('label\tgene\tstart\tend\tforward\tog\tog_color\n')
+		heatmap_track_handle.write('label\tog\tog_presence\tog_count\n')
 
-	# write header for iTol track file
-	track_handle.write('bgc\tgene\tstart\tend\tforward\tog\tog_color\n')
-	# write the rest of the iTol track file for illustrating genes across BGC instances
-	ref_cog_directions = {}
+		ref_cog_directions = {}
 
-	bgc_gene_counts = defaultdict(int)
-	for bgc in bgc_genes:
-		bgc_gene_counts[bgc] = len(bgc_genes[bgc])
+		bgc_gene_counts = defaultdict(int)
+		for bgc in bgc_genes:
+			bgc_gene_counts[bgc] = len(bgc_genes[bgc])
 
-	for i, item in enumerate(sorted(bgc_gene_counts.items(), key=itemgetter(1), reverse=True)):
-		bgc = item[0]
-		curr_bgc_genes = bgc_genes[bgc]
-		last_gene_end = max([comp_gene_info[lt]['end'] for lt in curr_bgc_genes])
-		printlist = []
-		cog_directions = {}
-		cog_lengths = defaultdict(list)
-		for lt in curr_bgc_genes:
-			ginfo = comp_gene_info[lt]
-			cog = 'singleton'
-			if lt in gene_to_cog:
-				cog = gene_to_cog[lt]
+		tree_obj = Tree(phylogeny_file)
+		bgc_weights = defaultdict(int)
+		for leaf in tree_obj:
+			bgc_weights[str(leaf).strip('\n').lstrip('-')] += 1
 
-			gstart = ginfo['start']
-			gend = ginfo['end']
-			forward = "FALSE"
-			if ginfo['direction'] == '+': forward = "TRUE"
+		bgc_cog_presence = defaultdict(lambda: defaultdict(lambda: 'Absent'))
+		cog_counts = defaultdict(int)
+		for i, item in enumerate(sorted(bgc_gene_counts.items(), key=itemgetter(1), reverse=True)):
+			bgc = item[0]
+			curr_bgc_genes = bgc_genes[bgc]
+			last_gene_end = max([comp_gene_info[lt]['end'] for lt in curr_bgc_genes])
+			printlist = []
+			cog_directions = {}
+			cog_lengths = defaultdict(list)
+			for lt in curr_bgc_genes:
+				ginfo = comp_gene_info[lt]
+				cog = 'singleton'
+				if lt in gene_to_cog:
+					cog = gene_to_cog[lt]
 
-			cog_color = '"#dbdbdb"'
-			if cog in cog_to_color:
-				cog_color = '"' + cog_to_color[cog] + '"'
+				gstart = ginfo['start']
+				gend = ginfo['end']
+				forward = "FALSE"
+				if ginfo['direction'] == '+': forward = "TRUE"
 
-			gene_string = '\t'.join([str(x) for x in [bgc, lt, gstart, gend, forward, cog, cog_color]])
-			printlist.append(gene_string)
-			if cog != 'singleton':
-				cog_directions[cog] = ginfo['direction']
-				cog_lengths[cog].append(gend - gstart)
-		if i == 0:
-			ref_cog_directions = cog_directions
-			track_handle.write('\t'.join(printlist) + '\n')
-		else:
-			flip_support = 0
-			keep_support = 0
-			for c in ref_cog_directions:
-				if not c in cog_directions: continue
-				cog_weight = statistics.mean(cog_lengths[c])
-				if cog_directions[c] == ref_cog_directions[c]:
-					keep_support += cog_weight
-				else:
-					flip_support += cog_weight
+				cog_color = '"#dbdbdb"'
+				if cog in cog_to_color:
+					cog_color = '"' + cog_to_color[cog] + '"'
 
-			# flip the genbank visual if necessary, first BGC processed is used as reference guide
-			if flip_support > keep_support:
-				flip_printlist = []
-				for gene_string in printlist:
-					gene_info = gene_string.split('\t')
-					new_forward = 'TRUE'
-					if gene_info[4] == 'TRUE': new_forward = 'FALSE'
-					new_gstart = int(last_gene_end) - int(gene_info[3])
-					new_gend = int(last_gene_end) - int(gene_info[2])
-					new_gene_string = '\t'.join([str(x) for x in [gene_info[0], gene_info[1], new_gstart, new_gend, new_forward, gene_info[-2], gene_info[-1]]])
-					flip_printlist.append(new_gene_string)
-				track_handle.write('\n'.join(flip_printlist) + '\n')
+				gene_string = '\t'.join([str(x) for x in [bgc, lt, gstart, gend, forward, cog, cog_color]])
+				printlist.append(gene_string)
+				if cog != 'singleton':
+					bgc_cog_presence[bgc][cog] = cog
+					cog_counts[cog] += bgc_weights[bgc]
+					cog_directions[cog] = ginfo['direction']
+					cog_lengths[cog].append(gend - gstart)
+			if i == 0:
+				ref_cog_directions = cog_directions
+				gggenes_track_handle.write('\n'.join(printlist) + '\n')
 			else:
-				track_handle.write('\n'.join(printlist) + '\n')
-	track_handle.close()
+				flip_support = 0
+				keep_support = 0
+				for c in ref_cog_directions:
+					if not c in cog_directions: continue
+					cog_weight = statistics.mean(cog_lengths[c])
+					if cog_directions[c] == ref_cog_directions[c]:
+						keep_support += cog_weight
+					else:
+						flip_support += cog_weight
 
+				# flip the genbank visual if necessary, first BGC processed is used as reference guide
+				if flip_support > keep_support:
+					flip_printlist = []
+					for gene_string in printlist:
+						gene_info = gene_string.split('\t')
+						new_forward = 'TRUE'
+						if gene_info[4] == 'TRUE': new_forward = 'FALSE'
+						new_gstart = int(last_gene_end) - int(gene_info[3])
+						new_gend = int(last_gene_end) - int(gene_info[2])
+						new_gene_string = '\t'.join([str(x) for x in [gene_info[0], gene_info[1], new_gstart, new_gend, new_forward, gene_info[-2], gene_info[-1]]])
+						flip_printlist.append(new_gene_string)
+					gggenes_track_handle.write('\n'.join(flip_printlist) + '\n')
+				else:
+					gggenes_track_handle.write('\n'.join(printlist) + '\n')
+		gggenes_track_handle.close()
 
-def createItolBGCSeeTrack(bgc_genes, gene_to_cog, cog_to_color, comp_gene_info, dataset_label, outdir, logObject):
-	track_file = outdir + 'BGCs_Visualization.iTol.txt'
+		for bgc in bgc_cog_presence:
+			for cog in cog_counts:
+				heatmap_track_handle.write('\t'.join([bgc, cog, bgc_cog_presence[bgc][cog], str(cog_counts[cog])]) + '\n')
+		heatmap_track_handle.close()
+
+	rscript_plot_cmd = ["Rscript", RSCRIPT_FOR_BGSEE, phylogeny_file, gggenes_track_file, heatmap_track_file, result_pdf_file]
+	logObject.info('Running R-based plotting with the following command: %s' % ' '.join(rscript_plot_cmd))
+	try:
+		subprocess.call(' '.join(rscript_plot_cmd), shell=True, stdout=sys.stderr, stderr=sys.stderr,
+						executable='/bin/bash')
+		logObject.info('Successfully ran: %s' % ' '.join(rscript_plot_cmd))
+	except:
+		logObject.error('Had an issue running: %s' % ' '.join(rscript_plot_cmd))
+		raise RuntimeError('Had an issue running: %s' % ' '.join(rscript_plot_cmd))
+	logObject.info('Plotting completed!')
+
+def createItolBGCSeeTrack(track_file, bgc_genes, gene_to_cog, cog_to_color, comp_gene_info, dataset_label, logObject):
 	track_handle = open(track_file, 'w')
 
 	logObject.info("Writing iTol track file to: %s" % track_file)
@@ -282,7 +307,6 @@ def createItolBGCSeeTrack(bgc_genes, gene_to_cog, cog_to_color, comp_gene_info, 
 
 	# write the rest of the iTol track file for illustrating genes across BGC instances
 	ref_cog_directions = {}
-
 	bgc_gene_counts = defaultdict(int)
 	for bgc in bgc_genes:
 		bgc_gene_counts[bgc] = len(bgc_genes[bgc])
@@ -651,7 +675,6 @@ def runHMMScanAndAssignBGCsToGCF(comprehensive_bgcs, concat_hmm_profiles, scc_ho
 	expanded_gcf_list_handle.close()
 	expanded_orthofinder_matrix_handle.close()
 
-
 def constructHMMProfiles(bgc_sample, cog_genes, comp_gene_info, outdir, cores, logObject):
 	prot_seq_dir = os.path.abspath(outdir + 'Protein_Sequences') + '/'
 	prot_alg_dir = os.path.abspath(outdir + 'Protein_Alignments') + '/'
@@ -705,7 +728,6 @@ def constructHMMProfiles(bgc_sample, cog_genes, comp_gene_info, outdir, cores, l
 	except:
 		logObject.error("Issues with running hmmpress on profile HMMs.")
 		raise RuntimeError("Issues with running hmmpress on profile HMMs.")
-
 
 def create_hmm_profiles(inputs):
 	cog, sample_sequences, prot_seq_dir, prot_alg_dir, prot_hmm_dir, logObject = inputs
@@ -1797,7 +1819,7 @@ def calculateBGCPairwiseRelations(bgc_genes, gene_to_cog, prop_multi_copy, outdi
 
 	return bgc_cogs, pairwise_relations, pair_relations_txt_file
 
-def plotResultsFromUsingDifferentParameters(gcf_details_file, outdir, logObject):
+def plotResultsFromUsingDifferentParameters(gcf_details_file, bgc_gcf_map_file, outdir, logObject):
 	try:
 		plot_input_dir = outdir + 'plotting_input/'
 		if not os.path.isdir(plot_input_dir): os.system('mkdir %s' % plot_input_dir)
@@ -1806,6 +1828,7 @@ def plotResultsFromUsingDifferentParameters(gcf_details_file, outdir, logObject)
 		clustered_counts = defaultdict(int)
 		cluster_counts = defaultdict(int)
 		cluster_mixedannot_counts = defaultdict(int)
+		cluster_mixedannot_wohypo_counts = defaultdict(int)
 		all_annotation_classes = set([])
 		with open(gcf_details_file) as ogdf:
 			for i, line in enumerate(ogdf):
@@ -1823,17 +1846,20 @@ def plotResultsFromUsingDifferentParameters(gcf_details_file, outdir, logObject)
 					cluster_counts[param_id] += 1
 					annotations = set([x.split(':')[0].replace('-', '.') for x in ls[-1].split('; ') if x.split(':')[0] != 'NA'])
 					if len(ls[-1].split('; ')) > 1: cluster_mixedannot_counts[param_id] += 1
+					if len(annotations) > 1: cluster_mixedannot_wohypo_counts[param_id] += 1
 					all_annotation_classes = all_annotation_classes.union(annotations)
 
 		plot_overview_file = plot_input_dir + 'plotting_overview.txt'
 		plot_annot_file = plot_input_dir + 'annotation_classes.txt'
 		plot_input_1_file = plot_input_dir + 'plotting_input_g123.txt'
 		plot_input_2_file = plot_input_dir + 'plotting_input_g4.txt'
+		plot_sankey_file = plot_input_dir + 'plot_sankey_input.txt'
 
 		plot_input_1_handle = open(plot_input_1_file, 'w')
 		plot_input_2_handle = open(plot_input_2_file, 'w')
 		plot_annot_handle = open(plot_annot_file, 'w')
 		plot_overview_handle = open(plot_overview_file, 'w')
+		plot_sankey_handle = open(plot_sankey_file, 'w')
 
 		plot_annot_handle.write('\n'.join(['Unknown'] + sorted(list(all_annotation_classes))))
 		plot_annot_handle.close()
@@ -1841,7 +1867,38 @@ def plotResultsFromUsingDifferentParameters(gcf_details_file, outdir, logObject)
 		coord_tuples = defaultdict(set)
 		plot_input_1_handle.write('\t'.join(['GCF', 'Parameters', 'JaccardSim', 'Inflation', 'Samples', 'Samples_Offset', 'MultiBGCSamples_Offset', 'SCCExists', 'SCCSize', 'CoreGeneClusters', 'AvgGeneCount', 'StdDevGeneCount', 'Unknown'] + sorted(list(all_annotation_classes))) + '\n')
 		plot_input_2_handle.write('\t'.join(['GCF', 'Parameters', 'Annotation', 'Count', 'Total BGCs']) + '\n')
-		plot_overview_handle.write('\t'.join(['JaccardSim', 'Inflation', 'Clustered', 'Singletons', 'SingletonToClustered', 'MixedAnnotations', 'NumberClusters', 'MixedAnnotationProportion']) + '\n')
+		plot_overview_handle.write('\t'.join(['Parameters', 'JaccardSim', 'Inflation', 'Clustered', 'Singletons', 'SingletonToClustered', 'MixedAnnotations', 'MixedAnnotationsWoHypothetical', 'NumberClusters', 'MixedAnnotationProportion', 'MixedAnnotationWoHypotheticalProportion']) + '\n')
+		plot_sankey_handle.write('\t'.join(['JaccardSim', 'Parameter_Source', 'Parameter_Dest', 'Source_Size', 'Dest_Size', 'Source_Inflation', 'Source_Type', 'Dest_Type', 'PassageWeight']) + '\n')
+
+
+		jcp_gcfs = defaultdict(lambda: defaultdict(set))
+		with open(bgc_gcf_map_file) as obgmf:
+			for line in obgmf:
+				line = line.strip()
+				mip, jcp, gcf_id, sname, gbkpath = line.split('\t')
+				jcp = float(jcp)
+				mip = float(mip)
+				param_mod_id = 'Inf: %.1f JacSim: %.1f' % (mip, jcp)
+				gcf_name = gcf_id + ' - ' + param_mod_id
+				jcp_gcfs[jcp][gcf_name].add(gbkpath)
+
+		inflation_order = {0.8: 1, 1.4: 2, 2: 3, 2.5: 4, 3: 5, 3.5: 6, 4: 7, 5: 8}
+		for jcp in jcp_gcfs:
+			for i, gcf1 in enumerate(jcp_gcfs[jcp]):
+				for j, gcf2 in enumerate(jcp_gcfs[jcp]):
+					gcf1_inf = float(gcf1.split('Inf: ')[1].split(' JacSim:')[0].strip())
+					gcf2_inf = float(gcf2.split('Inf: ')[1].split(' JacSim:')[0].strip())
+					if (inflation_order[gcf1_inf] + 1) != (inflation_order[gcf2_inf]): continue
+					gcf1_bgcs = jcp_gcfs[jcp][gcf1]
+					gcf2_bgcs = jcp_gcfs[jcp][gcf2]
+					intersect = len(gcf1_bgcs.intersection(gcf2_bgcs))
+					if intersect > 0:
+						gcf1_type = 'cluster'; gcf2_type = 'cluster'
+						if 'singleton' in gcf1: gcf1_type = 'singleton'
+						if 'singleton' in gcf2: gcf2_type = 'singleton'
+						plot_sankey_handle.write('\t'.join([str(x) for x in [jcp, gcf1, gcf2, len(gcf1_bgcs), len(gcf2_bgcs), '%.1f vs. %.1f' % (gcf1_inf, gcf2_inf), gcf1_type, gcf2_type, intersect]]) + '\n')
+		plot_sankey_handle.close()
+
 
 		with open(gcf_details_file) as ogdf:
 			for i, line in enumerate(ogdf):
@@ -1854,7 +1911,7 @@ def plotResultsFromUsingDifferentParameters(gcf_details_file, outdir, logObject)
 				gcf_id = ls[2]
 				if gcf_id == 'singletons': continue
 
-				param_mod_id = 'Inf: %.1f JacSim: %.1f' % (mcl, jcp)
+				param_mod_id = 'MCL Inflation: %.1f; Jaccard Similarity Cutoff: %.1f' % (mcl, jcp)
 				# get stats for plotting
 
 				samples = int(ls[4])
@@ -1901,9 +1958,9 @@ def plotResultsFromUsingDifferentParameters(gcf_details_file, outdir, logObject)
 
 		for pid in clustered_counts:
 			mcl, jcp = [float(x) for x in pid.split('_')]
-			param_mod_id = 'Inf: %.1f JacSim: %.1f' % (mcl, jcp)
+			param_mod_id = 'MCL Inflation: %.1f; Jaccard Similarity Cutoff: %.1f' % (mcl, jcp)
 
-			plot_overview_handle.write('\t'.join([str(x) for x in [jcp, mcl, clustered_counts[pid], singleton_counts[pid], singleton_counts[pid]/clustered_counts[pid], cluster_mixedannot_counts[pid], cluster_counts[pid], cluster_mixedannot_counts[pid]/float(cluster_counts[pid])]]) + '\n')
+			plot_overview_handle.write('\t'.join([str(x) for x in [param_mod_id, jcp, mcl, clustered_counts[pid], singleton_counts[pid], singleton_counts[pid]/clustered_counts[pid], cluster_mixedannot_counts[pid], cluster_mixedannot_wohypo_counts[pid], cluster_counts[pid], cluster_mixedannot_counts[pid]/float(cluster_counts[pid]), cluster_mixedannot_wohypo_counts[pid]/float(cluster_counts[pid])]]) + '\n')
 
 			for sgcf_id in range(1, singleton_counts[pid] + 1):
 				sgcf_name = 'SGCF_' + str(sgcf_id)
@@ -1915,10 +1972,10 @@ def plotResultsFromUsingDifferentParameters(gcf_details_file, outdir, logObject)
 
 		plot_pdf_file = outdir + 'Plots_Depicting_Parameter_Influence_on_GCF_Clustering.pdf'
 		rscript_plot_cmd = ["Rscript", RSCRIPT_FOR_CLUSTER_ASSESSMENT_PLOTTING, plot_input_1_file, plot_annot_file,
-							plot_input_2_file, plot_overview_file, plot_pdf_file]
+							plot_input_2_file, plot_overview_file, plot_sankey_file, plot_pdf_file]
 		logObject.info('Running R-based plotting with the following command: %s' % ' '.join(rscript_plot_cmd))
 		try:
-			subprocess.call(' '.join(rscript_plot_cmd), shell=True, stdout=subprocess.DEVNULL,
+			subprocess.call(' '.join(rscript_plot_cmd), shell=True, stdout=sys.stderr,
 							stderr=sys.stderr,
 							executable='/bin/bash')
 			logObject.info('Successfully ran: %s' % ' '.join(rscript_plot_cmd))
@@ -1934,7 +1991,7 @@ def plotResultsFromUsingDifferentParameters(gcf_details_file, outdir, logObject)
 		raise RuntimeError(error_msg)
 
 def runMCLAndReportGCFs(mip, jcp, outdir, sf_handle, pairwise_relations, pair_relations_txt_file,
-						bgc_cogs, bgc_product, bgc_core_counts, bgc_sample, inflation_testing, cores, logObject):
+						bgc_cogs, bgc_product, bgc_core_counts, bgc_sample, inflation_testing, bgc_to_gcf_map_file, cores, logObject):
 	pair_relations_filt_txt_file = outdir + 'bgc_pair_relationships.%f.txt' % jcp
 	try:
 		prftf_handle = open(pair_relations_filt_txt_file, 'w')
@@ -2059,10 +2116,25 @@ def runMCLAndReportGCFs(mip, jcp, outdir, sf_handle, pairwise_relations, pair_re
 				outf_list = open(gcf_listing_dir + 'GCF_' + str(j + 1) + '.txt', 'w')
 				for bgc in gcf_mems:
 					sname = bgc_sample[bgc]
-					gbkpath = bgc
-					outf_list.write('%s\t%s\n' % (sname, gbkpath))
+					outf_list.write('%s\t%s\n' % (sname, bgc))
 				outf_list.close()
 		logObject.info("Successfully wrote lists of BGCs for each GCF.")
+	else:
+		logObject.info("Writing list of BGCs for each GCF for each clustering parameter combination into single plot.")
+		btgmf_handle = open(bgc_to_gcf_map_file, 'a+')
+
+		with open(mcxdump_out_file) as omo:
+			for j, gcf in enumerate(omo):
+				gcf = gcf.strip()
+				gcf_mems = gcf.split()
+				if len(gcf_mems) < 2: continue
+				for bgc in gcf_mems:
+					sname = bgc_sample[bgc]
+					btgmf_handle.write('%f\t%f\tGCF_%d\t%s\t%s\n' % (mip, jcp, j+1, sname, bgc))
+		for sbgc in singleton_bgcs:
+			sname = bgc_sample[sbgc]
+			btgmf_handle.write('%f\t%f\tGCF_singletons\t%s\t%s\n' % (mip, jcp, sname, sbgc))
+		btgmf_handle.close()
 	return
 
 

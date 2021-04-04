@@ -14,10 +14,13 @@ dependencies:
   - bioconda::pal2nal=
   - bioconda::fasttree=
   - bioconda::ete3
-  - bioconda::mash=
+  # - bioconda::mash= might take out lsaBGC-RelativeDivergance
   - conda-forge::r-base
   - conda-forge::r-pegas
   - conda-forge::r-ggplot2
   - conda-forge::r-cowplot
   - conda-forge::r-scatterpie
-  - conda-forge::r-ggforce
+  - conda-forge::r-tidyverse
+  - conda-forge::r-gggenes
+  - bioconda::bioconductor-ggtree
+  - conda-forge::r-ggalluvial

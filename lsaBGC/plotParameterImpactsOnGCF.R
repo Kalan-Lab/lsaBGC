@@ -1,8 +1,8 @@
 library(scatterpie)
 library(ggplot2)
+library(ggalluvial)
 library(RColorBrewer)
 library(cowplot)
-
 args = commandArgs(trailingOnly=TRUE)
 
 # read in plotting inputs
@@ -10,6 +10,7 @@ data <- read.table(args[1], header=T, sep='\t')
 annot_classes <- scan(args[2], what="", sep="\n")
 largest_gcfs_data <- read.table(args[3], header=T, sep='\t')
 overview_data <- read.table(args[4], header=T, sep='\t')
+alluvian_data <- read.table(args[5], header=T, sep='\t')
 
 # define color scheme for plots
 nb.cols <- length(annot_classes)-1
@@ -19,8 +20,67 @@ names(annot_colors) <- annot_classes
 scc_colors <- c("#737574", "#222422", "#ed665f")
 names(scc_colors) <- c("Not Applicable", "SCC Exists", "SCC DNE")
 
-# GCF     Parameters      JaccardSim      Inflation       Samples Samples_Offset  MultiBGCSamples_Offset  SCCExists       SCCSize CoreGeneClusters        AvgGeneCount    StdDevGeneCount Unknown NRPS.like
-#        betalactone     ectoine linaridin       siderophore     terpene
+# open pdf for the report
+pdf(args[6], height=8, width=11)
+
+# Title page + overview scattermap
+repname <- ggplot()+theme_void() + ggtitle("Parameter Impact on\nGCF Delineations") + theme(plot.title = element_text(hjust = 0.5, size=70, face='bold'))
+scatter_plot <- ggplot(overview_data, aes(x=NumberClusters, y=SingletonToClustered)) +
+  geom_jitter(aes(color=as.factor(Inflation), shape=as.factor(JaccardSim)), alpha=0.7, size=2) + theme_classic() +
+  ggtitle("Tradeoff between Cluster Granularity vs. Singletons Incurred") + xlab("Number of GCFs") +
+  ylab("Ratio of BGCs which are\nsingletons to those in GCFs") +
+  guides(shape=guide_legend(title="Jaccard Similarity Cutoff"), color=guide_legend(title="MCL Inflation"))+
+  theme(legend.position = "bottom")
+print(plot_grid(repname, scatter_plot, rel_heights=c(1,2), ncol=1))
+
+# Overview Heatmaps
+gheat1 <- ggplot(overview_data, aes(x=as.factor(Inflation), y=as.factor(JaccardSim), fill=SingletonToClustered)) +
+  geom_tile() + theme_classic() +  scale_fill_gradient(low = "lightblue", high = "darkblue") + xlab("MCL Inflation") +
+  ylab("Jaccard Similarity Cutoff") + ggtitle("Ratio of BGCs which are\nsingletons to those in GCFs")+ theme(legend.title = element_blank())
+gheat2 <- ggplot(overview_data, aes(x=as.factor(Inflation), y=as.factor(JaccardSim), fill=NumberClusters)) +
+  geom_tile() + theme_classic() +   scale_fill_gradient(low = "lightgreen", high = "darkgreen") + xlab("MCL Inflation") +
+  ylab("Jaccard Similarity Cutoff") + ggtitle("Number of GCFs")+ theme(legend.title = element_blank())
+gheat3 <- ggplot(overview_data, aes(x=as.factor(Inflation), y=as.factor(JaccardSim), fill=MixedAnnotationProportion)) +
+  geom_tile() + theme_classic() +   scale_fill_gradient(low = "yellow", high = "gold") + xlab("MCL Inflation") +
+  ylab("Jaccard Similarity Cutoff") + ggtitle("Proportion of GCFs which feature\nmultiple BGC annotation categories\n(including unannotated)")+ theme(legend.title = element_blank())
+gheat4 <- ggplot(overview_data, aes(x=as.factor(Inflation), y=as.factor(JaccardSim), fill=MixedAnnotationWoHypotheticalProportion)) +
+  geom_tile() + theme_classic() +   scale_fill_gradient(low = "pink", high = "darkred") + xlab("MCL Inflation") +
+  ylab("Jaccard Similarity Cutoff") + ggtitle("Proportion of GCFs which feature\nmultiple BGC annotation categories\n(not including unannotated)")+ theme(legend.title = element_blank())
+
+gheatmaps_top <- plot_grid(gheat1, gheat2)
+gheatmaps_bottom <- plot_grid(gheat3, gheat4)
+print(plot_grid(gheatmaps_top, gheatmaps_bottom, rel_heights=c(1,1), ncol=1))
+
+# Boxplot views
+boxpl1 <- ggplot(data, aes(x=as.factor(Inflation), y=SCCSize, fill=as.factor(Inflation))) + geom_boxplot(show.legend=F) + facet_wrap(~JaccardSim, ncol=length(data$JaccardSim)) + theme_classic() + xlab("MCL Inflation") + ylab("") + ggtitle("Size of GCF's Single Copy Cores") + scale_fill_brewer(palette="Set2")# + scale_y_log10()
+boxpl2 <- ggplot(data, aes(x=as.factor(Inflation), y=Samples, fill=as.factor(Inflation))) + geom_boxplot(show.legend=F) + facet_wrap(~JaccardSim, ncol=length(data$JaccardSim)) + theme_classic() + xlab("MCL Inflation") + ylab("") + ggtitle("Number of Samples with GCF") + scale_fill_brewer(palette="Set2") #+ scale_y_log10()
+boxpl3 <- ggplot(data, aes(x=as.factor(Inflation), y=AvgGeneCount, fill=as.factor(Inflation))) + geom_boxplot(show.legend=F) + facet_wrap(~JaccardSim, ncol=length(data$JaccardSim)) + theme_classic() + xlab("MCL Inflation") + ylab("") + ggtitle("Avg. Gene Count per BGC in GCF") + scale_fill_brewer(palette="Set2") #+ scale_y_log10()
+boxpl4 <- ggplot(data, aes(x=as.factor(Inflation), y=StdDevGeneCount, fill=as.factor(Inflation))) + geom_boxplot(show.legend=F) + facet_wrap(~JaccardSim, ncol=length(data$JaccardSim)) + theme_classic() + xlab("MCL Inflation") + ylab("") + ggtitle("Std. Deviation of Gene Count for BGCs in GCF") + scale_fill_brewer(palette="Set2") #+ scale_y_log10()
+
+top_row <- plot_grid(boxpl1, boxpl2)
+bot_row <- plot_grid(boxpl3, boxpl4)
+
+print(plot_grid(boxpl1, boxpl2, boxpl3, boxpl4, rel_heights=c(1,1,1,1), ncol=1))
+
+# Alluvian/Sankey diagrams
+colors <- c("#000000", "#FF0000")
+names(colors) <- c("cluster", "singleton")
+
+alluvian_plot <- ggplot(alluvian_data, aes(y = PassageWeight, axis1 = reorder(Parameter_Source, -Source_Size), axis2 = reorder(Parameter_Dest, -Dest_Size))) +
+  geom_flow(fill='darkgrey', aes(color = Parameter_Source), show.legend=F) +
+  geom_stratum(aes(fill=Source_Type), color='white', show.legend=F)  + facet_grid(JaccardSim ~ Source_Inflation) +
+  xlab("MCL Inflation") + ylab("Jaccard Similarity Cutoff") + scale_fill_manual(values=colors) +
+  theme(axis.line=element_blank(),
+      axis.text.x=element_blank(),
+      axis.text.y=element_blank(),
+      axis.ticks=element_blank(),
+      legend.position="none",
+      panel.background=element_blank(),
+      panel.border=element_blank(),
+      panel.grid.major=element_blank(),
+      panel.grid.minor=element_blank(),
+      plot.background=element_blank())
+print(alluvian_plot)
 
 # determine number of parameter combinations tested and axes boundaries for scatter plots
 params <- unique(data$Parameters)
@@ -30,30 +90,6 @@ ymin <- min(data[!is.na(data$MultiBGCSamples),]$MultiBGCSamples)
 xmax <- max(data[!is.na(data$Samples_Offset),]$Samples_Offset)
 ymax <- max(data[!is.na(data$MultiBGCSamples),]$MultiBGCSamples)
 
-# open pdf for the report
-pdf(args[5], height=8, width=11)
-
-# Title page + overview heatmaps
-repname <- ggplot()+theme_void() + ggtitle("Parameter Impact on\nGCF Clustering") + theme(plot.title = element_text(hjust = 0.5, size=70, face='bold'))
-gheat1 <- ggplot(overview_data, aes(x=as.factor(Inflation), y=as.factor(JaccardSim), fill=SingletonToClustered)) +
-  geom_tile() + theme_classic() +  scale_fill_gradient(low = "white", high = "darkblue") + xlab("MCL Inflation") +
-  ylab("Jaccard Similarity Cutoff") + ggtitle("Ratio of BGCs which are\nsingletons to those in GCFs")+ theme(legend.title = element_blank())
-gheat2 <- ggplot(overview_data, aes(x=as.factor(Inflation), y=as.factor(JaccardSim), fill=MixedAnnotationProportion)) +
-  geom_tile() + theme_classic() +   scale_fill_gradient(low = "yellow", high = "darkorange") + xlab("MCL Inflation") +
-  ylab("Jaccard Similarity Cutoff") + ggtitle("Proportion of GCFs which feature\nmultiple BGC annotation categories")+ theme(legend.title = element_blank())
-gheatmaps <- plot_grid(gheat1, gheat2)
-print(plot_grid(repname, gheatmaps, rel_heights=c(1,2), ncol=1))
-
-boxpl1 <- ggplot(data, aes(x=as.factor(Inflation), y=SCCSize, fill=as.factor(Inflation))) + geom_boxplot(show.legend=F) + facet_wrap(~JaccardSim, ncol=length(data$JaccardSim)) + theme_classic() + xlab("MCL Inflation") + ylab("") + ggtitle("Size of GCF's Single Copy Cores") + scale_fill_brewer(palette="Set2")
-boxpl2 <- ggplot(data, aes(x=as.factor(Inflation), y=Samples, fill=as.factor(Inflation))) + geom_boxplot(show.legend=F) + facet_wrap(~JaccardSim, ncol=length(data$JaccardSim)) + theme_classic() + xlab("MCL Inflation") + ylab("") + ggtitle("Number of Samples with GCF") + scale_fill_brewer(palette="Set2")
-boxpl3 <- ggplot(data, aes(x=as.factor(Inflation), y=AvgGeneCount, fill=as.factor(Inflation))) + geom_boxplot(show.legend=F) + facet_wrap(~JaccardSim, ncol=length(data$JaccardSim)) + theme_classic() + xlab("MCL Inflation") + ylab("") + ggtitle("Avg. Gene Count per BGC in GCF") + scale_fill_brewer(palette="Set2")
-boxpl4 <- ggplot(data, aes(x=as.factor(Inflation), y=StdDevGeneCount, fill=as.factor(Inflation))) + geom_boxplot(show.legend=F) + facet_wrap(~JaccardSim, ncol=length(data$JaccardSim)) + theme_classic() + xlab("MCL Inflation") + ylab("") + ggtitle("Std. Deviation of Gene Count for BGCs in GCF") + scale_fill_brewer(palette="Set2")
-
-top_row <- plot_grid(boxpl1, boxpl2)
-bot_row <- plot_grid(boxpl3, boxpl4)
-
-print(plot_grid(boxpl1, boxpl2, boxpl3, boxpl4, rel_heights=c(1,1,1,1), ncol=1))
-
 for(i in 1:npages) {
   curr_param = params[i]
 
@@ -61,7 +97,7 @@ for(i in 1:npages) {
   data_filt_scatter <- data_filt[!is.na(data_filt$Samples_Offset),]
   largest_gcfs_data_filt <- largest_gcfs_data[largest_gcfs_data$Parameters == curr_param,]
 
-  paramname <- ggplot()+theme_void() + ggtitle(curr_param) + theme(plot.title = element_text(hjust = 0.5, size=50, face='bold'))
+  paramname <- ggplot()+theme_void() + ggtitle(curr_param) + theme(plot.title = element_text(hjust = 0.5, size=32, face='bold'))
 
   gscat <- ggplot()  +
     scale_fill_manual(values=annot_colors) + theme_classic() +

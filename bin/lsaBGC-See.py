@@ -108,9 +108,9 @@ def lsaBGC_See():
 
     # Step 4: Create iTol and gggenes (R) tracks for visualizing BGCs of GCF across a phylogeny.
     logObject.info("Create iTol tracks for viewing BGCs of GCF across phylogeny. Note, should be used to annotate edited species phylogeny or BGC SCC phylogeny as some samples could have multiple BGCs!")
-    lsaBGC.createItolBGCSeeTrack(bgc_genes, gene_to_cog, cog_to_color, comp_gene_info, dataset_label, outdir, logObject)
-    lsaBGC.visualizeViaGggenesAndGgtree(outdir + 'species_phylogeny.edited.nwk', bgc_genes, gene_to_cog, cog_to_color, comp_gene_info, dataset_label, outdir, logObject)
-    logObject.info("iTol track written!")
+    lsaBGC.createItolBGCSeeTrack(outdir + 'BGCs_Visualization.iTol.txt', bgc_genes, gene_to_cog, cog_to_color, comp_gene_info, dataset_label, logObject)
+    lsaBGC.visualizeGCFViaR(outdir + 'BGCs_Visualization.gggenes.txt', outdir + 'BGCs_Visualization.heatmap.txt', outdir + 'species_phylogeny.edited.nwk', outdir + 'BGC_Visualization.species_phylogeny.pdf', bgc_genes, gene_to_cog, cog_to_color, comp_gene_info, logObject)
+    logObject.info("iTol track written and automatic plot via gggenes/ggtree (R) rendered!")
 
     # Step 5: (Optional) Create phylogeny from single-copy-core homologs from BGCs across samples (single copy in samples, not BGCs)
     if create_core_gcf_phylogeny:
@@ -127,6 +127,10 @@ def lsaBGC_See():
         logObject.info("Creating phylogeny using FastTree2 after creating concatenated BGC alignment and processing to remove sites with high rates of missing data!")
         bgc_scc_phylogeny = lsaBGC.constructBGCPhylogeny(codon_alignments_dir, outdir + 'BGC_SCCs_Concatenated', logObject)
         lsaBGC.modifyPhylogenyForSamplesWithMultipleBGCs(bgc_scc_phylogeny, sample_bgcs, outdir + 'BGC_SCCs_Concatenated.edited.nwk', logObject)
+        lsaBGC.visualizeGCFViaR(outdir + 'BGCs_Visualization.gggenes.txt', outdir + 'BGCs_Visualization.heatmap.txt', outdir + 'BGC_SCCs_Concatenated.edited.nwk',
+                                outdir + 'BGC_Visualization.GCF_phylogeny.pdf', bgc_genes, gene_to_cog,
+                                cog_to_color, comp_gene_info, logObject)
+
         logObject.info("Phylogeny created successfully!")
 
     # Close logging object and exit

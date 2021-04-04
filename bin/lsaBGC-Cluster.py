@@ -108,6 +108,8 @@ def lsaBGC_Cluster():
 	# Step 4: Run MCL clustering, iterating through multiple inflation parameters if necessary.
 	logObject.info('Starting to run MCL for finding Gene Cluster Families (GCFs)!')
 	# Create and write to file which will detail the GCFs found from MCL clustering
+	bgc_to_gcf_map_file = outdir + 'BGC_to_GCF_Mapping.txt'
+
 	stats_file = outdir + 'GCF_details.txt'
 	sf_handle = open(stats_file, 'w')
 	if run_parameter_tests:
@@ -115,6 +117,9 @@ def lsaBGC_Cluster():
 								   'samples with multiple BGCs in GCF', 'size of the SCC', 'mean number of OGs',
 								   'stdev for number of OGs', 'min difference', 'max difference', 'number of core gene aggregates',
 								   'annotations']) + '\n')
+		#btgmf_handle = open(bgc_to_gcf_map_file, 'a+')
+		#btgmf_handle.write('\t'.join(['MCL_Inflation', 'JaccardSim_Cutoff', 'GCF_ID', 'Sample_Name', 'BGC_Path', 'Type']) + '\n')
+		#btgmf_handle.close()
 	else:
 		sf_handle.write('\t'.join(['GCF id', 'number of BGCs', 'number of samples', 'samples with multiple BGCs in GCF',
 								   'size of the SCC', 'mean number of OGs', 'stdev for number of OGs', 'number of core gene aggregates',
@@ -127,11 +132,11 @@ def lsaBGC_Cluster():
 		jaccard_cutoff_params = [0, 20, 30, 50, 75, 90]
 	for mip in mcl_inflation_params:
 		for jcp in jaccard_cutoff_params:
-			lsaBGC.runMCLAndReportGCFs(mip, jcp, mcl_outdir, sf_handle, pairwise_relations, pair_relations_txt_file, bgc_cogs, bgc_product, bgc_core_counts, bgc_sample, run_parameter_tests, cores, logObject)
+			lsaBGC.runMCLAndReportGCFs(mip, jcp, mcl_outdir, sf_handle, pairwise_relations, pair_relations_txt_file, bgc_cogs, bgc_product, bgc_core_counts, bgc_sample, run_parameter_tests, bgc_to_gcf_map_file, cores, logObject)
 	sf_handle.close()
 
 	if run_parameter_tests:
-		lsaBGC.plotResultsFromUsingDifferentParameters(stats_file, outdir, logObject)
+		lsaBGC.plotResultsFromUsingDifferentParameters(stats_file, bgc_to_gcf_map_file, outdir, logObject)
 
 	logObject.info("Successfully ran MCL clustering analysis to determine GCFs!")
 
