@@ -12,9 +12,11 @@ class Pan:
 
 	def readInBGCGenbanks(self, logObject=None, comprehensive_parsing=True):
 		"""
-		FUnction to parse an AntiSMASH Genbank for a predicted BGC.
-		"""
+		:param logObject (optional): logging object handler.
+		:param comprehensive_parsing (optional): flag specifying whether to perform comprehensive extraction of information from Genbanks. default is True.
+		:return:
 
+		"""
 		sample_index = defaultdict(int)
 		bgc_gbk = {}
 		bgc_sample = {}

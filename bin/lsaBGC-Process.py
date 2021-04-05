@@ -9,7 +9,7 @@ import os
 import sys
 from time import sleep
 import argparse
-from lsaBGC import lsaBGC
+from lsaBGC import processing, util
 
 def create_parser():
 	""" Parse arguments """
@@ -18,7 +18,7 @@ def create_parser():
 	Author: Rauf Salamzade
 	Affiliation: Kalan Lab, UW Madison, Department of Microbiology and Immunology
 	
-	This program will automatically run or create task files for running prokka (gene calling and annotation), 
+	This program will automatically run or create task files for running Prokka (gene calling and annotation), 
 	antiSMASH (biosynthetic gene cluster annotation), and OrthoFinder (de novo ortholog group construction).
 	""", formatter_class=argparse.RawTextHelpFormatter)
 
@@ -101,7 +101,7 @@ def lsaBGC_Process():
 
 	# create logging object
 	log_file = outdir + 'Progress.log'
-	logObject = lsaBGC.createLoggerObject(log_file)
+	logObject = util.createLoggerObject(log_file)
 
 	# Step 0: Log input arguments and update reference and query FASTA files.
 	logObject.info("Saving parameters for future provedance.")
@@ -110,12 +110,12 @@ def lsaBGC_Process():
 						orthofinder_env_path, extract_protein_fasta]
 	parameter_names = ["Assembly Listing File", "Output Directory", "Cores", "Dry Run Flagged", "Skip Prokka Annotation",
 					   "AntiSMASH Env Path", "Prokka Env Path", "OrthoFinder Env Path", "Extract BGC Proteins as FASTA"]
-	lsaBGC.logParametersToFile(parameters_file, parameter_names, parameter_values)
+	util.logParametersToFile(parameters_file, parameter_names, parameter_values)
 	logObject.info("Done saving parameters!")
 
 	# Step 1: Parse sample assemblies
 	logObject.info("Parse sample assemblies from listing file.")
-	sample_assemblies = lsaBGC.readInAssemblyListing(assembly_listing_file, logObject)
+	sample_assemblies = processing.readInAssemblyListing(assembly_listing_file, logObject)
 	logObject.info("Successfully parsed sample assemblies.")
 
 	# Step 2: Run Prokka for gene calling
@@ -131,8 +131,8 @@ def lsaBGC_Process():
 		raise RuntimeError("Can't create Prokka results directories. Exiting now ...")
 
 	logObject.info("Running/setting-up Prokka for all samples!")
-	lsaBGC.runProkka(sample_assemblies, prokka_outdir, prokka_proteomes_dir, prokka_genbanks_dir, prokka_load_code,
-					 dry_run_flag, lineage, cores, locus_tag_length, skip_annotation_flag, logObject)
+	processing.runProkka(sample_assemblies, prokka_outdir, prokka_proteomes_dir, prokka_genbanks_dir, prokka_load_code,
+					 lineage, cores, locus_tag_length, logObject, dry_run_flag=dry_run_flag, skip_annotation_flag=skip_annotation_flag)
 	logObject.info("Successfully ran/set-up Prokka.")
 
 	# Step 3: Run AntiSMASH for identification of BGCs
@@ -147,14 +147,14 @@ def lsaBGC_Process():
 		raise RuntimeError("Can't create AntiSMASH results directories. Exiting now ...")
 
 	logObject.info("Running/setting-up AntiSMASH for all samples!")
-	lsaBGC.runAntiSMASH(prokka_genbanks_dir, antismash_outdir, antismash_load_code, dry_run_flag, cores, logObject)
+	processing.runAntiSMASH(prokka_genbanks_dir, antismash_outdir, antismash_load_code, dry_run_flag, cores, logObject)
 	logObject.info("Successfully ran/set-up AntiSMASH.")
 
 	# Step 4: Run OrthoFinder for de novo ortholog construction
 	if orthofinder_env_path:
 		orthofinder_outdir = outdir + 'OrthoFinder_Results/'
 		logObject.info("Running/setting-up OrthoFinder!")
-		lsaBGC.runOrthoFinder(prokka_proteomes_dir, orthofinder_outdir, orthofinder_load_code, dry_run_flag, cores,
+		processing.runOrthoFinder(prokka_proteomes_dir, orthofinder_outdir, orthofinder_load_code, dry_run_flag, cores,
 							  logObject)
 		logObject.info("Successfully ran/set-up OrthoFinder.")
 
@@ -168,7 +168,7 @@ def lsaBGC_Process():
 			if '.region' in f and f.endswith('.gbk'):
 				bgc_genbank = sample_antismash_outdir + f
 				if extract_protein_fasta:
-					bgc_proteome = lsaBGC.extractBGCProteomes(s, bgc_genbank, bgc_proteomes_outdir, logObject)
+					bgc_proteome = processing.extractBGCProteomes(s, bgc_genbank, bgc_proteomes_outdir, logObject)
 					antismash_bgc_listing_handle.write(s + '\t' + bgc_genbank + '\t' + bgc_proteome + '\n')
 				else:
 					antismash_bgc_listing_handle.write(s + '\t' + bgc_genbank + '\n')
