@@ -9,7 +9,8 @@ import os
 import sys
 from time import sleep
 import argparse
-from lsaBGC import lsaBGC
+from lsaBGC import util
+from lsaBGC.classes.Pan import Pan
 
 def create_parser():
 	""" Parse arguments """
@@ -75,7 +76,7 @@ def lsaBGC_Cluster():
 
 	# create logging object
 	log_file = outdir + 'Progress.log'
-	logObject = lsaBGC.createLoggerObject(log_file)
+	logObject = util.createLoggerObject(log_file)
 
 	# Step 0: Log input arguments and update reference and query FASTA files.
 	logObject.info("Saving parameters for future provedance.")
@@ -84,47 +85,33 @@ def lsaBGC_Cluster():
 	parameter_names = ["BGC Listing File", "OrthoFinder Orthogroups.csv File", "Output Directory", "Cores",
 					   "MCL Inflation Parameter", "Jaccard Similarity Cutoff", "Run Inflation Parameter Tests?",
 					   "Split BGCs into Annotation Categories First Prior to Clustering?"]
-	lsaBGC.logParametersToFile(parameters_file, parameter_names, parameter_values)
+	util.logParametersToFile(parameters_file, parameter_names, parameter_values)
 	logObject.info("Done saving parameters!")
 
 	# Step 1: Parse BGCs from Listing File
 	logObject.info("Starting to process BGC Genbanks from listing file.")
-	bgc_sample, bgc_product, bgc_genes, bgc_core_counts, all_genes = lsaBGC.readInBGCGenbanksComprehensive(bgc_listings_file, logObject, comprehensive_parsing=False)
+	Pan_Object = Pan(bgc_listings_file, logObject=logObject)
+	Pan_Object.readInBGCGenbanks(comprehensive_parsing=False)
 	logObject.info("Successfully parsed BGC Genbanks.")
 
 	# Step 2: Parse OrthoFinder Homolog vs Sample Matrix
 	logObject.info("Starting to parse OrthoFinder homolog vs sample information.")
-	gene_to_cog, cog_genes, prop_multi_copy = lsaBGC.parseOrthoFinderMatrix(orthofinder_matrix_file, all_genes, calc_prop_multicopy=True)
+	gene_to_hg, hg_genes, hg_median_copy_count, hg_prop_multi_copy = util.parseOrthoFinderMatrix(orthofinder_matrix_file, Pan_Object.pan_genes)
+	Pan_Object.inputHomologyInformation(gene_to_hg, hg_genes, hg_median_copy_count, hg_prop_multi_copy)
 	logObject.info("Successfully parsed homolog matrix.")
 
 	# Step 3: Calculate overlap in homolog profiles between pairs of BGCs and prepare for MCL
 	logObject.info('Calculating overlap in single copy ortholog Groups between BGC GBKs.')
-	mcl_outdir = outdir + 'MCL_tmp_files/'
+	mcl_outdir = outdir + 'MCL_intermediate_files/'
 	if not run_parameter_tests: mcl_outdir = outdir
 	elif not os.path.isdir(mcl_outdir): os.system('mkdir %s' % mcl_outdir)
-	bgc_cogs, pairwise_relations, pair_relations_txt_file = lsaBGC.calculateBGCPairwiseRelations(bgc_genes, gene_to_cog, prop_multi_copy, mcl_outdir, bgc_product, split_by_annotation, logObject)
+	Pan_Object.calculateBGCPairwiseRelations(mcl_outdir, split_by_annotation, logObject)
 	logObject.info("Successfully calculated pairwise distances between BGCs based on homolog profiles.")
 
 	# Step 4: Run MCL clustering, iterating through multiple inflation parameters if necessary.
 	logObject.info('Starting to run MCL for finding Gene Cluster Families (GCFs)!')
 	# Create and write to file which will detail the GCFs found from MCL clustering
-	bgc_to_gcf_map_file = outdir + 'BGC_to_GCF_Mapping.txt'
-
-	stats_file = outdir + 'GCF_details.txt'
-	sf_handle = open(stats_file, 'w')
-	if run_parameter_tests:
-		sf_handle.write('\t'.join(['MCL inflation parameter', 'Jaccard similarity cutoff', 'GCF id', 'number of BGCs', 'number of samples',
-								   'samples with multiple BGCs in GCF', 'size of the SCC', 'mean number of OGs',
-								   'stdev for number of OGs', 'min difference', 'max difference', 'number of core gene aggregates',
-								   'annotations']) + '\n')
-		#btgmf_handle = open(bgc_to_gcf_map_file, 'a+')
-		#btgmf_handle.write('\t'.join(['MCL_Inflation', 'JaccardSim_Cutoff', 'GCF_ID', 'Sample_Name', 'BGC_Path', 'Type']) + '\n')
-		#btgmf_handle.close()
-	else:
-		sf_handle.write('\t'.join(['GCF id', 'number of BGCs', 'number of samples', 'samples with multiple BGCs in GCF',
-								   'size of the SCC', 'mean number of OGs', 'stdev for number of OGs', 'number of core gene aggregates',
-								   'min difference', 'max difference', 'annotations']) + '\n')
-
+	Pan_Object.openStatsFile(outdir)
 	mcl_inflation_params = [mcl_inflation]
 	jaccard_cutoff_params = [jaccard_cutoff]
 	if run_parameter_tests:
@@ -132,16 +119,15 @@ def lsaBGC_Cluster():
 		jaccard_cutoff_params = [0, 20, 30, 50, 75, 90]
 	for mip in mcl_inflation_params:
 		for jcp in jaccard_cutoff_params:
-			lsaBGC.runMCLAndReportGCFs(mip, jcp, mcl_outdir, sf_handle, pairwise_relations, pair_relations_txt_file, bgc_cogs, bgc_product, bgc_core_counts, bgc_sample, run_parameter_tests, bgc_to_gcf_map_file, cores, logObject)
-	sf_handle.close()
+			Pan_Object.runMCLAndReportGCFs(mip, jcp, mcl_outdir, inflation_testing=run_parameter_tests, cores=cores)
 
 	if run_parameter_tests:
-		lsaBGC.plotResultsFromUsingDifferentParameters(stats_file, bgc_to_gcf_map_file, outdir, logObject)
+		Pan_Object.plotResultsFromUsingDifferentParameters(outdir)
 
 	logObject.info("Successfully ran MCL clustering analysis to determine GCFs!")
 
 	# Close logging object and exit
-	lsaBGC.closeLoggerObject(logObject)
+	util.closeLoggerObject(logObject)
 	sys.exit(0)
 
 if __name__ == '__main__':

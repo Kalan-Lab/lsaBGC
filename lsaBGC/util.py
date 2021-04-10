@@ -4,6 +4,78 @@ from Bio import SeqIO
 from Bio.Seq import Seq
 import logging
 import subprocess
+import statistics
+from collections import defaultdict
+import random
+
+def assignColorsToCOGs(gene_to_cog, bgc_genes):
+	"""
+	:param cogs: set of CoGs.
+	:return: dictionary mapping each CoG to a hex color value.
+	"""
+
+	cog_bgc_counts = defaultdict(int)
+	for b in bgc_genes:
+		for g in bgc_genes[b]:
+			if g in gene_to_cog:
+				cog_bgc_counts[gene_to_cog[g]] += 1
+
+	cogs = set([])
+	for c in cog_bgc_counts:
+		if cog_bgc_counts[c] > 1:
+			cogs.add(c)
+
+	# read in list of colors
+	dir_path = os.path.dirname(os.path.realpath(__file__)) + '/'
+	colors_file = dir_path + 'colors_200.txt'
+	colors = []
+	with open(colors_file) as ocf:
+		colors = [x.strip() for x in ocf.readlines()]
+	random.shuffle(colors)
+
+	cog_to_color = {}
+	for i, c in enumerate(set(cogs)):
+		cog_to_color[c] = colors[i]
+	return (cog_to_color)
+
+def parseOrthoFinderMatrix(orthofinder_matrix_file, relevant_gene_lts):
+	"""
+	Function to parse and return information from OrthoFinderV2 de novo homolog group identification.
+
+	:param orthofinder_matrix: OrthoFinderV2 matrix Orthogroups.csv file
+	:param relevant_gene_lts: set of all the relevant gene locus tag identifiers found in BGC Genbanks
+
+	:return gene_to_hg: dictionary mapping gene locus tags to homolog group
+	:return hg_genes: dictionary with set of gene locus tags for each homolog group
+	:return hg_median_gene_counts: median copy count for each homolog group
+	:return hg_multicopy_proportion: proportion of samples with homolog group which have multiple (paralogous) genes in the homolog group.
+	"""
+	gene_to_hg = {}
+	hg_genes = defaultdict(set)
+	hg_multicopy_proportion = defaultdict(lambda: 'NA')
+	hg_median_gene_counts = defaultdict(lambda: 'NA')
+	with open(orthofinder_matrix_file) as ofm:
+		for i, line in enumerate(ofm):
+			if i == 0: continue
+			line = line.strip('\n')
+			ls = line.split('\t')
+			hg = ls[0]
+			flag_in_bgc = False
+			for sgs in ls[1:]:
+				for g in sgs.split(', '):
+					if g in relevant_gene_lts:
+						flag_in_bgc = True
+						gene_to_hg[g] = hg
+						hg_genes[hg].add(g)
+			if flag_in_bgc:
+				gene_counts = []
+				for sgs in ls[1:]:
+					gene_counts.append(len([x for x in sgs.split(', ') if len(x.split('_')[0]) == 3]))
+
+				hg_multicopy_proportion[hg] = float(sum([1 for x in gene_counts if x > 1])) / sum([1 for x in gene_counts if x > 0])
+				hg_median_gene_counts[hg] = statistics.median(gene_counts)
+
+	return ([gene_to_hg, hg_genes, hg_median_gene_counts, hg_multicopy_proportion])
 
 def multiProcess(input):
 	input_cmd = input[:-1]

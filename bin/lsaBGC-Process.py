@@ -56,7 +56,7 @@ def lsaBGC_Process():
 	"""
 	myargs = create_parser()
 
-	assembly_listing_file = os.path.abspath(myargs.assemblies)
+	assembly_listing_file = os.path.abspath(myargs.assembly_listing)
 	outdir = os.path.abspath(myargs.output_directory) + '/'
 	antiSMASH_env_path = os.path.abspath(myargs.antiSMASH_env_path) + '/'
 	prokka_env_path = os.path.abspath(myargs.prokka_env_path) + '/'
@@ -147,15 +147,14 @@ def lsaBGC_Process():
 		raise RuntimeError("Can't create AntiSMASH results directories. Exiting now ...")
 
 	logObject.info("Running/setting-up AntiSMASH for all samples!")
-	processing.runAntiSMASH(prokka_genbanks_dir, antismash_outdir, antismash_load_code, dry_run_flag, cores, logObject)
+	processing.runAntiSMASH(prokka_genbanks_dir, antismash_outdir, antismash_load_code, cores, logObject, dry_run_flag=dry_run_flag)
 	logObject.info("Successfully ran/set-up AntiSMASH.")
 
 	# Step 4: Run OrthoFinder for de novo ortholog construction
 	if orthofinder_env_path:
 		orthofinder_outdir = outdir + 'OrthoFinder_Results/'
 		logObject.info("Running/setting-up OrthoFinder!")
-		processing.runOrthoFinder(prokka_proteomes_dir, orthofinder_outdir, orthofinder_load_code, dry_run_flag, cores,
-							  logObject)
+		processing.runOrthoFinder(prokka_proteomes_dir, orthofinder_outdir, orthofinder_load_code, cores, logObject, dry_run_flag=dry_run_flag)
 		logObject.info("Successfully ran/set-up OrthoFinder.")
 
 	# Write resulting list of BGC Genbanks (to be used as input for lsaBGC-Cluster)
@@ -186,7 +185,7 @@ def lsaBGC_Process():
 			os.system('mv %s %s' % (orthofinder_homolog_matrix, outdir))
 
 	# Close logging object and exit
-	lsaBGC.closeLoggerObject(logObject)
+	util.closeLoggerObject(logObject)
 	sys.exit(0)
 
 if __name__ == '__main__':

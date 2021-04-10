@@ -84,7 +84,7 @@ def lsaBGC_RelativeDivergance():
 
     # Step 1: Extract Genbank Sequences into FASTA
     logObject.info("Converting BGC Genbanks from GCF listing file into FASTA per sample.")
-    gcf_fasta_listing_file = lsaBGC.convertGCFGenbanksIntoFastas(gcf_listing_file, logObject)
+    gcf_fasta_listing_file = lsaBGC.convertGenbanksIntoFastas(gcf_listing_file, logObject)
     logObject.info("Successfully performed conversion and partitioning by sample.")
 
     # Step 2: Run MASH Analysis Between BGCs in GCF
