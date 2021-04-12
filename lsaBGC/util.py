@@ -8,36 +8,6 @@ import statistics
 from collections import defaultdict
 import random
 
-def assignColorsToCOGs(gene_to_cog, bgc_genes):
-	"""
-	:param cogs: set of CoGs.
-	:return: dictionary mapping each CoG to a hex color value.
-	"""
-
-	cog_bgc_counts = defaultdict(int)
-	for b in bgc_genes:
-		for g in bgc_genes[b]:
-			if g in gene_to_cog:
-				cog_bgc_counts[gene_to_cog[g]] += 1
-
-	cogs = set([])
-	for c in cog_bgc_counts:
-		if cog_bgc_counts[c] > 1:
-			cogs.add(c)
-
-	# read in list of colors
-	dir_path = os.path.dirname(os.path.realpath(__file__)) + '/'
-	colors_file = dir_path + 'colors_200.txt'
-	colors = []
-	with open(colors_file) as ocf:
-		colors = [x.strip() for x in ocf.readlines()]
-	random.shuffle(colors)
-
-	cog_to_color = {}
-	for i, c in enumerate(set(cogs)):
-		cog_to_color[c] = colors[i]
-	return (cog_to_color)
-
 def parseOrthoFinderMatrix(orthofinder_matrix_file, relevant_gene_lts):
 	"""
 	Function to parse and return information from OrthoFinderV2 de novo homolog group identification.

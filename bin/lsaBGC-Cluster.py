@@ -88,9 +88,11 @@ def lsaBGC_Cluster():
 	util.logParametersToFile(parameters_file, parameter_names, parameter_values)
 	logObject.info("Done saving parameters!")
 
+	# Create Pan object
+	Pan_Object = Pan(bgc_listings_file, logObject=logObject)
+
 	# Step 1: Parse BGCs from Listing File
 	logObject.info("Starting to process BGC Genbanks from listing file.")
-	Pan_Object = Pan(bgc_listings_file, logObject=logObject)
 	Pan_Object.readInBGCGenbanks(comprehensive_parsing=False)
 	logObject.info("Successfully parsed BGC Genbanks.")
 

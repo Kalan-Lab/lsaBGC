@@ -9,7 +9,8 @@ import os
 import sys
 from time import sleep
 import argparse
-from lsaBGC import lsaBGC
+from lsaBGC import util
+from lsaBGC.classes.GCF import GCF
 
 def create_parser():
     """ Parse arguments """
@@ -18,14 +19,15 @@ def create_parser():
 	Author: Rauf Salamzade
 	Affiliation: Kalan Lab, UW Madison, Department of Medical Microbiology and Immunology
 
-	This program will create iTol tracks visualizing BGCs from a single GCF across a species tree. Alternatively, if a 
-	species tree is not available, it will also create a phylogeny based on single copy core genes of the GCF.
+	This program will create automatic visuals depicting genes across a species or BGC-specific phylogeny as well as
+	iTol tracks visualizing BGCs from a single GCF across a species tree. Alternatively, if a species tree is not 
+	available, it will also create a phylogeny based on single copy core genes of the GCF.
 	""", formatter_class=argparse.RawTextHelpFormatter)
 
     parser.add_argument('-g', '--gcf_listing', help='BGC listings file for a gcf. Tab delimited: 1st column lists sample name while the 2nd column is the path to an AntiSMASH BGC in Genbank format.', required=True)
     parser.add_argument('-m', '--orthofinder_matrix', help="OrthoFinder matrix.", required=True)
     parser.add_argument('-o', '--output_directory', help="Output directory.", required=True)
-    parser.add_argument('-l', '--dataset_label', help="Dataset label for iTol track", required=False, default='lsaBGC-See')
+    parser.add_argument('-i', '--gcf_id', help="GCF identifier.", required=False, default='GCF_X')
     parser.add_argument('-s', '--species_phylogeny', help="The species phylogeny in Newick format.", required=False, default=None)
     parser.add_argument('-c', '--cores', type=int, help="Number of cores to use for MCL step.", required=False, default=1)
     parser.add_argument('-p', '--create_core_gcf_phylogeny', action='store_true', help="Create phylogeny from core COGs.", required=False, default=False)
@@ -64,7 +66,7 @@ def lsaBGC_See():
     PARSE OPTIONAL INPUTS
     """
 
-    dataset_label = myargs.dataset_label
+    gcf_id = myargs.gcf_id
     species_phylogeny = myargs.species_phylogeny
     cores = myargs.cores
     create_core_gcf_phylogeny = myargs.create_core_gcf_phylogeny
@@ -76,39 +78,43 @@ def lsaBGC_See():
 
     # create logging object
     log_file = outdir + 'Progress.log'
-    logObject = lsaBGC.createLoggerObject(log_file)
+    logObject = util.createLoggerObject(log_file)
 
     # Step 0: Log input arguments and update reference and query FASTA files.
     logObject.info("Saving parameters for future provedance.")
     parameters_file = outdir + 'Parameter_Inputs.txt'
-    parameter_values = [gcf_listing_file, orthofinder_matrix_file, outdir, dataset_label, species_phylogeny, cores,
+    parameter_values = [gcf_listing_file, orthofinder_matrix_file, outdir, gcf_id, species_phylogeny, cores,
                         create_core_gcf_phylogeny, codon_alignments_dir]
-    parameter_names = ["GCF Listing File", "OrthoFinder Orthogroups.csv File", "Output Directory", "Dataset Label",
+    parameter_names = ["GCF Listing File", "OrthoFinder Orthogroups.csv File", "Output Directory", "GCF Identifier",
                        "Species Phylogeny Newick File", "Cores", "Create GCF Phylogeny?", "Codon Alignments Directory"]
-    lsaBGC.logParametersToFile(parameters_file, parameter_names, parameter_values)
+    util.logParametersToFile(parameters_file, parameter_names, parameter_values)
     logObject.info("Done saving parameters!")
+
+    # Create GCF object
+    GCF_Object = GCF(gcf_listing_file, gcf_id=gcf_id)
 
     # Step 1: Process GCF listings file
     logObject.info("Processing BGC Genbanks from GCF listing file.")
-    bgc_gbk, bgc_genes, comp_gene_info, all_genes, bgc_sample, sample_bgcs = lsaBGC.readInBGCGenbanksPerGCF(gcf_listing_file, logObject)
+    GCF_Object.readInBGCGenbanks(comprehensive_parsing=False)
     logObject.info("Successfully parsed BGC Genbanks and associated with unique IDs.")
 
     # Step 2: If species phylogeny was provided, edit it to feature duplicate leaves for isolates which have multiple
     # BGCs in the GCF.
     if species_phylogeny:
         logObject.info("Altering species phylogeny to reflect multiple BGCs per sample/isolate.")
-        lsaBGC.modifyPhylogenyForSamplesWithMultipleBGCs(species_phylogeny, sample_bgcs, outdir + 'species_phylogeny.edited.nwk', logObject)
+        GCF_Object.modifyPhylogenyForSamplesWithMultipleBGCs(species_phylogeny, outdir + 'species_phylogeny.edited.nwk')
         logObject.info("Successfully edited species phylogeny.")
 
     # Step 3: Parse OrthoFinder Homolog vs Sample Matrix and associate each homolog group with a color
     logObject.info("Starting to parse OrthoFinder homolog vs sample information.")
-    gene_to_cog, cog_genes, cog_median_gene_counts = lsaBGC.parseOrthoFinderMatrix(orthofinder_matrix_file, all_genes)
-    cog_to_color = lsaBGC.assignColorsToCOGs(gene_to_cog, bgc_genes)
+    gene_to_hg, hg_genes, hg_median_copy_count, hg_prop_multi_copy = util.parseOrthoFinderMatrix(orthofinder_matrix_file, GCF_Object.pan_genes)
+    GCF_Object.inputHomologyInformation(gene_to_hg, hg_genes, hg_median_copy_count, hg_prop_multi_copy)
+    hg_to_color = util.assignColorsToCOGs(GCF_Object.gene_to_hg, GCF_Object.bgc_genes)
     logObject.info("Successfully parsed homolog matrix.")
 
     # Step 4: Create iTol and gggenes (R) tracks for visualizing BGCs of GCF across a phylogeny.
     logObject.info("Create iTol tracks for viewing BGCs of GCF across phylogeny. Note, should be used to annotate edited species phylogeny or BGC SCC phylogeny as some samples could have multiple BGCs!")
-    lsaBGC.createItolBGCSeeTrack(outdir + 'BGCs_Visualization.iTol.txt', bgc_genes, gene_to_cog, cog_to_color, comp_gene_info, dataset_label, logObject)
+    GCF_Object.createItolBGCSeeTrack(outdir + 'BGCs_Visualization.iTol.txt', bgc_genes, gene_to_cog, cog_to_color, comp_gene_info, dataset_label, logObject)
     lsaBGC.visualizeGCFViaR(outdir + 'BGCs_Visualization.gggenes.txt', outdir + 'BGCs_Visualization.heatmap.txt', outdir + 'species_phylogeny.edited.nwk', outdir + 'BGC_Visualization.species_phylogeny.pdf', bgc_genes, gene_to_cog, cog_to_color, comp_gene_info, logObject)
     logObject.info("iTol track written and automatic plot via gggenes/ggtree (R) rendered!")
 

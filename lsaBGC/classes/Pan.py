@@ -45,6 +45,7 @@ class Pan:
 	self.pairwise_relations = None # jaccard similarity dictionary
 
 	# variables containing location of files
+	self.final_stats_file = None
 	self.pair_relations_txt_file = None
 	self.bgc_to_gcf_map_file = None
 	
@@ -303,45 +304,55 @@ class Pan:
 			sf_handle.close()
 		except Exception as e:
 			if self.logObject:
-				self.logObject.error("Problem appendig information on GCFs for current parameter combination to GCF statistics report file.")
+				self.logObject.error("Problem appending information on GCFs for current parameter combination to GCF statistics report file.")
 				self.logObject.error(traceback.format_exc())
 			raise RuntimeError(traceback.format_exc())
 
 		if not inflation_testing:
-			logObject.info(
-				"Writing list of BGCs for each GCF, which will be used as input for downstream programs in the suite!")
-			gcf_listing_dir = outdir + 'GCF_Listings/'
-			if not os.path.isdir(gcf_listing_dir): os.system('mkdir %s' % gcf_listing_dir)
-			with open(mcxdump_out_file) as omo:
-				for j, gcf in enumerate(omo):
-					gcf = gcf.strip()
-					gcf_mems = gcf.split()
-					if len(gcf_mems) < 2: continue
-					outf_list = open(gcf_listing_dir + 'GCF_' + str(j + 1) + '.txt', 'w')
-					for bgc in gcf_mems:
-						sname = self.bgc_sample[bgc]
-						outf_list.write('%s\t%s\n' % (sname, bgc))
-					outf_list.close()
-			logObject.info("Successfully wrote lists of BGCs for each GCF.")
+			try:
+				logObject.info("Writing list of BGCs for each GCF, which will be used as input for downstream programs in the suite!")
+				gcf_listing_dir = outdir + 'GCF_Listings/'
+				if not os.path.isdir(gcf_listing_dir): os.system('mkdir %s' % gcf_listing_dir)
+				with open(mcxdump_out_file) as omo:
+					for j, gcf in enumerate(omo):
+						gcf = gcf.strip()
+						gcf_mems = gcf.split()
+						if len(gcf_mems) < 2: continue
+						outf_list = open(gcf_listing_dir + 'GCF_' + str(j + 1) + '.txt', 'w')
+						for bgc in gcf_mems:
+							sname = self.bgc_sample[bgc]
+							outf_list.write('%s\t%s\n' % (sname, bgc))
+						outf_list.close()
+				logObject.info("Successfully wrote lists of BGCs for each GCF.")
+			except Exception as e:
+				if self.logObject:
+					self.logObject.error("Problem with writing GCF lists.")
+					self.logObject.error(traceback.format_exc())
+				raise RuntimeError(traceback.format_exc())
 		else:
-			logObject.info("Writing list of BGCs for each GCF for each clustering parameter combination into single plot.")
-			btgmf_handle = open(self.bgc_to_gcf_map_file, 'a+')
+			try:
+				logObject.info("Writing list of BGCs for each GCF for each clustering parameter combination into single plot.")
+				btgmf_handle = open(self.bgc_to_gcf_map_file, 'a+')
 
-			with open(mcxdump_out_file) as omo:
-				for j, gcf in enumerate(omo):
-					gcf = gcf.strip()
-					gcf_mems = gcf.split()
-					if len(gcf_mems) < 2: continue
-					for bgc in gcf_mems:
-						sname = self.bgc_sample[bgc]
-						btgmf_handle.write('%f\t%f\tGCF_%d\t%s\t%s\n' % (mip, jcp, j + 1, sname, bgc))
-			for sbgc in singleton_bgcs:
-				sname = self.bgc_sample[sbgc]
-				btgmf_handle.write('%f\t%f\tGCF_singletons\t%s\t%s\n' % (mip, jcp, sname, sbgc))
-			btgmf_handle.close()
-		return
+				with open(mcxdump_out_file) as omo:
+					for j, gcf in enumerate(omo):
+						gcf = gcf.strip()
+						gcf_mems = gcf.split()
+						if len(gcf_mems) < 2: continue
+						for bgc in gcf_mems:
+							sname = self.bgc_sample[bgc]
+							btgmf_handle.write('%f\t%f\tGCF_%d\t%s\t%s\n' % (mip, jcp, j + 1, sname, bgc))
+				for sbgc in singleton_bgcs:
+					sname = self.bgc_sample[sbgc]
+					btgmf_handle.write('%f\t%f\tGCF_singletons\t%s\t%s\n' % (mip, jcp, sname, sbgc))
+				btgmf_handle.close()
+			except Exception as e:
+				if self.logObject:
+					self.logObject.error("Problem with writing BGC to GCF relationship.")
+					self.logObject.error(traceback.format_exc())
+				raise RuntimeError(traceback.format_exc())
 
-	def plotResultsFromUsingDifferentParameters(gcf_details_file, bgc_gcf_map_file, outdir, logObject):
+	def plotResultsFromUsingDifferentParameters(outdir):
 		try:
 			plot_input_dir = outdir + 'plotting_input/'
 			if not os.path.isdir(plot_input_dir): os.system('mkdir %s' % plot_input_dir)
@@ -352,7 +363,7 @@ class Pan:
 			cluster_mixedannot_counts = defaultdict(int)
 			cluster_mixedannot_wohypo_counts = defaultdict(int)
 			all_annotation_classes = set([])
-			with open(gcf_details_file) as ogdf:
+			with open(self.final_stats_file) as ogdf:
 				for i, line in enumerate(ogdf):
 					line = line.strip()
 					ls = line.split("\t")
@@ -372,11 +383,11 @@ class Pan:
 						if len(annotations) > 1: cluster_mixedannot_wohypo_counts[param_id] += 1
 						all_annotation_classes = all_annotation_classes.union(annotations)
 
-			plot_overview_file = plot_input_dir + 'plotting_overview.txt'
-			plot_annot_file = plot_input_dir + 'annotation_classes.txt'
-			plot_input_1_file = plot_input_dir + 'plotting_input_g123.txt'
-			plot_input_2_file = plot_input_dir + 'plotting_input_g4.txt'
-			plot_sankey_file = plot_input_dir + 'plot_sankey_input.txt'
+			plot_overview_file = plot_input_dir + 'plotting_input_1.txt'
+			plot_input_1_file = plot_input_dir + 'plotting_input_2.txt'
+			plot_input_2_file = plot_input_dir + 'plotting_input_3.txt'
+			plot_sankey_file = plot_input_dir + 'plotting_input_4.txt'
+			plot_annot_file = plot_input_dir + 'plotting_input_5.txt'
 
 			plot_input_1_handle = open(plot_input_1_file, 'w')
 			plot_input_2_handle = open(plot_input_2_file, 'w')
@@ -402,7 +413,7 @@ class Pan:
 				 'Source_Type', 'Dest_Type', 'PassageWeight']) + '\n')
 
 			jcp_gcfs = defaultdict(lambda: defaultdict(set))
-			with open(bgc_gcf_map_file) as obgmf:
+			with open(self.bgc_gcf_map_file) as obgmf:
 				for line in obgmf:
 					line = line.strip()
 					mip, jcp, gcf_id, sname, gbkpath = line.split('\t')
@@ -433,7 +444,7 @@ class Pan:
 																 gcf2_type, intersect]]) + '\n')
 			plot_sankey_handle.close()
 
-			with open(gcf_details_file) as ogdf:
+			with open(self.gcf_details_file) as ogdf:
 				for i, line in enumerate(ogdf):
 					line = line.strip()
 					ls = line.split("\t")
@@ -535,11 +546,11 @@ class Pan:
 				raise RuntimeError('Had an issue running: %s' % ' '.join(rscript_plot_cmd))
 			logObject.info('Plotting completed!')
 
-
-		except:
-			error_msg = 'Problem creating plot(s) for assessing best parameter choices for GCF clustering.'
-			logObject.info(error_msg)
-			raise RuntimeError(error_msg)
+		except Exception as e:
+			if self.logObject:
+				self.logObject.error("Problem creating plot(s) for assessing best parameter choices for GCF clustering.")
+				self.logObject.error(traceback.format_exc())
+			raise RuntimeError(traceback.format_exc())
 
 	def convertGenbanksIntoFastas(gcf_specs_file, outdir, logObject):
 		gcf_fasta_listing_file = outdir + 'GCF_FASTA_Listings.txt'
@@ -585,4 +596,3 @@ class Pan:
 			outf.write(s + '\t' + fasta_dir + s + '.fasta\n')
 		outf.close()
 		return (gcf_fasta_listing_file)
-

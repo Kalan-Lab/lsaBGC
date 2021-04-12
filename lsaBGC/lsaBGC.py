@@ -17,7 +17,6 @@ import random
 
 lsaBGC_main_directory = '/'.join(os.path.realpath(__file__).split('/')[:-2])
 RSCRIPT_FOR_BGSEE = lsaBGC_main_directory + '/lsaBGC/bgSee.R'
-RSCRIPT_FOR_PLOTTING = lsaBGC_main_directory + '/lsaBGC/plotCogConservation.R'
 RSCRIPT_FOR_CLUSTER_ASSESSMENT_PLOTTING = lsaBGC_main_directory + '/lsaBGC/plotParameterImpactsOnGCF.R'
 RSCRIPT_FOR_TAJIMA = lsaBGC_main_directory + '/lsaBGC/calculateTajimasD.R'
 FLANK_SIZE = 500
@@ -231,89 +230,6 @@ def visualizeGCFViaR(gggenes_track_file, heatmap_track_file, phylogeny_file, res
 		logObject.error('Had an issue running: %s' % ' '.join(rscript_plot_cmd))
 		raise RuntimeError('Had an issue running: %s' % ' '.join(rscript_plot_cmd))
 	logObject.info('Plotting completed!')
-
-def createItolBGCSeeTrack(track_file, bgc_genes, gene_to_cog, cog_to_color, comp_gene_info, dataset_label, logObject):
-	track_handle = open(track_file, 'w')
-
-	logObject.info("Writing iTol track file to: %s" % track_file)
-	logObject.info("Track will have label: %s" % dataset_label)
-
-	# write header for iTol track file
-	track_handle.write('DATASET_DOMAINS\n')
-	track_handle.write('SEPARATOR TAB\n')
-	track_handle.write('DATASET_LABEL\t%s\n' % dataset_label)
-	track_handle.write('COLOR\t#000000\n')
-	track_handle.write('BORDER_WIDTH\t1\n')
-	track_handle.write('BORDER_COLOR\t#000000\n')
-	track_handle.write('SHOW_DOMAIN_LABELS\t0\n')
-	track_handle.write('DATA\n')
-
-	# write the rest of the iTol track file for illustrating genes across BGC instances
-	ref_cog_directions = {}
-	bgc_gene_counts = defaultdict(int)
-	for bgc in bgc_genes:
-		bgc_gene_counts[bgc] = len(bgc_genes[bgc])
-
-	for i, item in enumerate(sorted(bgc_gene_counts.items(), key=itemgetter(1), reverse=True)):
-		bgc = item[0]
-		curr_bgc_genes = bgc_genes[bgc]
-		last_gene_end = max([comp_gene_info[lt]['end'] for lt in curr_bgc_genes])
-		printlist = [bgc, str(last_gene_end)]
-		cog_directions = {}
-		cog_lengths = defaultdict(list)
-		for lt in curr_bgc_genes:
-			ginfo = comp_gene_info[lt]
-			cog = 'singleton'
-			if lt in gene_to_cog:
-				cog = gene_to_cog[lt]
-			shape = 'None'
-			if ginfo['direction'] == '+':
-				shape = 'TR'
-			elif ginfo['direction'] == '-':
-				shape = 'TL'
-			gstart = ginfo['start']
-			gend = ginfo['end']
-			cog_color = "#dbdbdb"
-			if cog in cog_to_color:
-				cog_color = cog_to_color[cog]
-			gene_string = '|'.join([str(x) for x in [shape, gstart, gend, cog_color, cog]])
-			printlist.append(gene_string)
-			if cog != 'singleton':
-				cog_directions[cog] = ginfo['direction']
-				cog_lengths[cog].append(gend - gstart)
-		if i == 0:
-			ref_cog_directions = cog_directions
-			track_handle.write('\t'.join(printlist) + '\n')
-		else:
-			flip_support = 0
-			keep_support = 0
-			for c in ref_cog_directions:
-				if not c in cog_directions: continue
-				cog_weight = statistics.mean(cog_lengths[c])
-				if cog_directions[c] == ref_cog_directions[c]:
-					keep_support += cog_weight
-				else:
-					flip_support += cog_weight
-
-			# flip the genbank visual if necessary, first BGC processed is used as reference guide
-			if flip_support > keep_support:
-				flip_printlist = printlist[:2]
-				for gene_string in printlist[2:]:
-					gene_info = gene_string.split('|')
-					new_shape = None
-					if gene_info[0] == 'TR':
-						new_shape = 'TL'
-					elif gene_info[0] == 'TL':
-						new_shape = 'TR'
-					new_gstart = int(last_gene_end) - int(gene_info[2])
-					new_gend = int(last_gene_end) - int(gene_info[1])
-					new_gene_info = '|'.join([new_shape, str(new_gstart), str(new_gend)] + gene_info[-2:])
-					flip_printlist.append(new_gene_info)
-				track_handle.write('\t'.join(flip_printlist) + '\n')
-			else:
-				track_handle.write('\t'.join(printlist) + '\n')
-	track_handle.close()
-
 
 def determineCogOrderIndex(bgc_genes, gene_to_cog, comp_gene_info):
 	ref_cog_directions = {}
@@ -705,66 +621,6 @@ def create_hmm_profiles(inputs):
 		raise RuntimeError('Had an issue running: %s' % ' '.join(hmmbuild_cmd))
 
 	logObject.info('Constructed profile HMM for homolog group %s' % cog)
-
-
-def modifyPhylogenyForSamplesWithMultipleBGCs(phylogeny, sample_bgcs, output_phylogeny, logObject):
-	try:
-		number_of_added_leaves = 0
-		t = Tree(phylogeny)
-		for node in t.traverse('postorder'):
-			if node.name in sample_bgcs and len(sample_bgcs[node.name]) > 1:
-				og_node_name = node.name
-				node.name = node.name + '_INNERNODE'
-				for bgc_id in sample_bgcs[og_node_name]:
-					# if bgc_id == node.name: continue
-					node.add_child(name=bgc_id)
-					child_node = t.search_nodes(name=bgc_id)[0]
-					child_node.dist = 0
-					if bgc_id != og_node_name: number_of_added_leaves += 1
-		t.write(format=1, outfile=output_phylogeny)
-		logObject.info(
-			"New phylogeny with an additional %d leafs to reflect samples with multiple BGCs can be found at: %s." % (
-				number_of_added_leaves, output_phylogeny))
-	except:
-		logObject.error(
-			"Had difficulties properly editing phylogeny to duplicate leafs for samples with multiple BGCs for GCF.")
-		raise RuntimeError(
-			"Had difficulties properly editing phylogeny to duplicate leafs for samples with multiple BGCs for GCF.")
-
-
-def readInBGCGenbanksComprehensive(bgc_specs_file, logObject, comprehensive_parsing=True):
-	bgc_sample = {}
-	bgc_product = {}
-	bgc_genes = {}
-	bgc_core_counts = {}
-	all_genes = set([])
-	with open(bgc_specs_file) as obsf:
-		for i, line in enumerate(obsf):
-			line = line.strip()
-			try:
-				assert (len(line.split('\t')) == 2)
-			except:
-				logObject.error(
-					"More than two columns exist at line %d in BGC specification/listing file. Exiting now ..." % (
-							i + 1))
-				raise RuntimeError(
-					"More than two columns exist at line %d in BGC specification/listing file. Exiting now ..." % (
-							i + 1))
-			sample, gbk = line.split('\t')
-			try:
-				assert (is_genbank(gbk))
-				bgc_genes_full, bgc_info_full = parseGenbanks(gbk, gbk, comprehensive_parsing=comprehensive_parsing)
-				bgc_product[gbk] = [x['product'] for x in bgc_info_full]
-				bgc_core_counts[gbk] = bgc_info_full[0]['count_core_gene_groups']
-				bgc_genes[gbk] = set(bgc_genes_full.keys())
-				all_genes = all_genes.union(bgc_genes[gbk])
-				bgc_sample[gbk] = sample
-				logObject.info("Incorporating genbank %s for sample %s into analysis." % (gbk, sample))
-			except:
-				logObject.warning("Unable to validate %s as Genbank. Skipping its incorporation into analysis.")
-				raise RuntimeWarning("Unable to validate %s as Genbank. Skipping ...")
-
-	return [bgc_sample, bgc_product, bgc_genes, bgc_core_counts, all_genes]
 
 def getSpeciesRelationshipsFromPhylogeny(species_phylogeny, samples_in_gcf):
 	samples_in_phylogeny = set([])
