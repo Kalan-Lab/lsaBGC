@@ -109,13 +109,13 @@ def lsaBGC_See():
     logObject.info("Starting to parse OrthoFinder homolog vs sample information.")
     gene_to_hg, hg_genes, hg_median_copy_count, hg_prop_multi_copy = util.parseOrthoFinderMatrix(orthofinder_matrix_file, GCF_Object.pan_genes)
     GCF_Object.inputHomologyInformation(gene_to_hg, hg_genes, hg_median_copy_count, hg_prop_multi_copy)
-    hg_to_color = util.assignColorsToCOGs(GCF_Object.gene_to_hg, GCF_Object.bgc_genes)
+    GCF_Object.assignColorsToCOGs(GCF_Object.gene_to_hg, GCF_Object.bgc_genes)
     logObject.info("Successfully parsed homolog matrix.")
 
     # Step 4: Create iTol and gggenes (R) tracks for visualizing BGCs of GCF across a phylogeny.
     logObject.info("Create iTol tracks for viewing BGCs of GCF across phylogeny. Note, should be used to annotate edited species phylogeny or BGC SCC phylogeny as some samples could have multiple BGCs!")
-    GCF_Object.createItolBGCSeeTrack(outdir + 'BGCs_Visualization.iTol.txt', bgc_genes, gene_to_cog, cog_to_color, comp_gene_info, dataset_label, logObject)
-    lsaBGC.visualizeGCFViaR(outdir + 'BGCs_Visualization.gggenes.txt', outdir + 'BGCs_Visualization.heatmap.txt', outdir + 'species_phylogeny.edited.nwk', outdir + 'BGC_Visualization.species_phylogeny.pdf', bgc_genes, gene_to_cog, cog_to_color, comp_gene_info, logObject)
+    GCF_Object.createItolBGCSeeTrack(outdir + 'BGCs_Visualization.iTol.txt')
+    GCF_Object.visualizeGCFViaR(outdir + 'BGCs_Visualization.gggenes.txt', outdir + 'BGCs_Visualization.heatmap.txt', outdir + 'species_phylogeny.edited.nwk', outdir + 'BGC_Visualization.species_phylogeny.pdf')
     logObject.info("iTol track written and automatic plot via gggenes/ggtree (R) rendered!")
 
     # Step 5: (Optional) Create phylogeny from single-copy-core homologs from BGCs across samples (single copy in samples, not BGCs)
@@ -123,7 +123,7 @@ def lsaBGC_See():
         logObject.info("User requested construction of phylogeny from SCCs in BGC! Beginning phylogeny construction.")
         if codon_alignments_dir == None:
             logObject.info("Codon alignments were not provided, so beginning process of creating protein alignments for each homolog group using mafft, then translating these to codon alignments using PAL2NAL.")
-            codon_alignments_dir = lsaBGC.constructCodonAlignments(bgc_sample, cog_genes, comp_gene_info, outdir, cores, logObject, only_scc=True)
+            GCF_Object.constructCodonAlignments(outdir, only_scc=True)
             logObject.info("All codon alignments for SCC homologs now successfully achieved!")
         else:
             logObject.info("Codon alignments were provided by user. Moving forward to phylogeny construction with FastTree2.")
