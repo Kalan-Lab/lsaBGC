@@ -107,13 +107,13 @@ def lsaBGC_Cluster():
 	mcl_outdir = outdir + 'MCL_intermediate_files/'
 	if not run_parameter_tests: mcl_outdir = outdir
 	elif not os.path.isdir(mcl_outdir): os.system('mkdir %s' % mcl_outdir)
-	Pan_Object.calculateBGCPairwiseRelations(mcl_outdir, split_by_annotation, logObject)
+	Pan_Object.calculateBGCPairwiseRelations(mcl_outdir, split_by_annotation=split_by_annotation)
 	logObject.info("Successfully calculated pairwise distances between BGCs based on homolog profiles.")
 
 	# Step 4: Run MCL clustering, iterating through multiple inflation parameters if necessary.
 	logObject.info('Starting to run MCL for finding Gene Cluster Families (GCFs)!')
 	# Create and write to file which will detail the GCFs found from MCL clustering
-	Pan_Object.openStatsFile(outdir)
+	Pan_Object.openStatsFile(outdir, run_parameter_tests=run_parameter_tests)
 	mcl_inflation_params = [mcl_inflation]
 	jaccard_cutoff_params = [jaccard_cutoff]
 	if run_parameter_tests:
@@ -121,7 +121,7 @@ def lsaBGC_Cluster():
 		jaccard_cutoff_params = [0, 20, 30, 50, 75, 90]
 	for mip in mcl_inflation_params:
 		for jcp in jaccard_cutoff_params:
-			Pan_Object.runMCLAndReportGCFs(mip, jcp, mcl_outdir, inflation_testing=run_parameter_tests, cores=cores)
+			Pan_Object.runMCLAndReportGCFs(mip, jcp, mcl_outdir, run_parameter_tests=run_parameter_tests, cores=cores)
 
 	if run_parameter_tests:
 		Pan_Object.plotResultsFromUsingDifferentParameters(outdir)

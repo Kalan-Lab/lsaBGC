@@ -91,11 +91,11 @@ def lsaBGC_See():
     logObject.info("Done saving parameters!")
 
     # Create GCF object
-    GCF_Object = GCF(gcf_listing_file, gcf_id=gcf_id)
+    GCF_Object = GCF(gcf_listing_file, gcf_id=gcf_id, logObject=logObject)
 
     # Step 1: Process GCF listings file
     logObject.info("Processing BGC Genbanks from GCF listing file.")
-    GCF_Object.readInBGCGenbanks(comprehensive_parsing=False)
+    GCF_Object.readInBGCGenbanks(comprehensive_parsing=True)
     logObject.info("Successfully parsed BGC Genbanks and associated with unique IDs.")
 
     # Step 2: If species phylogeny was provided, edit it to feature duplicate leaves for isolates which have multiple
@@ -109,7 +109,7 @@ def lsaBGC_See():
     logObject.info("Starting to parse OrthoFinder homolog vs sample information.")
     gene_to_hg, hg_genes, hg_median_copy_count, hg_prop_multi_copy = util.parseOrthoFinderMatrix(orthofinder_matrix_file, GCF_Object.pan_genes)
     GCF_Object.inputHomologyInformation(gene_to_hg, hg_genes, hg_median_copy_count, hg_prop_multi_copy)
-    GCF_Object.assignColorsToCOGs(GCF_Object.gene_to_hg, GCF_Object.bgc_genes)
+    GCF_Object.assignColorsToHGs(GCF_Object.gene_to_hg, GCF_Object.bgc_genes)
     logObject.info("Successfully parsed homolog matrix.")
 
     # Step 4: Create iTol and gggenes (R) tracks for visualizing BGCs of GCF across a phylogeny.
@@ -136,7 +136,7 @@ def lsaBGC_See():
         # sites with high rates of missing data.
         logObject.info("Creating phylogeny using FastTree2 after creating concatenated BGC alignment and processing to remove sites with high rates of missing data!")
 
-        GCF_Object.constructBGCPhylogeny(outdir + 'BGC_SCCs_Concatenated.fasta', outdir + 'BGC_SCCs_Concatenated.nwk')
+        GCF_Object.constructGCFPhylogeny(outdir + 'BGC_SCCs_Concatenated.fasta', outdir + 'BGC_SCCs_Concatenated.nwk')
         GCF_Object.modifyPhylogenyForSamplesWithMultipleBGCs(outdir + 'BGC_SCCs_Concatenated.nwk', outdir + 'BGC_SCCs_Concatenated.edited.nwk')
 
         GCF_Object.visualizeGCFViaR(outdir + 'BGCs_Visualization.gggenes.txt',

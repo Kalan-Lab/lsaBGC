@@ -10,45 +10,46 @@ from lsaBGC import util
 import statistics
 import random
 
-lsaBGC_main_directory = '/'.join(os.path.realpath(__file__).split('/')[:-2])
+lsaBGC_main_directory = '/'.join(os.path.realpath(__file__).split('/')[:-3])
 RSCRIPT_FOR_CLUSTER_ASSESSMENT_PLOTTING = lsaBGC_main_directory + '/lsaBGC/Rscripts/plotParameterImpactsOnGCF.R'
 
 class Pan:
-  def __init__(self, bgc_genbanks_listing, logObject=None, lineage_name='Unnamed lineage'):
-	self.bgc_genbanks_listing = bgc_genbanks_listing
-	self.lineage_name = lineage_name
-	self.logObject = logObject
+	def __init__(self, bgc_genbanks_listing, logObject=None, lineage_name='Unnamed lineage'):
+		self.bgc_genbanks_listing = bgc_genbanks_listing
+		self.lineage_name = lineage_name
+		self.logObject = logObject
 
-	#######
-	## Variables not set during initialization
-	#######
+		#######
+		## Variables not set during initialization
+		#######
 
-	# General variables
-	self.pan_bgcs = {}
-	self.bgc_comp_info = {}
-	self.bgc_gbk = {}
-	self.bgc_genes = {}
-	self.pan_genes = set([])
-	self.bgc_sample = {}
-	self.sample_bgcs = defaultdict(set)
-	self.bgc_product = {}
-	self.bgc_core_counts = {}
+		# General variables
+		self.pan_bgcs = {}
+		self.comp_gene_info = {}
+		self.bgc_info = {}
+		self.bgc_gbk = {}
+		self.bgc_genes = {}
+		self.pan_genes = set([])
+		self.bgc_sample = {}
+		self.sample_bgcs = defaultdict(set)
+		self.bgc_product = {}
+		self.bgc_core_counts = {}
 
-	# homology related variables
-	self.gene_to_hg = None
-	self.hg_genes = None
-	self.hg_median_copy_count = None
-	self.hg_prop_multi_copy = None
-	self.bgc_hgs = defaultdict(set)
+		# homology related variables
+		self.gene_to_hg = None
+		self.hg_genes = None
+		self.hg_median_copy_count = None
+		self.hg_prop_multi_copy = None
+		self.bgc_hgs = defaultdict(set)
 
-	# other variables
-	self.pairwise_relations = None # jaccard similarity dictionary
+		# other variables
+		self.pairwise_relations = None  # jaccard similarity dictionary
 
-	# variables containing location of files
-	self.final_stats_file = None
-	self.pair_relations_txt_file = None
-	self.bgc_to_gcf_map_file = None
-	
+		# variables containing location of files
+		self.final_stats_file = None
+		self.pair_relations_txt_file = None
+		self.bgc_to_gcf_map_file = None
+
 	def readInBGCGenbanks(self, comprehensive_parsing=True):
 		"""
 		Function to parse file listing location of BGC Genbanks.
@@ -61,13 +62,11 @@ class Pan:
 				line = line.strip()
 				try:
 					assert (len(line.split('\t')) == 2)
-				except:
-					logObject.error(
-						"More than two columns exist at line %d in BGC specification/listing file. Exiting now ..." % (
-								i + 1))
-					raise RuntimeError(
-						"More than two columns exist at line %d in BGC specification/listing file. Exiting now ..." % (
-								i + 1))
+				except Exception as e:
+					if self.logObject:
+						self.logObject.error("More than two columns exist at line %d in BGC specification/listing file. Exiting now ..." % (i + 1))
+						self.logObject.error(traceback.format_exc())
+					raise RuntimeError("More than two columns exist at line %d in BGC specification/listing file. Exiting now ..." % (i + 1))
 				sample, gbk = line.split('\t')
 				try:
 					assert (util.is_genbank(gbk))
@@ -77,7 +76,7 @@ class Pan:
 					sample_index[sample] += 1
 
 					# Parse genbank using
-					BGC_Object = BGC(gbk, gbk, comprehensive_parsing=comprehensive_parsing)
+					BGC_Object = BGC(gbk, bgc_id, comprehensive_parsing=comprehensive_parsing)
 					self.pan_bgcs[bgc_id] = BGC_Object
 					self.comp_gene_info.update(BGC_Object.gene_information)
 					self.bgc_info[bgc_id] = BGC_Object.cluster_information
@@ -87,7 +86,7 @@ class Pan:
 					self.bgc_sample[bgc_id] = sample
 					self.sample_bgcs[sample].add(bgc_id)
 					self.bgc_product[bgc_id] = [x['product'] for x in BGC_Object.cluster_information]
-					self.bgc_core_counts[gbk] = BGC_Object.cluster_information[0]['count_core_gene_groups']
+					self.bgc_core_counts[bgc_id] = BGC_Object.cluster_information[0]['count_core_gene_groups']
 
 					if self.logObject:
 						self.logObject.info("Incorporating genbank %s for sample %s into analysis." % (gbk, sample))
@@ -100,6 +99,13 @@ class Pan:
 	def inputHomologyInformation(self, gene_to_hg, hg_genes, hg_median_copy_count, hg_prop_multi_copy):
 		"""
 		Simple function to store OrthoFinder homology information (parsed inititally in lsaBGC.utils)
+
+		:param gene_to_hg: dictionary mapping gene locus tags to homolog group identifiers
+		:param hg_genes: dictionary of sets with keys corresponding to homolog groups and values corresponding to set
+						 of gene locus tags belonging to that homolog group.
+		:param hg_median_copy_count: dictionary for the median copy count of each homolog group
+		:param hg_prop_multi_copy: dictionary for the proportion of samples with homolog group which have multipmle
+								   genes assigned to homolog group (paralogs).
 		"""
 		try:
 			self.gene_to_hg = gene_to_hg
@@ -113,16 +119,20 @@ class Pan:
 						self.bgc_hgs[bgc_id].add(self.gene_to_hg[gene])
 
 			if self.logObject:
-				self.logObject.info("Successfully inputted homolog information from OrthoFinder into variables of Pan object!")
+				self.logObject.info(
+					"Successfully inputted homolog information from OrthoFinder into variables of Pan object!")
 		except Exception as e:
 			if self.logObject:
 				self.logObject.error("Had issues inputting homology information into Pan object instance.")
 				self.logObject.error(traceback.format_exc())
 			raise RuntimeError(traceback.format_exc())
 
-	def openStatsFile(self, outdir, run_parameter_tests):
+	def openStatsFile(self, outdir, run_parameter_tests=False):
 		"""
 		Simple function to initialize final report file with statistics on GCF clustering - main output from lsaBGC-Cluster.
+
+		:param outdir: path to workspace directory
+		:param run_parameter_tests: whether lsaBGC-Cluster is being run in "run_parameter_tests mode".
 		"""
 		try:
 			final_stats_file = outdir + 'GCF_details.txt'
@@ -132,7 +142,8 @@ class Pan:
 					['MCL inflation parameter', 'Jaccard similarity cutoff', 'GCF id', 'number of BGCs',
 					 'number of samples',
 					 'samples with multiple BGCs in GCF', 'size of the SCC', 'mean number of OGs',
-					 'stdev for number of OGs', 'min difference', 'max difference', 'number of core gene aggregates',
+					 'stdev for number of OGs', 'min difference', 'max difference',
+					 'number of core gene aggregates',
 					 'annotations']) + '\n')
 			else:
 				sf_handle.write(
@@ -143,7 +154,8 @@ class Pan:
 			sf_handle.close()
 			self.final_stats_file = final_stats_file
 			if self.logObject:
-				self.logObject.info("Will be writing final stats report on GCF clustering to file %s" % final_stats_file)
+				self.logObject.info(
+					"Will be writing final stats report on GCF clustering to file %s" % final_stats_file)
 		except Exception as e:
 			if self.logObject:
 				self.logObject.error("Had issues initializing final stats report file.")
@@ -151,6 +163,13 @@ class Pan:
 			raise RuntimeError(traceback.format_exc())
 
 	def calculateBGCPairwiseRelations(self, outdir, split_by_annotation=False):
+		"""
+		Function to calculate the Jaccard Similarity between pairs of BGCs based on homolog groups shared.
+
+		:param outdir: path to workspace directory.
+		:param split_by_annotation: partition BGCs foremost by general annotation category of BGC by AntiSMASH (similar
+		                            to what BiG-Scape performs.
+		"""
 		try:
 			pair_relations_txt_file = outdir + 'bgc_pair_relationships.txt'
 			prf_handle = open(pair_relations_txt_file, 'w')
@@ -168,7 +187,8 @@ class Pan:
 						overlap_metric_scaled = 100.00 * overlap_metric
 						pairwise_relations[bgc1][bgc2] = overlap_metric_scaled
 						pairwise_relations[bgc2][bgc1] = overlap_metric_scaled
-						if not split_by_annotation or (split_by_annotation and self.bgc_product[bgc1] == self.bgc_product[bgc2]):
+						if not split_by_annotation or (
+								split_by_annotation and self.bgc_product[bgc1] == self.bgc_product[bgc2]):
 							prf_handle.write('%s\t%s\t%f\n' % (bgc1, bgc2, overlap_metric_scaled))
 			prf_handle.close()
 
@@ -183,8 +203,7 @@ class Pan:
 				self.logObject.error(traceback.format_exc())
 			raise RuntimeError(traceback.format_exc())
 
-
-	def runMCLAndReportGCFs(mip, jcp, outdir, inflation_testing=False, cores=1):
+	def runMCLAndReportGCFs(self, mip, jcp, outdir, run_parameter_tests=False, cores=1):
 		pair_relations_filt_txt_file = outdir + 'bgc_pair_relationships.%f.txt' % jcp
 		try:
 			prftf_handle = open(pair_relations_filt_txt_file, 'w')
@@ -197,7 +216,7 @@ class Pan:
 			prftf_handle.close()
 		except Exception as e:
 			if self.logObject:
-				logObject.error("Problem with parsing paired sample Jaccard similarity relationship file.")
+				self.logObject.error("Problem with parsing paired sample Jaccard similarity relationship file.")
 				self.logObject.error(traceback.format_exc())
 			raise RuntimeError(traceback.format_exc())
 
@@ -210,40 +229,55 @@ class Pan:
 					   pair_relations_tab_file,
 					   '-o', pair_relations_mci_file]
 		mcl_cmd = ['mcl', pair_relations_mci_file, '-I', str(mip), '-o', relations_mcl_file, '-te', str(cores)]
-		mcxdump_cmd = ['mcxdump', '-icl', relations_mcl_file, '-tabr', pair_relations_tab_file, '-o', mcxdump_out_file]
+		mcxdump_cmd = ['mcxdump', '-icl', relations_mcl_file, '-tabr', pair_relations_tab_file, '-o',
+					   mcxdump_out_file]
 
-		logObject.info('Running the following command: %s' % ' '.join(mcxload_cmd))
+		if self.logObject:
+			self.logObject.info('Running the following command: %s' % ' '.join(mcxload_cmd))
 		try:
 			subprocess.call(' '.join(mcxload_cmd), shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
 							executable='/bin/bash')
-			logObject.info('Successfully ran: %s' % ' '.join(mcxload_cmd))
-		except:
-			logObject.error('Had an issue running: %s' % ' '.join(mcxload_cmd))
+			if self.logObject:
+				self.logObject.info('Successfully ran: %s' % ' '.join(mcxload_cmd))
+		except Exception as e:
+			if self.logObject:
+				self.logObject.error('Had an issue running: %s' % ' '.join(mcxload_cmd))
+				self.logObject.error(traceback.format_exc())
 			raise RuntimeError('Had an issue running: %s' % ' '.join(mcxload_cmd))
-		logObject.info('Converted format of pair relationship file via mxcload.')
 
-		logObject.info('Running MCL and MCXDUMP with inflation parameter set to %f' % mip)
-		logObject.info('Running the following command: %s' % ' '.join(mcl_cmd))
+		if self.logObject:
+			self.logObject.info('Converted format of pair relationship file via mxcload.')
+
+		if self.logObject:
+			self.logObject.info('Running MCL and MCXDUMP with inflation parameter set to %f' % mip)
+			self.logObject.info('Running the following command: %s' % ' '.join(mcl_cmd))
 		try:
 			subprocess.call(' '.join(mcl_cmd), shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
 							executable='/bin/bash')
 			assert (os.path.isfile(relations_mcl_file) and os.path.getsize(relations_mcl_file) > 100)
-			logObject.info('Successfully ran: %s' % ' '.join(mcl_cmd))
-		except:
-			logObject.error('Had an issue running: %s' % ' '.join(mcl_cmd))
+			self.logObject.info('Successfully ran: %s' % ' '.join(mcl_cmd))
+		except Exception as e:
+			if self.logObject:
+				self.logObject.error('Had an issue running: %s' % ' '.join(mcl_cmd))
+				self.logObject.error(traceback.format_exc())
 			raise RuntimeError('Had an issue running: %s' % ' '.join(mcl_cmd))
 
-		logObject.info('Running the following command: %s' % ' '.join(mcxdump_cmd))
+		if self.logObject:
+			self.logObject.info('Running the following command: %s' % ' '.join(mcxdump_cmd))
 		try:
 			subprocess.call(' '.join(mcxdump_cmd), shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
 							executable='/bin/bash')
 			assert (os.path.isfile(mcxdump_out_file) and os.path.getsize(mcxdump_out_file) > 100)
-			logObject.info('Successfully ran: %s' % ' '.join(mcl_cmd))
-		except:
-			logObject.error('Had an issue running: %s' % ' '.join(mcxdump_cmd))
+			if self.logObject:
+				self.logObject.info('Successfully ran: %s' % ' '.join(mcl_cmd))
+		except Exception as e:
+			if self.logObject:
+				self.logObject.error('Had an issue running: %s' % ' '.join(mcxdump_cmd))
+				self.logObject.error(traceback.format_exc())
 			raise RuntimeError('Had an issue running: %s' % ' '.join(mcxdump_cmd))
 
-		logObject.info('Successfully ran MCL and MCXDUMP with inflatimulti_same_sampleon parameter set to %f!' % mip)
+		if self.logObject:
+			self.logObject.info('Successfully ran MCL and MCXDUMP with inflatimulti_same_sampleon parameter set to %f!' % mip)
 
 		try:
 			sf_handle = open(self.final_stats_file, 'a+')
@@ -285,32 +319,36 @@ class Pan:
 						stdev = statistics.stdev(num_ogs)
 					except:
 						pass
-					gcf_stats = ['GCF_' + str(j + 1), len(gcf_mems), len(samp_counts.keys()), multi_same_sample, len(scc),
+					gcf_stats = ['GCF_' + str(j + 1), len(gcf_mems), len(samp_counts.keys()), multi_same_sample,
+								 len(scc),
 								 mean, stdev, min(diffs),
 								 max(diffs), core_gene_cluster_counts,
 								 '; '.join([x[0] + ':' + str(x[1]) for x in products.items()])]
-					if self.inflation_testing:
+					if run_parameter_tests:
 						gcf_stats = [mip, jcp] + gcf_stats
 					sf_handle.write('\t'.join([str(x) for x in gcf_stats]) + '\n')
 
 			singleton_bgcs = set([])
-			for bgc in self.bgc_hggs:
+			for bgc in self.bgc_hgs:
 				if not bgc in clustered_bgcs: singleton_bgcs.add(bgc)
 			singleton_stats = ['singletons', len(singleton_bgcs)] + (['NA'] * 7)
-			if inflation_testing:
+			if run_parameter_tests:
 				singleton_stats = [mip, jcp] + singleton_stats
 			sf_handle.write('\t'.join([str(x) for x in singleton_stats]) + '\n')
 
 			sf_handle.close()
 		except Exception as e:
 			if self.logObject:
-				self.logObject.error("Problem appending information on GCFs for current parameter combination to GCF statistics report file.")
+				self.logObject.error(
+					"Problem appending information on GCFs for current parameter combination to GCF statistics report file.")
 				self.logObject.error(traceback.format_exc())
 			raise RuntimeError(traceback.format_exc())
 
-		if not inflation_testing:
+		if not run_parameter_tests:
 			try:
-				logObject.info("Writing list of BGCs for each GCF, which will be used as input for downstream programs in the suite!")
+				if self.logObject:
+					self.logObject.info(
+					"Writing list of BGCs for each GCF, which will be used as input for downstream programs in the suite!")
 				gcf_listing_dir = outdir + 'GCF_Listings/'
 				if not os.path.isdir(gcf_listing_dir): os.system('mkdir %s' % gcf_listing_dir)
 				with open(mcxdump_out_file) as omo:
@@ -323,7 +361,8 @@ class Pan:
 							sname = self.bgc_sample[bgc]
 							outf_list.write('%s\t%s\n' % (sname, bgc))
 						outf_list.close()
-				logObject.info("Successfully wrote lists of BGCs for each GCF.")
+				if self.logObject:
+					self.logObject.info("Successfully wrote lists of BGCs for each GCF.")
 			except Exception as e:
 				if self.logObject:
 					self.logObject.error("Problem with writing GCF lists.")
@@ -331,7 +370,9 @@ class Pan:
 				raise RuntimeError(traceback.format_exc())
 		else:
 			try:
-				logObject.info("Writing list of BGCs for each GCF for each clustering parameter combination into single plot.")
+				if self.logObject:
+					self.logObject.info(
+					"Writing list of BGCs for each GCF for each clustering parameter combination into single plot.")
 				btgmf_handle = open(self.bgc_to_gcf_map_file, 'a+')
 
 				with open(mcxdump_out_file) as omo:
@@ -352,7 +393,7 @@ class Pan:
 					self.logObject.error(traceback.format_exc())
 				raise RuntimeError(traceback.format_exc())
 
-	def plotResultsFromUsingDifferentParameters(outdir):
+	def plotResultsFromUsingDifferentParameters(self, outdir):
 		try:
 			plot_input_dir = outdir + 'plotting_input/'
 			if not os.path.isdir(plot_input_dir): os.system('mkdir %s' % plot_input_dir)
@@ -378,7 +419,8 @@ class Pan:
 						clustered_counts[param_id] += int(ls[3])
 						cluster_counts[param_id] += 1
 						annotations = set(
-							[x.split(':')[0].replace('-', '.') for x in ls[-1].split('; ') if x.split(':')[0] != 'NA'])
+							[x.split(':')[0].replace('-', '.') for x in ls[-1].split('; ') if
+							 x.split(':')[0] != 'NA'])
 						if len(ls[-1].split('; ')) > 1: cluster_mixedannot_counts[param_id] += 1
 						if len(annotations) > 1: cluster_mixedannot_wohypo_counts[param_id] += 1
 						all_annotation_classes = all_annotation_classes.union(annotations)
@@ -400,20 +442,22 @@ class Pan:
 
 			coord_tuples = defaultdict(set)
 			plot_input_1_handle.write('\t'.join(
-				['GCF', 'Parameters', 'JaccardSim', 'Inflation', 'Samples', 'Samples_Offset', 'MultiBGCSamples_Offset',
+				['GCF', 'Parameters', 'JaccardSim', 'Inflation', 'Samples', 'Samples_Offset',
+				 'MultiBGCSamples_Offset',
 				 'SCCExists', 'SCCSize', 'CoreGeneClusters', 'AvgGeneCount', 'StdDevGeneCount', 'Unknown'] + sorted(
 					list(all_annotation_classes))) + '\n')
 			plot_input_2_handle.write('\t'.join(['GCF', 'Parameters', 'Annotation', 'Count', 'Total BGCs']) + '\n')
 			plot_overview_handle.write('\t'.join(
 				['Parameters', 'JaccardSim', 'Inflation', 'Clustered', 'Singletons', 'SingletonToClustered',
-				 'MixedAnnotations', 'MixedAnnotationsWoHypothetical', 'NumberClusters', 'MixedAnnotationProportion',
+				 'MixedAnnotations', 'MixedAnnotationsWoHypothetical', 'NumberClusters',
+				 'MixedAnnotationProportion',
 				 'MixedAnnotationWoHypotheticalProportion']) + '\n')
 			plot_sankey_handle.write('\t'.join(
 				['JaccardSim', 'Parameter_Source', 'Parameter_Dest', 'Source_Size', 'Dest_Size', 'Source_Inflation',
 				 'Source_Type', 'Dest_Type', 'PassageWeight']) + '\n')
 
 			jcp_gcfs = defaultdict(lambda: defaultdict(set))
-			with open(self.bgc_gcf_map_file) as obgmf:
+			with open(self.bgc_to_gcf_map_file) as obgmf:
 				for line in obgmf:
 					line = line.strip()
 					mip, jcp, gcf_id, sname, gbkpath = line.split('\t')
@@ -444,7 +488,7 @@ class Pan:
 																 gcf2_type, intersect]]) + '\n')
 			plot_sankey_handle.close()
 
-			with open(self.gcf_details_file) as ogdf:
+			with open(self.final_stats_file) as ogdf:
 				for i, line in enumerate(ogdf):
 					line = line.strip()
 					ls = line.split("\t")
@@ -476,7 +520,8 @@ class Pan:
 						else:
 							random_offset_1 = random.randint(-50, 51) / 100.0
 							random_offset_2 = random.randint(-50, 51) / 100.0
-							coord_tuple = tuple([samples + random_offset_1, samples_with_multi_bgcs + random_offset_2])
+							coord_tuple = tuple(
+								[samples + random_offset_1, samples_with_multi_bgcs + random_offset_2])
 					coord_tuples[param_mod_id].add(coord_tuple)
 					scc_exists = "SCC DNE"
 					if size_of_scc > 0:
@@ -511,16 +556,17 @@ class Pan:
 				mcl, jcp = [float(x) for x in pid.split('_')]
 				param_mod_id = 'MCL Inflation: %.1f; Jaccard Similarity Cutoff: %.1f' % (mcl, jcp)
 
-				plot_overview_handle.write('\t'.join([str(x) for x in [param_mod_id, jcp, mcl, clustered_counts[pid],
-																	   singleton_counts[pid],
-																	   singleton_counts[pid] / clustered_counts[pid],
-																	   cluster_mixedannot_counts[pid],
-																	   cluster_mixedannot_wohypo_counts[pid],
-																	   cluster_counts[pid],
-																	   cluster_mixedannot_counts[pid] / float(
-																		   cluster_counts[pid]),
-																	   cluster_mixedannot_wohypo_counts[pid] / float(
-																		   cluster_counts[pid])]]) + '\n')
+				plot_overview_handle.write(
+					'\t'.join([str(x) for x in [param_mod_id, jcp, mcl, clustered_counts[pid],
+												singleton_counts[pid],
+												singleton_counts[pid] / clustered_counts[pid],
+												cluster_mixedannot_counts[pid],
+												cluster_mixedannot_wohypo_counts[pid],
+												cluster_counts[pid],
+												cluster_mixedannot_counts[pid] / float(
+													cluster_counts[pid]),
+												cluster_mixedannot_wohypo_counts[pid] / float(
+													cluster_counts[pid])]]) + '\n')
 
 				for sgcf_id in range(1, singleton_counts[pid] + 1):
 					sgcf_name = 'SGCF_' + str(sgcf_id)
@@ -533,26 +579,34 @@ class Pan:
 			plot_overview_handle.close()
 
 			plot_pdf_file = outdir + 'Plots_Depicting_Parameter_Influence_on_GCF_Clustering.pdf'
-			rscript_plot_cmd = ["Rscript", RSCRIPT_FOR_CLUSTER_ASSESSMENT_PLOTTING, plot_input_1_file, plot_annot_file,
+			rscript_plot_cmd = ["Rscript", RSCRIPT_FOR_CLUSTER_ASSESSMENT_PLOTTING, plot_input_1_file,
+								plot_annot_file,
 								plot_input_2_file, plot_overview_file, plot_sankey_file, plot_pdf_file]
-			logObject.info('Running R-based plotting with the following command: %s' % ' '.join(rscript_plot_cmd))
+			if self.logObject:
+				self.logObject.info('Running R-based plotting with the following command: %s' % ' '.join(rscript_plot_cmd))
 			try:
 				subprocess.call(' '.join(rscript_plot_cmd), shell=True, stdout=sys.stderr,
 								stderr=sys.stderr,
 								executable='/bin/bash')
-				logObject.info('Successfully ran: %s' % ' '.join(rscript_plot_cmd))
-			except:
-				logObject.error('Had an issue running: %s' % ' '.join(rscript_plot_cmd))
+				if self.logObject:
+					self.logObject.info('Successfully ran: %s' % ' '.join(rscript_plot_cmd))
+			except Exception as e:
+				if self.logObject:
+					self.logObject.error('Had an issue running: %s' % ' '.join(rscript_plot_cmd))
+					self.logObject.error(traceback.format_exc())
 				raise RuntimeError('Had an issue running: %s' % ' '.join(rscript_plot_cmd))
-			logObject.info('Plotting completed!')
+
+			if self.logObject:
+				self.logObject.info('Plotting completed!')
 
 		except Exception as e:
 			if self.logObject:
-				self.logObject.error("Problem creating plot(s) for assessing best parameter choices for GCF clustering.")
+				self.logObject.error(
+					"Problem creating plot(s) for assessing best parameter choices for GCF clustering.")
 				self.logObject.error(traceback.format_exc())
 			raise RuntimeError(traceback.format_exc())
 
-	def convertGenbanksIntoFastas(gcf_specs_file, outdir, logObject):
+	def convertGenbanksIntoFastas(self, gcf_specs_file, outdir):
 		gcf_fasta_listing_file = outdir + 'GCF_FASTA_Listings.txt'
 		outf = open(gcf_fasta_listing_file, 'w')
 		fasta_dir = outdir + 'Sample_GCF_FASTAs/'
@@ -565,10 +619,12 @@ class Pan:
 				line = line.strip()
 				try:
 					assert (len(line.split('\t')) == 2)
-				except:
-					logObject.error(
+				except Exception as e:
+					if self.logObject:
+						self.logObject.error(
 						"More than two columns exist at line %d in BGC specification/listing file. Exiting now ..." % (
 								i + 1))
+						self.logObject.error(traceback.format_exc())
 					raise RuntimeError(
 						"More than two columns exist at line %d in BGC specification/listing file. Exiting now ..." % (
 								i + 1))
@@ -587,9 +643,12 @@ class Pan:
 							sample_handle.write('>' + bgc_id + '\n' + str(rec.seq))
 					sample_handle.close()
 					all_samples.add(sample)
-					logObject.info("Added Genbank %s into sample %s's GCF relevant FASTA." % (gbk, sample))
-				except:
-					logObject.warning("Unable to validate %s as Genbank. Skipping its incorporation into analysis.")
+					if self.logObject:
+						self.logObject.info("Added Genbank %s into sample %s's GCF relevant FASTA." % (gbk, sample))
+				except Exception as e:
+					if self.logObject:
+						self.logObject.warning("Unable to validate %s as Genbank. Skipping its incorporation into analysis.")
+						self.logObject.warning(traceback.format_exc())
 					raise RuntimeWarning("Unable to validate %s as Genbank. Skipping ...")
 
 		for s in all_samples:

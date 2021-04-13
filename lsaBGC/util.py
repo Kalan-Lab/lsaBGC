@@ -116,6 +116,11 @@ def parseOrthoFinderMatrix(orthofinder_matrix_file, relevant_gene_lts):
 	return ([gene_to_hg, hg_genes, hg_median_gene_counts, hg_multicopy_proportion])
 
 def multiProcess(input):
+	"""
+	Genralizable function to be used with multiprocessing to parallelize list of commands. Inputs should correspond
+	to space separated command (as list), with last item in list corresponding to a logging object handle for logging
+	progress.
+	"""
 	input_cmd = input[:-1]
 	logObject = input[-1]
 	logObject.info('Running the following command: %s' % ' '.join(input_cmd))

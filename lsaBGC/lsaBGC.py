@@ -16,7 +16,6 @@ import pysam
 import random
 
 lsaBGC_main_directory = '/'.join(os.path.realpath(__file__).split('/')[:-2])
-RSCRIPT_FOR_BGSEE = lsaBGC_main_directory + '/lsaBGC/bgSee.R'
 RSCRIPT_FOR_CLUSTER_ASSESSMENT_PLOTTING = lsaBGC_main_directory + '/lsaBGC/plotParameterImpactsOnGCF.R'
 RSCRIPT_FOR_TAJIMA = lsaBGC_main_directory + '/lsaBGC/calculateTajimasD.R'
 FLANK_SIZE = 500

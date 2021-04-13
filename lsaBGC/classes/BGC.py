@@ -6,13 +6,14 @@ from operator import itemgetter
 
 FLANK_SIZE = 500
 
+
 class BGC:
-  def __init__(self, bgc_genbank, bgc_id, comprehensive_parsing=True):
-	self.bgc_genbank = bgc_genbank
-	self.bgc_id = bgc_id
-	self.gene_information = None
-	self.cluster_information = None
-	self.parseGenbanks(comprehensive_parsing=comprehensive_parsing)
+	def __init__(self, bgc_genbank, bgc_id, comprehensive_parsing=True):
+		self.bgc_genbank = bgc_genbank
+		self.bgc_id = bgc_id
+		self.gene_information = None
+		self.cluster_information = None
+		self.parseGenbanks(comprehensive_parsing=comprehensive_parsing)
 
 	def parseGenbanks(self, comprehensive_parsing=True):
 		"""
@@ -58,7 +59,8 @@ class BGC:
 						core_positions = core_positions.union(set(range(core_start, core_end + 1)))
 
 		if len(bgc_info) == 0:
-			bgc_info = [{'detection_rule': 'NA', 'product': 'NA', 'contig_edge': 'NA', 'full_sequence': full_sequence}]
+			bgc_info = [
+				{'detection_rule': 'NA', 'product': 'NA', 'contig_edge': 'NA', 'full_sequence': full_sequence}]
 
 		sys.stderr.write('Processing %s\n' % self.bgc_genbank)
 		genes = {}
@@ -86,7 +88,8 @@ class BGC:
 
 						gene_order[lt] = start
 
-						prot_seq, nucl_seq, nucl_seq_with_flanks, relative_start, relative_end, gene_domains = [None]*6
+						prot_seq, nucl_seq, nucl_seq_with_flanks, relative_start, relative_end, gene_domains = [
+																												   None] * 6
 						if comprehensive_parsing:
 							prot_seq = feature.qualifiers.get('translation')[0]
 							gene_domains = []
@@ -143,6 +146,3 @@ class BGC:
 
 		self.gene_information = genes
 		self.cluster_information = bgc_info
-
-
-

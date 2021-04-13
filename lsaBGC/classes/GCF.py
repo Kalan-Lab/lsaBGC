@@ -12,12 +12,12 @@ from operator import itemgetter
 from collections import defaultdict
 from lsaBGC.classes.Pan import Pan
 
-lsaBGC_main_directory = '/'.join(os.path.realpath(__file__).split('/')[:-2])
+lsaBGC_main_directory = '/'.join(os.path.realpath(__file__).split('/')[:-3])
 RSCRIPT_FOR_BGSEE = lsaBGC_main_directory + '/lsaBGC/Rscripts/bgSee.R'
 
 class GCF(Pan):
-  def __init__(self, bgc_genbanks_listing, gcf_id='GCF_X', lineage_name='Unnamed lineage'):
-    super().__init__(bgc_genbanks_listing, lineage_name=lineage_name)
+  def __init__(self, bgc_genbanks_listing, gcf_id='GCF_X', logObject=None, lineage_name='Unnamed lineage'):
+    super().__init__(bgc_genbanks_listing, lineage_name=lineage_name, logObject=logObject)
     self.gcf_id = gcf_id
 
     #######
@@ -82,7 +82,7 @@ class GCF(Pan):
         hgs.add(c)
 
     # read in list of colors
-    dir_path = os.path.dirname(os.path.realpath(__file__)) + '/'
+    dir_path = '/'.join(os.path.dirname(os.path.realpath(__file__)).split('/')[:-1]) + '/'
     colors_file = dir_path + 'colors_200.txt'
     colors = []
     with open(colors_file) as ocf:
@@ -104,8 +104,9 @@ class GCF(Pan):
     try:
       track_handle = open(result_track_file, 'w')
 
-      self.logObject.info("Writing iTol track file to: %s" % result_track_file)
-      self.logObject.info("Track will have label: %s" % self.gcf_id)
+      if self.logObject:
+        self.logObject.info("Writing iTol track file to: %s" % result_track_file)
+        self.logObject.info("Track will have label: %s" % self.gcf_id)
 
       # write header for iTol track file
       track_handle.write('DATASET_DOMAINS\n')
@@ -299,7 +300,7 @@ class GCF(Pan):
     if self.logObject:
       self.logObject.info('Running R-based plotting with the following command: %s' % ' '.join(rscript_plot_cmd))
     try:
-      subprocess.call(' '.join(rscript_plot_cmd), shell=True, stdout=sys.stderr, stderr=sys.stderr,
+      subprocess.call(' '.join(rscript_plot_cmd), shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                       executable='/bin/bash')
       self.logObject.info('Successfully ran: %s' % ' '.join(rscript_plot_cmd))
     except Exception as e:
@@ -361,10 +362,10 @@ class GCF(Pan):
           continue
         elif only_scc and self.logObject:
           self.logObject.info('Homolog group %s detected as SCC across samples (not individual BGCs).' % hg)
-        inputs.append([hg, gene_sequences, nucl_seq_dir, prot_seq_dir, prot_alg_dir, codo_alg_dir])
+        inputs.append([hg, gene_sequences, nucl_seq_dir, prot_seq_dir, prot_alg_dir, codo_alg_dir, self.logObject])
 
       p = multiprocessing.Pool(cores)
-      p.map(self.create_codon_msas, inputs)
+      p.map(create_codon_msas, inputs)
 
       self.nucl_seq_dir = nucl_seq_dir
       self.prot_seq_dir = prot_seq_dir
@@ -377,62 +378,7 @@ class GCF(Pan):
         self.logObject.error(traceback.format_exc())
       raise RuntimeError(traceback.format_exc())
 
-  def create_codon_msas(self, inputs):
-
-    """
-    Helper function which is to be called from the constructCodonAlignments() function to parallelize construction
-    of codon alignments for each homolog group of interest in the GCF.
-
-    :param inputs: list of inputs passed in by constructCodonAlignments().
-    """
-    hg, gene_sequences, nucl_seq_dir, prot_seq_dir, prot_alg_dir, codo_alg_dir = inputs
-
-    hg_nucl_fasta = nucl_seq_dir + '/' + hg + '.fna'
-    hg_prot_fasta = prot_seq_dir + '/' + hg + '.faa'
-    hg_prot_msa = prot_alg_dir + '/' + hg + '.msa.faa'
-    hg_codo_msa = codo_alg_dir + '/' + hg + '.msa.fna'
-
-    hg_nucl_handle = open(hg_nucl_fasta, 'w')
-    hg_prot_handle = open(hg_prot_fasta, 'w')
-    for s in gene_sequences:
-      hg_nucl_handle.write('>' + s + '\n' + str(gene_sequences[s][0]) + '\n')
-      hg_prot_handle.write('>' + s + '\n' + str(gene_sequences[s][1]) + '\n')
-    hg_nucl_handle.close()
-    hg_prot_handle.close()
-
-    mafft_cmd = ['mafft', '--maxiterate', '1000', '--localpair', hg_prot_fasta, '>', hg_prot_msa]
-    pal2nal_cmd = ['pal2nal.pl', hg_prot_msa, hg_nucl_fasta, '-output', 'fasta', '>', hg_codo_msa]
-
-    if self.logObject:
-      self.logObject.info('Running mafft with the following command: %s' % ' '.join(mafft_cmd))
-    try:
-      subprocess.call(' '.join(mafft_cmd), shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                      executable='/bin/bash')
-      if self.logObject:
-        self.logObject.info('Successfully ran: %s' % ' '.join(mafft_cmd))
-    except Exception as e:
-      if self.logObject:
-        self.logObject.error('Had an issue running: %s' % ' '.join(mafft_cmd))
-        self.logObject.error(traceback.format_exc())
-      raise RuntimeError('Had an issue running: %s' % ' '.join(mafft_cmd))
-
-    if self.logObject:
-      self.logObject.info('Running PAL2NAL with the following command: %s' % ' '.join(pal2nal_cmd))
-    try:
-      subprocess.call(' '.join(pal2nal_cmd), shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                      executable='/bin/bash')
-      if self.logObject:
-        self.logObject.info('Successfully ran: %s' % ' '.join(pal2nal_cmd))
-    except Exception as e:
-      if self.logObject:
-        self.logObject.error('Had an issue running: %s' % ' '.join(pal2nal_cmd))
-        self.logObject.error(traceback.format_exc())
-      raise RuntimeError('Had an issue running: %s' % ' '.join(pal2nal_cmd))
-
-    if self.logObject:
-      self.logObject.info('Achieved codon alignment for homolog group %s' % hg)
-
-  def constructBGCPhylogeny(self, output_alignment, output_phylogeny):
+  def constructGCFPhylogeny(self, output_alignment, output_phylogeny):
     """
     Function to create phylogeny based on codon alignments of SCC homolog groups for GCF.
 
@@ -474,15 +420,74 @@ class GCF(Pan):
         self.logObject.error(traceback.format_exc())
       raise RuntimeError(traceback.format_exc())
 
-      # use FastTree2 to construct phylogeny
-      fasttree_cmd = ['fasttree', '-nt', output_alignment, '>', output_phylogeny]
-      logObject.info('Running FastTree2 with the following command: %s' % ' '.join(fasttree_cmd))
-      try:
-        subprocess.call(' '.join(fasttree_cmd), shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                        executable='/bin/bash')
-        logObject.info('Successfully ran: %s' % ' '.join(fasttree_cmd))
-      except Exception as e:
-        if self.logObject:
-          self.logObject.error('Had an issue running: %s' % ' '.join(fasttree_cmd))
-          self.logObject.error(traceback.format_exc())
-        raise RuntimeError('Had an issue running: %s' % ' '.join(fasttree_cmd))
+    # use FastTree2 to construct phylogeny
+    fasttree_cmd = ['fasttree', '-nt', output_alignment, '>', output_phylogeny]
+    if self.logObject:
+      self.logObject.info('Running FastTree2 with the following command: %s' % ' '.join(fasttree_cmd))
+    try:
+      subprocess.call(' '.join(fasttree_cmd), shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                      executable='/bin/bash')
+      if self.logObject:
+        self.logObject.info('Successfully ran: %s' % ' '.join(fasttree_cmd))
+    except Exception as e:
+      if self.logObject:
+        self.logObject.error('Had an issue running: %s' % ' '.join(fasttree_cmd))
+        self.logObject.error(traceback.format_exc())
+      raise RuntimeError('Had an issue running: %s' % ' '.join(fasttree_cmd))
+
+
+def create_codon_msas(inputs):
+  """
+  Helper function which is to be called from the constructCodonAlignments() function to parallelize construction
+  of codon alignments for each homolog group of interest in the GCF.
+
+  :param inputs: list of inputs passed in by GCF.constructCodonAlignments().
+  """
+  hg, gene_sequences, nucl_seq_dir, prot_seq_dir, prot_alg_dir, codo_alg_dir, logObject = inputs
+
+  hg_nucl_fasta = nucl_seq_dir + '/' + hg + '.fna'
+  hg_prot_fasta = prot_seq_dir + '/' + hg + '.faa'
+  hg_prot_msa = prot_alg_dir + '/' + hg + '.msa.faa'
+  hg_codo_msa = codo_alg_dir + '/' + hg + '.msa.fna'
+
+  hg_nucl_handle = open(hg_nucl_fasta, 'w')
+  hg_prot_handle = open(hg_prot_fasta, 'w')
+  for s in gene_sequences:
+    hg_nucl_handle.write('>' + s + '\n' + str(gene_sequences[s][0]) + '\n')
+    hg_prot_handle.write('>' + s + '\n' + str(gene_sequences[s][1]) + '\n')
+  hg_nucl_handle.close()
+  hg_prot_handle.close()
+
+  mafft_cmd = ['mafft', '--maxiterate', '1000', '--localpair', hg_prot_fasta, '>', hg_prot_msa]
+  pal2nal_cmd = ['pal2nal.pl', hg_prot_msa, hg_nucl_fasta, '-output', 'fasta', '>', hg_codo_msa]
+
+  if logObject:
+    logObject.info('Running mafft with the following command: %s' % ' '.join(mafft_cmd))
+  try:
+    subprocess.call(' '.join(mafft_cmd), shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                    executable='/bin/bash')
+    if logObject:
+      logObject.info('Successfully ran: %s' % ' '.join(mafft_cmd))
+  except Exception as e:
+    if logObject:
+      logObject.error('Had an issue running: %s' % ' '.join(mafft_cmd))
+      logObject.error(traceback.format_exc())
+    raise RuntimeError('Had an issue running: %s' % ' '.join(mafft_cmd))
+
+  if logObject:
+    logObject.info('Running PAL2NAL with the following command: %s' % ' '.join(pal2nal_cmd))
+  try:
+    subprocess.call(' '.join(pal2nal_cmd), shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                    executable='/bin/bash')
+    if logObject:
+      logObject.info('Successfully ran: %s' % ' '.join(pal2nal_cmd))
+  except Exception as e:
+    if logObject:
+      logObject.error('Had an issue running: %s' % ' '.join(pal2nal_cmd))
+      logObject.error(traceback.format_exc())
+    raise RuntimeError('Had an issue running: %s' % ' '.join(pal2nal_cmd))
+
+  if logObject:
+    logObject.info('Achieved codon alignment for homolog group %s' % hg)
+
+
