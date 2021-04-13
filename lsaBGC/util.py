@@ -8,6 +8,74 @@ import statistics
 from collections import defaultdict
 import random
 
+
+
+def calculateMashPairwiseDifferences(fasta_listing_file, outdir, name, sketch_size, cores, logObject):
+	mash_db = outdir + name
+	fastas = []
+	fasta_to_name = {}
+	try:
+		with open(fasta_listing_file) as oflf:
+			for line in oflf:
+				line = line.strip()
+				ls = line.split('\t')
+				fastas.append(ls[1])
+				fasta_to_name[ls[1]] = ls[0]
+	except:
+		error_message = "Had issues reading the FASTA listing file %s" % fasta_listing_file
+		logObject.error(error_message)
+		raise RuntimeError(error_message)
+
+	# create mash database (using mash sketch)
+	mash_sketch_cmd = ['mash', 'sketch', '-p', str(cores), '-s', str(sketch_size), '-o', mash_db] + fastas
+	logObject.info('Running mash sketch with the following command: %s' % ' '.join(mash_sketch_cmd))
+	try:
+		subprocess.call(' '.join(mash_sketch_cmd), shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+						executable='/bin/bash')
+		logObject.info('Successfully ran: %s' % ' '.join(mash_sketch_cmd))
+	except:
+		error_message = 'Had an issue running: %s' % ' '.join(mash_sketch_cmd)
+		logObject.error(error_message)
+		raise RuntimeError(error_message)
+	mash_db = mash_db + '.msh'
+
+	try:
+		assert (os.path.isfile(mash_db))
+	except:
+		error_message = "Had issue validating that MASH sketching worked properly, couldn't find: %s" % mash_db
+		logObject.error(error_message)
+		raise RuntimeError(error_message)
+
+	# run mash distance estimation
+	mash_dist_cmd = ['mash', 'dist', '-s', str(sketch_size), '-p', str(cores), mash_db, mash_db, '>',
+					 outdir + name + '.out']
+	logObject.info('Running mash dist with the following command: %s' % ' '.join(mash_dist_cmd))
+	try:
+		subprocess.call(' '.join(mash_dist_cmd), shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+						executable='/bin/bash')
+		logObject.info('Successfully ran: %s' % ' '.join(mash_dist_cmd))
+	except:
+		error_message = 'Had an issue running: %s' % ' '.join(mash_dist_cmd)
+		logObject.error(error_message)
+		raise RuntimeError(error_message)
+
+	pairwise_distances = defaultdict(lambda: defaultdict(float))
+	try:
+		with open(outdir + name + '.out') as of:
+			for line in of:
+				line = line.strip()
+				ls = line.split('\t')
+				f1, f2, dist = ls[:3]
+				dist = float(dist)
+				n1 = fasta_to_name[f1]
+				n2 = fasta_to_name[f2]
+				pairwise_distances[n1][n2] = dist
+	except:
+		error_message = 'Had issues reading the output of MASH dist anlaysis in: %s' % outdir + name + '.out'
+		logObject.error(error_message)
+		raise RuntimeError(error_message)
+	return pairwise_distances
+
 def parseOrthoFinderMatrix(orthofinder_matrix_file, relevant_gene_lts):
 	"""
 	Function to parse and return information from OrthoFinderV2 de novo homolog group identification.

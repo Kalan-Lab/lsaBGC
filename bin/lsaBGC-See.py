@@ -115,7 +115,10 @@ def lsaBGC_See():
     # Step 4: Create iTol and gggenes (R) tracks for visualizing BGCs of GCF across a phylogeny.
     logObject.info("Create iTol tracks for viewing BGCs of GCF across phylogeny. Note, should be used to annotate edited species phylogeny or BGC SCC phylogeny as some samples could have multiple BGCs!")
     GCF_Object.createItolBGCSeeTrack(outdir + 'BGCs_Visualization.iTol.txt')
-    GCF_Object.visualizeGCFViaR(outdir + 'BGCs_Visualization.gggenes.txt', outdir + 'BGCs_Visualization.heatmap.txt', outdir + 'species_phylogeny.edited.nwk', outdir + 'BGC_Visualization.species_phylogeny.pdf')
+    GCF_Object.visualizeGCFViaR(outdir + 'BGCs_Visualization.gggenes.txt',
+                                outdir + 'BGCs_Visualization.heatmap.txt',
+                                outdir + 'species_phylogeny.edited.nwk',
+                                outdir + 'BGC_Visualization.species_phylogeny.pdf')
     logObject.info("iTol track written and automatic plot via gggenes/ggtree (R) rendered!")
 
     # Step 5: (Optional) Create phylogeny from single-copy-core homologs from BGCs across samples (single copy in samples, not BGCs)
@@ -123,24 +126,26 @@ def lsaBGC_See():
         logObject.info("User requested construction of phylogeny from SCCs in BGC! Beginning phylogeny construction.")
         if codon_alignments_dir == None:
             logObject.info("Codon alignments were not provided, so beginning process of creating protein alignments for each homolog group using mafft, then translating these to codon alignments using PAL2NAL.")
-            GCF_Object.constructCodonAlignments(outdir, only_scc=True)
+            GCF_Object.constructCodonAlignments(outdir, only_scc=True, cores=cores)
             logObject.info("All codon alignments for SCC homologs now successfully achieved!")
         else:
-            logObject.info("Codon alignments were provided by user. Moving forward to phylogeny construction with FastTree2.")
+            GCF_Object.codo_alg_dir = codon_alignments_dir
+            logObject.info("Codon alignments were provided by user: %s.\nMoving forward to phylogeny construction with FastTree2." % codon_alignments_dir)
 
         # Step 6: Create phylogeny using FastTree2 after creating concatenated BGC alignment and processing to remove
         # sites with high rates of missing data.
         logObject.info("Creating phylogeny using FastTree2 after creating concatenated BGC alignment and processing to remove sites with high rates of missing data!")
-        bgc_scc_phylogeny = lsaBGC.constructBGCPhylogeny(codon_alignments_dir, outdir + 'BGC_SCCs_Concatenated', logObject)
-        lsaBGC.modifyPhylogenyForSamplesWithMultipleBGCs(bgc_scc_phylogeny, sample_bgcs, outdir + 'BGC_SCCs_Concatenated.edited.nwk', logObject)
-        lsaBGC.visualizeGCFViaR(outdir + 'BGCs_Visualization.gggenes.txt', outdir + 'BGCs_Visualization.heatmap.txt', outdir + 'BGC_SCCs_Concatenated.edited.nwk',
-                                outdir + 'BGC_Visualization.GCF_phylogeny.pdf', bgc_genes, gene_to_cog,
-                                cog_to_color, comp_gene_info, logObject)
 
-        logObject.info("Phylogeny created successfully!")
+        GCF_Object.constructBGCPhylogeny(outdir + 'BGC_SCCs_Concatenated.fasta', outdir + 'BGC_SCCs_Concatenated.nwk')
+        GCF_Object.modifyPhylogenyForSamplesWithMultipleBGCs(outdir + 'BGC_SCCs_Concatenated.nwk', outdir + 'BGC_SCCs_Concatenated.edited.nwk')
+
+        GCF_Object.visualizeGCFViaR(outdir + 'BGCs_Visualization.gggenes.txt',
+                                    outdir + 'BGCs_Visualization.heatmap.txt',
+                                    outdir + 'species_phylogeny.edited.nwk',
+                                    outdir + 'BGC_Visualization.BGC_phylogeny.pdf')
 
     # Close logging object and exit
-    lsaBGC.closeLoggerObject(logObject)
+    util.closeLoggerObject(logObject)
     sys.exit(0)
 
 if __name__ == '__main__':
