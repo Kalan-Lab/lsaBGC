@@ -9,7 +9,8 @@ import os
 import sys
 from time import sleep
 import argparse
-from lsaBGC import lsaBGC
+from lsaBGC import util
+from lsaBGC.classes.GCF import GCF
 
 def create_parser():
     """ Parse arguments """
@@ -26,14 +27,16 @@ def create_parser():
 
     parser.add_argument('-g', '--gcf_listing', help='BGC listings file for a gcf. Tab delimited: 1st column lists sample name while the 2nd column is the path to an AntiSMASH BGC in Genbank format.', required=True)
     parser.add_argument('-m', '--orthofinder_matrix', help="OrthoFinder homolog by sample matrix.", required=True)
+    parser.add_argument('-i', '--gcf_id', help="GCF identifier.", required=False, default='GCF_X')
     parser.add_argument('-o', '--output_directory', help="Output directory.", required=True)
+    parser.add_argument('-i', '--gcf_id', help="GCF identifier.", required=False, default='GCF_X')
     parser.add_argument('-b1', '--first_boundary_homolog', help="Identifier for the first homolog group to be used as boundary for pruning BGCs..", required=True)
     parser.add_argument('-b2', '--second_boundary_homolog', help="Identifier for the second homolog group to be used as boundary for pruning BGCs.", required=True)
     parser.add_argument('-c', '--cores', type=int, help="Number of cores to use for MCL step.", required=False, default=1)
     args = parser.parse_args()
     return args
 
-def lsaBGC_See():
+def lsaBGC_Refiner():
     """
     Void function which runs primary workflow for program.
     """
@@ -64,52 +67,53 @@ def lsaBGC_See():
     PARSE OPTIONAL INPUTS
     """
 
-    dataset_label = myargs.dataset_label
-    species_phylogeny = myargs.species_phylogeny
+    gcf_id = myargs.gcf_id
     cores = myargs.cores
-    create_core_gcf_phylogeny = myargs.create_core_gcf_phylogeny
-    codon_alignments_dir = myargs.codon_alignments_dir
+    first_boundary_homolog = myargs.first_boundary_homolog
+    second_boundary_homolog = myargs.second_boundary_homolog
 
     """
     START WORKFLOW
     """
-
     # create logging object
     log_file = outdir + 'Progress.log'
-    logObject = lsaBGC.createLoggerObject(log_file)
+    logObject = util.createLoggerObject(log_file)
 
     # Step 0: Log input arguments and update reference and query FASTA files.
     logObject.info("Saving parameters for future provedance.")
     parameters_file = outdir + 'Parameter_Inputs.txt'
-    parameter_values = [gcf_listing_file, orthofinder_matrix_file, outdir, dataset_label, species_phylogeny, cores,
-                        create_core_gcf_phylogeny, codon_alignments_dir]
-    parameter_names = ["GCF Listing File", "OrthoFinder Orthogroups.csv File", "Output Directory", "Dataset Label",
-                       "Species Phylogeny Newick File", "Cores", "Create GCF Phylogeny?", "Codon Alignments Directory"]
-    lsaBGC.logParametersToFile(parameters_file, parameter_names, parameter_values)
+    parameter_values = [gcf_listing_file, orthofinder_matrix_file, outdir, gcf_id, first_boundary_homolog, second_boundary_homolog, cores]
+    parameter_names = ["GCF Listing File", "OrthoFinder Orthogroups.csv File", "Output Directory", "GCF Identifier",
+                       "First Boundary Homolog", "Second Boundary Homolog", "Cores"]
+    util.logParametersToFile(parameters_file, parameter_names, parameter_values)
     logObject.info("Done saving parameters!")
+
+    # Create GCF object
+    GCF_Object = GCF(gcf_listing_file, gcf_id=gcf_id, logObject=logObject)
 
     # Step 1: Process GCF listings file
     logObject.info("Processing BGC Genbanks from GCF listing file.")
-    bgc_gbk, bgc_genes, comp_gene_info, all_genes, bgc_sample, sample_bgcs = lsaBGC.readInBGCGenbanksPerGCF(gcf_listing_file, logObject)
+    GCF_Object.readInBGCGenbanks(comprehensive_parsing=True)
     logObject.info("Successfully parsed BGC Genbanks and associated with unique IDs.")
 
-    # Step 2: If species phylogeny was provided, edit it to feature duplicate leaves for isolates which have multiple
-    # BGCs in the GCF.
-    if species_phylogeny:
-        logObject.info("Altering species phylogeny to reflect multiple BGCs per sample/isolate.")
-        lsaBGC.modifyPhylogenyForSamplesWithMultipleBGCs(species_phylogeny, sample_bgcs, outdir + 'species_phylogeny.edited.nwk', logObject)
-        logObject.info("Successfully edited species phylogeny.")
-
-    # Step 3: Parse OrthoFinder Homolog vs Sample Matrix and associate each homolog group with a color
+    # Step 2: Parse OrthoFinder Homolog vs Sample Matrix
     logObject.info("Starting to parse OrthoFinder homolog vs sample information.")
-    gene_to_cog, cog_genes, cog_median_gene_counts = lsaBGC.parseOrthoFinderMatrix(orthofinder_matrix_file, all_genes)
-    cog_to_color = lsaBGC.assignColorsToCOGs(gene_to_cog, bgc_genes)
+    gene_to_hg, hg_genes, hg_median_copy_count, hg_prop_multi_copy = util.parseOrthoFinderMatrix(orthofinder_matrix_file, GCF_Object.pan_genes)
+    GCF_Object.inputHomologyInformation(gene_to_hg, hg_genes, hg_median_copy_count, hg_prop_multi_copy)
     logObject.info("Successfully parsed homolog matrix.")
 
-    # Step 4: Create iTol and gggenes (R) tracks for visualizing BGCs of GCF across a phylogeny.
-    logObject.info("Create iTol tracks for viewing BGCs of GCF across phylogeny. Note, should be used to annotate edited species phylogeny or BGC SCC phylogeny as some samples could have multiple BGCs!")
-    lsaBGC.createItolBGCSeeTrack(outdir + 'BGCs_Visualization.iTol.txt', bgc_genes, gene_to_cog, cog_to_color, comp_gene_info, dataset_label, logObject)
-    lsaBGC.visualizeGCFViaR(outdir + 'BGCs_Visualization.gggenes.txt', outdir + 'species_phylogeny.edited.nwk', outdir + 'BGC_Visualization.species_phylogeny.pdf', bgc_genes, gene_to_cog, cog_to_color, comp_gene_info, logObject)
+    # Check whether boundary homolog groups are associated with GCF
+    try:
+        assert(first_boundary_homolog in hg_genes.keys())
+        assert(second_boundary_homolog in hg_genes.keys())
+    except Exception as e:
+        logObject.error("Unable to determine one or both boundary homolog groups in set of homolog groups associated with GCF!")
+        raise RuntimeError("Unable to determine one or both boundary homolog groups in set of homolog groups associated with GCF!")
+
+    # Step 3: Refine BGCs
+    logObject.info("Beginning refinement of BGCs!")
+    new_gcf_listing_file = outdir + gcf_id + '.txt'
+    GCF_Object.refineBGCGenbanks(new_gcf_listing_file, first_boundary_homolog, second_boundary_homolog)
     logObject.info("iTol track written and automatic plot via gggenes/ggtree (R) rendered!")
 
     # Step 5: (Optional) Create phylogeny from single-copy-core homologs from BGCs across samples (single copy in samples, not BGCs)
@@ -117,25 +121,27 @@ def lsaBGC_See():
         logObject.info("User requested construction of phylogeny from SCCs in BGC! Beginning phylogeny construction.")
         if codon_alignments_dir == None:
             logObject.info("Codon alignments were not provided, so beginning process of creating protein alignments for each homolog group using mafft, then translating these to codon alignments using PAL2NAL.")
-            codon_alignments_dir = lsaBGC.constructCodonAlignments(bgc_sample, cog_genes, comp_gene_info, outdir, cores, logObject, only_scc=True)
+            GCF_Object.constructCodonAlignments(outdir, only_scc=True, cores=cores)
             logObject.info("All codon alignments for SCC homologs now successfully achieved!")
         else:
-            logObject.info("Codon alignments were provided by user. Moving forward to phylogeny construction with FastTree2.")
+            GCF_Object.codo_alg_dir = codon_alignments_dir
+            logObject.info("Codon alignments were provided by user: %s.\nMoving forward to phylogeny construction with FastTree2." % codon_alignments_dir)
 
         # Step 6: Create phylogeny using FastTree2 after creating concatenated BGC alignment and processing to remove
         # sites with high rates of missing data.
         logObject.info("Creating phylogeny using FastTree2 after creating concatenated BGC alignment and processing to remove sites with high rates of missing data!")
-        bgc_scc_phylogeny = lsaBGC.constructBGCPhylogeny(codon_alignments_dir, outdir + 'BGC_SCCs_Concatenated', logObject)
-        lsaBGC.modifyPhylogenyForSamplesWithMultipleBGCs(bgc_scc_phylogeny, sample_bgcs, outdir + 'BGC_SCCs_Concatenated.edited.nwk', logObject)
-        lsaBGC.visualizeGCFViaR(outdir + 'BGCs_Visualization.gggenes.txt', outdir + 'BGC_SCCs_Concatenated.edited.nwk',
-                                outdir + 'BGC_Visualization.GCF_phylogeny.pdf', bgc_genes, gene_to_cog,
-                                cog_to_color, comp_gene_info, logObject)
 
-        logObject.info("Phylogeny created successfully!")
+        GCF_Object.constructGCFPhylogeny(outdir + 'BGC_SCCs_Concatenated.fasta', outdir + 'BGC_SCCs_Concatenated.nwk')
+        GCF_Object.modifyPhylogenyForSamplesWithMultipleBGCs(outdir + 'BGC_SCCs_Concatenated.nwk', outdir + 'BGC_SCCs_Concatenated.edited.nwk')
+
+        GCF_Object.visualizeGCFViaR(outdir + 'BGCs_Visualization.gggenes.txt',
+                                    outdir + 'BGCs_Visualization.heatmap.txt',
+                                    outdir + 'species_phylogeny.edited.nwk',
+                                    outdir + 'BGC_Visualization.BGC_phylogeny.pdf')
 
     # Close logging object and exit
-    lsaBGC.closeLoggerObject(logObject)
+    util.closeLoggerObject(logObject)
     sys.exit(0)
 
 if __name__ == '__main__':
-    lsaBGC_See()
+    lsaBGC_Refiner()

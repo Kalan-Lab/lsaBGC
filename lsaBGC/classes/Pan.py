@@ -204,6 +204,15 @@ class Pan:
 			raise RuntimeError(traceback.format_exc())
 
 	def runMCLAndReportGCFs(self, mip, jcp, outdir, run_parameter_tests=False, cores=1):
+		"""
+		Function to run MCL and report the GCFs (gene-cluster families) of homologous BGCs identified.
+
+		:param mip: MCL inflation parameter.
+		:param jcp: Jaccard similarity threshold for homology between two BGCs to be considered.
+		:param outdir: path to workspace directory.
+		:param run_parameter_tests: True
+		:param cores: number of cores/threads to use for MCL.
+		"""
 		pair_relations_filt_txt_file = outdir + 'bgc_pair_relationships.%f.txt' % jcp
 		try:
 			prftf_handle = open(pair_relations_filt_txt_file, 'w')
@@ -394,6 +403,13 @@ class Pan:
 				raise RuntimeError(traceback.format_exc())
 
 	def plotResultsFromUsingDifferentParameters(self, outdir):
+		"""
+		Function to create an 8x11 in PDF with figures aimed to give the user an idea on how different values of the
+		MCL inflation parameter and the Jaccard similarity cutoff might impact clustering to help them choose the best
+		parameter values.
+
+		:param outdir: path to workspace directory.
+		"""
 		try:
 			plot_input_dir = outdir + 'plotting_input/'
 			if not os.path.isdir(plot_input_dir): os.system('mkdir %s' % plot_input_dir)
@@ -607,6 +623,9 @@ class Pan:
 			raise RuntimeError(traceback.format_exc())
 
 	def convertGenbanksIntoFastas(self, gcf_specs_file, outdir):
+		"""
+		TBD
+		"""
 		gcf_fasta_listing_file = outdir + 'GCF_FASTA_Listings.txt'
 		outf = open(gcf_fasta_listing_file, 'w')
 		fasta_dir = outdir + 'Sample_GCF_FASTAs/'

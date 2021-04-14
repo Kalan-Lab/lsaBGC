@@ -435,6 +435,16 @@ class GCF(Pan):
         self.logObject.error(traceback.format_exc())
       raise RuntimeError('Had an issue running: %s' % ' '.join(fasttree_cmd))
 
+  def refineBGCGebnaks(self, new_gcf_listing_file, first_boundary_homolog, second_boundary_homolog):
+    """
+
+    """
+    try:
+      nglf_handle = open(new_gcf_listing_file, 'w')
+      for bgc in self.pan_bgcs:
+        bgc.refine
+      nglf_handle.close()
+    except:
 
 def create_codon_msas(inputs):
   """
@@ -489,5 +499,3 @@ def create_codon_msas(inputs):
 
   if logObject:
     logObject.info('Achieved codon alignment for homolog group %s' % hg)
-
-
