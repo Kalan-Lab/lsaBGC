@@ -110,34 +110,11 @@ def lsaBGC_Refiner():
         logObject.error("Unable to determine one or both boundary homolog groups in set of homolog groups associated with GCF!")
         raise RuntimeError("Unable to determine one or both boundary homolog groups in set of homolog groups associated with GCF!")
 
-    # Step 3: Refine BGCs
-    logObject.info("Beginning refinement of BGCs!")
+    # Step 3: Refine BGCs based on user specifications.
+    logObject.info("Beginning refinement of BGCs.")
     new_gcf_listing_file = outdir + gcf_id + '.txt'
-    GCF_Object.refineBGCGenbanks(new_gcf_listing_file, first_boundary_homolog, second_boundary_homolog)
-    logObject.info("iTol track written and automatic plot via gggenes/ggtree (R) rendered!")
-
-    # Step 5: (Optional) Create phylogeny from single-copy-core homologs from BGCs across samples (single copy in samples, not BGCs)
-    if create_core_gcf_phylogeny:
-        logObject.info("User requested construction of phylogeny from SCCs in BGC! Beginning phylogeny construction.")
-        if codon_alignments_dir == None:
-            logObject.info("Codon alignments were not provided, so beginning process of creating protein alignments for each homolog group using mafft, then translating these to codon alignments using PAL2NAL.")
-            GCF_Object.constructCodonAlignments(outdir, only_scc=True, cores=cores)
-            logObject.info("All codon alignments for SCC homologs now successfully achieved!")
-        else:
-            GCF_Object.codo_alg_dir = codon_alignments_dir
-            logObject.info("Codon alignments were provided by user: %s.\nMoving forward to phylogeny construction with FastTree2." % codon_alignments_dir)
-
-        # Step 6: Create phylogeny using FastTree2 after creating concatenated BGC alignment and processing to remove
-        # sites with high rates of missing data.
-        logObject.info("Creating phylogeny using FastTree2 after creating concatenated BGC alignment and processing to remove sites with high rates of missing data!")
-
-        GCF_Object.constructGCFPhylogeny(outdir + 'BGC_SCCs_Concatenated.fasta', outdir + 'BGC_SCCs_Concatenated.nwk')
-        GCF_Object.modifyPhylogenyForSamplesWithMultipleBGCs(outdir + 'BGC_SCCs_Concatenated.nwk', outdir + 'BGC_SCCs_Concatenated.edited.nwk')
-
-        GCF_Object.visualizeGCFViaR(outdir + 'BGCs_Visualization.gggenes.txt',
-                                    outdir + 'BGCs_Visualization.heatmap.txt',
-                                    outdir + 'species_phylogeny.edited.nwk',
-                                    outdir + 'BGC_Visualization.BGC_phylogeny.pdf')
+    GCF_Object.refineBGCGenbanks(new_gcf_listing_file, outdir, first_boundary_homolog, second_boundary_homolog)
+    logObject.info("Refinement of BGC Genbanks complete!")
 
     # Close logging object and exit
     util.closeLoggerObject(logObject)

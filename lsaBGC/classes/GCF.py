@@ -435,16 +435,42 @@ class GCF(Pan):
         self.logObject.error(traceback.format_exc())
       raise RuntimeError('Had an issue running: %s' % ' '.join(fasttree_cmd))
 
-  def refineBGCGebnaks(self, new_gcf_listing_file, first_boundary_homolog, second_boundary_homolog):
+  def refineBGCGenbanks(self, new_gcf_listing_file, outdir, first_boundary_homolog, second_boundary_homolog):
     """
+    Function to refine BGC Genbanks based on boundaries defined by two single copy core homolog groups. Genbanks
+    are filtered to retain only features in between the positions of the two boundary homolog groups.
 
+    :param new_gcf_listing_file: Path to where new GCF listing file will be written.
+    :param outdir: Path to workspace directory.
+    :param first_boundary_homolog: Identifier of the first boundary homolog group
+    :param second_boundary_homolog: Identifier of the second boundary homolog group
     """
     try:
+      refined_gbks_dir = outdir + 'Refined_Genbanks/'
+      if not os.path.isdir(refined_gbks_dir): os.system('mkdir %s' % refined_gbks_dir)
+
       nglf_handle = open(new_gcf_listing_file, 'w')
+
+      first_boundary_homolog_genes = self.hg_genes[first_boundary_homolog]
+      second_boundary_homolog_genes = self.hg_genes[second_boundary_homolog]
+
       for bgc in self.pan_bgcs:
-        bgc.refine
+        bgc_genes = set(bgc.gene_information.keys())
+        bgc_fbh_genes = bgc_genes.intersection(first_boundary_homolog_genes)
+        bgc_sbh_genes = bgc_genes.intersection(second_boundary_homolog_genes)
+        if len(bgc_fbh_genes) == 1 and len(bgc_sbh_genes) == 1:
+          refined_gbk = refined_gbks_dir + self.bgc_gbk[bgc].split('/')[-1]
+          bgc.refineGenbank(refined_gbk, bgc_fbh_genes[0], bgc_sbh_genes[0])
+          nglf_handle.write('%s\t%s' % (self.bgc_sample[bgc], refined_gbk))
+        elif self.logObject:
+          self.logObject.warning("Dropping the BGC genbank %s from consideration / refinement process because it does not have the boundary homolog groups in single-copy copy." % self.bgc_gbk[bgc])
       nglf_handle.close()
+
     except:
+      if self.logObject:
+        self.logObject.error('Had an issue refining BGC genbanks associated with GCF')
+        self.logObject.error(traceback.format_exc())
+      raise RuntimeError(traceback.format_exc())
 
 def create_codon_msas(inputs):
   """
