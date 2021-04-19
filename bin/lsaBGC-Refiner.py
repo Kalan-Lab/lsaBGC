@@ -20,7 +20,7 @@ def create_parser():
 	Affiliation: Kalan Lab, UW Madison, Department of Medical Microbiology and Immunology
 
 	This program will take in a list of homologous (ideally orthologous) BGC genbanks belonging to a single GCF and 
-	whittles them down to include only annotations/features in between user specified homolog groups. It is particularly
+	whittle them down to include only annotations/features in between user specified homolog groups. It is particularly
 	useful for curation of GCFs which featuere distinct BGCs aggregated together due to close physical proximity as 
 	described in: https://msystems.asm.org/content/6/2/e00057-21/article-info 
 	""", formatter_class=argparse.RawTextHelpFormatter)
@@ -29,7 +29,6 @@ def create_parser():
     parser.add_argument('-m', '--orthofinder_matrix', help="OrthoFinder homolog by sample matrix.", required=True)
     parser.add_argument('-i', '--gcf_id', help="GCF identifier.", required=False, default='GCF_X')
     parser.add_argument('-o', '--output_directory', help="Output directory.", required=True)
-    parser.add_argument('-i', '--gcf_id', help="GCF identifier.", required=False, default='GCF_X')
     parser.add_argument('-b1', '--first_boundary_homolog', help="Identifier for the first homolog group to be used as boundary for pruning BGCs..", required=True)
     parser.add_argument('-b2', '--second_boundary_homolog', help="Identifier for the second homolog group to be used as boundary for pruning BGCs.", required=True)
     parser.add_argument('-c', '--cores', type=int, help="Number of cores to use for MCL step.", required=False, default=1)

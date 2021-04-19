@@ -8,5 +8,5 @@ setup(name='lsaBGC',
       author_email='salamzader@gmail.com',
       license='BSD-3',
       packages=['lsaBGC'],
-      scripts=['bin/lsaBGC-Process.py', 'bin/lsaBGC-Process.py', 'bin/lsaBGC-Cluster.py', 'bin/lsaBGC-See.py', 'bin/lsaBGC-PopGene.py', 'bin/lsaBGC-Refiner.py', 'bin/lsaBGC-Expansion.py', 'bin/lsaBGC-RelativeDivergance.py', 'bin/lsaBGC-MetaNovelty.py'],
+      scripts=['bin/lsaBGC-Process.py', 'bin/lsaBGC-Process.py', 'bin/lsaBGC-Cluster.py', 'bin/lsaBGC-See.py', 'bin/lsaBGC-PopGene.py', 'bin/lsaBGC-Refiner.py', 'bin/lsaBGC-Expansion.py', 'bin/lsaBGC-Divergence.py', 'bin/lsaBGC-DiscoVary.py'],
       zip_safe=False)

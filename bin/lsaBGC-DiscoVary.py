@@ -1,6 +1,6 @@
 # !/usr/bin/env python
 
-### Program: lsaBGC-MetaNovelty.py
+### Program: lsaBGC-DiscoVary.py
 ### Author: Rauf Salamzade
 ### Kalan Lab
 ### UW Madison, Department of Medical Microbiology and Immunology
@@ -15,7 +15,7 @@ import argcomplete
 def create_parser():
     """ Parse arguments """
     parser = argparse.ArgumentParser(description="""
-	Program: lsaBGC-MetaNovelty.py
+	Program: lsaBGC-DiscoVary.py
 	Author: Rauf Salamzade
 	Affiliation: Kalan Lab, UW Madison, Department of Medical Microbiology and Immunology
 

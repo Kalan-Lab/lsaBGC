@@ -34,6 +34,8 @@ class Pan:
 		self.sample_bgcs = defaultdict(set)
 		self.bgc_product = {}
 		self.bgc_core_counts = {}
+		self.bgc_population = None
+		self.sample_population = None
 
 		# homology related variables
 		self.gene_to_hg = None
@@ -674,3 +676,26 @@ class Pan:
 			outf.write(s + '\t' + fasta_dir + s + '.fasta\n')
 		outf.close()
 		return (gcf_fasta_listing_file)
+
+	def readInPopulationsSpecification(self, pop_specs_file):
+		"""
+		Read in population specifications per sample and assign population to each BGC.
+
+		:param pop_specs_file: path to file which has tab separated sample (1st column) and corresponding population (2nd column)
+		"""
+		try:
+			self.bgc_population = defaultdict(lambda: "NA")
+			self.sample_poulation = defaultdict(lambda: "NA")
+			with open(pop_specs_file) as opsf:
+				for line in opsf:
+					line = line.strip()
+					sample, population = line.split('\t')
+					self.sample_population[sample] = population
+					for bgc in self.sample_bgcs[sample]:
+						self.bgc_population[bgc] = population
+			self.logObject.info("Successfully parsed population specifications file. There are %d populations." % len(population))
+		except Exception as e:
+			if self.logObject:
+				self.logObject.error("Issue in parsing population specifications per sample and associating with each BGC.")
+				self.logObject.error(traceback.format_exc())
+			raise RuntimeError(traceback.format_exc())

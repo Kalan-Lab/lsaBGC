@@ -9,7 +9,8 @@ import os
 import sys
 from time import sleep
 import argparse
-from lsaBGC import lsaBGC
+from lsaBGC import util
+from lsaBGC.classes.GCF import GCF
 
 def create_parser():
     """ Parse arguments """
@@ -24,8 +25,8 @@ def create_parser():
 
     parser.add_argument('-g', '--gcf_listing', help='BGC listings file for a gcf. Tab delimited: 1st column lists sample name while the 2nd column is the path to an AntiSMASH BGC in Genbank format.', required=True)
     parser.add_argument('-m', '--orthofinder_matrix', help="OrthoFinder matrix.", required=True)
+    parser.add_argument('-i', '--gcf_id', help="GCF identifier.", required=False, default='GCF_X')
     parser.add_argument('-o', '--output_directory', help="Path to output directory.", required=True)
-    parser.add_argument('-a', '--codon_alignments_dir', help="Path to directory with codon alignments. Will redo if not provided.", required=False, default=None)
     parser.add_argument('-p', '--population_classification', help='Popualation classifications for each sample. Tab delemited: 1st column lists sample name while the 2nd column is an identifier for the population the sample belongs to.', required=False, default=None)
     parser.add_argument('-c', '--cores', type=int, help="The number of cores to use.", required=False, default=1)
     args = parser.parse_args()
@@ -63,79 +64,62 @@ def lsaBGC_PopGene():
     PARSE OPTIONAL INPUTS
     """
 
+    gcf_id = myargs.gcf_id
     cores = myargs.cores
-    codon_alignments_dir = myargs.codon_alignments_dir
     population_classification_file = myargs.population_classification
 
     """
     START WORKFLOW
     """
-
     # create logging object
     log_file = outdir + 'Progress.log'
-    logObject = lsaBGC.createLoggerObject(log_file)
+    logObject = util.createLoggerObject(log_file)
 
     # Step 0: Log input arguments and update reference and query FASTA files.
     logObject.info("Saving parameters for future provedance.")
     parameters_file = outdir + 'Parameter_Inputs.txt'
-    parameter_values = [gcf_listing_file, orthofinder_matrix_file, outdir, cores, population_classification_file, codon_alignments_dir]
-    parameter_names = ["GCF Listing File", "OrthoFinder Orthogroups.csv File", "Output Directory", "Cores",
-                       "Population Classifications File", "Codon Alignments Directory"]
-    lsaBGC.logParametersToFile(parameters_file, parameter_names, parameter_values)
+    parameter_values = [gcf_listing_file, orthofinder_matrix_file, outdir, gcf_id, population_classification_file, cores]
+    parameter_names = ["GCF Listing File", "OrthoFinder Orthogroups.csv File", "Output Directory", "GCF Identifier",
+                       "Populations Specification/Listing File", "Cores"]
+    util.logParametersToFile(parameters_file, parameter_names, parameter_values)
     logObject.info("Done saving parameters!")
+
+    # Create GCF object
+    GCF_Object = GCF(gcf_listing_file, gcf_id=gcf_id, logObject=logObject)
 
     # Step 1: Process GCF listings file
     logObject.info("Processing BGC Genbanks from GCF listing file.")
-    bgc_gbk, bgc_genes, comp_gene_info, all_genes, bgc_sample, sample_bgcs = lsaBGC.readInBGCGenbanksPerGCF(gcf_listing_file, logObject)
+    GCF_Object.readInBGCGenbanks(comprehensive_parsing=True)
     logObject.info("Successfully parsed BGC Genbanks and associated with unique IDs.")
 
-    # Step 2: Parse OrthoFinder Homolog vs Sample Matrix and associate each homolog group with a color
+    # Step 2: Parse OrthoFinder Homolog vs Sample Matrix
     logObject.info("Starting to parse OrthoFinder homolog vs sample information.")
-    gene_to_cog, cog_genes, cog_median_gene_counts = lsaBGC.parseOrthoFinderMatrix(orthofinder_matrix_file, all_genes)
+    gene_to_hg, hg_genes, hg_median_copy_count, hg_prop_multi_copy = util.parseOrthoFinderMatrix(orthofinder_matrix_file, GCF_Object.pan_genes)
+    GCF_Object.inputHomologyInformation(gene_to_hg, hg_genes, hg_median_copy_count, hg_prop_multi_copy)
     logObject.info("Successfully parsed homolog matrix.")
 
     # Step 3: Calculate homolog order index (which can be used to roughly predict order of homologs within BGCs)
-    cog_order_index = lsaBGC.determineCogOrderIndex(bgc_genes, gene_to_cog, comp_gene_info)
+    GCF_Object.determineCogOrderIndex()
 
     # Step 4: (Optional) Parse population specifications file, if provided by user
     sample_population = None
     if population_classification_file:
         logObject.info("User provided information on populations, parsing this information.")
-        sample_population = lsaBGC.readInPopulationsSpecification(population_classification_file, logObject)
+        GCF_Object.readInPopulationsSpecification(population_classification_file)
 
     # Step 5: Create codon alignments if not provided a directory with them (e.g. one produced by lsaBGC-See.py)
     logObject.info("User requested construction of phylogeny from SCCs in BGC! Beginning phylogeny construction.")
-    if codon_alignments_dir == None:
-        logObject.info("Codon alignments were not provided, so beginning process of creating protein alignments for each homolog group using mafft, then translating these to codon alignments using PAL2NAL.")
-        codon_alignments_dir = lsaBGC.constructCodonAlignments(bgc_sample, cog_genes, comp_gene_info, outdir, cores, logObject)
-        codon_alignments_dir = outdir + 'Codon_Alignments/'
-        logObject.info("All codon alignments for SCC homologs now successfully achieved!")
-    else:
-        logObject.info("Codon alignments were provided by user. Moving forward to phylogeny construction with FastTree2.")
+    logObject.info("Beginning process of creating protein alignments for each homolog group using mafft, then translating these to codon alignments using PAL2NAL.")
+    GCF_Object.constructCodonAlignments(outdir, only_scc=False, cores=cores)
+    logObject.info("All codon alignments for SCC homologs now successfully achieved!")
 
     # Step 6: Analyze codon alignments and parse population genetics and conservation stats
-    popgen_dir = outdir + 'Codon_PopGen_Analyses/'
-    plots_dir = outdir + 'Codon_MSA_Plots/'
-    if not os.path.isdir(popgen_dir): os.system('mkdir %s' % popgen_dir)
-    if not os.path.isdir(plots_dir): os.system('mkdir %s' % plots_dir)
-
-    final_output_handle = open(outdir + 'Ortholog_Group_Information.txt', 'w')
-    header = ['cog', 'annotation', 'cog_order_index', 'cog_median_copy_count', 'median_gene_length', 'is_core_to_bgc',
-              'bgcs_with_cog', 'proportion_of_samples_with_cog', 'Tajimas_D', 'core_codons', 'total_variable_codons',
-              'nonsynonymous_codons', 'synonymous_codons', 'dn_ds', 'all_domains']
-    if sample_population:
-        header += ['populations_with_cog', 'population_proportion_of_members_with_cog', 'one_way_ANOVA_pvalues']
-
-    final_output_handle.write('\t'.join(header) + '\n')
-
-    for f in os.listdir(codon_alignments_dir):
-        cog = f.split('.msa.fna')[0]
-        codon_alignment_fasta = codon_alignments_dir + f
-        lsaBGC.parseCodonAlignmentStats(cog, codon_alignment_fasta, comp_gene_info, cog_genes, cog_order_index, cog_median_gene_counts, plots_dir, popgen_dir, bgc_sample, final_output_handle, logObject, sample_population=sample_population)
-    final_output_handle.close()
+    logObject.info("Beginning population genetics analysis of each codon alignment.")
+    GCF_Object.runPopulationGeneticsAnalysis(outdir)
+    logObject.info("")
 
     # Close logging object and exit
-    lsaBGC.closeLoggerObject(logObject)
+    util.closeLoggerObject(logObject)
     sys.exit(0)
 
 if __name__ == '__main__':

@@ -31,7 +31,6 @@ def create_parser():
     parser.add_argument('-s', '--species_phylogeny', help="The species phylogeny in Newick format.", required=False, default=None)
     parser.add_argument('-c', '--cores', type=int, help="Number of cores to use for MCL step.", required=False, default=1)
     parser.add_argument('-p', '--create_core_gcf_phylogeny', action='store_true', help="Create phylogeny from core COGs.", required=False, default=False)
-    parser.add_argument('-a', '--codon_alignments_dir', help="Path to directory with codon alignments. Will redo if not provided.", required=False, default=None)
     args = parser.parse_args()
     return args
 
@@ -70,7 +69,6 @@ def lsaBGC_See():
     species_phylogeny = myargs.species_phylogeny
     cores = myargs.cores
     create_core_gcf_phylogeny = myargs.create_core_gcf_phylogeny
-    codon_alignments_dir = myargs.codon_alignments_dir
 
     """
     START WORKFLOW
@@ -84,9 +82,9 @@ def lsaBGC_See():
     logObject.info("Saving parameters for future provedance.")
     parameters_file = outdir + 'Parameter_Inputs.txt'
     parameter_values = [gcf_listing_file, orthofinder_matrix_file, outdir, gcf_id, species_phylogeny, cores,
-                        create_core_gcf_phylogeny, codon_alignments_dir]
+                        create_core_gcf_phylogeny]
     parameter_names = ["GCF Listing File", "OrthoFinder Orthogroups.csv File", "Output Directory", "GCF Identifier",
-                       "Species Phylogeny Newick File", "Cores", "Create GCF Phylogeny?", "Codon Alignments Directory"]
+                       "Species Phylogeny Newick File", "Cores", "Create GCF Phylogeny?"]
     util.logParametersToFile(parameters_file, parameter_names, parameter_values)
     logObject.info("Done saving parameters!")
 
@@ -113,24 +111,21 @@ def lsaBGC_See():
     logObject.info("Successfully parsed homolog matrix.")
 
     # Step 4: Create iTol and gggenes (R) tracks for visualizing BGCs of GCF across a phylogeny.
-    logObject.info("Create iTol tracks for viewing BGCs of GCF across phylogeny. Note, should be used to annotate edited species phylogeny or BGC SCC phylogeny as some samples could have multiple BGCs!")
-    GCF_Object.createItolBGCSeeTrack(outdir + 'BGCs_Visualization.iTol.txt')
-    GCF_Object.visualizeGCFViaR(outdir + 'BGCs_Visualization.gggenes.txt',
-                                outdir + 'BGCs_Visualization.heatmap.txt',
-                                outdir + 'species_phylogeny.edited.nwk',
-                                outdir + 'BGC_Visualization.species_phylogeny.pdf')
-    logObject.info("iTol track written and automatic plot via gggenes/ggtree (R) rendered!")
+    if species_phylogeny:
+        logObject.info("Create iTol tracks for viewing BGCs of GCF across phylogeny. Note, should be used to annotate edited species phylogeny or BGC SCC phylogeny as some samples could have multiple BGCs!")
+        GCF_Object.createItolBGCSeeTrack(outdir + 'BGCs_Visualization.iTol.txt')
+        GCF_Object.visualizeGCFViaR(outdir + 'BGCs_Visualization.gggenes.txt',
+                                    outdir + 'BGCs_Visualization.heatmap.txt',
+                                    outdir + 'species_phylogeny.edited.nwk',
+                                    outdir + 'BGC_Visualization.species_phylogeny.pdf')
+        logObject.info("iTol track written and automatic plot via gggenes/ggtree (R) rendered!")
 
     # Step 5: (Optional) Create phylogeny from single-copy-core homologs from BGCs across samples (single copy in samples, not BGCs)
     if create_core_gcf_phylogeny:
         logObject.info("User requested construction of phylogeny from SCCs in BGC! Beginning phylogeny construction.")
-        if codon_alignments_dir == None:
-            logObject.info("Codon alignments were not provided, so beginning process of creating protein alignments for each homolog group using mafft, then translating these to codon alignments using PAL2NAL.")
-            GCF_Object.constructCodonAlignments(outdir, only_scc=True, cores=cores)
-            logObject.info("All codon alignments for SCC homologs now successfully achieved!")
-        else:
-            GCF_Object.codo_alg_dir = codon_alignments_dir
-            logObject.info("Codon alignments were provided by user: %s.\nMoving forward to phylogeny construction with FastTree2." % codon_alignments_dir)
+        logObject.info("Beginning process of creating protein alignments for each homolog group using mafft, then translating these to codon alignments using PAL2NAL.")
+        GCF_Object.constructCodonAlignments(outdir, only_scc=True, cores=cores)
+        logObject.info("All codon alignments for SCC homologs now successfully achieved!")
 
         # Step 6: Create phylogeny using FastTree2 after creating concatenated BGC alignment and processing to remove
         # sites with high rates of missing data.
@@ -141,7 +136,7 @@ def lsaBGC_See():
 
         GCF_Object.visualizeGCFViaR(outdir + 'BGCs_Visualization.gggenes.txt',
                                     outdir + 'BGCs_Visualization.heatmap.txt',
-                                    outdir + 'species_phylogeny.edited.nwk',
+                                    outdir + 'BGC_SCCs_Concatenated.edited.nwk',
                                     outdir + 'BGC_Visualization.BGC_phylogeny.pdf')
 
     # Close logging object and exit
