@@ -41,7 +41,7 @@ def create_parser():
 	parser.add_argument('-d', '--dry_run', action='store_true',
 						help="Just create task files with commands for running prodigal, antiSMASH, and OrthoFinder. Useful for parallelizing across an HPC.",
 						required=False, default=False)
-	parser.add_argument('-s', '--skip_annotation', action='store_true', help="Skip basic/standard annotation in Prokka", required=False, default=False)
+	parser.add_argument('-s', '--skip_annotation', action='store_true', help="Skip basic/standard annotation in Prokka (experimental).", required=False, default=False)
 	parser.add_argument('-e', '--extract_protein_fasta', action='store_true', help="Whether to extract protein fasta and append as third column path to such FASTA in file listing BGCs Genbanks.", required=False, default=False)
 	args = parser.parse_args()
 	return args

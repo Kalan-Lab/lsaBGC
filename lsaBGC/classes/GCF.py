@@ -13,6 +13,7 @@ from Bio.Seq import Seq
 from operator import itemgetter
 from collections import defaultdict
 from lsaBGC.classes.Pan import Pan
+from lsaBGC import util
 
 lsaBGC_main_directory = '/'.join(os.path.realpath(__file__).split('/')[:-3])
 RSCRIPT_FOR_BGSEE = lsaBGC_main_directory + '/lsaBGC/Rscripts/bgSee.R'
@@ -38,6 +39,9 @@ class GCF(Pan):
 		self.prot_seq_dir = None
 		self.prot_alg_dir = None
 		self.codo_alg_dir = None
+
+		# Concatenated HMMER3 HMM profiles database of homolog groups in GCF
+		self.concatenated_profile_HMM = None
 
 	def modifyPhylogenyForSamplesWithMultipleBGCs(self, input_phylogeny, result_phylogeny):
 		"""
@@ -616,7 +620,7 @@ class GCF(Pan):
 					sample_sequences[sample_id] = prot_seq
 				samples_with_single_copy = set([s[0] for s in sample_counts.items() if s[1] == 1])
 				# check that cog is single-copy-core
-				if len(samples_with_single_copy.symmetric_difference(all_samples)) == 0: scc_homologs.add(hg)
+				if len(samples_with_single_copy.symmetric_difference(all_samples)) == 0: self.scc_homologs.add(hg)
 				if self.logObject:
 					self.logObject.info('Homolog group %s detected as SCC across samples (not individual BGCs).' % hg)
 				inputs.append([hg, sample_sequences, prot_seq_dir, prot_alg_dir, prot_hmm_dir, self.logObject])
@@ -627,12 +631,12 @@ class GCF(Pan):
 			if self.logObject:
 				self.logObject.info(
 					"Successfully created profile HMMs for each homolog group. Now beginning concatenation into single file.")
-			concatenated_profile_HMM = outdir + 'All_GCF_Homologs.hmm'
-			os.system('rm -f %s' % concatenated_profile_HMM)
+			self.concatenated_profile_HMM = outdir + 'All_GCF_Homologs.hmm'
+			os.system('rm -f %s' % self.concatenated_profile_HMM)
 			for f in os.listdir(prot_hmm_dir):
-				os.system('cat %s >> %s' % (prot_hmm_dir + f, concatenated_profile_HMM))
+				os.system('cat %s >> %s' % (prot_hmm_dir + f, self.concatenated_profile_HMM))
 
-			hmmpress_cmd = ['hmmpress', concatenated_profile_HMM]
+			hmmpress_cmd = ['hmmpress', self.concatenated_profile_HMM]
 			if self.logObject:
 				self.logObject.info(
 				'Running hmmpress on concatenated profiles with the following command: %s' % ' '.join(hmmpress_cmd))
@@ -654,6 +658,120 @@ class GCF(Pan):
 				self.logObject.error("Issues with running hmmpress on profile HMMs.")
 				self.logObject.error(traceback.format_exc())
 			raise RuntimeError(traceback.format_exc())
+
+	def runHMMScanAndAssignBGCsToGCF(self, outdir, prokka_genbanks_dir, prokka_proteomes_dir, orthofinder_matrix_file, cores=1):
+		"""
+
+		"""
+		search_res_dir = os.path.abspath(outdir + 'HMMScan_Results') + '/'
+		if not os.path.isdir(search_res_dir): os.system('mkdir %s' % search_res_dir)
+
+		tot_bgc_proteins = defaultdict(int)
+		hmmscan_cmds = []
+		for i, cb_tuple in enumerate(comprehensive_bgcs):
+			sample, bgc_genbank, bgc_proteome = cb_tuple
+			with open(bgc_proteome) as obp:
+				for rec in SeqIO.parse(obp, 'fasta'):
+					tot_bgc_proteins[bgc_genbank] += 1
+			result_file = search_res_dir + str(i) + '.txt'
+			hmmscan_cmd = ['hmmscan', '--max', '--cpu', '1', '--tblout', result_file, concat_hmm_profiles, bgc_proteome,
+						   logObject]
+			hmmscan_cmds.append(hmmscan_cmd)
+
+		p = multiprocessing.Pool(cores)
+		p.map(util.multiProcess, hmmscan_cmds)
+		p.close()
+
+		protein_hits = defaultdict(list)
+		sample_cogs = defaultdict(set)
+		bgc_cogs = defaultdict(set)
+		sample_bgcs = defaultdict(set)
+		sample_cog_proteins = defaultdict(lambda: defaultdict(set))
+		for i, cb_tuple in enumerate(comprehensive_bgcs):
+			sample, bgc_genbank, bgc_proteome = cb_tuple
+			sample_bgcs[sample].add(bgc_genbank)
+			result_file = search_res_dir + str(i) + '.txt'
+			assert (os.path.isfile(result_file))
+			with open(result_file) as orf:
+				for line in orf:
+					if line.startswith("#"): continue
+					line = line.strip()
+					ls = line.split()
+					cog = ls[0]
+					samp, bgc, protein_id = ls[2].split('|')
+					eval = float(ls[4])
+					if eval <= 1e-5:
+						protein_hits[protein_id].append([cog, eval, sample, bgc_genbank])
+
+		for p in protein_hits:
+			for i, hits in enumerate(sorted(protein_hits[p], key=itemgetter(1))):
+				if i == 0:
+					sample_cogs[hits[2]].add(hits[0])
+					bgc_cogs[hits[3]].add(hits[0])
+					sample_cog_proteins[hits[2]][hits[0]].add(p)
+
+		expanded_orthofinder_matrix_file = outdir + 'Orthogroups.expanded.csv'
+		expanded_gcf_list_file = outdir + 'GCF_Expanded.txt'
+
+		expanded_orthofinder_matrix_handle = open(expanded_orthofinder_matrix_file, 'w')
+		expanded_gcf_list_handle = open(expanded_gcf_list_file, 'w')
+
+		valid_bgcs = set([])
+		for sample in sample_cogs:
+			if len(scc_homologs.difference(sample_cogs[sample])) == 0:
+				for bgc_gbk in sample_bgcs[sample]:
+					if float(len(bgc_cogs[bgc_gbk])) / tot_bgc_proteins[bgc_gbk] >= 0.5 and len(
+							bgc_cogs[bgc_gbk]) >= 3 and len(scc_homologs.intersection(bgc_cogs[bgc_gbk])) >= 1:
+						valid_bgcs.add(bgc_gbk)
+
+		bgc_cogs = defaultdict(set)
+		sample_cog_proteins = defaultdict(lambda: defaultdict(set))
+		for p in protein_hits:
+			for i, hits in enumerate(sorted(protein_hits[p], key=itemgetter(1))):
+				if i != 0 or not hits[3] in valid_bgcs: continue
+				bgc_cogs[hits[3]].add(hits[0])
+				sample_cog_proteins[hits[2]][hits[0]].add(p)
+
+		all_samples = set([])
+		for sample in sample_cogs:
+			scc_check = True
+			for cog in scc_homologs:
+				if len(sample_cog_proteins[sample][cog]) != 1: scc_check = False
+			if not scc_check: continue
+			for bgc_gbk in sample_bgcs[sample]:
+				if float(len(bgc_cogs[bgc_gbk])) / tot_bgc_proteins[bgc_gbk] >= 0.5 and len(
+						bgc_cogs[bgc_gbk]) >= 3 and len(
+						scc_homologs.intersection(bgc_cogs[bgc_gbk])) >= 1:
+					expanded_gcf_list_handle.write('\t'.join([sample, bgc_gbk]) + '\n')
+					all_samples.add(sample)
+
+		original_samples = []
+		all_cogs = set([])
+		with open(orthofinder_matrix_file) as omf:
+			for i, line in enumerate(omf):
+				line = line.strip('\n')
+				ls = line.split('\t')
+				if i == 0:
+					original_samples = ls[1:]
+					all_samples = all_samples.union(set(original_samples))
+				else:
+					cog = ls[0]
+					all_cogs.add(cog)
+					for j, prot in enumerate(ls[1:]):
+						sample_cog_proteins[original_samples[j]][cog] = sample_cog_proteins[original_samples[j]][
+							cog].union(
+							set(prot.split(', ')))
+
+		header = [''] + [s for s in sorted(all_samples)]
+		expanded_orthofinder_matrix_handle.write('\t'.join(header) + '\n')
+		for c in sorted(all_cogs):
+			printlist = [c]
+			for s in sorted(all_samples):
+				printlist.append(', '.join(sample_cog_proteins[s][c]))
+			expanded_orthofinder_matrix_handle.write('\t'.join(printlist) + '\n')
+
+		expanded_gcf_list_handle.close()
+		expanded_orthofinder_matrix_handle.close()
 
 def create_hmm_profiles(inputs):
 	"""

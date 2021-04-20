@@ -9,7 +9,7 @@ import os
 import sys
 from time import sleep
 import argparse
-from lsaBGC import util
+from lsaBGC import processing, util
 from lsaBGC.classes.GCF import GCF
 
 def create_parser():
@@ -32,6 +32,8 @@ def create_parser():
     parser.add_argument('-i', '--gcf_id', help="GCF identifier.", required=False, default='GCF_X')
     parser.add_argument('-a', '--assembly_listing', type=str, help="Tab delimited text file. First column is the sample name and the second is the path to its assembly in FASTA format. Please remove troublesome characters in the sample name.", required=True)
     parser.add_argument('-o', '--output_directory', help="Path to output directory.", required=True)
+    parser.add_argument('-l', '--lineage', type=str, help="The lineage under investigation.", required=False,
+                        default="Lineage")
     parser.add_argument('-c', '--cores', type=int, help="The number of cores to use.", required=False, default=1)
     args = parser.parse_args()
 
@@ -72,6 +74,7 @@ def lsaBGC_HMMExpansion():
 
     gcf_id = myargs.gcf_id
     cores = myargs.cores
+    lineage = myargs.lineage
 
     """
     START WORKFLOW
@@ -83,8 +86,8 @@ def lsaBGC_HMMExpansion():
     # Step 0: Log input arguments and update reference and query FASTA files.
     logObject.info("Saving parameters for future provedance.")
     parameters_file = outdir + 'Parameter_Inputs.txt'
-    parameter_values = [gcf_listing_file, orthofinder_matrix_file, assembly_listing_file, outdir, gcf_id, cores]
-    parameter_names = ["GCF Listing File", "OrthoFinder Orthogroups.csv File", "Assembly Listing File", "Output Directory", "GCF Identifier", "Cores"]
+    parameter_values = [gcf_listing_file, orthofinder_matrix_file, assembly_listing_file, outdir, gcf_id, lineage, cores]
+    parameter_names = ["GCF Listing File", "OrthoFinder Orthogroups.csv File", "Assembly Listing File", "Output Directory", "GCF Identifier", "Lineage", "Cores"]
     util.logParametersToFile(parameters_file, parameter_names, parameter_values)
     logObject.info("Done saving parameters!")
 
@@ -104,16 +107,38 @@ def lsaBGC_HMMExpansion():
 
     # Step 3: Build HMMs for homolog groups observed in representative BGCs for GCF
     logObject.info("Building profile HMMs of homolog groups observed in representative BGCs for GCF.")
-    GCF_Object.constructHMMProfiles(bgc_sample, cog_genes, comp_gene_info, outdir, cores, logObject)
+    GCF_Object.constructHMMProfiles(outdir, cores=cores)
     logObject.info("HMM profiles constructed and concatenated successfully!")
 
-    # Step 4: Search HMMs in proteomes from comprehensive set of BGCs
+    # Step 4: Process assemblies
+    logObject.info("Parse sample assemblies from listing file.")
+    sample_assemblies = processing.readInAssemblyListing(assembly_listing_file, logObject)
+    logObject.info("Successfully parsed sample assemblies.")
+
+    # Step 5: Run Prokka for gene calling
+    locus_tag_length = 4
+    prokka_outdir = outdir + 'Prokka_Results/'
+    prokka_proteomes_dir = prokka_outdir + 'Prokka_Proteomes/'
+    prokka_genbanks_dir = prokka_outdir + 'Prokka_Genbanks/'
+    try:
+        if not os.path.isdir(prokka_outdir): os.system('mkdir %s' % prokka_outdir)
+        if not os.path.isdir(prokka_proteomes_dir): os.system('mkdir %s' % prokka_proteomes_dir)
+        if not os.path.isdir(prokka_genbanks_dir): os.system('mkdir %s' % prokka_genbanks_dir)
+    except:
+        logObject.error("Can't create Prokka results directories. Exiting now ...")
+        raise RuntimeError("Can't create Prokka results directories. Exiting now ...")
+
+    logObject.info("Running/setting-up Prokka for all samples!")
+    processing.runProkka(sample_assemblies, prokka_outdir, prokka_proteomes_dir, prokka_genbanks_dir,
+                         lineage, cores, locus_tag_length, logObject, skip_annotation_flag=True)
+    logObject.info("Successfully ran/set-up Prokka.")
+
+    # Step 6: Search HMMs in proteomes from comprehensive set of BGCs
     logObject.info("Searching for homolog group HMMs in proteins extracted from comprehensive list of BGCs.")
-    comprehensive_bgcs = lsaBGC.mapComprehensiveBGCsList(all_bgcs_file, logObject)
-    lsaBGC.runHMMScanAndAssignBGCsToGCF(comprehensive_bgcs, concat_hmm_profiles, scc_homologs, orthofinder_matrix_file, outdir, cores, logObject)
+    GCF_Object.runHMMScanAndAssignBGCsToGCF(outdir, prokka_genbanks_dir, prokka_proteomes_dir, orthofinder_matrix_file, cores=1)
 
     # Close logging object and exit
-    lsaBGC.closeLoggerObject(logObject)
+    util.closeLoggerObject(logObject)
     sys.exit(0)
 
 if __name__ == '__main__':
