@@ -9,7 +9,8 @@ import os
 import sys
 from time import sleep
 import argparse
-from lsaBGC import lsaBGC
+from lsaBGC import util
+from lsaBGC.classes.GCF import GCF
 
 def create_parser():
     """ Parse arguments """
@@ -28,7 +29,8 @@ def create_parser():
 
     parser.add_argument('-g', '--gcf_listing', help='BGC listings file for a gcf. Tab delimited: 1st column lists sample name while the 2nd column is the path to an AntiSMASH BGC in Genbank format.', required=True)
     parser.add_argument('-m', '--orthofinder_matrix', help="OrthoFinder matrix.", required=True)
-    parser.add_argument('-a', '--all_bgcs', help='Comprehensive BGC listing file. Tab delimited: 1st column contains sample name, 2nd column contains the full path to the BGC Genbank as produced by AntiSMASH, and 3rd column contains the full path to FASTA of BGC proteins extracted from Genbanks.', required=True)
+    parser.add_argument('-i', '--gcf_id', help="GCF identifier.", required=False, default='GCF_X')
+    parser.add_argument('-a', '--assembly_listing', type=str, help="Tab delimited text file. First column is the sample name and the second is the path to its assembly in FASTA format. Please remove troublesome characters in the sample name.", required=True)
     parser.add_argument('-o', '--output_directory', help="Path to output directory.", required=True)
     parser.add_argument('-c', '--cores', type=int, help="The number of cores to use.", required=False, default=1)
     args = parser.parse_args()
@@ -47,14 +49,14 @@ def lsaBGC_HMMExpansion():
 
     gcf_listing_file = os.path.abspath(myargs.gcf_listing)
     orthofinder_matrix_file = os.path.abspath(myargs.orthofinder_matrix)
-    all_bgcs_file = os.path.abspath(myargs.all_bgcs)
+    assembly_listing_file = os.path.abspath(myargs.assembly_listing)
     outdir = os.path.abspath(myargs.output_directory) + '/'
 
     ### vet input files quickly
     try:
         assert (os.path.isfile(orthofinder_matrix_file))
         assert (os.path.isfile(gcf_listing_file))
-        assert (os.path.isfile(all_bgcs_file))
+        assert (os.path.isfile(assembly_listing_file))
     except:
         raise RuntimeError('One or more of the input files provided, does not exist. Exiting now ...')
 
@@ -68,38 +70,41 @@ def lsaBGC_HMMExpansion():
     PARSE OPTIONAL INPUTS
     """
 
+    gcf_id = myargs.gcf_id
     cores = myargs.cores
 
     """
     START WORKFLOW
     """
-
     # create logging object
     log_file = outdir + 'Progress.log'
-    logObject = lsaBGC.createLoggerObject(log_file)
+    logObject = util.createLoggerObject(log_file)
 
     # Step 0: Log input arguments and update reference and query FASTA files.
     logObject.info("Saving parameters for future provedance.")
     parameters_file = outdir + 'Parameter_Inputs.txt'
-    parameter_values = [gcf_listing_file, orthofinder_matrix_file, all_bgcs_file, outdir, cores]
-    parameter_names = ["GCF Listing File", "OrthoFinder Orthogroups.csv File", "Comprehensive Listing of BGCs",
-                       "Output Directory", "Cores"]
-    lsaBGC.logParametersToFile(parameters_file, parameter_names, parameter_values)
+    parameter_values = [gcf_listing_file, orthofinder_matrix_file, assembly_listing_file, outdir, gcf_id, cores]
+    parameter_names = ["GCF Listing File", "OrthoFinder Orthogroups.csv File", "Assembly Listing File", "Output Directory", "GCF Identifier", "Cores"]
+    util.logParametersToFile(parameters_file, parameter_names, parameter_values)
     logObject.info("Done saving parameters!")
+
+    # Create GCF object
+    GCF_Object = GCF(gcf_listing_file, gcf_id=gcf_id, logObject=logObject)
 
     # Step 1: Process GCF listings file
     logObject.info("Processing BGC Genbanks from GCF listing file.")
-    bbgc_gbk, bgc_genes, comp_gene_info, all_genes, bgc_sample, sample_bgcs = lsaBGC.readInBGCGenbanksPerGCF(gcf_listing_file, logObject)
+    GCF_Object.readInBGCGenbanks(comprehensive_parsing=True)
     logObject.info("Successfully parsed BGC Genbanks and associated with unique IDs.")
 
-    # Step 2: Parse OrthoFinder homolog vs sample matrix
+    # Step 2: Parse OrthoFinder Homolog vs Sample Matrix and associate each homolog group with a color
     logObject.info("Starting to parse OrthoFinder homolog vs sample information.")
-    gene_to_cog, cog_genes, cog_median_gene_counts = lsaBGC.parseOrthoFinderMatrix(orthofinder_matrix_file, all_genes)
+    gene_to_hg, hg_genes, hg_median_copy_count, hg_prop_multi_copy = util.parseOrthoFinderMatrix(orthofinder_matrix_file, GCF_Object.pan_genes)
+    GCF_Object.inputHomologyInformation(gene_to_hg, hg_genes, hg_median_copy_count, hg_prop_multi_copy)
     logObject.info("Successfully parsed homolog matrix.")
 
     # Step 3: Build HMMs for homolog groups observed in representative BGCs for GCF
     logObject.info("Building profile HMMs of homolog groups observed in representative BGCs for GCF.")
-    scc_homologs, concat_hmm_profiles = lsaBGC.constructHMMProfiles(bgc_sample, cog_genes, comp_gene_info, outdir, cores, logObject)
+    GCF_Object.constructHMMProfiles(bgc_sample, cog_genes, comp_gene_info, outdir, cores, logObject)
     logObject.info("HMM profiles constructed and concatenated successfully!")
 
     # Step 4: Search HMMs in proteomes from comprehensive set of BGCs

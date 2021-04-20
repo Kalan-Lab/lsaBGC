@@ -169,9 +169,9 @@ class BGC:
 					original_seq = str(rec.seq)
 					filtered_seq = ""
 					if end_coord == len(original_seq):
-						filtered_seq = original_seq[start_coord:]
+						filtered_seq = original_seq[start_coord-1:]
 					else:
-						filtered_seq = original_seq[start_coord:end_coord]
+						filtered_seq = original_seq[start_coord-1:end_coord]
 
 					new_seq_object = Seq(filtered_seq)
 
@@ -192,9 +192,12 @@ class BGC:
 							if start < start_coord: updated_start = 1
 
 							strand = 1
-							if '(-)' in str(feature.location): strand = -1
+							if '(-)' in str(feature.location):
+								strand = -1
 
-							updated_location = FeatureLocation(updated_start-1, updated_end-1, strand=strand)
+							updated_location = FeatureLocation(updated_start-1, updated_end, strand=strand)
+							if feature.type == 'CDS':
+								print(refined_genbank_file + '\t' + feature.qualifiers.get('locus_tag')[0] + '\t' + str(strand) + '\t' + str(updated_start) + '\t' + str(updated_end) + '\t' + str(len(filtered_seq[updated_start-1:updated_end])/3.0))
 							updated_feature = copy.deepcopy(feature)
 
 							updated_feature.location = updated_location

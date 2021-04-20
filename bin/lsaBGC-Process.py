@@ -98,7 +98,6 @@ def lsaBGC_Process():
 	"""
 	START WORKFLOW
 	"""
-
 	# create logging object
 	log_file = outdir + 'Progress.log'
 	logObject = util.createLoggerObject(log_file)

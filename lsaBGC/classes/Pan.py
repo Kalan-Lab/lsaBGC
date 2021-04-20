@@ -110,10 +110,10 @@ class Pan:
 								   genes assigned to homolog group (paralogs).
 		"""
 		try:
-			self.gene_to_hg = gene_to_hg
-			self.hg_genes = hg_genes
-			self.hg_median_copy_count = hg_median_copy_count
-			self.hg_prop_multi_copy = hg_prop_multi_copy
+			self.gene_to_hg = dict(gene_to_hg)
+			self.hg_genes = dict(hg_genes)
+			self.hg_median_copy_count = dict(hg_median_copy_count)
+			self.hg_prop_multi_copy = dict(hg_prop_multi_copy)
 
 			for bgc_id in self.bgc_genes:
 				for gene in self.bgc_genes[bgc_id]:

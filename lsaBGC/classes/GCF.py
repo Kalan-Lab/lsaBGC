@@ -31,6 +31,7 @@ class GCF(Pan):
 		# General variables
 		self.hg_to_color = None
 		self.hg_order_scores = defaultdict(int)
+		self.scc_homologs = set([])
 
 		# Sequence and alignment directories
 		self.nucl_seq_dir = None
@@ -40,12 +41,12 @@ class GCF(Pan):
 
 	def modifyPhylogenyForSamplesWithMultipleBGCs(self, input_phylogeny, result_phylogeny):
 		"""
-	Function which takes in an input phylogeny and produces a replicate resulting phylogeny with samples/leafs which
-	have multiple BGC instances for a GCF expanded.
+		Function which takes in an input phylogeny and produces a replicate resulting phylogeny with samples/leafs which
+		have multiple BGC instances for a GCF expanded.
 
-	:param input_phylogeny: input newick phylogeny file
-	:result result_phylogeny: resulting newick phylogeny file
-	"""
+		:param input_phylogeny: input newick phylogeny file
+		:result result_phylogeny: resulting newick phylogeny file
+		"""
 		try:
 			number_of_added_leaves = 0
 			t = Tree(input_phylogeny)
@@ -73,10 +74,12 @@ class GCF(Pan):
 
 	def assignColorsToHGs(self, gene_to_hg, bgc_genes):
 		"""
-	:param gene_to_hg: gene to HG relationship.
-	:param bgc_genes:  set of genes per HG.
-	:return: dictionary mapping each HG to a hex color value.
-	"""
+		Simple function to associate each homolog group with a color for consistent coloring.
+
+		:param gene_to_hg: gene to HG relationship.
+		:param bgc_genes:  set of genes per HG.
+		:return: dictionary mapping each HG to a hex color value.
+		"""
 
 		hg_bgc_counts = defaultdict(int)
 		for b in bgc_genes:
@@ -104,11 +107,11 @@ class GCF(Pan):
 
 	def createItolBGCSeeTrack(self, result_track_file):
 		"""
-	Function to create a track file for visualizing BGC gene architecture across a phylogeny in the interactive tree
-	of life (iTol)
+		Function to create a track file for visualizing BGC gene architecture across a phylogeny in the interactive tree
+		of life (iTol)
 
-	:param result_track_file: The path to the resulting iTol track file for BGC gene visualization.
-	"""
+		:param result_track_file: The path to the resulting iTol track file for BGC gene visualization.
+		"""
 		try:
 			track_handle = open(result_track_file, 'w')
 
@@ -199,15 +202,15 @@ class GCF(Pan):
 
 	def visualizeGCFViaR(self, gggenes_track_file, heatmap_track_file, phylogeny_file, result_pdf_file):
 		"""
-	Function to create tracks for visualization of gene architecture of BGCs belonging to GCF and run Rscript bgSee.R
-	to produce automatic PDFs of plots. In addition, bgSee.R also produces a heatmap to more easily identify homolog
-	groups which are conserved across isolates found to feature GCF.
+		Function to create tracks for visualization of gene architecture of BGCs belonging to GCF and run Rscript bgSee.R
+		to produce automatic PDFs of plots. In addition, bgSee.R also produces a heatmap to more easily identify homolog
+		groups which are conserved across isolates found to feature GCF.
 
-	:param gggenes_track_file: Path to file with gggenes track information (will be created/written to by function, if it doesn't exist!)
-	:param heatmap_track_file: Path to file for heatmap visual component (will be created/written to by function, if it doesn't exist!)
-	:param phylogeny_file: Phylogeny to use for visualization.
-	:param result_pdf_file: Path to PDF file where plots from bgSee.R will be written to.
-	"""
+		:param gggenes_track_file: Path to file with gggenes track information (will be created/written to by function, if it doesn't exist!)
+		:param heatmap_track_file: Path to file for heatmap visual component (will be created/written to by function, if it doesn't exist!)
+		:param phylogeny_file: Phylogeny to use for visualization.
+		:param result_pdf_file: Path to PDF file where plots from bgSee.R will be written to.
+		"""
 		try:
 			if os.path.isfile(gggenes_track_file) or os.path.isfile(heatmap_track_file):
 				os.system('rm -f %s %s' % (gggenes_track_file, heatmap_track_file))
@@ -326,19 +329,19 @@ class GCF(Pan):
 
 	def constructCodonAlignments(self, outdir, cores=1, only_scc=False):
 		"""
-			Function to automate construction of codon alignments. This function first extracts protein and nucleotide sequnces
-			from BGC Genbanks, then creates protein alignments for each homolog group using MAFFT, and finally converts those
-				into codon alignments using PAL2NAL.
+		Function to automate construction of codon alignments. This function first extracts protein and nucleotide sequnces
+		from BGC Genbanks, then creates protein alignments for each homolog group using MAFFT, and finally converts those
+		into codon alignments using PAL2NAL.
 
-				:param outdir: Path to output/workspace directory. Intermediate files (like extracted nucleotide and protein
-												 sequences, protein and codon alignments, will be writen to respective subdirectories underneath this
-												 one).
-				:param cores: Number of cores/threads to use when fake-parallelizing jobs using multiprocessing.
-				:param only_scc: Whether to construct codon alignments only for homolog groups which are found to be core and in
-												 single copy for samples with the GCF. Note, if working with draft genomes and the BGC is fragmented
-												 this should be able to still identify SCC homolog groups across the BGC instances belonging to the
-												 GCF.
-				"""
+		:param outdir: Path to output/workspace directory. Intermediate files (like extracted nucleotide and protein
+					   sequences, protein and codon alignments, will be writen to respective subdirectories underneath this
+					   one).
+		:param cores: Number of cores/threads to use when fake-parallelizing jobs using multiprocessing.
+		:param only_scc: Whether to construct codon alignments only for homolog groups which are found to be core and in
+						 single copy for samples with the GCF. Note, if working with draft genomes and the BGC is fragmented
+						 this should be able to still identify SCC homolog groups across the BGC instances belonging to the
+						 GCF.
+		"""
 
 		nucl_seq_dir = os.path.abspath(outdir + 'Nucleotide_Sequences') + '/'
 		prot_seq_dir = os.path.abspath(outdir + 'Protein_Sequences') + '/'
@@ -393,12 +396,12 @@ class GCF(Pan):
 
 	def constructGCFPhylogeny(self, output_alignment, output_phylogeny):
 		"""
-				Function to create phylogeny based on codon alignments of SCC homolog groups for GCF.
+		Function to create phylogeny based on codon alignments of SCC homolog groups for GCF.
 
-				:param output_alignment: Path to output file for concatenated SCC homolog group alignment.
-				:param output_phylogeny: Path to output file for approximate maximum-likelihood phylogeny produced by FastTree2 from
-																 concatenated SCC homolog group alignment.
-				"""
+		:param output_alignment: Path to output file for concatenated SCC homolog group alignment.
+		:param output_phylogeny: Path to output file for approximate maximum-likelihood phylogeny produced by FastTree2 from
+							     concatenated SCC homolog group alignment.
+		"""
 		try:
 			bgc_sccs = defaultdict(lambda: "")
 			fasta_data = []
@@ -450,15 +453,15 @@ class GCF(Pan):
 
 	def refineBGCGenbanks(self, new_gcf_listing_file, outdir, first_boundary_homolog, second_boundary_homolog):
 		"""
-				Function to refine BGC Genbanks based on boundaries defined by two single copy core homolog groups. Genbanks
-				are filtered to retain only features in between the positions of the two boundary homolog groups. Coordinates
-				relevant to the BGC framework are updated (but not all location coordinates!!!).
+		Function to refine BGC Genbanks based on boundaries defined by two single copy core homolog groups. Genbanks
+		are filtered to retain only features in between the positions of the two boundary homolog groups. Coordinates
+		relevant to the BGC framework are updated (but not all location coordinates!!!).
 
-				:param new_gcf_listing_file: Path to where new GCF listing file will be written.
-				:param outdir: Path to workspace directory.
-				:param first_boundary_homolog: Identifier of the first boundary homolog group
-				:param second_boundary_homolog: Identifier of the second boundary homolog group
-				"""
+		:param new_gcf_listing_file: Path to where new GCF listing file will be written.
+		:param outdir: Path to workspace directory.
+		:param first_boundary_homolog: Identifier of the first boundary homolog group
+		:param second_boundary_homolog: Identifier of the second boundary homolog group
+		"""
 		try:
 			refined_gbks_dir = outdir + 'Refined_Genbanks/'
 			if not os.path.isdir(refined_gbks_dir): os.system('mkdir %s' % refined_gbks_dir)
@@ -544,7 +547,10 @@ class GCF(Pan):
 
 	def runPopulationGeneticsAnalysis(self, outdir, cores=1):
 		"""
-		Wrapper function which sets up
+		Wrapper function which serves to parallelize population genetics analysis.
+
+		:param outdir: The path to the workspace / output directory.
+		:param cores: The number of cores (will be used for parallelizing)
 		"""
 
 		popgen_dir = outdir + 'Codon_PopGen_Analyses/'
@@ -565,10 +571,12 @@ class GCF(Pan):
 		for f in os.listdir(self.codo_alg_dir):
 			hg = f.split('.msa.fna')[0]
 			codon_alignment_fasta = self.codo_alg_dir + f
-			inputs.append([hg, codon_alignment_fasta, popgen_dir, plots_dir])
+			inputs.append([hg, codon_alignment_fasta, popgen_dir, plots_dir, self.comp_gene_info, self.hg_genes,
+						   self.bgc_sample, self.hg_prop_multi_copy, self.hg_order_scores, self.sample_population,
+						   self.logObject])
 
 		p = multiprocessing.Pool(cores)
-		p.map(self.parseCodonAlignmentStats, inputs)
+		p.map(popgen_analysis_of_hg, inputs)
 
 		for f in os.listdir(popgen_dir):
 			if not f.endswith('_stats.txt'): continue
@@ -576,11 +584,132 @@ class GCF(Pan):
 				for line in opf:
 					line = line
 					final_output_handle.write(line)
-
 		final_output_handle.close()
 
-def parseCodonAlignmentStats(inputs):
-	hg, codon_alignment_fasta, popgen_dir, plots_dir = inputs
+	def constructHMMProfiles(self, outdir, cores=1):
+		"""
+		Wrapper function to construct Hmmer3 HMMs for each of the homolog groups.
+
+		:param outdir: The path to the workspace / output directory.
+		:param cores: The number of cores (will be used for parallelizing)
+		"""
+
+		prot_seq_dir = os.path.abspath(outdir + 'Protein_Sequences') + '/'
+		prot_alg_dir = os.path.abspath(outdir + 'Protein_Alignments') + '/'
+		prot_hmm_dir = os.path.abspath(outdir + 'Profile_HMMs') + '/'
+		if not os.path.isdir(prot_seq_dir): os.system('mkdir %s' % prot_seq_dir)
+		if not os.path.isdir(prot_alg_dir): os.system('mkdir %s' % prot_alg_dir)
+		if not os.path.isdir(prot_hmm_dir): os.system('mkdir %s' % prot_hmm_dir)
+
+		all_samples = set(self.bgc_sample.values())
+		try:
+			inputs = []
+			for hg in self.hg_genes:
+				sample_counts = defaultdict(int)
+				sample_sequences = {}
+				for gene in self.hg_genes[hg]:
+					gene_info = self.comp_gene_info[gene]
+					bgc_id = gene_info['bgc_name']
+					sample_id = self.bgc_sample[bgc_id]
+					prot_seq = gene_info['prot_seq']
+					sample_counts[sample_id] += 1
+					sample_sequences[sample_id] = prot_seq
+				samples_with_single_copy = set([s[0] for s in sample_counts.items() if s[1] == 1])
+				# check that cog is single-copy-core
+				if len(samples_with_single_copy.symmetric_difference(all_samples)) == 0: scc_homologs.add(hg)
+				if self.logObject:
+					self.logObject.info('Homolog group %s detected as SCC across samples (not individual BGCs).' % hg)
+				inputs.append([hg, sample_sequences, prot_seq_dir, prot_alg_dir, prot_hmm_dir, self.logObject])
+
+			p = multiprocessing.Pool(cores)
+			p.map(create_hmm_profiles, inputs)
+
+			if self.logObject:
+				self.logObject.info(
+					"Successfully created profile HMMs for each homolog group. Now beginning concatenation into single file.")
+			concatenated_profile_HMM = outdir + 'All_GCF_Homologs.hmm'
+			os.system('rm -f %s' % concatenated_profile_HMM)
+			for f in os.listdir(prot_hmm_dir):
+				os.system('cat %s >> %s' % (prot_hmm_dir + f, concatenated_profile_HMM))
+
+			hmmpress_cmd = ['hmmpress', concatenated_profile_HMM]
+			if self.logObject:
+				self.logObject.info(
+				'Running hmmpress on concatenated profiles with the following command: %s' % ' '.join(hmmpress_cmd))
+			try:
+				subprocess.call(' '.join(hmmpress_cmd), shell=True, stdout=subprocess.DEVNULL,
+								stderr=subprocess.DEVNULL,
+								executable='/bin/bash')
+				if self.logObject:
+					self.logObject.info('Successfully ran: %s' % ' '.join(hmmpress_cmd))
+			except:
+				if self.logObject:
+					self.logObject.error('Had an issue running: %s' % ' '.join(hmmpress_cmd))
+					self.logObject.error(traceback.format_exc())
+				raise RuntimeError('Had an issue running: %s' % ' '.join(hmmpress_cmd))
+			self.concatenated_profile_HMM
+
+		except:
+			if self.logObject:
+				self.logObject.error("Issues with running hmmpress on profile HMMs.")
+				self.logObject.error(traceback.format_exc())
+			raise RuntimeError(traceback.format_exc())
+
+def create_hmm_profiles(inputs):
+	"""
+
+	"""
+	hg, sample_sequences, prot_seq_dir, prot_alg_dir, prot_hmm_dir, logObject = inputs
+
+	hg_prot_fasta = prot_seq_dir + '/' + hg + '.faa'
+	hg_prot_msa = prot_alg_dir + '/' + hg + '.msa.faa'
+	hg_prot_hmm = prot_hmm_dir + '/' + hg + '.hmm'
+
+	hg_prot_handle = open(hg_prot_fasta, 'w')
+	for s in sample_sequences:
+		hg_prot_handle.write('>' + s + '\n' + str(sample_sequences[s]) + '\n')
+	hg_prot_handle.close()
+
+	mafft_cmd = ['mafft', '--maxiterate', '1000', '--localpair', hg_prot_fasta, '>', hg_prot_msa]
+	if logObject:
+		logObject.info('Running mafft with the following command: %s' % ' '.join(mafft_cmd))
+	try:
+		subprocess.call(' '.join(mafft_cmd), shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+						executable='/bin/bash')
+		if logObject:
+			logObject.info('Successfully ran: %s' % ' '.join(mafft_cmd))
+	except:
+		if logObject:
+			logObject.error('Had an issue running: %s' % ' '.join(mafft_cmd))
+			logObject.error(traceback.format_exc())
+		raise RuntimeError('Had an issue running: %s' % ' '.join(mafft_cmd))
+
+	hmmbuild_cmd = ['hmmbuild', '--amino', '-n', hg, hg_prot_hmm, hg_prot_msa]
+	if logObject:
+		logObject.info('Running hmmbuild (from HMMER3) with the following command: %s' % ' '.join(hmmbuild_cmd))
+	try:
+		subprocess.call(' '.join(hmmbuild_cmd), shell=True, stdout=subprocess.DEVNULL,
+						stderr=subprocess.DEVNULL,
+						executable='/bin/bash')
+		if logObject:
+			logObject.info('Successfully ran: %s' % ' '.join(hmmbuild_cmd))
+	except:
+		if logObject:
+			logObject.error('Had an issue running: %s' % ' '.join(hmmbuild_cmd))
+			logObject.error(traceback.format_exc())
+		raise RuntimeError('Had an issue running: %s' % ' '.join(hmmbuild_cmd))
+
+	if logObject:
+		logObject.info('Constructed profile HMM for homolog group %s' % hg)
+
+def popgen_analysis_of_hg(inputs):
+	"""
+	Helper function which is to be called from the runPopulationGeneticsAnalysis() function to parallelize population
+	genetics analysis of each homolog group.
+
+	:param inputs: list of inputs passed in by GCF.runPopulationGeneticsAnalysis().
+	"""
+	hg, codon_alignment_fasta, popgen_dir, plots_dir, comp_gene_info, hg_genes, bgc_sample, hg_prop_multi_copy, hg_order_scores, sample_population, logObject = inputs
 	domain_plot_file = plots_dir + hg + '_domain.txt'
 	position_plot_file = plots_dir + hg + '_position.txt'
 	popgen_plot_file = plots_dir + hg + '_popgen.txt'
@@ -601,11 +730,11 @@ def parseCodonAlignmentStats(inputs):
 	with open(codon_alignment_fasta) as ocaf:
 		for rec in SeqIO.parse(ocaf, 'fasta'):
 			sample_id, gene_id = rec.id.split('|')
-			if self.comp_gene_info[gene_id]['core_overlap']:
+			if comp_gene_info[gene_id]['core_overlap']:
 				core_counts['core'] += 1
 			else:
 				core_counts['auxiliary'] += 1
-			products.add(self.comp_gene_info[gene_id]['product'])
+			products.add(comp_gene_info[gene_id]['product'])
 			real_pos = 1
 			seqs.append(list(str(rec.seq)))
 			codons = [str(rec.seq)[i:i + 3] for i in range(0, len(str(rec.seq)), 3)]
@@ -649,10 +778,10 @@ def parseCodonAlignmentStats(inputs):
 	domain_positions_msa = defaultdict(set)
 	domain_min_position_msa = defaultdict(lambda: 1e8)
 	all_domains = set([])
-	for gene in self.hg_genes[hg]:
-		gene_start = self.comp_gene_info[gene]['start']
-		gene_end = self.comp_gene_info[gene]['end']
-		for domain in self.comp_gene_info[gene]['gene_domains']:
+	for gene in hg_genes[hg]:
+		gene_start = comp_gene_info[gene]['start']
+		gene_end = comp_gene_info[gene]['end']
+		for domain in comp_gene_info[gene]['gene_domains']:
 			domain_start = max(domain['start'], gene_start)
 			domain_end = min(domain['end'], gene_end)
 			domain_name = domain['aSDomain'] + '_|_' + domain['description']
@@ -739,38 +868,38 @@ def parseCodonAlignmentStats(inputs):
 	dn_ds = "NA"
 	if synonymous_sites > 0: dn_ds = float(nonsynonymous_sites) / synonymous_sites
 
-	rscript_plot_cmd = ["Rscript", RSCRIPT_FOR_PLOTTING, domain_plot_file, position_plot_file,
+	rscript_plot_cmd = ["Rscript", RSCRIPT_FOR_CLUSTER_ASSESSMENT_PLOTTING, domain_plot_file, position_plot_file,
 						popgen_plot_file,
 						plot_pdf_file]
-	if self.logObject:
-		self.logObject.info('Running R-based plotting with the following command: %s' % ' '.join(rscript_plot_cmd))
+	if logObject:
+		logObject.info('Running R-based plotting with the following command: %s' % ' '.join(rscript_plot_cmd))
 	try:
 		subprocess.call(' '.join(rscript_plot_cmd), shell=True, stdout=subprocess.DEVNULL,
 						stderr=subprocess.DEVNULL,
 						executable='/bin/bash')
-		if self.logObject:
-			self.logObject.info('Successfully ran: %s' % ' '.join(rscript_plot_cmd))
+		if logObject:
+			logObject.info('Successfully ran: %s' % ' '.join(rscript_plot_cmd))
 	except Exception as e:
-		if self.logObject:
-			self.logObject.error('Had an issue running: %s' % ' '.join(rscript_plot_cmd))
-			self.logObject.error(traceback.format_exc())
+		if logObject:
+			logObject.error('Had an issue running: %s' % ' '.join(rscript_plot_cmd))
+			logObject.error(traceback.format_exc())
 		raise RuntimeError(traceback.format_exc())
 
 	tajima_results = popgen_dir + hg + '.tajima.txt'
 	rscript_tajimaD_cmd = ["Rscript", RSCRIPT_FOR_TAJIMA, codon_alignment_fasta, tajima_results]
-	if self.logObject:
-		self.logObject.info('Running R pegas for calculating Tajima\'s D from codon alignment with the following command: %s' % ' '.join(
+	if logObject:
+		logObject.info('Running R pegas for calculating Tajima\'s D from codon alignment with the following command: %s' % ' '.join(
 			rscript_tajimaD_cmd))
 	try:
 		subprocess.call(' '.join(rscript_tajimaD_cmd), shell=True, stdout=subprocess.DEVNULL,
 						stderr=subprocess.DEVNULL,
 						executable='/bin/bash')
-		if self.logObject:
-			self.logObject.info('Successfully ran: %s' % ' '.join(rscript_tajimaD_cmd))
+		if logObject:
+			logObject.info('Successfully ran: %s' % ' '.join(rscript_tajimaD_cmd))
 	except Exception as e:
-		if self.logObject:
-			self.logObject.error('Had an issue running: %s' % ' '.join(rscript_tajimaD_cmd))
-			self.logObject.error(traceback.format_exc())
+		if logObject:
+			logObject.error('Had an issue running: %s' % ' '.join(rscript_tajimaD_cmd))
+			logObject.error(traceback.format_exc())
 		raise RuntimeError(traceback.format_exc())
 
 	tajimas_d = "NA"
@@ -783,17 +912,15 @@ def parseCodonAlignmentStats(inputs):
 					except:
 						pass
 
-	prop_samples_with_cog = len(samples) / float(len(set(self.bgc_sample.values())))
+	prop_samples_with_cog = len(samples) / float(len(set(bgc_sample.values())))
 
-	hg_info = [hg, '; '.join(products), self.hg_order_scores[hg], self.hg_prop_multi_copy[hg],
-				median_gene_length,
-				is_core, len(seqs), prop_samples_with_cog, tajimas_d, total_core_codons,
-				total_variable_codons,
-				nonsynonymous_sites, synonymous_sites, dn_ds, '; '.join(all_domains)]
+	hg_info = [hg, '; '.join(products), hg_order_scores[hg], hg_prop_multi_copy[hg],
+				median_gene_length, is_core, len(seqs), prop_samples_with_cog, tajimas_d, total_core_codons,
+				total_variable_codons, nonsynonymous_sites, synonymous_sites, dn_ds, '; '.join(all_domains)]
 
-	if self.bgc_population:
+	if sample_population:
 		population_samples = defaultdict(set)
-		for sp in self.sample_population.items():
+		for sp in sample_population.items():
 			population_samples[sp[1]].add(sp[0])
 
 		sample_seqs = {}

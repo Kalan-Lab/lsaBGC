@@ -115,7 +115,7 @@ def lsaBGC_PopGene():
 
     # Step 6: Analyze codon alignments and parse population genetics and conservation stats
     logObject.info("Beginning population genetics analysis of each codon alignment.")
-    GCF_Object.runPopulationGeneticsAnalysis(outdir)
+    GCF_Object.runPopulationGeneticsAnalysis(outdir, cores=cores)
     logObject.info("")
 
     # Close logging object and exit
