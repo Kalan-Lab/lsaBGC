@@ -98,7 +98,7 @@ class GCF(Pan):
 
 		# read in list of colors
 		dir_path = '/'.join(os.path.dirname(os.path.realpath(__file__)).split('/')[:-1]) + '/'
-		colors_file = dir_path + 'colors_200.txt'
+		colors_file = dir_path + 'other/colors_200.txt'
 		colors = []
 		with open(colors_file) as ocf:
 			colors = [x.strip() for x in ocf.readlines()]
