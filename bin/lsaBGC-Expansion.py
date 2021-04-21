@@ -39,7 +39,7 @@ def create_parser():
 
     return args
 
-def lsaBGC_HMMExpansion():
+def lsaBGC_Expansion():
     """
     Void function which runs primary workflow for program.
     """
@@ -142,4 +142,4 @@ def lsaBGC_HMMExpansion():
     sys.exit(0)
 
 if __name__ == '__main__':
-    lsaBGC_HMMExpansion()
+    lsaBGC_Expansion()

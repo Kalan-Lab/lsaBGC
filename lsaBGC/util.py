@@ -5,12 +5,114 @@ from Bio.Seq import Seq
 import logging
 import subprocess
 import statistics
+from operator import itemgetter
 from collections import defaultdict
 import random
 
+def createBGCGenbank(full_genbank_file, new_genbank_file, scaffold, start_coord, end_coord):
+	"""
+	Function to prune full genome-sized Genbank for only features in BGC of interest.
+	"""
+	try:
+		ngf_handle = open(new_genbank_file, 'w')
 
+		with open(full_genbank_file) as ogbk:
+			for rec in recs:
+				if not rec.id == scaffold: continue
+				original_seq = str(rec.seq)
+				filtered_seq = ""
+				if end_coord == len(original_seq):
+					filtered_seq = original_seq[start_coord - 1:]
+				else:
+					filtered_seq = original_seq[start_coord - 1:end_coord]
+
+				new_seq_object = Seq(filtered_seq)
+
+				updated_rec = copy.deepcopy(rec)
+				updated_rec.seq = new_seq_object
+
+				updated_features = []
+				for feature in rec.features:
+					start = min([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')])
+					end = max([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')])
+
+					feature_coords = set(range(start, end + 1))
+					if len(feature_coords.intersection(pruned_coords)) > 0:
+						updated_start = start - start_coord + 1
+						updated_end = end - start_coord + 1
+
+						if end > end_coord: updated_end = end_coord - start_coord + 1
+						if start < start_coord: updated_start = 1
+
+						strand = 1
+						if '(-)' in str(feature.location):
+							strand = -1
+
+						updated_location = FeatureLocation(updated_start - 1, updated_end, strand=strand)
+						if feature.type == 'CDS':
+							print(refined_genbank_file + '\t' + feature.qualifiers.get('locus_tag')[0] + '\t' + str(
+								strand) + '\t' + str(updated_start) + '\t' + str(updated_end) + '\t' + str(
+								len(filtered_seq[updated_start - 1:updated_end]) / 3.0))
+						updated_feature = copy.deepcopy(feature)
+
+						updated_feature.location = updated_location
+						updated_features.append(updated_feature)
+				updated_rec.features = updated_features
+				SeqIO.write(updated_rec, ngf_handle, 'genbank')
+		ngf_handle.close()
+	except Exception as e:
+		raise RuntimeError(traceback.format_exc())
+
+def parseGenbankAndFindBoundaryGenes(sample_genbank, distance_to_scaffold_boundary=2000):
+	"""
+	Function to parse Genbanks from Prokka and return a dictionary of genes per scaffold, gene to scaffold, and a
+	set of genes which lie on the boundary of scaffolds.
+
+	:param sample_genbank: Prokka generated Genbank file.
+	:param distance_to_scaffold_boundary: Distance to scaffold edge considered as boundary.
+
+	:return gene_to_scaffold: Dictionary mapping each gene's locus tag to the scaffold it is found on.
+	:return scaffold_genes: Dictionary with keys as scaffolds and values as a set of genes found on that scaffold.
+	:return boundary_genes: Set of gene locus tag ids which are found within proximity to scaffold edges.
+	"""
+
+	gene_location = {}
+	scaffold_genes = defaultdict(set)
+	boundary_genes = set([])
+	gene_id_to_order = defaultdict(dict)
+	gene_order_to_id = defaultdict(dict)
+
+	with open(sample_genbank) as osg:
+		for rec in SeqIO.parse(osg, 'genbank'):
+			scaffold = rec.id
+			scaffold_length = len(str(rec.seq))
+			boundary_ranges = set(range(1, distance_to_scaffold_boundary+1)).union(set(range(scaffold_length-distance_to_scaffold_boundary, scaffold_length + 1)))
+			gene_starts = []
+			for feature in rec.features:
+				if not feature.type == 'CDS': continue
+				locus_tag = feature.qualifiers.get('locus_tag')[0]
+				start = min([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')])
+				end = max([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')])
+
+				gene_location[locus_tag] = {'scaffold': scaffold, 'start': start, 'end:': end}
+				scaffold_genes[scaffold].add(gene)
+
+				gene_range = set(start, end+1)
+				if len(gene_range.intersection(boundary_ranges)) > 0:
+					bounary_genes.add(locus_tag)
+
+				gene_starts.append([locus_tag, start])
+
+			for i, g in enumerate(sorted(gene_starts, key=itemgetter(1))):
+				gene_id_to_order[scaffold][g[0]] = i
+				gene_order_to_id[scaffold][i] = g[0]
+
+	return([gene_location, scaffold_genes, boundary_genes, gene_id_to_order, gene_order_to_id])
 
 def calculateMashPairwiseDifferences(fasta_listing_file, outdir, name, sketch_size, cores, logObject):
+	"""
+
+	"""
 	mash_db = outdir + name
 	fastas = []
 	fasta_to_name = {}
