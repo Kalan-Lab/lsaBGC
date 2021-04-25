@@ -8,9 +8,6 @@ from operator import itemgetter
 import traceback
 import copy
 
-FLANK_SIZE = 500
-
-
 class BGC:
 	def __init__(self, bgc_genbank, bgc_id, comprehensive_parsing=True):
 		self.bgc_genbank = bgc_genbank
@@ -19,7 +16,7 @@ class BGC:
 		self.cluster_information = None
 		self.parseGenbanks(comprehensive_parsing=comprehensive_parsing)
 
-	def parseGenbanks(self, comprehensive_parsing=True):
+	def parseGenbanks(self, comprehensive_parsing=True, flank_size = 500):
 		"""
 		Function to parse an AntiSMASH Genbank file. Values of the object
 		"""
@@ -101,8 +98,8 @@ class BGC:
 								if len(drange.intersection(grange)) > 0:
 									gene_domains.append(d)
 
-							flank_start = start - FLANK_SIZE
-							flank_end = end + FLANK_SIZE
+							flank_start = start - flank_size
+							flank_end = end + flank_size
 							if flank_start < 0: flank_start = 0
 							if flank_end >= len(full_sequence): flank_end = None
 							if end >= len(full_sequence): end = None

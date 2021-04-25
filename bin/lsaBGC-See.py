@@ -30,7 +30,8 @@ def create_parser():
     parser.add_argument('-i', '--gcf_id', help="GCF identifier.", required=False, default='GCF_X')
     parser.add_argument('-s', '--species_phylogeny', help="The species phylogeny in Newick format.", required=False, default=None)
     parser.add_argument('-c', '--cores', type=int, help="Number of cores to use for MCL step.", required=False, default=1)
-    parser.add_argument('-p', '--create_core_gcf_phylogeny', action='store_true', help="Create phylogeny from core COGs.", required=False, default=False)
+    parser.add_argument('-p', '--create_gcf_phylogeny', action='store_true', help="Create phylogeny from sequences of homolog groups in GCF.", required=False, default=False)
+    parser.add_argument('-f', '--only_scc', action='store_true', help="Use only single-copy-core homolog groups for constructing GCF phylogeny.", required=False, default=False)
     args = parser.parse_args()
     return args
 
@@ -68,7 +69,8 @@ def lsaBGC_See():
     gcf_id = myargs.gcf_id
     species_phylogeny = myargs.species_phylogeny
     cores = myargs.cores
-    create_core_gcf_phylogeny = myargs.create_core_gcf_phylogeny
+    create_gcf_phylogeny = myargs.create_gcf_phylogeny
+    only_scc = myargs.only_scc
 
     """
     START WORKFLOW
@@ -81,9 +83,9 @@ def lsaBGC_See():
     logObject.info("Saving parameters for future provedance.")
     parameters_file = outdir + 'Parameter_Inputs.txt'
     parameter_values = [gcf_listing_file, orthofinder_matrix_file, outdir, gcf_id, species_phylogeny, cores,
-                        create_core_gcf_phylogeny]
+                        create_gcf_phylogeny, only_scc]
     parameter_names = ["GCF Listing File", "OrthoFinder Orthogroups.csv File", "Output Directory", "GCF Identifier",
-                       "Species Phylogeny Newick File", "Cores", "Create GCF Phylogeny?"]
+                       "Species Phylogeny Newick File", "Cores", "Create GCF Phylogeny?", "Use only SCC Homolog Groups for Creating GCF Phylogeny?"]
     util.logParametersToFile(parameters_file, parameter_names, parameter_values)
     logObject.info("Done saving parameters!")
 
@@ -120,19 +122,19 @@ def lsaBGC_See():
         logObject.info("iTol track written and automatic plot via gggenes/ggtree (R) rendered!")
 
     # Step 5: (Optional) Create phylogeny from single-copy-core homologs from BGCs across samples (single copy in samples, not BGCs)
-    if create_core_gcf_phylogeny:
+    if create_gcf_phylogeny:
         logObject.info("User requested construction of phylogeny from SCCs in BGC! Beginning phylogeny construction.")
         logObject.info("Beginning process of creating protein alignments for each homolog group using mafft, then translating these to codon alignments using PAL2NAL.")
-        GCF_Object.constructCodonAlignments(outdir, only_scc=True, cores=cores)
+        GCF_Object.constructCodonAlignments(outdir, only_scc=only_scc, cores=cores)
         logObject.info("All codon alignments for SCC homologs now successfully achieved!")
 
         # Step 6: Create phylogeny using FastTree2 after creating concatenated BGC alignment and processing to remove
         # sites with high rates of missing data.
         logObject.info("Creating phylogeny using FastTree2 after creating concatenated BGC alignment and processing to remove sites with high rates of missing data!")
-
-        GCF_Object.constructGCFPhylogeny(outdir + 'BGC_SCCs_Concatenated.fasta', outdir + 'BGC_SCCs_Concatenated.nwk')
+        GCF_Object.constructGCFPhylogeny(outdir + 'BGC_SCCs_Concatenated.fasta', outdir + 'BGC_SCCs_Concatenated.nwk', only_scc=only_scc)
         GCF_Object.modifyPhylogenyForSamplesWithMultipleBGCs(outdir + 'BGC_SCCs_Concatenated.nwk', outdir + 'BGC_SCCs_Concatenated.edited.nwk')
-
+        if not os.path.isfile(outdir + "BGC_Visualization.iTol.txt"):
+            GCF_Object.createItolBGCSeeTrack(outdir + 'BGCs_Visualization.iTol.txt')
         GCF_Object.visualizeGCFViaR(outdir + 'BGCs_Visualization.gggenes.txt',
                                     outdir + 'BGCs_Visualization.heatmap.txt',
                                     outdir + 'BGC_SCCs_Concatenated.edited.nwk',

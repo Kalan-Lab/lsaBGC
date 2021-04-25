@@ -13,9 +13,8 @@ dependencies:
   - bioconda::mcl=
   - bioconda::pal2nal=
   - bioconda::fasttree=
-  - bioconda::prokka=
   - bioconda::ete3
-  # - bioconda::mash= might take out lsaBGC-RelativeDivergance
+  - bioconda::mash=
   - conda-forge::r-base
   - conda-forge::r-pegas
   - conda-forge::r-ggplot2

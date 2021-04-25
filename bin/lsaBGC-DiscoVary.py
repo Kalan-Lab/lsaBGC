@@ -9,8 +9,8 @@ import os
 import sys
 from time import sleep
 import argparse
-from lsaBGC import lsaBGC
-import argcomplete
+from lsaBGC import util
+from lsaBGC.classes.GCF import GCF
 
 def create_parser():
     """ Parse arguments """
@@ -24,18 +24,18 @@ def create_parser():
 	""", formatter_class=argparse.RawTextHelpFormatter)
 
     parser.add_argument('-g', '--gcf_listing', help='BGC specifications file. Tab delimited: 1st column contains path to AntiSMASH BGC Genbank and 2nd column contains sample name.', required=True)
-    parser.add_argument('-i', '--paired_end_sequencing', help="Sequencing data specifications file. Tab delimited: 1st column contains metagenomic sample name, whereas 2nd and 3rd columns contain full paths to forward and reverse reads, respectively.", required=True)
+    parser.add_argument('-p', '--paired_end_sequencing', help="Sequencing data specifications file. Tab delimited: 1st column contains metagenomic sample name, whereas 2nd and 3rd columns contain full paths to forward and reverse reads, respectively.", required=True)
+    parser.add_argument('-i', '--gcf_id', help="GCF identifier.", required=False, default='GCF_X')
     parser.add_argument('-m', '--orthofinder_matrix', help="OrthoFinder matrix.", required=True)
     parser.add_argument('-o', '--output_directory', help="Prefix for output files.", required=True)
     parser.add_argument('-a', '--codon_alignments', help="File listing the codon alignments for each homolog group in the GCF. Can be found as part of PopGene output.", required=True)
     parser.add_argument('-c', '--cores', type=int, help="The number of cores to use.", required=False, default=1)
 
-    argcomplete.autocomplete(parser)
     args = parser.parse_args()
 
     return args
 
-def lsaBGC_MetaNovelty():
+def lsaBGC_DiscoVary():
     """
     Void function which runs primary workflow for program.
     """
@@ -69,83 +69,78 @@ def lsaBGC_MetaNovelty():
     PARSE OPTIONAL INPUTS
     """
 
+    gcf_id = myargs.gcf_id
     cores = myargs.cores
 
     """
     START WORKFLOW
     """
-
     # create logging object
     log_file = outdir + 'Progress.log'
-    logObject = lsaBGC.createLoggerObject(log_file)
+    logObject = util.createLoggerObject(log_file)
 
     # Step 0: Log input arguments and update reference and query FASTA files.
     logObject.info("Saving parameters for future provedance.")
     parameters_file = outdir + 'Parameter_Inputs.txt'
-    parameter_values = [gcf_listing_file, orthofinder_matrix_file, paired_end_sequencing_file, outdir, cores]
+    parameter_values = [gcf_listing_file, orthofinder_matrix_file, paired_end_sequencing_file, outdir, gcf_id, cores]
     parameter_names = ["GCF Listing File", "OrthoFinder Orthogroups.csv File", "Paired-Sequencing Listing File",
-                       "Output Directory", "Cores"]
-    lsaBGC.logParametersToFile(parameters_file, parameter_names, parameter_values)
+                       "Output Directory", "GCF Identifier", "Cores"]
+    util.logParametersToFile(parameters_file, parameter_names, parameter_values)
     logObject.info("Done saving parameters!")
+
+    # Create GCF object
+    GCF_Object = GCF(gcf_listing_file, gcf_id=gcf_id, logObject=logObject)
 
     # Step 1: Process GCF listings file
     logObject.info("Processing BGC Genbanks from GCF listing file.")
-    bgc_gbk, bgc_genes, comp_gene_info, all_genes, bgc_sample, sample_bgcs = lsaBGC.readInBGCGenbanksPerGCF(gcf_listing_file, logObject)
+    GCF_Object.readInBGCGenbanks(comprehensive_parsing=True)
     logObject.info("Successfully parsed BGC Genbanks and associated with unique IDs.")
 
-    """
-    import json
-    with open('bgc_gbk.json', 'w') as fp: json.dump(bgc_gbk, fp)
-    with open('comp_gene_info.json', 'w') as fp: json.dump(comp_gene_info, fp)
-    with open('all_genes.json', 'w') as fp: json.dump(all_genes, fp)
-    with open('bgc_sample.json', 'w') as fp: json.dump(bgc_sample, fp)
-    with open('sample_bgcs.json', 'w') as fp: json.dump(sample_bgcs, fp)
-
-    with open('bgc_gbk.json', 'w') as fp: bgc_gbk = json.load(fp)
-    with open('comp_gene_info.json', 'w') as fp: comp_gene_info = json.load(fp)
-    with open('all_genes.json', 'w') as fp: all_genes = json.load(fp)
-    with open('bgc_sample.json', 'w') as fp: bgc_sample = json.load(fp)
-    with open('sample_bgcs.json', 'w') as fp: sample_bgcs = json.load(fp)
-    """
-
-    
     # Step 2: Parse OrthoFinder Homolog vs Sample Matrix and associate each homolog group with a color
     logObject.info("Starting to parse OrthoFinder homolog vs sample information.")
-    gene_to_cog, cog_genes, cog_prop_multicopy = lsaBGC.parseOrthoFinderMatrix(orthofinder_matrix_file, all_genes, calc_prop_multicopy=True)
+    gene_to_hg, hg_genes, hg_median_copy_count, hg_prop_multi_copy = util.parseOrthoFinderMatrix(orthofinder_matrix_file, GCF_Object.pan_genes)
+    GCF_Object.inputHomologyInformation(gene_to_hg, hg_genes, hg_median_copy_count, hg_prop_multi_copy)
     logObject.info("Successfully parsed homolog matrix.")
 
     # Step 3: Create database of genes with surrounding flanks and, independently, cluster them into allele groups / haplotypes.
     logObject.info("Extracting and clustering GCF genes with their flanks.")
-    bowtie2_reference, instances_to_haplotypes = lsaBGC.extractGeneWithFlanksAndCluster(bgc_genes, comp_gene_info, gene_to_cog, outdir, logObject)
+
+    genes_with_flanks_fasta = outdir + 'GCF_Genes.fasta'
+    cd_hit_clusters_fasta_file = outdir + 'GCF_Genes_Clusters.fasta'
+    cd_hit_nr_fasta_file = outdir + 'GCF_Genes_NR.fasta'
+    bowtie2_db_prefix = outdir + 'GCF_Genes'
+
+    GCF_Object.extractGeneWithFlanksAndCluster(genes_with_flanks_fasta, cd_hit_clusters_fasta_file, cd_hit_nr_fasta_file, bowtie2_db_prefix)
+
     logObject.info("Successfully extracted genes with flanks and clustered them into discrete haplotypes.")
 
     # Step 4: Align paired-end reads to database genes with surrounding flanks
     bowtie2_outdir = outdir + 'Bowtie2_Alignments/'
     if not os.path.isfile(bowtie2_outdir): os.system('mkdir %s' % bowtie2_outdir)
-    logObject.info("")
-    lsaBGC.runBowtie2Alignments(bowtie2_reference, paired_end_sequencing_file, bowtie2_outdir, cores, logObject)
-    logObject.info("")
+    logObject.info("Running Bowtie2 alignment of paired-end sequencing reads against database of GCF genes with surrounding flanking sequences.")
+    #util.runBowtie2Alignments(bowtie2_db_prefix, paired_end_sequencing_file, bowtie2_outdir, logObject, cores=cores)
+    logObject.info("Bowtie2 alignments completed successfully!")
 
     # Step 5: Determine haplotypes found in samples and identify supported novelty SNVs
-    results_outdir = outdir + 'Parsed_Results/'
+    results_outdir = outdir + 'SNV_Miner_and_Allele_Typing_Results/'
     if not os.path.isdir(results_outdir): os.system('mkdir %s' % results_outdir)
-    logObject.info("")
-    lsaBGC.runSNVMining(cog_genes, comp_gene_info, bowtie2_reference, paired_end_sequencing_file, instances_to_haplotypes, bowtie2_outdir, results_outdir, cores, logObject)
-    logObject.info("")
+    logObject.info("Beginning typing of homolog group alleles and mining of novel SNVs.")
+    GCF_Object.runSNVMining(paired_end_sequencing_file, cd_hit_nr_fasta_file, bowtie2_outdir, results_outdir, cores=cores)
+    logObject.info("Successfully typed alleles and mined for novel SNVs.")
 
     # Step 6: Construct summary matrices
-    logObject.info("")
-    lsaBGC.createSummaryMatricesForMetaNovelty(paired_end_sequencing_file, results_outdir, outdir, logObject)
-    logObject.info("")
+    logObject.info("Consolidating allele typing results into matrix formats.")
+    GCF_Object.createSummaryMatricesForMetaNovelty(paired_end_sequencing_file, results_outdir, outdir)
+    logObject.info("Successfully constructed matrices of allele typings.")
 
     # Step 7: Create Novelty Report
-    logObject.info("")
-    lsaBGC.generateNoveltyReport(results_outdir, codon_alignments_file, cog_prop_multicopy, comp_gene_info, outdir, logObject)
-    logObject.info("")
+    logObject.info("Generating report of novel SNVs found across paire-end sequencing reads.")
+    GCF_Object.generateNoveltyReport(results_outdir, codon_alignments_file, outdir)
+    logObject.info("Successfully generated novelty SNV report.")
 
     # Close logging object and exit
     lsaBGC.closeLoggerObject(logObject)
     sys.exit(0)
 
 if __name__ == '__main__':
-    lsaBGC_MetaNovelty()
+    lsaBGC_DiscoVary()

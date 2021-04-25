@@ -2,12 +2,141 @@ import os
 import sys
 from Bio import SeqIO
 from Bio.Seq import Seq
+from Bio.SeqRecord import SeqRecord
+from Bio.SeqFeature import SeqFeature, FeatureLocation
 import logging
 import subprocess
 import statistics
 from operator import itemgetter
 from collections import defaultdict
 import random
+import traceback
+import multiprocessing
+import copy
+import pysam
+
+
+def read_pair_generator(bam, region_string=None, start=None, stop=None):
+	"""
+    Function taken from: https://www.biostars.org/p/306041/
+    Generate read pairs in a BAM file or within a region string.
+    Reads are added to read_dict until a pair is found.
+    """
+	read_dict = defaultdict(lambda: [None, None])
+	for read in bam.fetch(region_string, start=start, stop=stop):
+		if not read.is_proper_pair or read.is_supplementary:
+			continue
+		qname = read.query_name
+		if qname not in read_dict:
+			if read.is_read1:
+				read_dict[qname][0] = read
+			else:
+				read_dict[qname][1] = read
+		else:
+			if read.is_read1:
+				yield read, read_dict[qname][1]
+			else:
+				yield read_dict[qname][0], read
+			del read_dict[qname]
+
+def getSpeciesRelationshipsFromPhylogeny(species_phylogeny, samples_in_gcf):
+	samples_in_phylogeny = set([])
+	t = Tree(species_phylogeny)
+	for leaf in t:
+		samples_in_phylogeny.add(str(leaf).strip('\n').lstrip('-'))
+
+	pairwise_distances = defaultdict(lambda: defaultdict(float))
+	for s1 in samples_in_gcf.intersection(samples_in_phylogeny):
+		for s2 in samples_in_gcf.intersection(samples_in_phylogeny):
+			try:
+				s1_s2_dist = t.get_distance(s1, s2)
+				pairwise_distances[s1][s2] = s1_s2_dist
+			except:
+				pass
+	return ([pairwise_distances, samples_in_phylogeny])
+
+
+
+def runBowtie2Alignments(bowtie2_reference, paired_end_sequencing_file, bowtie2_outdir, logObject, cores=1):
+	"""
+	Wrapper function for running Bowtie2 alignments to reference database/index
+
+	:param bowtie2_reference: path to Bowtie2 reference/index
+	:param paired_end_sequencing_file: tab delimited file with three columns: (1) sample name (2) path to forward
+									   reads and (3) path to reverse reads
+	:param bowtie2_outdir: Path to directory where Bowtie2 results should be written
+	:param logObject: logging object for documentation
+	:param cores: number of cores (total) to use. If more than 4 cores provided, then parallel Bowtie2 jobs with 4 cores
+				  each will be started.
+	"""
+	bowtie2_cores = cores
+	bowtie2_pool_size = 1
+	if cores >= 4:
+		bowtie2_cores = 4
+		bowtie2_pool_size = int(cores / 4)
+
+	try:
+		bowtie2_inputs = []
+		with open(paired_end_sequencing_file) as opesf:
+			for line in opesf:
+				line = line.strip()
+				sample, frw_read, rev_read = line.split('\t')
+				bowtie2_inputs.append([sample, frw_read, rev_read, bowtie2_reference, bowtie2_outdir, bowtie2_cores, logObject])
+		p = multiprocessing.Pool(bowtie2_pool_size)
+		p.map(bowtie2_alignment, bowtie2_inputs)
+		p.close()
+	except Exception as e:
+		logObject.error("Issues in setting up and running Bowtie2 alignments.")
+		logObject.error(traceback.format_exc())
+		raise RuntimeError(traceback.format_exc())
+
+def bowtie2_alignment(input_args):
+	"""
+	Function to perform Bowtie2 alignment of paired-end reads to a database/reference and post-processing of alignment
+	file with samtools (e.g. convert to BAM format, sort BAM file, and index it).
+	"""
+	sample, frw_read, rev_read, bowtie2_reference, bowtie2_outdir, bowtie2_cores, logObject = input_args
+
+	sam_file = bowtie2_outdir + sample + '.sam'
+	bam_file = bowtie2_outdir + sample + '.bam'
+	bam_file_sorted = bowtie2_outdir + sample + '.sorted.bam'
+	bam_file_filtered = bowtie2_outdir + sample + '.filtered.bam'
+	bam_file_filtered_sorted = bowtie2_outdir + sample + '.filtered.sorted.bam'
+
+	bowtie2_cmd = ['bowtie2', '--very-sensitive', '--no-mixed', '--no-discordant', '--no-unal', '-a', '-x',
+				   bowtie2_reference, '-1', frw_read, '-2', rev_read, '-S', sam_file, '-p', str(bowtie2_cores)]
+	samtools_view_cmd = ['samtools', 'view', '-h', '-Sb', sam_file, '>', bam_file]
+	samtools_sort_cmd = ['samtools', 'sort', '-@', str(bowtie2_cores), bam_file, '-o', bam_file_sorted]
+	samtools_index_cmd = ['samtools', 'index', bam_file_sorted]
+	samtools_sort_cmd_2 = ['samtools', 'sort', '-@', str(bowtie2_cores), bam_file_filtered, '-o', bam_file_filtered_sorted]
+	samtools_index_cmd_2 = ['samtools', 'index', bam_file_filtered_sorted]
+
+	try:
+		run_cmd(bowtie2_cmd, logObject)
+		run_cmd(samtools_view_cmd, logObject)
+		run_cmd(samtools_sort_cmd, logObject)
+		run_cmd(samtools_index_cmd, logObject)
+
+		bam_handle = pysam.AlignmentFile(bam_file_sorted, 'rb')
+		filt_bam_handle = pysam.AlignmentFile(bam_file_filtered, "wb", template=bam_handle)
+
+		for read in bam_handle.fetch():
+			if not read.is_proper_pair or read.is_supplementary: continue
+			filt_bam_handle.write(read)
+
+		filt_bam_handle.close()
+		bam_handle.close()
+
+		run_cmd(samtools_sort_cmd_2, logObject)
+		run_cmd(samtools_index_cmd_2, logObject)
+
+		os.system(
+			"rm -f %s %s %s %s %s" % (sam_file, bam_file, bam_file_sorted, bam_file_filtered, bam_file_sorted + '.bai'))
+	except Exception as e:
+		if bowtie2_outdir != "" and sample != "":
+			os.system('rm -f %s/%s*' % (bowtie2_outdir, sample))
+		raise RuntimeError(traceback.format_exc())
+
 
 def createBGCGenbank(full_genbank_file, new_genbank_file, scaffold, start_coord, end_coord):
 	"""
@@ -15,9 +144,9 @@ def createBGCGenbank(full_genbank_file, new_genbank_file, scaffold, start_coord,
 	"""
 	try:
 		ngf_handle = open(new_genbank_file, 'w')
-
+		pruned_coords = set(range(start_coord, end_coord+1))
 		with open(full_genbank_file) as ogbk:
-			for rec in recs:
+			for rec in SeqIO.parse(ogbk, 'genbank'):
 				if not rec.id == scaffold: continue
 				original_seq = str(rec.seq)
 				filtered_seq = ""
@@ -49,10 +178,6 @@ def createBGCGenbank(full_genbank_file, new_genbank_file, scaffold, start_coord,
 							strand = -1
 
 						updated_location = FeatureLocation(updated_start - 1, updated_end, strand=strand)
-						if feature.type == 'CDS':
-							print(refined_genbank_file + '\t' + feature.qualifiers.get('locus_tag')[0] + '\t' + str(
-								strand) + '\t' + str(updated_start) + '\t' + str(updated_end) + '\t' + str(
-								len(filtered_seq[updated_start - 1:updated_end]) / 3.0))
 						updated_feature = copy.deepcopy(feature)
 
 						updated_feature.location = updated_location
@@ -94,12 +219,12 @@ def parseGenbankAndFindBoundaryGenes(sample_genbank, distance_to_scaffold_bounda
 				start = min([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')])
 				end = max([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')])
 
-				gene_location[locus_tag] = {'scaffold': scaffold, 'start': start, 'end:': end}
-				scaffold_genes[scaffold].add(gene)
+				gene_location[locus_tag] = {'scaffold': scaffold, 'start': start, 'end': end}
+				scaffold_genes[scaffold].add(locus_tag)
 
-				gene_range = set(start, end+1)
+				gene_range = set(range(start, end+1))
 				if len(gene_range.intersection(boundary_ranges)) > 0:
-					bounary_genes.add(locus_tag)
+					boundary_genes.add(locus_tag)
 
 				gene_starts.append([locus_tag, start])
 
@@ -216,6 +341,21 @@ def parseOrthoFinderMatrix(orthofinder_matrix_file, relevant_gene_lts):
 				hg_median_gene_counts[hg] = statistics.median(gene_counts)
 
 	return ([gene_to_hg, hg_genes, hg_median_gene_counts, hg_multicopy_proportion])
+
+
+def run_cmd(cmd, logObject, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL):
+	"""
+	Simple function to run a single command through subprocess with logging.
+	"""
+	logObject.info('Running the following command: %s' % ' '.join(cmd))
+	try:
+		subprocess.call(' '.join(cmd), shell=True, stdout=stdout, stderr=stderr, executable='/bin/bash')
+		logObject.info('Successfully ran: %s' % ' '.join(cmd))
+	except Exception as e:
+		logObject.error('Had an issue running: %s' % ' '.join(cmd))
+		logObject.error(traceback.format_exc())
+		raise RuntimeError('Had an issue running: %s' % ' '.join(cmd))
+
 
 def multiProcess(input):
 	"""

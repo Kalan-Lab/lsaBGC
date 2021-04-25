@@ -3,22 +3,10 @@ library(ggtree)
 library(gggenes)
 library(ape)
 library(tidyverse)
-library(cowplot)
 library(phytools)
+library(aplot)
+
 args = commandArgs(trailingOnly=TRUE)
-
-### following function taken/adapted from Thomas Hackl's blog: https://thackl.github.io/ggtree-composite-plots
-# overwrite the default expand for continuous scales
-scale_y_tree <- function(expand=expand_scale(0, 0.6), ...){
-    scale_y_continuous(expand=expand, ...)
-}
-
-tree_y <-  function(ggtree, data){
-  if(!inherits(ggtree, "ggtree")) {
-    stop("not a ggtree object")
-  }
-  left_join(select(data, label), select(ggtree$data, label, y)) %>% pull(y)
-}
 
 phylo.tree_file <- args[1]
 genes.data_file <- args[2]
@@ -33,12 +21,12 @@ heatmap.data <- as.tibble(read.table(heatmap.data_file, header=T, sep='\t'))
 og_colors <- c(genes.data$og_color, '#FFFFFF')
 names(og_colors) <- c(genes.data$og, 'Absent')
 
-pdf(pdf_file, height=10, width=20)
-
-gg_tr <- ggtree(phylo.tree) + geom_tiplab(align=TRUE, size=0) + scale_x_continuous(expand=expand_scale(0.2)) + scale_y_tree()
-gg_gn <- ggplot(genes.data, aes(xmin = start, xmax = end, y = tree_y(gg_tr, genes.data), fill = og, forward = forward)) +
+pdf(pdf_file, height=20, width=20)
+gg_tr <- ggtree(phylo.tree) + geom_tiplab(align=TRUE, size=0) + theme_void()
+gg_gn <- ggplot(genes.data, aes(xmin = start, xmax = end, y = label, fill = og, forward = forward)) +
           geom_gene_arrow(show.legend=F) + theme_void() + scale_fill_manual(values=og_colors)
-plot_grid(gg_tr, gg_gn, rel_widths=c(1,4))
+gg_gn %>% insert_left(gg_tr, width=0.20)
+
 
 #label\tog\tog_presence\tog_count
 

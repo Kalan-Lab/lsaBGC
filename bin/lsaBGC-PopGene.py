@@ -99,7 +99,7 @@ def lsaBGC_PopGene():
     logObject.info("Successfully parsed homolog matrix.")
 
     # Step 3: Calculate homolog order index (which can be used to roughly predict order of homologs within BGCs)
-    GCF_Object.determineCogOrderIndex()
+    GCF_Object.determineHgOrderIndex()
 
     # Step 4: (Optional) Parse population specifications file, if provided by user
     sample_population = None
@@ -110,7 +110,7 @@ def lsaBGC_PopGene():
     # Step 5: Create codon alignments if not provided a directory with them (e.g. one produced by lsaBGC-See.py)
     logObject.info("User requested construction of phylogeny from SCCs in BGC! Beginning phylogeny construction.")
     logObject.info("Beginning process of creating protein alignments for each homolog group using mafft, then translating these to codon alignments using PAL2NAL.")
-    GCF_Object.constructCodonAlignments(outdir, only_scc=False, cores=cores)
+    GCF_Object.constructCodonAlignments(outdir, only_scc=False, cores=cores, list_alignments=True)
     logObject.info("All codon alignments for SCC homologs now successfully achieved!")
 
     # Step 6: Analyze codon alignments and parse population genetics and conservation stats

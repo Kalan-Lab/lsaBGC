@@ -34,6 +34,10 @@ def create_parser():
     parser.add_argument('-o', '--output_directory', help="Path to output directory.", required=True)
     parser.add_argument('-l', '--lineage', type=str, help="The lineage under investigation.", required=False,
                         default="Lineage")
+    parser.add_argument('-cp', '--conda_path', type=str,
+                        help="Path to anaconda/miniconda installation directory itself.", required=True)
+    parser.add_argument('-pe', '--prokka_env_path', type=str, help="Path to conda environment for Prokka.",
+                        required=True)
     parser.add_argument('-c', '--cores', type=int, help="The number of cores to use.", required=False, default=1)
     args = parser.parse_args()
 
@@ -53,6 +57,10 @@ def lsaBGC_Expansion():
     orthofinder_matrix_file = os.path.abspath(myargs.orthofinder_matrix)
     assembly_listing_file = os.path.abspath(myargs.assembly_listing)
     outdir = os.path.abspath(myargs.output_directory) + '/'
+    conda_path = myargs.conda_path
+    prokka_env_path = os.path.abspath(myargs.prokka_env_path) + '/'
+
+    prokka_load_code = '. %s/etc/profile.d/conda.sh && conda activate %s &&' % (conda_path, prokka_env_path)
 
     ### vet input files quickly
     try:
@@ -63,7 +71,7 @@ def lsaBGC_Expansion():
         raise RuntimeError('One or more of the input files provided, does not exist. Exiting now ...')
 
     if os.path.isdir(outdir):
-        sys.stderr.write("Output directory exists. Overwriting in 5 seconds ...\n ")
+        sys.stderr.write("Output directory exists. Overwriting in 5 seconds ...\n")
         sleep(5)
     else:
         os.system('mkdir %s' % outdir)
@@ -120,6 +128,7 @@ def lsaBGC_Expansion():
     prokka_outdir = outdir + 'Prokka_Results/'
     prokka_proteomes_dir = prokka_outdir + 'Prokka_Proteomes/'
     prokka_genbanks_dir = prokka_outdir + 'Prokka_Genbanks/'
+    """
     try:
         if not os.path.isdir(prokka_outdir): os.system('mkdir %s' % prokka_outdir)
         if not os.path.isdir(prokka_proteomes_dir): os.system('mkdir %s' % prokka_proteomes_dir)
@@ -129,13 +138,14 @@ def lsaBGC_Expansion():
         raise RuntimeError("Can't create Prokka results directories. Exiting now ...")
 
     logObject.info("Running/setting-up Prokka for all samples!")
-    processing.runProkka(sample_assemblies, prokka_outdir, prokka_proteomes_dir, prokka_genbanks_dir,
+    processing.runProkka(sample_assemblies, prokka_outdir, prokka_proteomes_dir, prokka_genbanks_dir, prokka_load_code,
                          lineage, cores, locus_tag_length, logObject, skip_annotation_flag=True)
     logObject.info("Successfully ran/set-up Prokka.")
+    """
 
     # Step 6: Search HMMs in proteomes from comprehensive set of BGCs
     logObject.info("Searching for homolog group HMMs in proteins extracted from comprehensive list of BGCs.")
-    GCF_Object.runHMMScanAndAssignBGCsToGCF(outdir, prokka_genbanks_dir, prokka_proteomes_dir, orthofinder_matrix_file, cores=1)
+    GCF_Object.runHMMScanAndAssignBGCsToGCF(outdir, prokka_genbanks_dir, prokka_proteomes_dir, orthofinder_matrix_file, cores=cores)
 
     # Close logging object and exit
     util.closeLoggerObject(logObject)

@@ -5,6 +5,7 @@ import traceback
 import statistics
 import random
 import subprocess
+import pysam
 import multiprocessing
 from scipy.stats import f_oneway
 from ete3 import Tree
@@ -32,7 +33,7 @@ class GCF(Pan):
 		# General variables
 		self.hg_to_color = None
 		self.hg_order_scores = defaultdict(int)
-		self.scc_homologs_genome_wide =set([])
+		self.specific_homologs =set([])
 		self.scc_homologs = set([])
 		self.core_homologs = set([])
 
@@ -44,6 +45,9 @@ class GCF(Pan):
 
 		# Concatenated HMMER3 HMM profiles database of homolog groups in GCF
 		self.concatenated_profile_HMM = None
+
+		# Dictionary of individual genes to haplotype/allelic representative gene
+		self.instance_to_haplotype = {}
 
 	def modifyPhylogenyForSamplesWithMultipleBGCs(self, input_phylogeny, result_phylogeny):
 		"""
@@ -66,7 +70,7 @@ class GCF(Pan):
 						child_node = t.search_nodes(name=bgc_id)[0]
 						child_node.dist = 0
 						if bgc_id != og_node_name: number_of_added_leaves += 1
-			t.write(format=1, outfile=result_phylogeny)
+			t.write(format=0, outfile=result_phylogeny)
 			if self.logObject:
 				self.logObject.info(
 					"New phylogeny with an additional %d leafs to reflect samples with multiple BGCs can be found at: %s." % (
@@ -333,7 +337,7 @@ class GCF(Pan):
 		if self.logObject:
 			self.logObject.info('Plotting completed (I think successfully)!')
 
-	def constructCodonAlignments(self, outdir, cores=1, only_scc=False):
+	def constructCodonAlignments(self, outdir, cores=1, only_scc=False, list_alignments=False):
 		"""
 		Function to automate construction of codon alignments. This function first extracts protein and nucleotide sequnces
 		from BGC Genbanks, then creates protein alignments for each homolog group using MAFFT, and finally converts those
@@ -378,7 +382,7 @@ class GCF(Pan):
 						gid = sample_id
 					gene_sequences[gid] = tuple([nucl_seq, prot_seq])
 				samples_with_single_copy = set([s[0] for s in sample_counts.items() if s[1] == 1])
-				# check that cog is single-copy-core
+				# check that hg is single-copy-core
 				if only_scc and len(samples_with_single_copy.symmetric_difference(all_samples)) > 0:
 					continue
 				elif only_scc and self.logObject:
@@ -394,13 +398,20 @@ class GCF(Pan):
 			self.prot_alg_dir = prot_alg_dir
 			self.codo_alg_dir = codo_alg_dir
 
+			if list_alignments:
+				codon_alg_listings_file = outdir + 'Codon_Alignments_Listings.txt'
+				codon_alg_listings_handle = open(codon_alg_listings_file, 'w')
+				for f in os.listdir(codo_alg_dir):
+					codon_alg_listings_handle.write(f.split('.msa.fna')[0] + '\t' + codo_alg_dir + f + '\n')
+				codon_alg_listings_handle.close()
+
 		except Exception as e:
 			if self.logObject:
 				self.logObject.error("Issues with create protein/codon alignments of SCC homologs for BGC.")
 				self.logObject.error(traceback.format_exc())
 			raise RuntimeError(traceback.format_exc())
 
-	def constructGCFPhylogeny(self, output_alignment, output_phylogeny):
+	def constructGCFPhylogeny(self, output_alignment, output_phylogeny, only_scc=False):
 		"""
 		Function to create phylogeny based on codon alignments of SCC homolog groups for GCF.
 
@@ -409,33 +420,77 @@ class GCF(Pan):
 							     concatenated SCC homolog group alignment.
 		"""
 		try:
-			bgc_sccs = defaultdict(lambda: "")
-			fasta_data = []
-			fasta_data_tr = []
+			if only_scc:
+				bgc_sccs = defaultdict(lambda: "")
+				fasta_data = []
+				fasta_data_tr = []
 
-			for f in os.listdir(self.codo_alg_dir):
-				cog_align_msa = self.codo_alg_dir + f
-				# concatenate gene alignments
-				with open(cog_align_msa) as opm:
-					for rec in SeqIO.parse(opm, 'fasta'):
-						bgc_sccs['>' + rec.id] += str(rec.seq).upper()
+				for f in os.listdir(self.codo_alg_dir):
+					hg_align_msa = self.codo_alg_dir + f
+					# concatenate gene alignments
+					with open(hg_align_msa) as opm:
+						for rec in SeqIO.parse(opm, 'fasta'):
+							bgc_sccs['>' + rec.id] += str(rec.seq).upper()
 
-			for b in bgc_sccs:
-				fasta_data.append([b] + list(bgc_sccs[b]))
+				for b in bgc_sccs:
+					fasta_data.append([b] + list(bgc_sccs[b]))
 
-			for i, ls in enumerate(zip(*fasta_data)):
-				if i == 0:
-					fasta_data_tr.append(ls)
-				else:
-					n_count = len([x for x in ls if x == '-'])
-					if (float(n_count) / len(ls)) < 0.1:
-						fasta_data_tr.append(list(ls))
+				for i, ls in enumerate(zip(*fasta_data)):
+					if i == 0:
+						fasta_data_tr.append(ls)
+					else:
+						n_count = len([x for x in ls if x == '-'])
+						if (float(n_count) / len(ls)) < 0.1:
+							fasta_data_tr.append(list(ls))
 
-			scc_handle = open(output_alignment, 'w')
+				scc_handle = open(output_alignment, 'w')
 
-			for rec in zip(*fasta_data_tr):
-				scc_handle.write(rec[0] + '\n' + ''.join(rec[1:]) + '\n')
-			scc_handle.close()
+				for rec in zip(*fasta_data_tr):
+					scc_handle.write(rec[0] + '\n' + ''.join(rec[1:]) + '\n')
+				scc_handle.close()
+			else:
+				bgc_sccs = defaultdict(lambda: "")
+				fasta_data = []
+				fasta_data_tr = []
+
+				for f in os.listdir(self.codo_alg_dir):
+					hg_align_msa = self.codo_alg_dir + f
+					print(f)
+					# perform consensus calling
+					sample_seqs = defaultdict(list)
+					with open(hg_align_msa) as opm:
+						for rec in SeqIO.parse(opm, 'fasta'):
+							sample = rec.id.split('|')[0]
+							sample_seqs[sample].append(list(str(rec.seq).upper()))
+
+					for samp in sample_seqs:
+						samp_seqs = sample_seqs[samp]
+						consensus_seq = []
+						for alleles in zip(*samp_seqs):
+							valid_alleles = set([a for a in list(alleles) if a in set(['A', 'C', 'G', 'T'])])
+							if len(valid_alleles) == 1:
+								consensus_seq.append(list(valid_alleles)[0])
+							else:
+								consensus_seq.append('-')
+						bgc_sccs['>' + samp] += "".join(consensus_seq)
+
+				for b in bgc_sccs:
+					fasta_data.append([b] + list(bgc_sccs[b]))
+
+				for i, ls in enumerate(zip(*fasta_data)):
+					if i == 0:
+						fasta_data_tr.append(ls)
+					else:
+						n_count = len([x for x in ls if x == '-'])
+						if (float(n_count) / len(ls)) < 0.1:
+							fasta_data_tr.append(list(ls))
+
+				scc_handle = open(output_alignment, 'w')
+
+				for rec in zip(*fasta_data_tr):
+					scc_handle.write(rec[0] + '\n' + ''.join(rec[1:]) + '\n')
+				scc_handle.close()
+
 		except Exception as e:
 			if self.logObject:
 				self.logObject.error('Had issues with creating concatenated alignment of the SCC homolog groups.')
@@ -497,7 +552,7 @@ class GCF(Pan):
 				self.logObject.error(traceback.format_exc())
 			raise RuntimeError(traceback.format_exc())
 
-	def determineCogOrderIndex(self):
+	def determineHgOrderIndex(self):
 		"""
 		Function to determine an "ordering" score for homolog groups in GCF. The order score is relative to each GCF,
 		even a homolog group has a large or small order score indicates it is on the edges (beginning will be chosen
@@ -533,11 +588,11 @@ class GCF(Pan):
 					keep_support = 0
 					for c in ref_hg_directions:
 						if not c in hg_directions: continue
-						cog_weight = statistics.mean(hg_lengths[c])
+						hg_weight = statistics.mean(hg_lengths[c])
 						if hg_directions[c] == ref_hg_directions[c]:
-							keep_support += cog_weight
+							keep_support += hg_weight
 						else:
-							flip_support += cog_weight
+							flip_support += hg_weight
 
 					# reverse ordering
 					if flip_support > keep_support:
@@ -565,11 +620,11 @@ class GCF(Pan):
 		if not os.path.isdir(plots_dir): os.system('mkdir %s' % plots_dir)
 
 		final_output_handle = open(outdir + 'Ortholog_Group_Information.txt', 'w')
-		header = ['cog', 'annotation', 'cog_order_index', 'cog_median_copy_count', 'median_gene_length',
-				  'is_core_to_bgc', 'bgcs_with_cog', 'proportion_of_samples_with_cog', 'Tajimas_D', 'core_codons',
+		header = ['hg', 'annotation', 'hg_order_index', 'hg_median_copy_count', 'median_gene_length',
+				  'is_core_to_bgc', 'bgcs_with_hg', 'proportion_of_samples_with_hg', 'Tajimas_D', 'core_codons',
 				  'total_variable_codons', 'nonsynonymous_codons', 'synonymous_codons', 'dn_ds', 'all_domains']
 		if self.bgc_population != None:
-			header += ['populations_with_cog', 'population_proportion_of_members_with_cog', 'one_way_ANOVA_pvalues']
+			header += ['populations_with_hg', 'population_proportion_of_members_with_hg', 'one_way_ANOVA_pvalues']
 
 		final_output_handle.write('\t'.join(header) + '\n')
 
@@ -623,13 +678,13 @@ class GCF(Pan):
 				samples_with_single_copy = set([s[0] for s in sample_counts.items() if s[1] == 1])
 				samples_with_any_copy = set([s[0] for s in sample_counts.items() if s[1] > 0])
 
-				# check that cog is single-copy-core or just core
+				# check that hg is single-copy-core or just core
 				if len(samples_with_single_copy.symmetric_difference(all_samples)) == 0:
 					self.scc_homologs.add(hg)
-					if self.hg_prop_multi_copy[hg] == 0.0:
-						self.scc_homologs_genome_wide.add(hg)
-				if len(samples_with_any_copy.symmetric_difference(all_samples)) == 0: self.core_homologs.add(hg)
-
+				if len(samples_with_any_copy.symmetric_difference(all_samples)) == 0:
+					self.core_homologs.add(hg)
+					if self.hg_prop_multi_copy[hg] <= 0.05:
+						self.specific_homologs.add(hg)
 				if self.logObject:
 					self.logObject.info('Homolog group %s detected as SCC across samples (not individual BGCs).' % hg)
 				inputs.append([hg, sample_sequences, prot_seq_dir, prot_alg_dir, prot_hmm_dir, self.logObject])
@@ -641,7 +696,7 @@ class GCF(Pan):
 				self.logObject.info(
 					"Successfully created profile HMMs for each homolog group. Now beginning concatenation into single file.")
 			self.concatenated_profile_HMM = outdir + 'All_GCF_Homologs.hmm'
-			os.system('rm -f %s' % self.concatenated_profile_HMM)
+			os.system('rm -f %s %s.h3*' % (self.concatenated_profile_HMM, self.concatenated_profile_HMM))
 			for f in os.listdir(prot_hmm_dir):
 				os.system('cat %s >> %s' % (prot_hmm_dir + f, self.concatenated_profile_HMM))
 
@@ -660,7 +715,6 @@ class GCF(Pan):
 					self.logObject.error('Had an issue running: %s' % ' '.join(hmmpress_cmd))
 					self.logObject.error(traceback.format_exc())
 				raise RuntimeError('Had an issue running: %s' % ' '.join(hmmpress_cmd))
-			self.concatenated_profile_HMM
 
 		except:
 			if self.logObject:
@@ -689,7 +743,7 @@ class GCF(Pan):
 		for f in os.listdir(prokka_genbanks_dir):
 			sample = f.split('.gbk')[0]
 			sample_genbank = prokka_genbanks_dir + f
-			sample_proteome = prokka_proteomes_dir + f
+			sample_proteome = prokka_proteomes_dir + sample + '.faa'
 
 			gene_to_scaff, scaff_genes, bound_genes, gito, goti = util.parseGenbankAndFindBoundaryGenes(sample_genbank)
 
@@ -700,7 +754,7 @@ class GCF(Pan):
 			gene_order_to_id[sample] = goti
 
 			result_file = search_res_dir + sample + '.txt'
-			hmmscan_cmd = ['hmmscan', '--max', '--cpu', '1', '--tblout', result_file, concat_hmm_profiles, sample_proteome, self.logObject]
+			hmmscan_cmd = ['hmmscan', '--max', '--cpu', '1', '--tblout', result_file, self.concatenated_profile_HMM, sample_proteome, self.logObject]
 			hmmscan_cmds.append(hmmscan_cmd)
 
 		p = multiprocessing.Pool(cores)
@@ -711,6 +765,7 @@ class GCF(Pan):
 		sample_hg_hits_with_evalue = defaultdict(lambda: defaultdict(list))
 		scaffold_proteins = defaultdict(lambda: defaultdict(set))
 		sample_protein_to_hg = defaultdict(dict)
+		sample_hgs = defaultdict(set)
 		for f in os.listdir(prokka_genbanks_dir):
 			sample = f.split('.gbk')[0]
 			result_file = search_res_dir + sample + '.txt'
@@ -723,18 +778,18 @@ class GCF(Pan):
 					ls = line.split()
 					hg = ls[0]
 					gene_id = ls[2]
-					scaffold = gene_to_scaffold[gene_id]['scaffold']
+					scaffold = gene_location[sample][gene_id]['scaffold']
 					eval = float(ls[4])
-					if eval <= 1e-10:
-						protein_hits[protein_id].append([hg, eval, sample, scaffold])
+					if eval <= 1e-5:
+						protein_hits[gene_id].append([hg, eval, sample, scaffold])
 
 		for p in protein_hits:
 			for i, hits in enumerate(sorted(protein_hits[p], key=itemgetter(1))):
 				if i == 0:
+					sample_protein_to_hg[hits[2]][p] = hits[0]
 					sample_hgs[hits[2]].add(hits[0])
 					scaffold_proteins[hits[2]][hits[3]].add(p)
 					sample_hg_hits_with_evalue[hits[2]][hits[0]].append([p, hits[1], hits[3]])
-					scaffold_protein_to_hg[hits[2]][p] = hits[0]
 
 		expanded_gcf_list_file = outdir + 'GCF_Expanded.txt'
 		expanded_gcf_list_handle = open(expanded_gcf_list_file, 'w')
@@ -744,15 +799,16 @@ class GCF(Pan):
 				expanded_gcf_list_handle.write(line)
 
 		all_samples = set([])
-		sample_hg_to_proteins = defaultdict(lambda: defaultdict(set))
+		sample_hg_proteins = defaultdict(lambda: defaultdict(set))
 		for sample in sample_hg_hits_with_evalue:
 			sample_gcf_anchor_proteins = set([])
 			scaffold_anchor_proteins = defaultdict(set)
-			for hg in self.scc_homologs_genome_wide:
-				for i, hit in enumerate(sorted(sample_hg_hits_with_evalue[sample][hg], key=itemgetter(1))):
+			for hg in self.specific_homologs:
+				for i, hits in enumerate(sorted(sample_hg_hits_with_evalue[sample][hg], key=itemgetter(1))):
 					if i == 0:
-						sample_gcf_anchor_proteins.add(hit[0])
-						scaffold_anchor_proteins[hits[2]].add(hits[0])
+						sample_gcf_anchor_proteins.add(hits[0])
+						if hits[1] <= 1e-20:
+							scaffold_anchor_proteins[hits[2]].add(hits[0])
 
 			if len(sample_gcf_anchor_proteins) > 0:
 				number_of_sample_scaffolds_with_anchor_hgs = len(set(scaffold_anchor_proteins.keys()))
@@ -761,7 +817,7 @@ class GCF(Pan):
 					max_anchor_pos = [0, None]
 					min_anchor_pos = [100000000, None]
 
-					for protein in scaffold_anchor_proteins[sample][scaffold]:
+					for protein in list(scaffold_anchor_proteins[scaffold]):
 						anchor_protein_start = gene_location[sample][protein]['start']
 						anchor_protein_end = gene_location[sample][protein]['end']
 						if anchor_protein_start < min_anchor_pos[0]: min_anchor_pos = [anchor_protein_start, protein]
@@ -804,19 +860,31 @@ class GCF(Pan):
 								strikes += 1
 							curr_rank += 1
 
-					if number_of_sample_scaffolds_with_anchor_hgs == 1 or (number_of_sample_scaffolds_with_anchor_hgs > 1 and len(boundary_genes.intersection(scaffold_gcf_gene_ids)) > 0):
-						bgc_genbank_file = bgc_genbanks_dir + sample + '_BGC-' + str(sample_bgc_ids[sample]) + '.gbk'
+					scaffold_hgs = set([])
+					for g in scaffold_gcf_gene_ids:
+						if g in sample_protein_to_hg[sample].keys():
+							hg = sample_protein_to_hg[sample][g]
+							scaffold_hgs.add(hg)
+
+					if (number_of_sample_scaffolds_with_anchor_hgs == 1 or \
+							(number_of_sample_scaffolds_with_anchor_hgs > 1 and \
+							 len(boundary_genes[sample].intersection(scaffold_gcf_gene_ids)) > 0)) and \
+							(len(sample_hgs[sample].intersection(self.core_homologs))/len(self.core_homologs) >= 0.9) and \
+							(len(scaffold_hgs.intersection(self.core_homologs))/len(self.core_homologs) >= 0.2):
+						clean_sample_name = sample.replace('-', '_').replace(':', '_').replace('.', '_').replace('=', '_')
+						bgc_genbank_file = bgc_genbanks_dir + clean_sample_name + '_BGC-' + str(sample_bgc_ids[sample]) + '.gbk'
 						sample_bgc_ids[sample] += 1
 
 						min_bgc_pos = min([gene_location[sample][g]['start'] for g in scaffold_gcf_gene_ids])
 						max_bgc_pos = max([gene_location[sample][g]['end'] for g in scaffold_gcf_gene_ids])
 						util.createBGCGenbank(prokka_genbanks_dir + sample + '.gbk', bgc_genbank_file, scaffold, min_bgc_pos, max_bgc_pos)
-						expanded_gcf_list_handle.write('\t'.join([sample, bgc_genbank_file]) + '\n')
+						expanded_gcf_list_handle.write('\t'.join([clean_sample_name, bgc_genbank_file]) + '\n')
 
 						for g in scaffold_gcf_gene_ids:
-							hg = sample_protein_to_hg[sample][g]
-							sample_hg_to_proteins[sample][hg].add(g)
-						all_samples.add(sample)
+							if g in sample_protein_to_hg[sample].keys():
+								hg = sample_protein_to_hg[sample][g]
+								sample_hg_proteins[clean_sample_name][hg].add(g)
+						all_samples.add(clean_sample_name)
 		expanded_gcf_list_handle.close()
 
 		original_samples = []
@@ -832,7 +900,7 @@ class GCF(Pan):
 					hg = ls[0]
 					all_hgs.add(hg)
 					for j, prot in enumerate(ls[1:]):
-						sample_hg_to_proteins[original_samples[j]][hg] = sample_hg_proteins[original_samples[j]][hg].union(set(prot.split(', ')))
+						sample_hg_proteins[original_samples[j]][hg] = sample_hg_proteins[original_samples[j]][hg].union(set(prot.split(', ')))
 
 		expanded_orthofinder_matrix_file = outdir + 'Orthogroups.expanded.csv'
 		expanded_orthofinder_matrix_handle = open(expanded_orthofinder_matrix_file, 'w')
@@ -842,9 +910,491 @@ class GCF(Pan):
 		for hg in sorted(all_hgs):
 			printlist = [hg]
 			for s in sorted(all_samples):
-				printlist.append(', '.join(sample_cog_proteins[s][hg]))
+				printlist.append(', '.join(sample_hg_proteins[s][hg]))
 			expanded_orthofinder_matrix_handle.write('\t'.join(printlist) + '\n')
 		expanded_orthofinder_matrix_handle.close()
+
+	def extractGeneWithFlanksAndCluster(self, genes_with_flanks_fasta, cd_hit_clusters_fasta_file, cd_hit_nr_fasta_file, bowtie2_db_prefix):
+		"""
+		Function to extract gene sequences and surrounding flanking sequences into a FASTA file, which will then be
+		clustered using CD-HIT at both a coarse and very granular (just remove 100% redundancy) and to construct
+		a Bowtie2 reference database of the granular clustering. From the coarse clustering, representative genes
+		will be selected to depict different alleles of the gene and stored as a dictionary.
+
+		:param genes_with_flanks_fasta: Path to FASTA file which will harbor gene + flanks
+		:param cd_hit_clusters_fasta_file: Path to FASTA file which will be used to output coarse level clustering by
+										   CD-HIT
+		:param cd_hit_nr_fasta_file: Path to FASTA file which will be used to output granular level clustering by CD-HIT
+		:param bowtei2_db_prefix: Path to prefix of Bowtie2 refernece database/index to be used for aligning downstream
+		                          in the lsaBGC-DiscoVary workflow
+		"""
+		try:
+			gwff_handle = open(genes_with_flanks_fasta, 'w')
+			for bgc in self.bgc_genes:
+				for gene in self.bgc_genes[bgc]:
+					if gene in self.gene_to_hg:
+						gwff_handle.write('>' + gene + '|' + bgc + '|' + self.gene_to_hg[gene] + '\n' + self.comp_gene_info[gene]['nucl_seq_with_flanks'] + '\n')
+			gwff_handle.close()
+		except Exception as e:
+			if self.logObject:
+				self.logObject.error("Unable to extract flanking sequences of gene into FASTA file.")
+				self.logObject.error(traceback.format_exc())
+			raise RuntimeError(traceback.format_exc())
+
+		cd_hit_nr = ['cd-hit-est', '-i', genes_with_flanks_fasta, '-o', cd_hit_nr_fasta_file, '-G', '1', '-g',
+					 '1', '-d', '0', '-n', '10', '-M', '2000', '-c', '1.0', '-aL', '0.0', '-aS', '1.0', '-T', '1']
+		if self.logObject:
+			self.logObject.info('Running the following command: %s' % ' '.join(cd_hit_nr))
+		try:
+			subprocess.call(' '.join(cd_hit_nr), shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+							executable='/bin/bash')
+			if self.logObject:
+				self.logObject.info('Successfully ran: %s' % ' '.join(cd_hit_nr))
+		except Exception as e:
+			if self.logObject:
+				self.logObject.error('Had an issue running: %s' % ' '.join(cd_hit_nr))
+			raise RuntimeError('Had an issue running: %s' % ' '.join(cd_hit_nr))
+		if self.logObject:
+			self.logObject.info('Ran CD-HIT for collapsing redundancy.')
+
+		cd_hit_cluster = ['cd-hit-est', '-i', genes_with_flanks_fasta, '-o', cd_hit_clusters_fasta_file, '-G', '1',
+						  '-g',
+						  '1', '-d', '0', '-n', '10', '-M', '2000', '-c', '0.98', '-aL', '0.95', '-aS', '0.95', '-T',
+						  '1']
+		if self.logObject:
+			self.logObject.info('Running the following command: %s' % ' '.join(cd_hit_cluster))
+		try:
+			subprocess.call(' '.join(cd_hit_cluster), shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+							executable='/bin/bash')
+			if self.logObject:
+				self.logObject.info('Successfully ran: %s' % ' '.join(cd_hit_cluster))
+		except:
+			if self.logObject:
+				self.logObject.error('Had an issue running: %s' % ' '.join(cd_hit_cluster))
+			raise RuntimeError('Had an issue running: %s' % ' '.join(cd_hit_cluster))
+		if self.logObject:
+			self.logObject.info('Ran CD-HIT for clustering genes, with their flanks, into haplotype groups.')
+
+		bowtie2_build = ['bowtie2-build', cd_hit_nr_fasta_file, bowtie2_db_prefix]
+		if self.logObject:
+			self.logObject.info('Running the following command: %s' % ' '.join(bowtie2_build))
+		try:
+			subprocess.call(' '.join(bowtie2_build), shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+							executable='/bin/bash')
+			if self.logObject:
+				self.logObject.info('Successfully ran: %s' % ' '.join(bowtie2_build))
+		except:
+			if self.logObject:
+				self.logObject.error('Had an issue running: %s' % ' '.join(bowtie2_build))
+			raise RuntimeError('Had an issue running: %s' % ' '.join(bowtie2_build))
+		if self.logObject:
+			self.logObject.info('Build Bowtie2 database/index for %s' % cd_hit_nr_fasta_file)
+
+		try:
+			cd_hit_clusters_cltr_file = cd_hit_clusters_fasta_file + '.clstr'
+			assert (os.path.isfile(cd_hit_clusters_cltr_file))
+
+			cluster = []
+			with open(cd_hit_clusters_cltr_file) as off:
+				for line in off:
+					line = line.strip()
+					ls = line.split()
+					if line.startswith('>'):
+						if len(cluster) > 0:
+							for g in cluster:
+								self.instance_to_haplotype[g] = rep
+						cluster = []
+						rep = None
+					else:
+						gene_id = ls[2][1:-3]
+						cluster.append(gene_id)
+						if line.endswith('*'): rep = gene_id
+			if len(cluster) > 0:
+				if len(cluster) > 0:
+					for g in cluster:
+						self.instance_to_haplotype[g] = rep
+
+		except Exception as e:
+			if self.logObject:
+				self.logObject.error("Unable to parse CD-HIT clustering of gene sequences (with flanks) to obtain representative sequence per cluster.")
+				self.logObject.error(traceback.format_exc())
+			raise RuntimeError(traceback.format_exc())
+
+	def runSNVMining(self, paired_end_sequencing_file, bowtie2_ref_fasta, bowtie2_alignment_dir, results_dir, cores=1):
+		"""
+		Wrapper function for mining for novel SNVs across genes of GCF.
+
+		:param paired_end_sequencing_file: tab delimited file with three columns: (1) sample name (2) path to forward
+										   reads and (3) path to reverse reads
+		:param bowtie2_ref_fasta: FASTA file corresponding
+		:param bowtie2_alignment_dir: Path to directory where Bowtie2 alignments were written. This directory should
+									  include BAM files ending in *.filtered.sorted.bam which are sorted and indexed.
+		:param results_dir: Path to directory where results of SNV mining will be written.
+		:param cores: The number of processes to be run in parallel.
+		"""
+
+		try:
+			process_args = []
+			with open(paired_end_sequencing_file) as opesf:
+				for line in opesf:
+					line = line.strip()
+					sample, frw_read, rev_read = line.split('\t')
+					process_args.append([sample, bowtie2_alignment_dir + sample + '.filtered.sorted.bam',
+										 bowtie2_ref_fasta, self.instance_to_haplotype, results_dir, self.hg_genes,
+										 self.comp_gene_info, self.logObject])
+
+			p = multiprocessing.Pool(cores)
+			p.map(snv_miner, process_args)
+			p.close()
+		except Exception as e:
+			if self.logObject:
+				self.logObject.error(traceback.format_exc())
+			raise RuntimeError(traceback.format_exc())
+
+	def createSummaryMatricesForMetaNovelty(self, paired_end_sequencing_file, snv_mining_outdir, outdir):
+		try:
+			samples = set([])
+			hg_allele_representatives = set([])
+			sample_allele_reads = defaultdict(lambda: defaultdict(int))
+			sample_allele_unique_reads = defaultdict(lambda: defaultdict(int))
+			sample_allele_novelty_reads = defaultdict(lambda: defaultdict(int))
+			sample_allele_unique_novelty_reads = defaultdict(lambda: defaultdict(int))
+			with open(paired_end_sequencing_file) as ossf:
+				for line in ossf:
+					sample = line.strip().split('\t')[0]
+					result_file = snv_mining_outdir + sample + '.txt'
+					samples.add(sample)
+					if not os.path.isfile(result_file): continue
+					with open(result_file) as orf:
+						for i, hg_al in enumerate(orf):
+							if i == 0: continue
+							hg_al = hg_al.strip()
+							hg, allele_representative, reads, reads_with_novelty, reads_uniquely_mapping, reads_uniquely_mapping_with_novelty = hg_al.split('\t')
+							car = hg + '|' + allele_representative
+							hg_allele_representatives.add(car)
+							sample_allele_reads[sample][car] = int(reads)
+							sample_allele_unique_reads[sample][car] = int(reads_uniquely_mapping)
+							sample_allele_novelty_reads[sample][car] = int(reads_with_novelty)
+							sample_allele_unique_novelty_reads[sample][car] = int(reads_uniquely_mapping_with_novelty)
+
+			final_matrix_reads_file = outdir + 'Sample_by_OG_Allele_Read_Counts.matrix.txt'
+			final_matrix_novelty_reads_file = outdir + 'Sample_by_OG_Allele_Novelty_Read_Counts.matrix.txt'
+			final_matrix_unique_reads_file = outdir + 'Final_OG_Allele_Unique_Read_Counts.matrix.txt'
+			final_matrix_unique_and_novelty_reads_file = outdir + 'Final_OG_Allele_Unique_and_Novelty_Read_Counts.matrix.txt'
+
+			final_matrix_reads_handle = open(final_matrix_reads_file, 'w')
+			final_matrix_novelty_reads_handle = open(final_matrix_novelty_reads_file, 'w')
+			final_matrix_unique_reads_handle = open(final_matrix_unique_reads_file, 'w')
+			final_matrix_unique_and_novelty_reads_handle = open(final_matrix_unique_and_novelty_reads_file, 'w')
+
+			final_matrix_reads_handle.write(
+				'\t'.join(['Sample/OG_Allele'] + list(sorted(hg_allele_representatives))) + '\n')
+			final_matrix_novelty_reads_handle.write(
+				'\t'.join(['Sample/OG_Allele'] + list(sorted(hg_allele_representatives))) + '\n')
+			final_matrix_unique_reads_handle.write(
+				'\t'.join(['Sample/OG_Allele'] + list(sorted(hg_allele_representatives))) + '\n')
+			final_matrix_unique_and_novelty_reads_handle.write(
+				'\t'.join(['Sample/OG_Allele'] + list(sorted(hg_allele_representatives))) + '\n')
+
+			for s in samples:
+				printlist_all = [s]
+				printlist_uni = [s]
+				printlist_nov = [s]
+				printlist_uni_nov = [s]
+				for h in hg_allele_representatives:
+					printlist_all.append(str(sample_allele_reads[s][h]))
+					printlist_uni.append(str(sample_allele_unique_reads[s][h]))
+					printlist_nov.append(str(sample_allele_novelty_reads[s][h]))
+					printlist_uni_nov.append(str(sample_allele_unique_novelty_reads[s][h]))
+				final_matrix_reads_handle.write('\t'.join(printlist_all) + '\n')
+				final_matrix_novelty_reads_handle.write('\t'.join(printlist_nov) + '\n')
+				final_matrix_unique_reads_handle.write('\t'.join(printlist_uni) + '\n')
+				final_matrix_unique_and_novelty_reads_handle.write('\t'.join(printlist_uni_nov) + '\n')
+
+			final_matrix_reads_handle.close()
+			final_matrix_novelty_reads_handle.close()
+			final_matrix_unique_reads_handle.close()
+		except Exception as e:
+			if self.logObject:
+				self.logObject.error("Issues with generating matrices showcasing allele presence across samples.")
+				self.logObject.error(traceback.format_exc())
+			raise RuntimeError(traceback.format_exc())
+
+	def generateNoveltyReport(self, codon_alignment_file, snv_mining_outdir, outdir):
+		try:
+			novelty_report_file = outdir + 'Novelty_Report.txt'
+			no_handle = open(novelty_report_file, 'w')
+
+			gene_pos_to_msa_pos = defaultdict(lambda: defaultdict(dict))
+			msa_pos_alleles = defaultdict(lambda: defaultdict(set))
+			with open(codon_alignment_file) as ocaf:
+				for line in ocaf:
+					line = line.strip()
+					hg, cod_alignment = line.split('\t')
+					with open(cod_alignment) as oca:
+						for rec in SeqIO.parse(oca, 'fasta'):
+							sample_id, gene_id = rec.id.split('|')
+							real_pos = 1
+							for msa_pos, bp in enumerate(str(rec.seq)):
+								if bp != '-':
+									gene_pos_to_msa_pos[hg][gene_id][real_pos] = msa_pos + 1
+									real_pos += 1
+									msa_pos_alleles[hg][msa_pos + 1].add(bp.upper())
+
+			for f in os.listdir(results_outdir):
+				if not f.endswith('.snvs'): continue
+				metsample = f.split('.snvs')[0]
+				mges = set(['transp', 'integrase'])
+
+				with open(results_outdir + f) as of:
+					for i, line in enumerate(of):
+						if i == 0: continue
+						line = line.strip()
+						ls = line.split('\t')
+						snv_count = ls[1]
+						gsc, ref_pos, ref_al, alt_al = ls[0].split('_|_')
+						gene, sample, hg = gsc.split('|')
+						if self.hg_prop_multicopy[hg] >= 0.05: continue
+						if any(word in self.comp_gene_info[gene]['product'].lower() for word in mges): continue
+						ref_pos = int(ref_pos)
+						#print(ref_pos)
+						#print(line)
+						#print(comp_gene_info[gene])
+						if not int(ref_pos) in gene_pos_to_msa_pos[hg][gene]: continue
+						msa_pos = gene_pos_to_msa_pos[hg][gene][int(ref_pos)]
+						#msa_pos_als = msa_pos_alleles[hg][msa_pos]
+						#print(msa_pos)
+						#print(msa_pos_als)
+						#print(msa_pos_alleles[hg][msa_pos - 1])
+						#print(msa_pos_alleles[hg][msa_pos + 1])
+						#print('\t'.join([metsample, hg, str(msa_pos), sample, gene, str(ref_pos), ref_al, alt_al, snv_count]))
+						assert (ref_al in msa_pos_alleles[hg][msa_pos])
+						if not alt_al in msa_pos_als:
+							no_handle.write('\t'.join(
+								[metsample, hg, str(msa_pos), alt_al, snv_count, sample, gene, str(ref_pos), ref_al]) + '\n')
+
+			no_handle.close()
+		except Exception as e:
+			if self.logObject:
+				self.logObject.error("Issues generating reports of alleles found per sample.")
+				self.logObject.error(traceback.format_exc())
+			raise RuntimeError(traceback.format_exc())
+
+def snv_miner(input_args):
+	"""
+	Function to mine for novel SNVs and identify alleles of homolog groups for GCF present in paired-end sequencing
+	dataset.
+	"""
+	sample, bam_alignment, ref_fasta, hg_gene_to_rep, res_dir, bgc_hg_genes, comp_gene_info, logObject = input_args
+	try:
+		hg_rep_genes = defaultdict(set)
+		for g, r in hg_gene_to_rep.items():
+			hg_rep_genes[r].add(g)
+
+		if not os.path.isfile(bam_alignment): return
+		snvs_file = res_dir + sample + '.snvs'
+		snv_outf = open(snvs_file, 'w')
+		result_file = res_dir + sample + '.txt'
+		outf = open(result_file, 'w')
+		outf.write('\t'.join(['# hg', 'allele_representative', 'reads', 'reads_with_novelty', 'reads_uniquely_mapping',
+							  'reads_uniquely_mapping_with_novelty']) + '\n')
+
+		bam_handle = pysam.AlignmentFile(bam_alignment, 'rb')
+
+		topaligns_file = res_dir + sample + '_topaligns.bam'
+		topaligns_file_sorted = res_dir + sample + '_topaligns.sorted.bam'
+		topaligns_handle = pysam.AlignmentFile(topaligns_file, "wb", template=bam_handle)
+
+		unialigns_file = res_dir + sample + '_unialigns.bam'
+		unialigns_file_sorted = res_dir + sample + '_unialigns.sorted.bam'
+		unialigns_handle = pysam.AlignmentFile(unialigns_file, "wb", template=bam_handle)
+
+		for hg, hg_genes in bgc_hg_genes.items():
+			read_ascores_per_allele = defaultdict(list)
+			read_genes_mapped = defaultdict(set)
+			snv_counts = defaultdict(set)
+			hg_genes_covered = 0
+			rep_alignments = defaultdict(lambda: defaultdict(set))
+			with open(ref_fasta) as opff:
+				for rec in SeqIO.parse(opff, 'fasta'):
+					if rec.id.split('|')[-1] != hg: continue
+					g, sample, _ = rec.id.split('|')
+					ginfo = comp_gene_info[g]
+					gstart = ginfo['relative_start']
+					gend = ginfo['relative_end']
+					offset = gstart
+					gene_length = gend - gstart + 1
+					gene_covered_1 = 0
+					gene_covered_3 = 0
+					for pileupcolumn in bam_handle.pileup(contig=rec.id, start=gstart, stop=gend + 1, stepper="nofilter",
+														  truncate=True):
+						pos_depth = 0
+						for pileupread in pileupcolumn.pileups:
+							read = pileupread.alignment
+							if pileupread.is_del or pileupread.is_refskip or not read.is_proper_pair: continue
+							if read.query_qualities[pileupread.query_position] < 20: continue
+							pos_depth += 1
+							if pos_depth >= 1:
+								gene_covered_1 += 1
+								if pos_depth >= 3:
+									gene_covered_3 += 1
+
+					gene_coverage_1 = gene_covered_1 / float(gene_length)
+					gene_coverage_3 = gene_covered_3 / float(gene_length)
+					if gene_coverage_1 < 0.95: continue
+					hg_genes_covered += 1
+
+					for read1_alignment, read2_alignment in util.read_pair_generator(bam_handle, region_string=rec.id,
+																				start=gstart, stop=gend):
+						read_name = read1_alignment.query_name
+						read1_ascore = read1_alignment.tags[0][1]
+						read2_ascore = read2_alignment.tags[0][1]
+						combined_ascore = read1_ascore + read2_ascore
+
+						snvs = set([])
+						g_rep = hg_gene_to_rep[rec.id]
+
+						read1_ref_positions = set(read1_alignment.get_reference_positions())
+						read2_ref_positions = set(read2_alignment.get_reference_positions())
+
+						read_intersect = len(read1_ref_positions.intersection(read2_ref_positions))
+						min_read_length = min(len(read1_ref_positions), len(read2_ref_positions))
+						read_overlap_prop = read_intersect / min_read_length
+
+						min_read1_ref_pos = min(read1_ref_positions)
+						read1_referseq = read1_alignment.get_reference_sequence().upper()
+						read1_queryseq = read1_alignment.query_sequence
+						read1_queryqua = read1_alignment.query_qualities
+
+						min_read2_ref_pos = min(read2_ref_positions)
+						read2_referseq = read2_alignment.get_reference_sequence().upper()
+						read2_queryseq = read2_alignment.query_sequence
+						read2_queryqua = read2_alignment.query_qualities
+
+						alignment_has_indel = False
+						mismatch_count = 0
+						for b in read1_alignment.get_aligned_pairs(with_seq=True):
+							if b[0] == None or b[1] == None:
+								alignment_has_indel = True
+							elif b[2].islower():
+								que_qual = read1_queryqua[b[0]]
+								if que_qual >= 30: mismatch_count += 1
+						for b in read2_alignment.get_aligned_pairs(with_seq=True):
+							if b[0] == None or b[1] == None:
+								alignment_has_indel = True
+							elif b[2].islower():
+								que_qual = read2_queryqua[b[0]]
+								if que_qual >= 30: mismatch_count += 1
+
+						for b in read1_alignment.get_aligned_pairs(with_seq=True):
+							if b[0] == None or b[1] == None: continue
+							if not b[2].islower(): continue
+							ref_pos = b[1]
+							que_qual = read1_queryqua[b[0]]
+							alt_al = read1_queryseq[b[0]].upper()
+							ref_al = read1_referseq[b[1] - min_read1_ref_pos].upper()
+							# print(alt_al)
+							# print(ref_al)
+							# print(read1_queryqual[b[0]])
+							# print(str(rec.seq).upper()[b[1]])
+							# print(b[2])
+							assert (ref_al == str(rec.seq).upper()[b[1]])
+							assert (alt_al != ref_al)
+							if que_qual >= 30 and not alignment_has_indel and mismatch_count <= 5 and read_overlap_prop <= 0.25 and min_read_length >= 75:
+								snvs.add(str(rec.id) + '_|_' + str(ref_pos - offset + 1) + '_|_' + ref_al + '_|_' + alt_al)
+								snv_counts[
+									str(rec.id) + '_|_' + str(ref_pos - offset + 1) + '_|_' + ref_al + '_|_' + alt_al].add(
+									read_name)
+
+						for b in read2_alignment.get_aligned_pairs(with_seq=True):
+							if b[0] == None or b[1] == None: continue
+							if not b[2].islower(): continue
+							ref_pos = b[1]
+							que_qual = read2_queryqua[b[0]]
+							alt_al = read2_queryseq[b[0]].upper()
+							ref_al = read2_referseq[b[1] - min_read2_ref_pos].upper()
+							# print(alt_al)
+							# print(ref_al)
+							# print(read2_queryqual[b[0]])
+							# print(str(rec.seq).upper()[b[1]])
+							# print(b[2])
+							assert (ref_al == str(rec.seq).upper()[b[1]])
+							assert (alt_al != ref_al)
+							if que_qual >= 30 and not alignment_has_indel and mismatch_count <= 5 and read_overlap_prop <= 0.25 and min_read_length >= 75:
+								snvs.add(str(rec.id) + '_|_' + str(ref_pos - offset + 1) + '_|_' + ref_al + '_|_' + alt_al)
+								snv_counts[
+									str(rec.id) + '_|_' + str(ref_pos - offset + 1) + '_|_' + ref_al + '_|_' + alt_al].add(
+									read_name)
+
+						read_genes_mapped[read1_alignment.query_name].add(rec.id)
+						rep_alignments[rec.id][read1_alignment.query_name].add(tuple([read1_alignment, read2_alignment]))
+						read_ascores_per_allele[read1_alignment.query_name].append(
+							[g_rep.split('|')[0], g_rep.split('|')[1], combined_ascore, snvs, g])
+
+			if hg_genes_covered / float(len(hg_genes)) < 0.80: continue
+
+			supported_snvs = set([])
+			allele_reads = defaultdict(set)
+			allele_reads_with_mismatch = defaultdict(set)
+			multi_partitioned_reads = set([])
+			for read in read_ascores_per_allele:
+				top_score = -1000000
+				top_score_grep = None
+				score_sorted_alignments = sorted(read_ascores_per_allele[read], key=itemgetter(2), reverse=True)
+				for i, align in enumerate(score_sorted_alignments):
+					g_rep = align[0] + '|' + align[1] + '|' + hg
+					if i == 0: top_score = align[2]; top_score_grep = g_rep
+					if (i == 0 and align[2] == top_score) and (
+							len(score_sorted_alignments) == 1 or align[2] > score_sorted_alignments[i + 1][2]):
+						for snv in align[3]:
+							if len(snv_counts[snv]) >= 5:
+								supported_snvs.add(snv)
+					if align[2] == top_score:
+						g_map = read_genes_mapped[read].intersection(hg_rep_genes[g_rep])
+						g_map_prop = len(g_map) / float(len(hg_rep_genes[g_rep]))
+						if g_map_prop < 0.80: continue
+
+						allele_reads[g_rep].add(read)
+						for snv in align[3]:
+							if len(snv_counts[snv]) >= 5:
+								allele_reads_with_mismatch[g_rep].add(read)
+
+					if g_rep != top_score_grep and align[2] == top_score and i > 0:
+						multi_partitioned_reads.add(read)
+
+			for snv in supported_snvs:
+				snv_outf.write(snv + '\t' + str(len(snv_counts[snv])) + '\n')
+
+			for al in allele_reads:
+				for r in allele_reads[al]:
+					for pa in rep_alignments[al][r]:
+						topaligns_handle.write(pa[0])
+						topaligns_handle.write(pa[1])
+						if not r in multi_partitioned_reads:
+							unialigns_handle.write(pa[0])
+							unialigns_handle.write(pa[1])
+				outf.write(
+					'\t'.join([str(x) for x in [hg, al, len(allele_reads[al]), len(allele_reads_with_mismatch[al]),
+												len(allele_reads[al].difference(multi_partitioned_reads)),
+												len(allele_reads_with_mismatch[al].difference(
+													multi_partitioned_reads))]]) + '\n')
+
+		snv_outf.close()
+		outf.close()
+		topaligns_handle.close()
+		unialigns_handle.close()
+		bam_handle.close()
+
+		os.system("samtools sort -@ %d %s -o %s" % (1, unialigns_file, unialigns_file_sorted))
+		os.system("samtools index %s" % unialigns_file_sorted)
+
+		os.system("samtools sort -@ %d %s -o %s" % (1, topaligns_file, topaligns_file_sorted))
+		os.system("samtools index %s" % topaligns_file_sorted)
+	except Exception as e:
+		if logObject:
+			logObject.error("Issues with mining for SNVs/parsing alignment file.")
+			logObject.error(traceback.format_exc())
+		raise RuntimeError(traceback.format_exc())
 
 def create_hmm_profiles(inputs):
 	"""
@@ -1103,10 +1653,10 @@ def popgen_analysis_of_hg(inputs):
 					except:
 						pass
 
-	prop_samples_with_cog = len(samples) / float(len(set(bgc_sample.values())))
+	prop_samples_with_hg = len(samples) / float(len(set(bgc_sample.values())))
 
 	hg_info = [hg, '; '.join(products), hg_order_scores[hg], hg_prop_multi_copy[hg],
-				median_gene_length, is_core, len(seqs), prop_samples_with_cog, tajimas_d, total_core_codons,
+				median_gene_length, is_core, len(seqs), prop_samples_with_hg, tajimas_d, total_core_codons,
 				total_variable_codons, nonsynonymous_sites, synonymous_sites, dn_ds, '; '.join(all_domains)]
 
 	if sample_population:
@@ -1129,14 +1679,14 @@ def popgen_analysis_of_hg(inputs):
 							pairwise_differences[s1][s2] += 1
 							pairwise_differences[s2][s1] += 1
 
-		pop_prop_with_cog = defaultdict(float)
-		pops_with_cog = 0
+		pop_prop_with_hg = defaultdict(float)
+		pops_with_hg = 0
 		populations_order = []
 		within_population_differences = []
 		for pop in population_samples:
-			pop_prop_with_cog[pop] = len(population_samples[pop].intersection(samples)) / len(
+			pop_prop_with_hg[pop] = len(population_samples[pop].intersection(samples)) / len(
 				population_samples[pop])
-			if pop_prop_with_cog[pop] > 0: pops_with_cog += 1
+			if pop_prop_with_hg[pop] > 0: pops_with_hg += 1
 			if len(population_samples[pop]) >= 2:
 				within_pop = []
 				for i, s1 in enumerate(population_samples[pop]):
@@ -1149,10 +1699,10 @@ def popgen_analysis_of_hg(inputs):
 		anova_pval = "NA"
 		if len(within_population_differences) >= 2:
 			F, anova_pval = f_oneway(*within_population_differences)
-		cog_population_info = [pops_with_cog,
-							   '|'.join([str(x[0]) + '=' + str(x[1]) for x in pop_prop_with_cog.items()]),
+		hg_population_info = [pops_with_hg,
+							   '|'.join([str(x[0]) + '=' + str(x[1]) for x in pop_prop_with_hg.items()]),
 							   anova_pval]
-		hg_info += cog_population_info
+		hg_info += hg_population_info
 
 	hg_stats_handle = open(popgen_dir + hg + '_stats.txt', 'w')
 	hg_stats_handle.write('\t'.join([str(x) for x in hg_info]) + '\n')
