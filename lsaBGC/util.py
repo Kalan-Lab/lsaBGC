@@ -367,11 +367,12 @@ def multiProcess(input):
 	logObject = input[-1]
 	logObject.info('Running the following command: %s' % ' '.join(input_cmd))
 	try:
-		subprocess.call(' '.join(input_cmd), shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-						executable='/bin/bash')
+		subprocess.call(' '.join(input_cmd), shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,executable='/bin/bash')
 		logObject.info('Successfully ran: %s' % ' '.join(input_cmd))
-	except:
+	except Exception as e:
 		logObject.warning('Had an issue running: %s' % ' '.join(input_cmd))
+		logObject.warning(traceback.format_exc())
+		sys.stderr.write(traceback.format_exc())
 
 def is_fasta(fasta):
 	"""

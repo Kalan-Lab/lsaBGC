@@ -5,6 +5,36 @@
 ### Kalan Lab
 ### UW Madison, Department of Microbiology and Immunology
 
+# BSD 3-Clause License
+#
+# Copyright (c) 2021, Kalan-Lab
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# 1. Redistributions of source code must retain the above copyright notice, this
+#    list of conditions and the following disclaimer.
+#
+# 2. Redistributions in binary form must reproduce the above copyright notice,
+#    this list of conditions and the following disclaimer in the documentation
+#    and/or other materials provided with the distribution.
+#
+# 3. Neither the name of the copyright holder nor the names of its
+#    contributors may be used to endorse or promote products derived from
+#    this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+# OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
 import os
 import sys
 from time import sleep
@@ -26,23 +56,21 @@ def create_parser():
 						help="Tab delimited text file. First column is the sample name and the second is the path to its assembly in FASTA format. Please remove troublesome characters in the sample name.",
 						required=True)
 	parser.add_argument('-o', '--output_directory', help="Prefix for output files.", required=True)
-	parser.add_argument('-ae', '--antiSMASH_env_path', type=str,
-						help="Path to conda environment for antiSMASH. Database should automatically configured for antiSMASH loaded by the environment.",
-						required=True)
-	parser.add_argument('-pe', '--prokka_env_path', type=str, help="Path to conda environment for Prokka.",
-						required=True)
-	parser.add_argument('-cp', '--conda_path', type=str,
-						help="Path to anaconda/miniconda installation directory itself.", required=True)
+	parser.add_argument('-cp', '--conda_path', type=str, help="Path to anaconda/miniconda installation directory itself.", required=True)
+	parser.add_argument('-pe', '--prokka_env_path', type=str, help="Path to conda environment for Prokka.", required=True)
 	parser.add_argument('-oe', '--orthofinder_env_path', type=str, help="Path to conda environment for OrthoFinder. Optional, if not used, locus tags will be 3 characters insteado just 2.",
 						required=False, default=None)
-	parser.add_argument('-l', '--lineage', type=str, help="The lineage under investigation.", required=False,
-						default="Lineage")
+	parser.add_argument('-ae', '--antiSMASH_env_path', type=str,
+						help="Path to conda environment for antiSMASH. Database should automatically configured for antiSMASH loaded by the environment.",
+						required=False)
+	parser.add_argument('-g', '--genus', type=str, help="The genus under investigation. The lineage of interest could be species, but for this, just use the genus.", required=False,
+						default="Genus")
 	parser.add_argument('-c', '--cores', type=int, help="The number of cores to use.", required=False, default=8)
 	parser.add_argument('-d', '--dry_run', action='store_true',
 						help="Just create task files with commands for running prodigal, antiSMASH, and OrthoFinder. Useful for parallelizing across an HPC.",
 						required=False, default=False)
-	parser.add_argument('-s', '--skip_annotation', action='store_true', help="Skip basic/standard annotation in Prokka (experimental).", required=False, default=False)
-	parser.add_argument('-e', '--extract_protein_fasta', action='store_true', help="Whether to extract protein fasta and append as third column path to such FASTA in file listing BGCs Genbanks.", required=False, default=False)
+	parser.add_argument('-q', '--fast_annotation', action='store_true', help="Skip basic/standard annotation in Prokka.", required=False, default=False)
+	parser.add_argument('-p', '--only_run_prokka', action='store_true', help="Only run Prokka for gene annotation and Genbank creation. Skip the rest.", required=False, default=False)
 	args = parser.parse_args()
 	return args
 
@@ -58,11 +86,9 @@ def lsaBGC_Process():
 
 	assembly_listing_file = os.path.abspath(myargs.assembly_listing)
 	outdir = os.path.abspath(myargs.output_directory) + '/'
-	antiSMASH_env_path = os.path.abspath(myargs.antiSMASH_env_path) + '/'
 	prokka_env_path = os.path.abspath(myargs.prokka_env_path) + '/'
 	conda_path = myargs.conda_path
 
-	antismash_load_code = '. %s/etc/profile.d/conda.sh && conda activate %s &&' % (conda_path, antiSMASH_env_path)
 	prokka_load_code = '. %s/etc/profile.d/conda.sh && conda activate %s &&' % (conda_path, prokka_env_path)
 
 	try:
@@ -82,18 +108,27 @@ def lsaBGC_Process():
 	"""
 
 	cores = myargs.cores
-	lineage = myargs.lineage
+	lineage = myargs.genus
 	dry_run_flag = myargs.dry_run
-	skip_annotation_flag = myargs.skip_annotation
+	fast_annotation_flag = myargs.fast_annotation
+	only_run_prokka = myargs.only_run_prokka
+
 	orthofinder_env_path = None
 	orthofinder_load_code = None
-	extract_protein_fasta = myargs.extract_protein_fasta
-
+	antiSMASH_env_path = None
+	antiSMASH_load_code = None
 	locus_tag_length = 4
-	if myargs.orthofinder_env_path:
+
+	if not only_run_prokka:
 		locus_tag_length = 3
-		orthofinder_env_path = os.path.abspath(myargs.orthofinder_env_path) + '/'
-		orthofinder_load_code = '. %s/etc/profile.d/conda.sh && conda activate %s &&' % (conda_path, orthofinder_env_path)
+		try:
+			orthofinder_env_path = os.path.abspath(myargs.orthofinder_env_path) + '/'
+			orthofinder_load_code = '. %s/etc/profile.d/conda.sh && conda activate %s &&' % (conda_path, orthofinder_env_path)
+
+			antiSMASH_env_path = os.path.abspath(myargs.antiSMASH_env_path) + '/'
+			antiSMASH_load_code = '. %s/etc/profile.d/conda.sh && conda activate %s &&' % (conda_path, antiSMASH_env_path)
+		except Exception as e:
+			raise RuntimeError("Had issues validating the conda environments for antiSMASH and OrthoFinder are valid. Exiting ...")
 
 	"""
 	START WORKFLOW
@@ -103,12 +138,12 @@ def lsaBGC_Process():
 	logObject = util.createLoggerObject(log_file)
 
 	# Step 0: Log input arguments and update reference and query FASTA files.
-	logObject.info("Saving parameters for future provedance.")
+	logObject.info("Saving parameters for future provenance.")
 	parameters_file = outdir + 'Parameter_Inputs.txt'
-	parameter_values = [assembly_listing_file, outdir, cores, dry_run_flag, skip_annotation_flag, antiSMASH_env_path, prokka_env_path,
-						orthofinder_env_path, extract_protein_fasta]
-	parameter_names = ["Assembly Listing File", "Output Directory", "Cores", "Dry Run Flagged", "Skip Prokka Annotation",
-					   "AntiSMASH Env Path", "Prokka Env Path", "OrthoFinder Env Path", "Extract BGC Proteins as FASTA"]
+	parameter_values = [assembly_listing_file, outdir, cores, dry_run_flag, fast_annotation_flag, prokka_env_path,
+						antiSMASH_env_path, orthofinder_env_path, only_run_prokka]
+	parameter_names = ["Assembly Listing File", "Output Directory", "Cores", "Dry Run Flagged", "Fast Prokka Annotation Requested?",
+					    "Prokka Env Path", "AntiSMASH Env Path", "OrthoFinder Env Path", "Only Prokka Annotations to be Run?"]
 	util.logParametersToFile(parameters_file, parameter_names, parameter_values)
 	logObject.info("Done saving parameters!")
 
@@ -131,50 +166,58 @@ def lsaBGC_Process():
 
 	logObject.info("Running/setting-up Prokka for all samples!")
 	processing.runProkka(sample_assemblies, prokka_outdir, prokka_proteomes_dir, prokka_genbanks_dir, prokka_load_code,
-					 lineage, cores, locus_tag_length, logObject, dry_run_flag=dry_run_flag, skip_annotation_flag=skip_annotation_flag)
+					 lineage, cores, locus_tag_length, logObject, dry_run_flag=dry_run_flag, skip_annotation_flag=fast_annotation_flag)
+
+	prokka_results_listing_file = outdir + 'Sample_Annotation_Files.txt'
+	prlf_handle = open(prokka_results_listing_file, 'w')
+	for s in sample_assemblies:
+		try:
+			prokka_genbank = prokka_genbanks_dir + s + '.gbk'
+			prokka_proteome = prokka_proteomes_dir + s + '.faa'
+			assert(os.path.isfile(prokka_genbank) + os.path.isfile(prokka_proteome))
+			prlf_handle.write(s + '\t' + prokka_genbank + '\t' + prokka_proteome + '\n')
+		except Exception as e:
+			logObject.warning("Unable to validate Prokka ran successfully for sample %s, skipping ..." % s)
+	prlf_handle.close()
 	logObject.info("Successfully ran/set-up Prokka.")
 
-	# Step 3: Run AntiSMASH for identification of BGCs
-	antismash_outdir = outdir + 'AntiSMASH_Results/'
-	bgc_proteomes_outdir = outdir + 'BGC_Proteomes/'
-	try:
-		if extract_protein_fasta:
-			os.system('mkdir %s' % (bgc_proteomes_outdir))
-		os.system('mkdir %s' % (antismash_outdir))
-	except:
-		logObject.error("Can't create AntiSMASH results directories. Exiting now ...")
-		raise RuntimeError("Can't create AntiSMASH results directories. Exiting now ...")
+	if not only_run_prokka:
+		# Step 3: Run AntiSMASH for identification of BGCs
+		antismash_outdir = outdir + 'AntiSMASH_Results/'
+		bgc_proteomes_outdir = outdir + 'BGC_Proteomes/'
+		try:
+			if extract_protein_fasta:
+				os.system('mkdir %s' % (bgc_proteomes_outdir))
+			os.system('mkdir %s' % (antismash_outdir))
+		except Exception as e:
+			logObject.error("Can't create AntiSMASH results directories. Exiting now ...")
+			raise RuntimeError("Can't create AntiSMASH results directories. Exiting now ...")
 
-	logObject.info("Running/setting-up AntiSMASH for all samples!")
-	processing.runAntiSMASH(prokka_genbanks_dir, antismash_outdir, antismash_load_code, cores, logObject, dry_run_flag=dry_run_flag)
-	logObject.info("Successfully ran/set-up AntiSMASH.")
+		logObject.info("Running/setting-up AntiSMASH for all samples!")
+		processing.runAntiSMASH(prokka_genbanks_dir, antismash_outdir, antiSMASH_load_code, cores, logObject,
+								dry_run_flag=dry_run_flag)
+		logObject.info("Successfully ran/set-up AntiSMASH.")
 
-	# Step 4: Run OrthoFinder for de novo ortholog construction
-	if orthofinder_env_path:
+		# Step 4: Run OrthoFinder for de novo ortholog construction
 		orthofinder_outdir = outdir + 'OrthoFinder_Results/'
 		logObject.info("Running/setting-up OrthoFinder!")
 		processing.runOrthoFinder(prokka_proteomes_dir, orthofinder_outdir, orthofinder_load_code, cores, logObject, dry_run_flag=dry_run_flag)
 		logObject.info("Successfully ran/set-up OrthoFinder.")
 
-	# Write resulting list of BGC Genbanks (to be used as input for lsaBGC-Cluster)
-	antismash_bgc_listing_file = outdir + 'All_AntiSMASH_BGCs.txt'
-	antismash_bgc_listing_handle = open(antismash_bgc_listing_file, 'w')
-	for s in os.listdir(antismash_outdir):
-		sample_antismash_outdir = antismash_outdir + s + '/'
-		if not os.path.isdir(sample_antismash_outdir): continue
-		for f in os.listdir(sample_antismash_outdir):
-			if '.region' in f and f.endswith('.gbk'):
-				bgc_genbank = sample_antismash_outdir + f
-				if extract_protein_fasta:
-					bgc_proteome = processing.extractBGCProteomes(s, bgc_genbank, bgc_proteomes_outdir, logObject)
-					antismash_bgc_listing_handle.write(s + '\t' + bgc_genbank + '\t' + bgc_proteome + '\n')
-				else:
+		# Write resulting list of BGC Genbanks (to be used as input for lsaBGC-Cluster)
+		antismash_bgc_listing_file = outdir + 'All_AntiSMASH_BGCs.txt'
+		antismash_bgc_listing_handle = open(antismash_bgc_listing_file, 'w')
+		for s in os.listdir(antismash_outdir):
+			sample_antismash_outdir = antismash_outdir + s + '/'
+			if not os.path.isdir(sample_antismash_outdir): continue
+			for f in os.listdir(sample_antismash_outdir):
+				if '.region' in f and f.endswith('.gbk'):
+					bgc_genbank = sample_antismash_outdir + f
 					antismash_bgc_listing_handle.write(s + '\t' + bgc_genbank + '\n')
-			else:
-				os.system('rm -f %s' % sample_antismash_outdir + f)
-	antismash_bgc_listing_handle.close()
+				else:
+					os.system('rm -f %s' % sample_antismash_outdir + f)
+		antismash_bgc_listing_handle.close()
 
-	if orthofinder_env_path:
 		# Move select result files from OrthoFinder to main directory to make more easy to access/find
 		orthofinder_homolog_matrix = orthofinder_outdir + 'Orthogroups.csv'
 		orthofinder_species_tree = [orthofinder_outdir + od for od in os.listdir(orthofinder_outdir) if od.startswith("Orthologues_")][0] + '/SpeciesTree_rooted.txt'

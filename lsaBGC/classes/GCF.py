@@ -722,7 +722,7 @@ class GCF(Pan):
 				self.logObject.error(traceback.format_exc())
 			raise RuntimeError(traceback.format_exc())
 
-	def runHMMScanAndAssignBGCsToGCF(self, outdir, prokka_genbanks_dir, prokka_proteomes_dir, orthofinder_matrix_file, cores=1):
+	def runHMMScanAndAssignBGCsToGCF(self, outdir, sample_prokka_data, orthofinder_matrix_file, cores=1):
 		"""
 
 		"""
@@ -740,10 +740,9 @@ class GCF(Pan):
 
 		tot_bgc_proteins = defaultdict(int)
 		hmmscan_cmds = []
-		for f in os.listdir(prokka_genbanks_dir):
-			sample = f.split('.gbk')[0]
-			sample_genbank = prokka_genbanks_dir + f
-			sample_proteome = prokka_proteomes_dir + sample + '.faa'
+		for sample in sample_prokka_data:
+			sample_genbank = sample_prokka_data[sample]['genbank']
+			sample_proteome = sample_prokka_data[sample]['predicted_proteome']
 
 			gene_to_scaff, scaff_genes, bound_genes, gito, goti = util.parseGenbankAndFindBoundaryGenes(sample_genbank)
 
@@ -766,8 +765,7 @@ class GCF(Pan):
 		scaffold_proteins = defaultdict(lambda: defaultdict(set))
 		sample_protein_to_hg = defaultdict(dict)
 		sample_hgs = defaultdict(set)
-		for f in os.listdir(prokka_genbanks_dir):
-			sample = f.split('.gbk')[0]
+		for sample in sample_prokka_data:
 			result_file = search_res_dir + sample + '.txt'
 			assert (os.path.isfile(result_file))
 
@@ -1141,12 +1139,12 @@ class GCF(Pan):
 									real_pos += 1
 									msa_pos_alleles[hg][msa_pos + 1].add(bp.upper())
 
-			for f in os.listdir(results_outdir):
+			for f in os.listdir(snv_mining_outdir):
 				if not f.endswith('.snvs'): continue
 				metsample = f.split('.snvs')[0]
 				mges = set(['transp', 'integrase'])
 
-				with open(results_outdir + f) as of:
+				with open(snv_mining_outdir + f) as of:
 					for i, line in enumerate(of):
 						if i == 0: continue
 						line = line.strip()
@@ -1154,20 +1152,20 @@ class GCF(Pan):
 						snv_count = ls[1]
 						gsc, ref_pos, ref_al, alt_al = ls[0].split('_|_')
 						gene, sample, hg = gsc.split('|')
-						if self.hg_prop_multicopy[hg] >= 0.05: continue
+						if self.hg_prop_multi_copy[hg] >= 0.05: continue
 						if any(word in self.comp_gene_info[gene]['product'].lower() for word in mges): continue
 						ref_pos = int(ref_pos)
-						#print(ref_pos)
-						#print(line)
-						#print(comp_gene_info[gene])
+						print(ref_pos)
+						print(line)
+						print(self.comp_gene_info[gene])
 						if not int(ref_pos) in gene_pos_to_msa_pos[hg][gene]: continue
 						msa_pos = gene_pos_to_msa_pos[hg][gene][int(ref_pos)]
-						#msa_pos_als = msa_pos_alleles[hg][msa_pos]
-						#print(msa_pos)
-						#print(msa_pos_als)
-						#print(msa_pos_alleles[hg][msa_pos - 1])
-						#print(msa_pos_alleles[hg][msa_pos + 1])
-						#print('\t'.join([metsample, hg, str(msa_pos), sample, gene, str(ref_pos), ref_al, alt_al, snv_count]))
+						msa_pos_als = msa_pos_alleles[hg][msa_pos]
+						print(msa_pos)
+						print(msa_pos_als)
+						print(msa_pos_alleles[hg][msa_pos - 1])
+						print(msa_pos_alleles[hg][msa_pos + 1])
+						print('\t'.join([metsample, hg, str(msa_pos), sample, gene, str(ref_pos), ref_al, alt_al, snv_count]))
 						assert (ref_al in msa_pos_alleles[hg][msa_pos])
 						if not alt_al in msa_pos_als:
 							no_handle.write('\t'.join(
@@ -1246,6 +1244,7 @@ def snv_miner(input_args):
 
 					for read1_alignment, read2_alignment in util.read_pair_generator(bam_handle, region_string=rec.id,
 																				start=gstart, stop=gend):
+						if read1_alignment is None or read2_alignment is None: continue
 						read_name = read1_alignment.query_name
 						read1_ascore = read1_alignment.tags[0][1]
 						read2_ascore = read2_alignment.tags[0][1]

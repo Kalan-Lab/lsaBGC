@@ -5,6 +5,36 @@
 ### Kalan Lab
 ### UW Madison, Department of Medical Microbiology and Immunology
 
+# BSD 3-Clause License
+#
+# Copyright (c) 2021, Kalan-Lab
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# 1. Redistributions of source code must retain the above copyright notice, this
+#    list of conditions and the following disclaimer.
+#
+# 2. Redistributions in binary form must reproduce the above copyright notice,
+#    this list of conditions and the following disclaimer in the documentation
+#    and/or other materials provided with the distribution.
+#
+# 3. Neither the name of the copyright holder nor the names of its
+#    contributors may be used to endorse or promote products derived from
+#    this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+# OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
 import os
 import sys
 from time import sleep
@@ -30,14 +60,10 @@ def create_parser():
     parser.add_argument('-g', '--gcf_listing', help='BGC listings file for a gcf. Tab delimited: 1st column lists sample name while the 2nd column is the path to an AntiSMASH BGC in Genbank format.', required=True)
     parser.add_argument('-m', '--orthofinder_matrix', help="OrthoFinder matrix.", required=True)
     parser.add_argument('-i', '--gcf_id', help="GCF identifier.", required=False, default='GCF_X')
-    parser.add_argument('-a', '--assembly_listing', type=str, help="Tab delimited text file. First column is the sample name and the second is the path to its assembly in FASTA format. Please remove troublesome characters in the sample name.", required=True)
+    parser.add_argument('-a', '--expansion_listing', type=str, help="Tab delimited text file with three columns: (1) sample name (2) Prokka generated Genbank file (*.gbk), and (3) Prokka generated predicted-proteome file (*.faa). Please remove troublesome characters in the sample name.", required=True)
     parser.add_argument('-o', '--output_directory', help="Path to output directory.", required=True)
     parser.add_argument('-l', '--lineage', type=str, help="The lineage under investigation.", required=False,
                         default="Lineage")
-    parser.add_argument('-cp', '--conda_path', type=str,
-                        help="Path to anaconda/miniconda installation directory itself.", required=True)
-    parser.add_argument('-pe', '--prokka_env_path', type=str, help="Path to conda environment for Prokka.",
-                        required=True)
     parser.add_argument('-c', '--cores', type=int, help="The number of cores to use.", required=False, default=1)
     args = parser.parse_args()
 
@@ -56,17 +82,15 @@ def lsaBGC_Expansion():
     gcf_listing_file = os.path.abspath(myargs.gcf_listing)
     orthofinder_matrix_file = os.path.abspath(myargs.orthofinder_matrix)
     assembly_listing_file = os.path.abspath(myargs.assembly_listing)
+    expansion_listing_file = os.path.abspath(myargs.expansion_listing)
     outdir = os.path.abspath(myargs.output_directory) + '/'
-    conda_path = myargs.conda_path
-    prokka_env_path = os.path.abspath(myargs.prokka_env_path) + '/'
-
-    prokka_load_code = '. %s/etc/profile.d/conda.sh && conda activate %s &&' % (conda_path, prokka_env_path)
 
     ### vet input files quickly
     try:
         assert (os.path.isfile(orthofinder_matrix_file))
         assert (os.path.isfile(gcf_listing_file))
         assert (os.path.isfile(assembly_listing_file))
+        assert (os.path.isfile(expansion_listing_file))
     except:
         raise RuntimeError('One or more of the input files provided, does not exist. Exiting now ...')
 
@@ -118,34 +142,15 @@ def lsaBGC_Expansion():
     GCF_Object.constructHMMProfiles(outdir, cores=cores)
     logObject.info("HMM profiles constructed and concatenated successfully!")
 
-    # Step 4: Process assemblies
-    logObject.info("Parse sample assemblies from listing file.")
-    sample_assemblies = processing.readInAssemblyListing(assembly_listing_file, logObject)
-    logObject.info("Successfully parsed sample assemblies.")
+    # Step 4: Process annotation files related to expanded sample set
+    logObject.info("Parsing annotation file provided in expansion listing file for larger set of samples to incorporate into analysis.")
+    sample_prokka_data = processing.readInAnnotationFilesForExpandedSampleSet(expansion_listing_file, logObject)
+    logObject.info("Successfully parsed new sample annotation files.")
 
-    # Step 5: Run Prokka for gene calling
-    locus_tag_length = 4
-    prokka_outdir = outdir + 'Prokka_Results/'
-    prokka_proteomes_dir = prokka_outdir + 'Prokka_Proteomes/'
-    prokka_genbanks_dir = prokka_outdir + 'Prokka_Genbanks/'
-    """
-    try:
-        if not os.path.isdir(prokka_outdir): os.system('mkdir %s' % prokka_outdir)
-        if not os.path.isdir(prokka_proteomes_dir): os.system('mkdir %s' % prokka_proteomes_dir)
-        if not os.path.isdir(prokka_genbanks_dir): os.system('mkdir %s' % prokka_genbanks_dir)
-    except:
-        logObject.error("Can't create Prokka results directories. Exiting now ...")
-        raise RuntimeError("Can't create Prokka results directories. Exiting now ...")
-
-    logObject.info("Running/setting-up Prokka for all samples!")
-    processing.runProkka(sample_assemblies, prokka_outdir, prokka_proteomes_dir, prokka_genbanks_dir, prokka_load_code,
-                         lineage, cores, locus_tag_length, logObject, skip_annotation_flag=True)
-    logObject.info("Successfully ran/set-up Prokka.")
-    """
-
-    # Step 6: Search HMMs in proteomes from comprehensive set of BGCs
+    # Step 5: Search HMMs in proteomes from comprehensive set of BGCs
     logObject.info("Searching for homolog group HMMs in proteins extracted from comprehensive list of BGCs.")
-    GCF_Object.runHMMScanAndAssignBGCsToGCF(outdir, prokka_genbanks_dir, prokka_proteomes_dir, orthofinder_matrix_file, cores=cores)
+    GCF_Object.runHMMScanAndAssignBGCsToGCF(outdir, sample_prokka_data, orthofinder_matrix_file, cores=cores)
+    logObject.info("Successfully found new instances of GCF in new sample set.")
 
     # Close logging object and exit
     util.closeLoggerObject(logObject)

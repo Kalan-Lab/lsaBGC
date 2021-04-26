@@ -16,7 +16,7 @@ class BGC:
 		self.cluster_information = None
 		self.parseGenbanks(comprehensive_parsing=comprehensive_parsing)
 
-	def parseGenbanks(self, comprehensive_parsing=True, flank_size = 500):
+	def parseGenbanks(self, comprehensive_parsing=True, flank_size=500):
 		"""
 		Function to parse an AntiSMASH Genbank file. Values of the object
 		"""
@@ -113,15 +113,15 @@ class BGC:
 							else:
 								nucl_seq_with_flanks = full_sequence[flank_start:]
 
-							gene_length = end - start + 1 # changed this
+							gene_length = end - start # changed this
 
-							relative_start = start - flank_start
+							relative_start = start - flank_start + 1
 							relative_end = relative_start + gene_length
 
 							if direction == '-':
 								nucl_seq = str(Seq(nucl_seq).reverse_complement())
 								nucl_seq_with_flanks = str(Seq(nucl_seq_with_flanks).reverse_complement())
-								relative_end = len(nucl_seq_with_flanks) - relative_start
+								relative_end = len(nucl_seq_with_flanks) - relative_start + 1
 								relative_start = relative_end - gene_length
 
 						genes[lt] = {'bgc_name': self.bgc_id, 'start': start+1, 'end': end, 'direction': direction,
