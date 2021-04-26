@@ -52,7 +52,7 @@ def create_parser():
 	antiSMASH (biosynthetic gene cluster annotation), and OrthoFinder (de novo ortholog group construction).
 	""", formatter_class=argparse.RawTextHelpFormatter)
 
-	parser.add_argument('-i', '--assembly_listing', type=str,
+	parser.add_argument('-a', '--assembly_listing', type=str,
 						help="Tab delimited text file. First column is the sample name and the second is the path to its assembly in FASTA format. Please remove troublesome characters in the sample name.",
 						required=True)
 	parser.add_argument('-o', '--output_directory', help="Prefix for output files.", required=True)

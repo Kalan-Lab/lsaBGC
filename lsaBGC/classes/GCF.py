@@ -620,7 +620,7 @@ class GCF(Pan):
 		if not os.path.isdir(plots_dir): os.system('mkdir %s' % plots_dir)
 
 		final_output_handle = open(outdir + 'Ortholog_Group_Information.txt', 'w')
-		header = ['hg', 'annotation', 'hg_order_index', 'hg_median_copy_count', 'median_gene_length',
+		header = ['gcf_id', 'homolog_group', 'annotation', 'hg_order_index', 'hg_median_copy_count', 'median_gene_length',
 				  'is_core_to_bgc', 'bgcs_with_hg', 'proportion_of_samples_with_hg', 'Tajimas_D', 'core_codons',
 				  'total_variable_codons', 'nonsynonymous_codons', 'synonymous_codons', 'dn_ds', 'all_domains']
 		if self.bgc_population != None:
@@ -632,7 +632,7 @@ class GCF(Pan):
 		for f in os.listdir(self.codo_alg_dir):
 			hg = f.split('.msa.fna')[0]
 			codon_alignment_fasta = self.codo_alg_dir + f
-			inputs.append([hg, codon_alignment_fasta, popgen_dir, plots_dir, self.comp_gene_info, self.hg_genes,
+			inputs.append([self.gcf_id, hg, codon_alignment_fasta, popgen_dir, plots_dir, self.comp_gene_info, self.hg_genes,
 						   self.bgc_sample, self.hg_prop_multi_copy, self.hg_order_scores, self.sample_population,
 						   self.logObject])
 
@@ -1122,6 +1122,9 @@ class GCF(Pan):
 		try:
 			novelty_report_file = outdir + 'Novelty_Report.txt'
 			no_handle = open(novelty_report_file, 'w')
+			no_handle.write('\t'.join(['gcf_id', 'sample', 'homolog_group', 'position_along_msa', 'alternate_allele',
+									   'snv_count', 'reference_sample', 'reference_gene', 'reference_position',
+									   'reference_allele']) + '\n')
 
 			gene_pos_to_msa_pos = defaultdict(lambda: defaultdict(dict))
 			msa_pos_alleles = defaultdict(lambda: defaultdict(set))
@@ -1155,21 +1158,21 @@ class GCF(Pan):
 						if self.hg_prop_multi_copy[hg] >= 0.05: continue
 						if any(word in self.comp_gene_info[gene]['product'].lower() for word in mges): continue
 						ref_pos = int(ref_pos)
-						print(ref_pos)
-						print(line)
-						print(self.comp_gene_info[gene])
+						#print(ref_pos)
+						#print(line)
+						#print(self.comp_gene_info[gene])
 						if not int(ref_pos) in gene_pos_to_msa_pos[hg][gene]: continue
 						msa_pos = gene_pos_to_msa_pos[hg][gene][int(ref_pos)]
 						msa_pos_als = msa_pos_alleles[hg][msa_pos]
-						print(msa_pos)
-						print(msa_pos_als)
-						print(msa_pos_alleles[hg][msa_pos - 1])
-						print(msa_pos_alleles[hg][msa_pos + 1])
-						print('\t'.join([metsample, hg, str(msa_pos), sample, gene, str(ref_pos), ref_al, alt_al, snv_count]))
+						#print(msa_pos)
+						#print(msa_pos_als)
+						#print(msa_pos_alleles[hg][msa_pos - 1])
+						#print(msa_pos_alleles[hg][msa_pos + 1])
+						#print('\t'.join([metsample, hg, str(msa_pos), sample, gene, str(ref_pos), ref_al, alt_al, snv_count]))
 						assert (ref_al in msa_pos_alleles[hg][msa_pos])
 						if not alt_al in msa_pos_als:
 							no_handle.write('\t'.join(
-								[metsample, hg, str(msa_pos), alt_al, snv_count, sample, gene, str(ref_pos), ref_al]) + '\n')
+								[self.gcf_id, metsample, hg, str(msa_pos), alt_al, snv_count, sample, gene, str(ref_pos), ref_al]) + '\n')
 
 			no_handle.close()
 		except Exception as e:

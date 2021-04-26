@@ -624,58 +624,66 @@ class Pan:
 				self.logObject.error(traceback.format_exc())
 			raise RuntimeError(traceback.format_exc())
 
-	def convertGenbanksIntoFastas(self, gcf_specs_file, outdir):
+	def convertGenbanksIntoFastas(self, listing_file, fasta_listing_file):
 		"""
-		TBD
+		Function to convert Genbanks for BGC instances into FASTA format and listing files. Note, there will
+		be one FASTA per sample not per BGC Genbank (in case sample's have more than one associated Genbank).
+
+		:param listing_file: tab-delimited file with two columns: (1) sample name (2) path to BGC Genbank
+		:param fasta_listing_file: tab-delimited file with two columns: (1) sample name (2) path to BGC FASTA
 		"""
-		gcf_fasta_listing_file = outdir + 'GCF_FASTA_Listings.txt'
-		outf = open(gcf_fasta_listing_file, 'w')
-		fasta_dir = outdir + 'Sample_GCF_FASTAs/'
-		if os.path.isdir(fasta_dir): os.system('mkdir %s' % fasta_dir)
-		sample_index = defaultdict(int)
+		try:
+			fasta_dir = outdir + 'Sample_GCF_FASTAs/'
+			if os.path.isdir(fasta_dir): os.system('mkdir %s' % fasta_dir)
+			sample_index = defaultdict(int)
 
-		all_samples = set([])
-		with open(gcf_specs_file) as obsf:
-			for i, line in enumerate(obsf):
-				line = line.strip()
-				try:
-					assert (len(line.split('\t')) == 2)
-				except Exception as e:
-					if self.logObject:
-						self.logObject.error(
-						"More than two columns exist at line %d in BGC specification/listing file. Exiting now ..." % (
-								i + 1))
-						self.logObject.error(traceback.format_exc())
-					raise RuntimeError(
-						"More than two columns exist at line %d in BGC specification/listing file. Exiting now ..." % (
-								i + 1))
-				sample, gbk = line.split('\t')
-				try:
-					assert (util.is_genbank(gbk))
-					bgc_id = sample
-					if sample_index[sample] > 0:
-						bgc_id = sample + '_' + str(sample_index[sample] + 1)
-					sample_index[sample] += 1
+			all_samples = set([])
+			with open(listing_file) as obsf:
+				for i, line in enumerate(obsf):
+					line = line.strip()
+					try:
+						assert (len(line.split('\t')) == 2)
+					except Exception as e:
+						if self.logObject:
+							self.logObject.error(
+							"More than two columns exist at line %d in BGC specification/listing file. Exiting now ..." % (
+									i + 1))
+							self.logObject.error(traceback.format_exc())
+						raise RuntimeError(
+							"More than two columns exist at line %d in BGC specification/listing file. Exiting now ..." % (
+									i + 1))
+					sample, gbk = line.split('\t')
+					try:
+						assert (util.is_genbank(gbk))
+						bgc_id = sample
+						if sample_index[sample] > 0:
+							bgc_id = sample + '_' + str(sample_index[sample] + 1)
+						sample_index[sample] += 1
 
-					sample_fasta = fasta_dir + sample + '.fasta'
-					sample_handle = open(sample_fasta, 'a+')
-					with open(gbk) as ogbk:
-						for rec in SeqIO.parse(ogbk, 'genbank'):
-							sample_handle.write('>' + bgc_id + '\n' + str(rec.seq))
-					sample_handle.close()
-					all_samples.add(sample)
-					if self.logObject:
-						self.logObject.info("Added Genbank %s into sample %s's GCF relevant FASTA." % (gbk, sample))
-				except Exception as e:
-					if self.logObject:
-						self.logObject.warning("Unable to validate %s as Genbank. Skipping its incorporation into analysis.")
-						self.logObject.warning(traceback.format_exc())
-					raise RuntimeWarning("Unable to validate %s as Genbank. Skipping ...")
+						sample_fasta = fasta_dir + sample + '.fasta'
+						sample_handle = open(sample_fasta, 'a+')
+						with open(gbk) as ogbk:
+							for rec in SeqIO.parse(ogbk, 'genbank'):
+								sample_handle.write('>' + bgc_id + '\n' + str(rec.seq))
+						sample_handle.close()
+						all_samples.add(sample)
+						if self.logObject:
+							self.logObject.info("Added Genbank %s into sample %s's GCF relevant FASTA." % (gbk, sample))
+					except Exception as e:
+						if self.logObject:
+							self.logObject.warning("Unable to validate %s as Genbank. Skipping its incorporation into analysis.")
+							self.logObject.warning(traceback.format_exc())
+						raise RuntimeWarning("Unable to validate %s as Genbank. Skipping ...")
 
-		for s in all_samples:
-			outf.write(s + '\t' + fasta_dir + s + '.fasta\n')
-		outf.close()
-		return (gcf_fasta_listing_file)
+			outf = open(fasta_listing_file, 'w')
+			for s in all_samples:
+				outf.write(s + '\t' + fasta_dir + s + '.fasta\n')
+			outf.close()
+		except Exception as e:
+			if self.logObject:
+				self.logObject.error("Issues converting BGC Genbank listing into FASTA listing.")
+				self.logObject.error(traceback.format_exc())
+			raise RuntimeError(traceback.format_exc())
 
 	def readInPopulationsSpecification(self, pop_specs_file):
 		"""

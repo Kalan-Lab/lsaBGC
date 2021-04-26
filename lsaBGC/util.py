@@ -141,6 +141,12 @@ def bowtie2_alignment(input_args):
 def createBGCGenbank(full_genbank_file, new_genbank_file, scaffold, start_coord, end_coord):
 	"""
 	Function to prune full genome-sized Genbank for only features in BGC of interest.
+
+	:param full_genbank_file: Prokka generated Genbank file for full genome.
+	:param new_genbank_file: Path to BGC specific Genbank to be created
+	:param scaffold: Scaffold identifier.
+	:param start_coord: Start coordinate.
+	:param end_coord: End coordinate.
 	"""
 	try:
 		ngf_handle = open(new_genbank_file, 'w')
@@ -236,7 +242,14 @@ def parseGenbankAndFindBoundaryGenes(sample_genbank, distance_to_scaffold_bounda
 
 def calculateMashPairwiseDifferences(fasta_listing_file, outdir, name, sketch_size, cores, logObject):
 	"""
+	Calculate MASH pairwise distances (estimated ANI) between FASTA files.
 
+	:param fasta_listing_file: A tab-delimited listing file with two columns: (1) sample name (2) path to FASTA file
+	:param outdir: The output directory where to write results
+	:param name: Name of analysis scope
+	:param sketch_size: Sketch size (a parameter of MASH)
+	:param cores: Number of cores/threads to use
+	:param logObject: The logging object.
 	"""
 	mash_db = outdir + name
 	fastas = []
@@ -328,8 +341,10 @@ def parseOrthoFinderMatrix(orthofinder_matrix_file, relevant_gene_lts):
 			flag_in_bgc = False
 			for sgs in ls[1:]:
 				for g in sgs.split(', '):
-					if g in relevant_gene_lts:
-						flag_in_bgc = True
+					# critical for calculating homolog group stats, like median gene counts, multicopy proportion
+					# use only genes from the original set of genomes used to conduct full orthofinder analysis.
+					if len(g.split('_')[0]) == 3:
+						if g in relevant_gene_lts: flag_in_bgc = True
 						gene_to_hg[g] = hg
 						hg_genes[hg].add(g)
 			if flag_in_bgc:
