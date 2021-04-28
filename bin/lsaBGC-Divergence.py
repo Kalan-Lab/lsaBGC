@@ -41,6 +41,7 @@ from time import sleep
 import argparse
 from lsaBGC import util
 from lsaBGC.classes.GCF import GCF
+from lsaBGC.classes.Pan import Pan
 
 def create_parser():
     """ Parse arguments """
@@ -55,6 +56,7 @@ def create_parser():
 
     parser.add_argument('-g', '--gcf_listing', help='BGC specifications file. Tab delimited: 1st column contains path to AntiSMASH BGC Genbank and 2nd column contains sample name.', required=True)
     parser.add_argument('-a', '--assembly_listing', help="Sequencing data specifications file. Tab delimited: 1st column contains metagenomic sample name, whereas 2nd and 3rd columns contain full paths to forward and reverse reads, respectively.", required=True)
+    parser.add_argument('-e', '--expansion_listing', type=str, help="Tab delimited text file with three columns: (1) sample name (2) Prokka generated Genbank file (*.gbk), and (3) Prokka generated predicted-proteome file (*.faa). Please remove troublesome characters in the sample name.", required=False, default=None)
     parser.add_argument('-i', '--gcf_id', help="GCF identifier.", required=False, default='GCF_X')
     parser.add_argument('-o', '--output_directory', help="Prefix for output files.", required=True)
     parser.add_argument('-c', '--cores', type=int, help="The number of cores to use.", required=False, default=1)
@@ -75,7 +77,7 @@ def lsaBGC_Divergence():
     myargs = create_parser()
 
     gcf_listing_file = os.path.abspath(myargs.gcf_listing)
-    assembly_listing_file = os.path.abspath(myargs.assembly_listing_file)
+    assembly_listing_file = os.path.abspath(myargs.assembly_listing)
     outdir = os.path.abspath(myargs.output_directory) + '/'
 
     ### vet input files quickly
@@ -95,6 +97,7 @@ def lsaBGC_Divergence():
     PARSE OPTIONAL INPUTS
     """
 
+    expansion_listing_file = myargs.expansion_listing
     gcf_id = myargs.gcf_id
     cores = myargs.cores
     sketch_size = myargs.sketch_size
@@ -110,35 +113,72 @@ def lsaBGC_Divergence():
     # Step 0: Log input arguments and update reference and query FASTA files.
     logObject.info("Saving parameters for future provedance.")
     parameters_file = outdir + 'Parameter_Inputs.txt'
-    parameter_values = [gcf_listing_file, assembly_listing_file, outdir, sketch_size, gcf_id, cores]
-    parameter_names = ["GCF Listing File", "Assembly Listing File", "Output Directory", "MASH Sketch Size", "GCF Identifier", "Cores"]
+    parameter_values = [gcf_listing_file, assembly_listing_file, outdir, sketch_size, expansion_listing_file, gcf_id,
+                        cores]
+    parameter_names = ["GCF Listing File", "Assembly Listing File", "Output Directory", "MASH Sketch Size",
+                       "Listing File of Prokka Annotation Files for Comprehensive Set of Samples",
+                       "GCF Identifier", "Cores"]
     util.logParametersToFile(parameters_file, parameter_names, parameter_values)
     logObject.info("Done saving parameters!")
+
+    # Step 1:
+    if expansion_listing_file:
+        try:
+            assert (os.path.isfile(expansion_listing_file))
+        except:
+            raise RuntimeError('One or more of the input files provided, does not exist. Exiting now ...')
+
+        # Create Pan object
+        Pan_Object = Pan(expansion_listing_file, logObject=logObject)
+
+        # Extract Genbank Sequences into FASTA
+        logObject.info("Converting Genbanks from Expansion listing file into FASTA per sample.")
+        gw_fasta_dir = outdir + 'Sample_Expansion_FASTAs/'
+        if not os.path.isdir(gw_fasta_dir): os.system('mkdir %s' % gw_fasta_dir)
+        gw_fasta_listing_file = outdir + 'Expansion_Genome_FASTA_Listings.txt'
+        Pan_Object.convertGenbanksIntoFastas(gw_fasta_dir, gw_fasta_listing_file)
+        logObject.info("Successfully performed conversions.")
+
+        try:
+            new_assembly_listing_file = outdir + assembly_listing_file.split('/')[-1]
+            os.system('cp %s %s' % (assembly_listing_file, new_assembly_listing_file))
+            assembly_listing_file = new_assembly_listing_file
+
+            assembly_listing_handle = open(assembly_listing_file, 'a+')
+            with open(gw_fasta_listing_file) as ogflf:
+                for line in ogflf:
+                    assembly_listing_handle.write(line)
+            assembly_listing_handle.close()
+            logObject.info("Successfully updated genomes listing")
+        except:
+            raise RuntimeError('Issues with updating genomes listing')
 
     # Create GCF object
     GCF_Object = GCF(gcf_listing_file, gcf_id=gcf_id, logObject=logObject)
 
-    # Step 1: Extract Genbank Sequences into FASTA
+    # Step 2: Extract Genbank Sequences into FASTA
     logObject.info("Converting BGC Genbanks from GCF listing file into FASTA per sample.")
     gcf_fasta_listing_file = outdir + 'GCF_Listings.fasta'
-    GCF_Object.convertGenbanksIntoFastas(gcf_listing_file, gcf_fasta_listing_file)
+    gcf_fasta_dir = outdir + 'Sample_GCF_FASTAs/'
+    if not os.path.isdir(gcf_fasta_dir): os.system('mkdir %s' % gcf_fasta_dir)
+    GCF_Object.convertGenbanksIntoFastas(gcf_fasta_dir, gcf_fasta_listing_file)
     logObject.info("Successfully performed conversion and partitioning by sample.")
 
-    # Step 2: Run MASH Analysis Between BGCs in GCF
+    # Step 3: Run MASH Analysis Between BGCs in GCF
     logObject.info("Running MASH Analysis Between BGCs in GCF.")
     bgc_pairwise_differences = util.calculateMashPairwiseDifferences(gcf_fasta_listing_file, outdir, 'gcf', sketch_size, cores, logObject)
     logObject.info("Ran MASH Analysis Between BGCs in GCF.")
 
-    # Step 3: Run MASH Analysis Between Genomic Assemblies
+    # Step 4: Run MASH Analysis Between Genomic Assemblies
     logObject.info("Running MASH Analysis Between Genomes.")
     gw_pairwise_differences = util.calculateMashPairwiseDifferences(assembly_listing_file, outdir, 'genome_wide', sketch_size, cores, logObject)
     logObject.info("Ran MASH Analysis Between Genomes.")
 
-    # Step 4: Calculate and report Beta-RD statistic for all pairs of samples/isolates
+    # Step 5: Calculate and report Beta-RD statistic for all pairs of samples/isolates
     logObject.info("Beginning generation of report.")
-    samples_gcf = gcf_pairwise_differences.keys()
-    samples_gw = gw_pairwise_differences.keys()
-    samples_intersect = samples_gw.intersection(samples_gcf)
+    samples_bgc = set(bgc_pairwise_differences.keys())
+    samples_gw = set(gw_pairwise_differences.keys())
+    samples_intersect = samples_gw.intersection(samples_bgc)
     try:
         final_report = outdir + 'relative_divergence_report.txt'
         final_report_handle = open(final_report, 'w')
@@ -164,7 +204,7 @@ def lsaBGC_Divergence():
         raise RuntimeError(error_message)
 
     # Close logging object and exit
-    lsaBGC.closeLoggerObject(logObject)
+    util.closeLoggerObject(logObject)
     sys.exit(0)
 
 if __name__ == '__main__':

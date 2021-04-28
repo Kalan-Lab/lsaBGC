@@ -50,7 +50,9 @@ def create_parser():
 	Affiliation: Kalan Lab, UW Madison, Department of Medical Microbiology and Immunology
 
 	This program will construct a reference database of alleles for each homolog group within a GCF, afterwards
-	it will map raw paired-end Illumina sequencing data to 
+	it will map raw paired-end Illumina sequencing data to each non-redundant instance of a homolog group and 
+	report: (i) support for different alleles of homolog groups being present in the reads and (ii) identify any
+	novel SNVs.
 	""", formatter_class=argparse.RawTextHelpFormatter)
 
     parser.add_argument('-g', '--gcf_listing', help='BGC specifications file. Tab delimited: 1st column contains path to AntiSMASH BGC Genbank and 2nd column contains sample name.', required=True)

@@ -70,6 +70,7 @@ class Pan:
 						self.logObject.error(traceback.format_exc())
 					raise RuntimeError("More than two columns exist at line %d in BGC specification/listing file. Exiting now ..." % (i + 1))
 				sample, gbk = line.split('\t')
+				sample = sample.replace('-', '_').replace(':', '_').replace('.', '_').replace('=', '_')
 				try:
 					assert (util.is_genbank(gbk))
 					bgc_id = sample
@@ -370,7 +371,7 @@ class Pan:
 						outf_list = open(gcf_listing_dir + 'GCF_' + str(j + 1) + '.txt', 'w')
 						for bgc in gcf_mems:
 							sname = self.bgc_sample[bgc]
-							outf_list.write('%s\t%s\n' % (sname, bgc))
+							outf_list.write('%s\t%s\n' % (sname, self.bgc_gbk[bgc]))
 						outf_list.close()
 				if self.logObject:
 					self.logObject.info("Successfully wrote lists of BGCs for each GCF.")
@@ -624,7 +625,7 @@ class Pan:
 				self.logObject.error(traceback.format_exc())
 			raise RuntimeError(traceback.format_exc())
 
-	def convertGenbanksIntoFastas(self, listing_file, fasta_listing_file):
+	def convertGenbanksIntoFastas(self, fasta_dir, fasta_listing_file):
 		"""
 		Function to convert Genbanks for BGC instances into FASTA format and listing files. Note, there will
 		be one FASTA per sample not per BGC Genbank (in case sample's have more than one associated Genbank).
@@ -633,16 +634,14 @@ class Pan:
 		:param fasta_listing_file: tab-delimited file with two columns: (1) sample name (2) path to BGC FASTA
 		"""
 		try:
-			fasta_dir = outdir + 'Sample_GCF_FASTAs/'
-			if os.path.isdir(fasta_dir): os.system('mkdir %s' % fasta_dir)
 			sample_index = defaultdict(int)
 
 			all_samples = set([])
-			with open(listing_file) as obsf:
+			with open(self.bgc_genbanks_listing) as obsf:
 				for i, line in enumerate(obsf):
 					line = line.strip()
 					try:
-						assert (len(line.split('\t')) == 2)
+						assert (len(line.split('\t')) >= 2)
 					except Exception as e:
 						if self.logObject:
 							self.logObject.error(
@@ -652,7 +651,11 @@ class Pan:
 						raise RuntimeError(
 							"More than two columns exist at line %d in BGC specification/listing file. Exiting now ..." % (
 									i + 1))
-					sample, gbk = line.split('\t')
+					if len(line.split('\t')) == 2:
+						sample, gbk = line.split('\t')
+					else:
+						sample, gbk = line.split('\t')[:-1]
+					sample = sample.replace('-', '_').replace(':', '_').replace('.', '_').replace('=', '_')
 					try:
 						assert (util.is_genbank(gbk))
 						bgc_id = sample
@@ -693,11 +696,12 @@ class Pan:
 		"""
 		try:
 			self.bgc_population = defaultdict(lambda: "NA")
-			self.sample_poulation = defaultdict(lambda: "NA")
+			self.sample_population = defaultdict(lambda: "NA")
 			with open(pop_specs_file) as opsf:
 				for line in opsf:
 					line = line.strip()
-					sample, population = line.split('\t')
+					sample, cluster, partition = line.split('\t')
+					population = cluster
 					self.sample_population[sample] = population
 					for bgc in self.sample_bgcs[sample]:
 						self.bgc_population[bgc] = population

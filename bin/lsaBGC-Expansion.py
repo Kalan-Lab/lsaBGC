@@ -60,10 +60,8 @@ def create_parser():
     parser.add_argument('-g', '--gcf_listing', help='BGC listings file for a gcf. Tab delimited: 1st column lists sample name while the 2nd column is the path to an AntiSMASH BGC in Genbank format.', required=True)
     parser.add_argument('-m', '--orthofinder_matrix', help="OrthoFinder matrix.", required=True)
     parser.add_argument('-i', '--gcf_id', help="GCF identifier.", required=False, default='GCF_X')
-    parser.add_argument('-a', '--expansion_listing', type=str, help="Tab delimited text file with three columns: (1) sample name (2) Prokka generated Genbank file (*.gbk), and (3) Prokka generated predicted-proteome file (*.faa). Please remove troublesome characters in the sample name.", required=True)
+    parser.add_argument('-e', '--expansion_listing', type=str, help="Tab delimited text file with three columns: (1) sample name (2) Prokka generated Genbank file (*.gbk), and (3) Prokka generated predicted-proteome file (*.faa). Please remove troublesome characters in the sample name.", required=True)
     parser.add_argument('-o', '--output_directory', help="Path to output directory.", required=True)
-    parser.add_argument('-l', '--lineage', type=str, help="The lineage under investigation.", required=False,
-                        default="Lineage")
     parser.add_argument('-c', '--cores', type=int, help="The number of cores to use.", required=False, default=1)
     args = parser.parse_args()
 
@@ -81,7 +79,6 @@ def lsaBGC_Expansion():
 
     gcf_listing_file = os.path.abspath(myargs.gcf_listing)
     orthofinder_matrix_file = os.path.abspath(myargs.orthofinder_matrix)
-    assembly_listing_file = os.path.abspath(myargs.assembly_listing)
     expansion_listing_file = os.path.abspath(myargs.expansion_listing)
     outdir = os.path.abspath(myargs.output_directory) + '/'
 
@@ -89,7 +86,6 @@ def lsaBGC_Expansion():
     try:
         assert (os.path.isfile(orthofinder_matrix_file))
         assert (os.path.isfile(gcf_listing_file))
-        assert (os.path.isfile(assembly_listing_file))
         assert (os.path.isfile(expansion_listing_file))
     except:
         raise RuntimeError('One or more of the input files provided, does not exist. Exiting now ...')
@@ -106,7 +102,6 @@ def lsaBGC_Expansion():
 
     gcf_id = myargs.gcf_id
     cores = myargs.cores
-    lineage = myargs.lineage
 
     """
     START WORKFLOW
@@ -118,8 +113,10 @@ def lsaBGC_Expansion():
     # Step 0: Log input arguments and update reference and query FASTA files.
     logObject.info("Saving parameters for future provedance.")
     parameters_file = outdir + 'Parameter_Inputs.txt'
-    parameter_values = [gcf_listing_file, orthofinder_matrix_file, assembly_listing_file, outdir, gcf_id, lineage, cores]
-    parameter_names = ["GCF Listing File", "OrthoFinder Orthogroups.csv File", "Assembly Listing File", "Output Directory", "GCF Identifier", "Lineage", "Cores"]
+    parameter_values = [gcf_listing_file, orthofinder_matrix_file, expansion_listing_file, outdir, gcf_id, cores]
+    parameter_names = ["GCF Listing File", "OrthoFinder Orthogroups.csv File",
+                       "Listing File of Prokka Annotation Files for Comprehensive Set of Samples",
+                       "Output Directory", "GCF Identifier", "Cores"]
     util.logParametersToFile(parameters_file, parameter_names, parameter_values)
     logObject.info("Done saving parameters!")
 

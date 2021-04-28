@@ -33,7 +33,7 @@ class GCF(Pan):
 		# General variables
 		self.hg_to_color = None
 		self.hg_order_scores = defaultdict(int)
-		self.specific_homologs =set([])
+		self.specific_core_homologs =set([])
 		self.scc_homologs = set([])
 		self.core_homologs = set([])
 
@@ -48,6 +48,10 @@ class GCF(Pan):
 
 		# Dictionary of individual genes to haplotype/allelic representative gene
 		self.instance_to_haplotype = {}
+
+		# Set of samples with sequencing reads to avoid for reporting alleles and novel SNVs,
+		# these samples do not exhibit enough support for harboring a full BGC for the GC
+		self.avoid_samples = set([])
 
 	def modifyPhylogenyForSamplesWithMultipleBGCs(self, input_phylogeny, result_phylogeny):
 		"""
@@ -633,7 +637,7 @@ class GCF(Pan):
 			hg = f.split('.msa.fna')[0]
 			codon_alignment_fasta = self.codo_alg_dir + f
 			inputs.append([self.gcf_id, hg, codon_alignment_fasta, popgen_dir, plots_dir, self.comp_gene_info, self.hg_genes,
-						   self.bgc_sample, self.hg_prop_multi_copy, self.hg_order_scores, self.sample_population,
+						   self.bgc_sample, self.hg_prop_multi_copy, self.hg_order_scores, dict(self.sample_population),
 						   self.logObject])
 
 		p = multiprocessing.Pool(cores)
@@ -684,9 +688,7 @@ class GCF(Pan):
 				if len(samples_with_any_copy.symmetric_difference(all_samples)) == 0:
 					self.core_homologs.add(hg)
 					if self.hg_prop_multi_copy[hg] <= 0.05:
-						self.specific_homologs.add(hg)
-				if self.logObject:
-					self.logObject.info('Homolog group %s detected as SCC across samples (not individual BGCs).' % hg)
+						self.specific_core_homologs.add(hg)
 				inputs.append([hg, sample_sequences, prot_seq_dir, prot_alg_dir, prot_hmm_dir, self.logObject])
 
 			p = multiprocessing.Pool(cores)
@@ -801,7 +803,7 @@ class GCF(Pan):
 		for sample in sample_hg_hits_with_evalue:
 			sample_gcf_anchor_proteins = set([])
 			scaffold_anchor_proteins = defaultdict(set)
-			for hg in self.specific_homologs:
+			for hg in self.specific_core_homologs:
 				for i, hits in enumerate(sorted(sample_hg_hits_with_evalue[sample][hg], key=itemgetter(1))):
 					if i == 0:
 						sample_gcf_anchor_proteins.add(hits[0])
@@ -875,7 +877,7 @@ class GCF(Pan):
 
 						min_bgc_pos = min([gene_location[sample][g]['start'] for g in scaffold_gcf_gene_ids])
 						max_bgc_pos = max([gene_location[sample][g]['end'] for g in scaffold_gcf_gene_ids])
-						util.createBGCGenbank(prokka_genbanks_dir + sample + '.gbk', bgc_genbank_file, scaffold, min_bgc_pos, max_bgc_pos)
+						util.createBGCGenbank(sample_prokka_data[sample]['genbank'], bgc_genbank_file, scaffold, min_bgc_pos, max_bgc_pos)
 						expanded_gcf_list_handle.write('\t'.join([clean_sample_name, bgc_genbank_file]) + '\n')
 
 						for g in scaffold_gcf_gene_ids:
@@ -1044,6 +1046,7 @@ class GCF(Pan):
 			p = multiprocessing.Pool(cores)
 			p.map(snv_miner, process_args)
 			p.close()
+
 		except Exception as e:
 			if self.logObject:
 				self.logObject.error(traceback.format_exc())
@@ -1051,6 +1054,28 @@ class GCF(Pan):
 
 	def createSummaryMatricesForMetaNovelty(self, paired_end_sequencing_file, snv_mining_outdir, outdir):
 		try:
+
+			all_samples = set(self.bgc_sample.values())
+			for hg in self.hg_genes:
+				sample_counts = defaultdict(int)
+				sample_sequences = {}
+				for gene in self.hg_genes[hg]:
+					gene_info = self.comp_gene_info[gene]
+					bgc_id = gene_info['bgc_name']
+					sample_id = self.bgc_sample[bgc_id]
+					sample_counts[sample_id] += 1
+				samples_with_single_copy = set([s[0] for s in sample_counts.items() if s[1] == 1])
+				samples_with_any_copy = set([s[0] for s in sample_counts.items() if s[1] > 0])
+
+				# check that hg is single-copy-core or just core
+				if len(samples_with_single_copy.symmetric_difference(all_samples)) == 0:
+					self.scc_homologs.add(hg)
+				if len(samples_with_any_copy.symmetric_difference(all_samples)) == 0:
+					self.core_homologs.add(hg)
+					if self.hg_prop_multi_copy[hg] <= 0.05:
+						self.specific_core_homologs.add(hg)
+
+			sample_homolog_groups = defaultdict(set)
 			samples = set([])
 			hg_allele_representatives = set([])
 			sample_allele_reads = defaultdict(lambda: defaultdict(int))
@@ -1069,11 +1094,18 @@ class GCF(Pan):
 							hg_al = hg_al.strip()
 							hg, allele_representative, reads, reads_with_novelty, reads_uniquely_mapping, reads_uniquely_mapping_with_novelty = hg_al.split('\t')
 							car = hg + '|' + allele_representative
+							sample_homolog_groups[sample].add(hg)
 							hg_allele_representatives.add(car)
 							sample_allele_reads[sample][car] = int(reads)
 							sample_allele_unique_reads[sample][car] = int(reads_uniquely_mapping)
 							sample_allele_novelty_reads[sample][car] = int(reads_with_novelty)
 							sample_allele_unique_novelty_reads[sample][car] = int(reads_uniquely_mapping_with_novelty)
+
+			for s in samples:
+				samp_hgs = sample_homolog_groups[s]
+				print(self.core_homologs)
+				if len(samp_hgs.intersection(self.core_homologs))/float(len(self.core_homologs)) < 0.9:
+					self.avoid_samples.add(s)
 
 			final_matrix_reads_file = outdir + 'Sample_by_OG_Allele_Read_Counts.matrix.txt'
 			final_matrix_novelty_reads_file = outdir + 'Sample_by_OG_Allele_Novelty_Read_Counts.matrix.txt'
@@ -1095,6 +1127,7 @@ class GCF(Pan):
 				'\t'.join(['Sample/OG_Allele'] + list(sorted(hg_allele_representatives))) + '\n')
 
 			for s in samples:
+				if s in self.avoid_samples: continue
 				printlist_all = [s]
 				printlist_uni = [s]
 				printlist_nov = [s]
@@ -1144,7 +1177,8 @@ class GCF(Pan):
 
 			for f in os.listdir(snv_mining_outdir):
 				if not f.endswith('.snvs'): continue
-				metsample = f.split('.snvs')[0]
+				pe_sample = f.split('.snvs')[0]
+				if pe_sample in self.avoid_samples: continue
 				mges = set(['transp', 'integrase'])
 
 				with open(snv_mining_outdir + f) as of:
@@ -1168,11 +1202,10 @@ class GCF(Pan):
 						#print(msa_pos_als)
 						#print(msa_pos_alleles[hg][msa_pos - 1])
 						#print(msa_pos_alleles[hg][msa_pos + 1])
-						#print('\t'.join([metsample, hg, str(msa_pos), sample, gene, str(ref_pos), ref_al, alt_al, snv_count]))
+						#print('\t'.join([pe_sample, hg, str(msa_pos), sample, gene, str(ref_pos), ref_al, alt_al, snv_count]))
 						assert (ref_al in msa_pos_alleles[hg][msa_pos])
 						if not alt_al in msa_pos_als:
-							no_handle.write('\t'.join(
-								[self.gcf_id, metsample, hg, str(msa_pos), alt_al, snv_count, sample, gene, str(ref_pos), ref_al]) + '\n')
+							no_handle.write('\t'.join([self.gcf_id, pe_sample, hg, str(msa_pos), alt_al, snv_count, sample, gene, str(ref_pos), ref_al]) + '\n')
 
 			no_handle.close()
 		except Exception as e:
@@ -1242,7 +1275,7 @@ def snv_miner(input_args):
 
 					gene_coverage_1 = gene_covered_1 / float(gene_length)
 					gene_coverage_3 = gene_covered_3 / float(gene_length)
-					if gene_coverage_1 < 0.95: continue
+					if gene_coverage_1 < 0.90: continue
 					hg_genes_covered += 1
 
 					for read1_alignment, read2_alignment in util.read_pair_generator(bam_handle, region_string=rec.id,
@@ -1333,7 +1366,7 @@ def snv_miner(input_args):
 						read_ascores_per_allele[read1_alignment.query_name].append(
 							[g_rep.split('|')[0], g_rep.split('|')[1], combined_ascore, snvs, g])
 
-			if hg_genes_covered / float(len(hg_genes)) < 0.80: continue
+			#if hg_genes_covered / float(len(hg_genes)) < 0.80: continue
 
 			supported_snvs = set([])
 			allele_reads = defaultdict(set)
@@ -1352,14 +1385,15 @@ def snv_miner(input_args):
 							if len(snv_counts[snv]) >= 5:
 								supported_snvs.add(snv)
 					if align[2] == top_score:
-						g_map = read_genes_mapped[read].intersection(hg_rep_genes[g_rep])
-						g_map_prop = len(g_map) / float(len(hg_rep_genes[g_rep]))
-						if g_map_prop < 0.80: continue
+						#g_map = read_genes_mapped[read].intersection(hg_rep_genes[g_rep])
+						#g_map_prop = len(g_map) / float(len(hg_rep_genes[g_rep]))
+						#if g_map_prop < 0.80: continue
 
 						allele_reads[g_rep].add(read)
 						for snv in align[3]:
 							if len(snv_counts[snv]) >= 5:
 								allele_reads_with_mismatch[g_rep].add(read)
+								break
 
 					if g_rep != top_score_grep and align[2] == top_score and i > 0:
 						multi_partitioned_reads.add(read)
@@ -1452,7 +1486,7 @@ def popgen_analysis_of_hg(inputs):
 
 	:param inputs: list of inputs passed in by GCF.runPopulationGeneticsAnalysis().
 	"""
-	hg, codon_alignment_fasta, popgen_dir, plots_dir, comp_gene_info, hg_genes, bgc_sample, hg_prop_multi_copy, hg_order_scores, sample_population, logObject = inputs
+	gcf_id, hg, codon_alignment_fasta, popgen_dir, plots_dir, comp_gene_info, hg_genes, bgc_sample, hg_prop_multi_copy, hg_order_scores, sample_population, logObject = inputs
 	domain_plot_file = plots_dir + hg + '_domain.txt'
 	position_plot_file = plots_dir + hg + '_position.txt'
 	popgen_plot_file = plots_dir + hg + '_popgen.txt'
@@ -1657,7 +1691,7 @@ def popgen_analysis_of_hg(inputs):
 
 	prop_samples_with_hg = len(samples) / float(len(set(bgc_sample.values())))
 
-	hg_info = [hg, '; '.join(products), hg_order_scores[hg], hg_prop_multi_copy[hg],
+	hg_info = [gcf_id, hg, '; '.join(products), hg_order_scores[hg], hg_prop_multi_copy[hg],
 				median_gene_length, is_core, len(seqs), prop_samples_with_hg, tajimas_d, total_core_codons,
 				total_variable_codons, nonsynonymous_sites, synonymous_sites, dn_ds, '; '.join(all_domains)]
 

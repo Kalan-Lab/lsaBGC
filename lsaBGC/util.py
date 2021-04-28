@@ -341,15 +341,15 @@ def parseOrthoFinderMatrix(orthofinder_matrix_file, relevant_gene_lts):
 			flag_in_bgc = False
 			for sgs in ls[1:]:
 				for g in sgs.split(', '):
-					# critical for calculating homolog group stats, like median gene counts, multicopy proportion
-					# use only genes from the original set of genomes used to conduct full orthofinder analysis.
-					if len(g.split('_')[0]) == 3:
-						if g in relevant_gene_lts: flag_in_bgc = True
+					if g in relevant_gene_lts:
+						flag_in_bgc = True
 						gene_to_hg[g] = hg
 						hg_genes[hg].add(g)
 			if flag_in_bgc:
 				gene_counts = []
 				for sgs in ls[1:]:
+					# critical for calculating homolog group stats, like median gene counts, multicopy proportion
+					# use only genes from the original set of genomes used to conduct full orthofinder analysis.
 					gene_counts.append(len([x for x in sgs.split(', ') if len(x.split('_')[0]) == 3]))
 
 				hg_multicopy_proportion[hg] = float(sum([1 for x in gene_counts if x > 1])) / sum([1 for x in gene_counts if x > 0])

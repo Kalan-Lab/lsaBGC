@@ -115,13 +115,13 @@ class BGC:
 
 							gene_length = end - start # changed this
 
-							relative_start = start - flank_start + 1
+							relative_start = start - flank_start
 							relative_end = relative_start + gene_length
 
 							if direction == '-':
 								nucl_seq = str(Seq(nucl_seq).reverse_complement())
 								nucl_seq_with_flanks = str(Seq(nucl_seq_with_flanks).reverse_complement())
-								relative_end = len(nucl_seq_with_flanks) - relative_start + 1
+								relative_end = len(nucl_seq_with_flanks) - relative_start
 								relative_start = relative_end - gene_length
 
 						genes[lt] = {'bgc_name': self.bgc_id, 'start': start+1, 'end': end, 'direction': direction,
