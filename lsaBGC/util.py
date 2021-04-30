@@ -168,7 +168,7 @@ def createBGCGenbank(full_genbank_file, new_genbank_file, scaffold, start_coord,
 
 				updated_features = []
 				for feature in rec.features:
-					start = min([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')])
+					start = min([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')])+1
 					end = max([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')])
 
 					feature_coords = set(range(start, end + 1))
@@ -176,12 +176,23 @@ def createBGCGenbank(full_genbank_file, new_genbank_file, scaffold, start_coord,
 						updated_start = start - start_coord + 1
 						updated_end = end - start_coord + 1
 
-						if end > end_coord: updated_end = end_coord - start_coord + 1
-						if start < start_coord: updated_start = 1
+						#flag1 = False; flag2 = False
+
+						if end > end_coord:
+							if feature.type == 'CDS': continue
+							else: updated_end = end_coord - start_coord + 1#; flag1 = True
+						if start < start_coord:
+							if feature.type == 'CDS': continue
+							else: updated_start = 1#; flag2 = True
 
 						strand = 1
 						if '(-)' in str(feature.location):
 							strand = -1
+
+						#if feature.type == 'CDS':
+						#	print(str(full_genbank_file) + '\t' + str(flag1) + '\t' + str(flag2) + '\t' + feature.qualifiers.get('locus_tag')[0] + '\t' +
+						#		  str(strand) + '\t' + str(updated_start) + '\t' + str(updated_end) + '\t' + str(len(filtered_seq[updated_start-1:updated_end]) / 3.0) +
+						#		  '\t' + str(filtered_seq[updated_start - 1:updated_end]))
 
 						updated_location = FeatureLocation(updated_start - 1, updated_end, strand=strand)
 						updated_feature = copy.deepcopy(feature)
@@ -222,7 +233,7 @@ def parseGenbankAndFindBoundaryGenes(sample_genbank, distance_to_scaffold_bounda
 			for feature in rec.features:
 				if not feature.type == 'CDS': continue
 				locus_tag = feature.qualifiers.get('locus_tag')[0]
-				start = min([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')])
+				start = min([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')])+1
 				end = max([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')])
 
 				gene_location[locus_tag] = {'scaffold': scaffold, 'start': start, 'end': end}

@@ -693,6 +693,7 @@ class GCF(Pan):
 
 			p = multiprocessing.Pool(cores)
 			p.map(create_hmm_profiles, inputs)
+			p.close()
 
 			if self.logObject:
 				self.logObject.info(
@@ -860,31 +861,31 @@ class GCF(Pan):
 								strikes += 1
 							curr_rank += 1
 
-					scaffold_hgs = set([])
-					for g in scaffold_gcf_gene_ids:
-						if g in sample_protein_to_hg[sample].keys():
-							hg = sample_protein_to_hg[sample][g]
-							scaffold_hgs.add(hg)
-
-					if (number_of_sample_scaffolds_with_anchor_hgs == 1 or \
-							(number_of_sample_scaffolds_with_anchor_hgs > 1 and \
-							 len(boundary_genes[sample].intersection(scaffold_gcf_gene_ids)) > 0)) and \
-							(len(sample_hgs[sample].intersection(self.core_homologs))/len(self.core_homologs) >= 0.9) and \
-							(len(scaffold_hgs.intersection(self.core_homologs))/len(self.core_homologs) >= 0.2):
-						clean_sample_name = sample.replace('-', '_').replace(':', '_').replace('.', '_').replace('=', '_')
-						bgc_genbank_file = bgc_genbanks_dir + clean_sample_name + '_BGC-' + str(sample_bgc_ids[sample]) + '.gbk'
-						sample_bgc_ids[sample] += 1
-
-						min_bgc_pos = min([gene_location[sample][g]['start'] for g in scaffold_gcf_gene_ids])
-						max_bgc_pos = max([gene_location[sample][g]['end'] for g in scaffold_gcf_gene_ids])
-						util.createBGCGenbank(sample_prokka_data[sample]['genbank'], bgc_genbank_file, scaffold, min_bgc_pos, max_bgc_pos)
-						expanded_gcf_list_handle.write('\t'.join([clean_sample_name, bgc_genbank_file]) + '\n')
-
+						scaffold_hgs = set([])
 						for g in scaffold_gcf_gene_ids:
 							if g in sample_protein_to_hg[sample].keys():
 								hg = sample_protein_to_hg[sample][g]
-								sample_hg_proteins[clean_sample_name][hg].add(g)
-						all_samples.add(clean_sample_name)
+								scaffold_hgs.add(hg)
+
+						if (number_of_sample_scaffolds_with_anchor_hgs == 1 or \
+								(number_of_sample_scaffolds_with_anchor_hgs > 1 and \
+								 len(boundary_genes[sample].intersection(scaffold_gcf_gene_ids)) > 0)) and \
+								(len(sample_hgs[sample].intersection(self.core_homologs))/len(self.core_homologs) >= 0.9) and \
+								(len(scaffold_hgs.intersection(self.core_homologs))/len(self.core_homologs) >= 0.2):
+							clean_sample_name = sample.replace('-', '_').replace(':', '_').replace('.', '_').replace('=', '_')
+							bgc_genbank_file = bgc_genbanks_dir + clean_sample_name + '_BGC-' + str(sample_bgc_ids[sample]) + '.gbk'
+							sample_bgc_ids[sample] += 1
+
+							min_bgc_pos = min([gene_location[sample][g]['start'] for g in scaffold_gcf_gene_ids])
+							max_bgc_pos = max([gene_location[sample][g]['end'] for g in scaffold_gcf_gene_ids])
+							util.createBGCGenbank(sample_prokka_data[sample]['genbank'], bgc_genbank_file, scaffold, min_bgc_pos, max_bgc_pos)
+							expanded_gcf_list_handle.write('\t'.join([clean_sample_name, bgc_genbank_file]) + '\n')
+
+							for g in scaffold_gcf_gene_ids:
+								if g in sample_protein_to_hg[sample].keys():
+									hg = sample_protein_to_hg[sample][g]
+									sample_hg_proteins[clean_sample_name][hg].add(g)
+							all_samples.add(clean_sample_name)
 		expanded_gcf_list_handle.close()
 
 		original_samples = []
@@ -933,6 +934,7 @@ class GCF(Pan):
 			for bgc in self.bgc_genes:
 				for gene in self.bgc_genes[bgc]:
 					if gene in self.gene_to_hg:
+						#print('>' + gene + '|' + bgc + '|' + self.gene_to_hg[gene] + '\n' + self.comp_gene_info[gene]['nucl_seq_with_flanks'])
 						gwff_handle.write('>' + gene + '|' + bgc + '|' + self.gene_to_hg[gene] + '\n' + self.comp_gene_info[gene]['nucl_seq_with_flanks'] + '\n')
 			gwff_handle.close()
 		except Exception as e:
@@ -1055,15 +1057,17 @@ class GCF(Pan):
 	def createSummaryMatricesForMetaNovelty(self, paired_end_sequencing_file, snv_mining_outdir, outdir):
 		try:
 
-			all_samples = set(self.bgc_sample.values())
+			all_samples = set([])
 			for hg in self.hg_genes:
 				sample_counts = defaultdict(int)
 				sample_sequences = {}
 				for gene in self.hg_genes[hg]:
-					gene_info = self.comp_gene_info[gene]
-					bgc_id = gene_info['bgc_name']
-					sample_id = self.bgc_sample[bgc_id]
-					sample_counts[sample_id] += 1
+					if len(gene.split('_')[0]) == 3:
+						gene_info = self.comp_gene_info[gene]
+						bgc_id = gene_info['bgc_name']
+						sample_id = self.bgc_sample[bgc_id]
+						sample_counts[sample_id] += 1
+						all_samples.add(sample_id)
 				samples_with_single_copy = set([s[0] for s in sample_counts.items() if s[1] == 1])
 				samples_with_any_copy = set([s[0] for s in sample_counts.items() if s[1] > 0])
 
@@ -1167,13 +1171,16 @@ class GCF(Pan):
 					hg, cod_alignment = line.split('\t')
 					with open(cod_alignment) as oca:
 						for rec in SeqIO.parse(oca, 'fasta'):
+							if hg == 'OG0001886':
+								print(rec.id)
+								print(str(rec.seq))
 							sample_id, gene_id = rec.id.split('|')
 							real_pos = 1
 							for msa_pos, bp in enumerate(str(rec.seq)):
 								if bp != '-':
-									gene_pos_to_msa_pos[hg][gene_id][real_pos] = msa_pos + 1
+									gene_pos_to_msa_pos[hg][gene_id][real_pos] = msa_pos+1
 									real_pos += 1
-									msa_pos_alleles[hg][msa_pos + 1].add(bp.upper())
+									msa_pos_alleles[hg][msa_pos+1].add(bp.upper())
 
 			for f in os.listdir(snv_mining_outdir):
 				if not f.endswith('.snvs'): continue
@@ -1187,22 +1194,29 @@ class GCF(Pan):
 						line = line.strip()
 						ls = line.split('\t')
 						snv_count = ls[1]
-						gsc, ref_pos, ref_al, alt_al = ls[0].split('_|_')
-						gene, sample, hg = gsc.split('|')
+						gsh, ref_pos, ref_al, alt_al = ls[0].split('_|_')
+						gene, sample, hg = gsh.split('|')
 						if self.hg_prop_multi_copy[hg] >= 0.05: continue
 						if any(word in self.comp_gene_info[gene]['product'].lower() for word in mges): continue
-						ref_pos = int(ref_pos)
-						#print(ref_pos)
-						#print(line)
-						#print(self.comp_gene_info[gene])
-						if not int(ref_pos) in gene_pos_to_msa_pos[hg][gene]: continue
+						ref_pos = int(ref_pos)+1
+
+						#if self.comp_gene_info[gene]['direction'] == '+': ref_pos = ref_pos
+						#else: ref_pos += 1
+						print(ref_pos)
+						print(line)
+						print(self.comp_gene_info[gene])
+						print(self.comp_gene_info[gene]['nucl_seq_with_flanks'][ref_pos+self.comp_gene_info[gene]['relative_start']-3:ref_pos+self.comp_gene_info[gene]['relative_start']+4])
+						if not ref_pos in gene_pos_to_msa_pos[hg][gene]: continue
 						msa_pos = gene_pos_to_msa_pos[hg][gene][int(ref_pos)]
 						msa_pos_als = msa_pos_alleles[hg][msa_pos]
-						#print(msa_pos)
-						#print(msa_pos_als)
-						#print(msa_pos_alleles[hg][msa_pos - 1])
-						#print(msa_pos_alleles[hg][msa_pos + 1])
-						#print('\t'.join([pe_sample, hg, str(msa_pos), sample, gene, str(ref_pos), ref_al, alt_al, snv_count]))
+						print(msa_pos)
+						print(msa_pos_alleles[hg][msa_pos - 2])
+						print(msa_pos_alleles[hg][msa_pos - 1])
+						print('=>\t' + str(msa_pos_als))
+						print(msa_pos_alleles[hg][msa_pos + 1])
+						print(msa_pos_alleles[hg][msa_pos + 2])
+						print('\t'.join([pe_sample, hg, str(msa_pos), sample, gene, str(ref_pos), ref_al, alt_al, snv_count]))
+						print('-'*80)
 						assert (ref_al in msa_pos_alleles[hg][msa_pos])
 						if not alt_al in msa_pos_als:
 							no_handle.write('\t'.join([self.gcf_id, pe_sample, hg, str(msa_pos), alt_al, snv_count, sample, gene, str(ref_pos), ref_al]) + '\n')
@@ -1254,10 +1268,13 @@ def snv_miner(input_args):
 					if rec.id.split('|')[-1] != hg: continue
 					g, sample, _ = rec.id.split('|')
 					ginfo = comp_gene_info[g]
+
 					gstart = ginfo['relative_start']
 					gend = ginfo['relative_end']
 					offset = gstart
-					gene_length = gend - gstart + 1
+
+					gene_length = gend - gstart
+
 					gene_covered_1 = 0
 					gene_covered_3 = 0
 					for pileupcolumn in bam_handle.pileup(contig=rec.id, start=gstart, stop=gend + 1, stepper="nofilter",
@@ -1279,7 +1296,7 @@ def snv_miner(input_args):
 					hg_genes_covered += 1
 
 					for read1_alignment, read2_alignment in util.read_pair_generator(bam_handle, region_string=rec.id,
-																				start=gstart, stop=gend):
+																				start=gstart, stop=gend+1):
 						if read1_alignment is None or read2_alignment is None: continue
 						read_name = read1_alignment.query_name
 						read1_ascore = read1_alignment.tags[0][1]
@@ -1321,6 +1338,7 @@ def snv_miner(input_args):
 								que_qual = read2_queryqua[b[0]]
 								if que_qual >= 30: mismatch_count += 1
 
+						n_found = False
 						for b in read1_alignment.get_aligned_pairs(with_seq=True):
 							if b[0] == None or b[1] == None: continue
 							if not b[2].islower(): continue
@@ -1328,17 +1346,13 @@ def snv_miner(input_args):
 							que_qual = read1_queryqua[b[0]]
 							alt_al = read1_queryseq[b[0]].upper()
 							ref_al = read1_referseq[b[1] - min_read1_ref_pos].upper()
-							# print(alt_al)
-							# print(ref_al)
-							# print(read1_queryqual[b[0]])
-							# print(str(rec.seq).upper()[b[1]])
-							# print(b[2])
+							if b[2] == 'n' or ref_al == 'N' or alt_al == 'N': n_found = True; break
 							assert (ref_al == str(rec.seq).upper()[b[1]])
 							assert (alt_al != ref_al)
 							if que_qual >= 30 and not alignment_has_indel and mismatch_count <= 5 and read_overlap_prop <= 0.25 and min_read_length >= 75:
-								snvs.add(str(rec.id) + '_|_' + str(ref_pos - offset + 1) + '_|_' + ref_al + '_|_' + alt_al)
+								snvs.add(str(rec.id) + '_|_' + str(ref_pos - offset) + '_|_' + ref_al + '_|_' + alt_al)
 								snv_counts[
-									str(rec.id) + '_|_' + str(ref_pos - offset + 1) + '_|_' + ref_al + '_|_' + alt_al].add(
+									str(rec.id) + '_|_' + str(ref_pos - offset) + '_|_' + ref_al + '_|_' + alt_al].add(
 									read_name)
 
 						for b in read2_alignment.get_aligned_pairs(with_seq=True):
@@ -1348,19 +1362,16 @@ def snv_miner(input_args):
 							que_qual = read2_queryqua[b[0]]
 							alt_al = read2_queryseq[b[0]].upper()
 							ref_al = read2_referseq[b[1] - min_read2_ref_pos].upper()
-							# print(alt_al)
-							# print(ref_al)
-							# print(read2_queryqual[b[0]])
-							# print(str(rec.seq).upper()[b[1]])
-							# print(b[2])
+							if b[2] == 'n' or ref_al == 'N' or alt_al == 'N': n_found = True; break
 							assert (ref_al == str(rec.seq).upper()[b[1]])
 							assert (alt_al != ref_al)
 							if que_qual >= 30 and not alignment_has_indel and mismatch_count <= 5 and read_overlap_prop <= 0.25 and min_read_length >= 75:
-								snvs.add(str(rec.id) + '_|_' + str(ref_pos - offset + 1) + '_|_' + ref_al + '_|_' + alt_al)
+								snvs.add(str(rec.id) + '_|_' + str(ref_pos - offset) + '_|_' + ref_al + '_|_' + alt_al)
 								snv_counts[
-									str(rec.id) + '_|_' + str(ref_pos - offset + 1) + '_|_' + ref_al + '_|_' + alt_al].add(
+									str(rec.id) + '_|_' + str(ref_pos - offset) + '_|_' + ref_al + '_|_' + alt_al].add(
 									read_name)
 
+						if n_found: continue
 						read_genes_mapped[read1_alignment.query_name].add(rec.id)
 						rep_alignments[rec.id][read1_alignment.query_name].add(tuple([read1_alignment, read2_alignment]))
 						read_ascores_per_allele[read1_alignment.query_name].append(
@@ -1606,8 +1617,10 @@ def popgen_analysis_of_hg(inputs):
 		aa_codons = defaultdict(set)
 		cod_count = defaultdict(int)
 		core = True
+		cods = set([])
 		for bgc in bgc_codons:
 			cod = bgc_codons[bgc][cod_index]
+			cods.add(cod)
 			if '-' in cod or 'N' in cod:
 				core = False
 			else:
@@ -1624,8 +1637,10 @@ def popgen_analysis_of_hg(inputs):
 				if cod_count[cod] >= 2: supported_cods += 1
 			if supported_cods >= 2: residues_with_multicodons += 1
 
+		if len(cod_count) == 0: continue
 		maj_allele_count = max(cod_count.values())
 		tot_valid_codons = sum(cod_count.values())
+
 		maj_allele_freq = float(maj_allele_count) / tot_valid_codons
 
 		nonsyn_flag = False;
@@ -1663,21 +1678,22 @@ def popgen_analysis_of_hg(inputs):
 		raise RuntimeError(traceback.format_exc())
 
 	tajima_results = popgen_dir + hg + '.tajima.txt'
-	rscript_tajimaD_cmd = ["Rscript", RSCRIPT_FOR_TAJIMA, codon_alignment_fasta, tajima_results]
-	if logObject:
-		logObject.info('Running R pegas for calculating Tajima\'s D from codon alignment with the following command: %s' % ' '.join(
-			rscript_tajimaD_cmd))
-	try:
-		subprocess.call(' '.join(rscript_tajimaD_cmd), shell=True, stdout=subprocess.DEVNULL,
-						stderr=subprocess.DEVNULL,
-						executable='/bin/bash')
+	if len(seqs) >= 3:
+		rscript_tajimaD_cmd = ["Rscript", RSCRIPT_FOR_TAJIMA, codon_alignment_fasta, tajima_results]
 		if logObject:
-			logObject.info('Successfully ran: %s' % ' '.join(rscript_tajimaD_cmd))
-	except Exception as e:
-		if logObject:
-			logObject.error('Had an issue running: %s' % ' '.join(rscript_tajimaD_cmd))
-			logObject.error(traceback.format_exc())
-		raise RuntimeError(traceback.format_exc())
+			logObject.info('Running R pegas for calculating Tajima\'s D from codon alignment with the following command: %s' % ' '.join(
+				rscript_tajimaD_cmd))
+		try:
+			subprocess.call(' '.join(rscript_tajimaD_cmd), shell=True, stdout=subprocess.DEVNULL,
+							stderr=subprocess.DEVNULL,
+							executable='/bin/bash')
+			if logObject:
+				logObject.info('Successfully ran: %s' % ' '.join(rscript_tajimaD_cmd))
+		except Exception as e:
+			if logObject:
+				logObject.error('Had an issue running: %s' % ' '.join(rscript_tajimaD_cmd))
+				logObject.error(traceback.format_exc())
+			raise RuntimeError(traceback.format_exc())
 
 	tajimas_d = "NA"
 	if os.path.isfile(tajima_results):

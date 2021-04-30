@@ -30,7 +30,7 @@ class BGC:
 				full_sequence = str(rec.seq)
 				for feature in rec.features:
 					if comprehensive_parsing and feature.type in domain_feature_types:
-						start = min([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')])
+						start = min([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')])+1
 						end = max([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')])
 						aSDomain = "NA"
 						description = "NA"
@@ -72,7 +72,7 @@ class BGC:
 				for feature in rec.features:
 					if feature.type == "CDS":
 						lt = feature.qualifiers.get('locus_tag')[0]
-						start = min([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')])
+						start = min([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')])+1
 						end = max([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')])
 						direction = str(feature.location).split('(')[1].split(')')[0]
 
@@ -100,31 +100,35 @@ class BGC:
 
 							flank_start = start - flank_size
 							flank_end = end + flank_size
-							if flank_start < 0: flank_start = 0
+
+							if flank_start < 1: flank_start = 1
+
 							if flank_end >= len(full_sequence): flank_end = None
 							if end >= len(full_sequence): end = None
+
 							if end:
-								nucl_seq = full_sequence[start:end]
+								nucl_seq = full_sequence[start-1:end]
 							else:
-								nucl_seq = full_sequence[start:]
+								nucl_seq = full_sequence[start-1:]
 								end = len(full_sequence)
+
 							if flank_end:
-								nucl_seq_with_flanks = full_sequence[flank_start:flank_end]
+								nucl_seq_with_flanks = full_sequence[flank_start-1:flank_end]
 							else:
-								nucl_seq_with_flanks = full_sequence[flank_start:]
+								nucl_seq_with_flanks = full_sequence[flank_start-1:]
 
-							gene_length = end - start # changed this
+							gene_length = end - start
 
-							relative_start = start - flank_start
+							relative_start = nucl_seq_with_flanks.find(nucl_seq)
 							relative_end = relative_start + gene_length
 
 							if direction == '-':
 								nucl_seq = str(Seq(nucl_seq).reverse_complement())
 								nucl_seq_with_flanks = str(Seq(nucl_seq_with_flanks).reverse_complement())
-								relative_end = len(nucl_seq_with_flanks) - relative_start
-								relative_start = relative_end - gene_length
+								relative_start = nucl_seq_with_flanks.find(nucl_seq)
+								relative_end = relative_start + gene_length
 
-						genes[lt] = {'bgc_name': self.bgc_id, 'start': start+1, 'end': end, 'direction': direction,
+						genes[lt] = {'bgc_name': self.bgc_id, 'start': start, 'end': end, 'direction': direction,
 									 'product': product, 'prot_seq': prot_seq, 'nucl_seq': nucl_seq,
 									 'nucl_seq_with_flanks': nucl_seq_with_flanks, 'gene_domains': gene_domains,
 									 'core_overlap': core_overlap, 'relative_start': relative_start,
@@ -177,7 +181,7 @@ class BGC:
 
 					updated_features = []
 					for feature in rec.features:
-						start = min([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')])
+						start = min([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')])+1
 						end = max([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')])
 
 						feature_coords = set(range(start, end+1))
@@ -185,16 +189,22 @@ class BGC:
 							updated_start = start - start_coord + 1
 							updated_end = end - start_coord + 1
 
-							if end > end_coord: updated_end = end_coord - start_coord + 1
-							if start < start_coord: updated_start = 1
+							if end > end_coord:
+								if feature.type == 'CDS':
+									continue
+								else:
+									updated_end = end_coord - start_coord + 1
+							if start < start_coord:
+								if feature.type == 'CDS':
+									continue
+								else:
+									updated_start = 1
 
 							strand = 1
 							if '(-)' in str(feature.location):
 								strand = -1
 
 							updated_location = FeatureLocation(updated_start-1, updated_end, strand=strand)
-							if feature.type == 'CDS':
-								print(refined_genbank_file + '\t' + feature.qualifiers.get('locus_tag')[0] + '\t' + str(strand) + '\t' + str(updated_start) + '\t' + str(updated_end) + '\t' + str(len(filtered_seq[updated_start-1:updated_end])/3.0))
 							updated_feature = copy.deepcopy(feature)
 
 							updated_feature.location = updated_location
