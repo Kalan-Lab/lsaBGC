@@ -132,6 +132,7 @@ def lsaBGC_DiscoVary():
     logObject.info("Starting to parse OrthoFinder homolog vs sample information.")
     gene_to_hg, hg_genes, hg_median_copy_count, hg_prop_multi_copy = util.parseOrthoFinderMatrix(orthofinder_matrix_file, GCF_Object.pan_genes)
     GCF_Object.inputHomologyInformation(gene_to_hg, hg_genes, hg_median_copy_count, hg_prop_multi_copy)
+    GCF_Object.identifyKeyHomologGroups()
     logObject.info("Successfully parsed homolog matrix.")
 
     # Step 3: Create database of genes with surrounding flanks and, independently, cluster them into allele groups / haplotypes.

@@ -44,8 +44,19 @@ class Pan:
 		self.hg_prop_multi_copy = None
 		self.bgc_hgs = defaultdict(set)
 
-		# other variables
-		self.pairwise_relations = None  # jaccard similarity dictionary
+		### other variables
+		# Jaccard similarity distance between bgcs
+		self.pairwise_relations = None
+		# Concatenated HMMER3 HMM profiles database of homolog groups in GCF
+		self.concatenated_profile_HMM = None
+		# HMMScan results - dictionary with keys as gene locus tag ids and values as
+		# list of lists: [homolog group, evalue, sample, scaffold]
+		self.hmmscan_results = defaultdict(list)
+		self.boundary_genes = defaultdict(set)
+		self.scaffold_genes = defaultdict(lambda: defaultdict(set))
+		self.gene_location = defaultdict(dict)
+		self.gene_id_to_order = defaultdict(lambda: defaultdict(lambda: defaultdict(dict)))
+		self.gene_order_to_id = defaultdict(lambda: defaultdict(lambda: defaultdict(dict)))
 
 		# variables containing location of files
 		self.final_stats_file = None
@@ -711,3 +722,164 @@ class Pan:
 				self.logObject.error("Issue in parsing population specifications per sample and associating with each BGC.")
 				self.logObject.error(traceback.format_exc())
 			raise RuntimeError(traceback.format_exc())
+
+	def constructHMMProfiles(self, outdir, cores=1):
+		"""
+		Wrapper function to construct Hmmer3 HMMs for each of the homolog groups.
+
+		:param outdir: The path to the workspace / output directory.
+		:param cores: The number of cores (will be used for parallelizing)
+		"""
+
+		prot_seq_dir = os.path.abspath(outdir + 'Protein_Sequences') + '/'
+		prot_alg_dir = os.path.abspath(outdir + 'Protein_Alignments') + '/'
+		prot_hmm_dir = os.path.abspath(outdir + 'Profile_HMMs') + '/'
+		if not os.path.isdir(prot_seq_dir): os.system('mkdir %s' % prot_seq_dir)
+		if not os.path.isdir(prot_alg_dir): os.system('mkdir %s' % prot_alg_dir)
+		if not os.path.isdir(prot_hmm_dir): os.system('mkdir %s' % prot_hmm_dir)
+
+		try:
+			inputs = []
+			for hg in self.hg_genes:
+				sample_sequences = {}
+				for gene in self.hg_genes[hg]:
+					gene_info = self.comp_gene_info[gene]
+					bgc_id = gene_info['bgc_name']
+					sample_id = self.bgc_sample[bgc_id]
+					prot_seq = gene_info['prot_seq']
+					sample_counts[sample_id] += 1
+					sample_sequences[sample_id] = prot_seq
+				inputs.append([hg, sample_sequences, prot_seq_dir, prot_alg_dir, prot_hmm_dir, self.logObject])
+
+			p = multiprocessing.Pool(cores)
+			p.map(create_hmm_profiles, inputs)
+			p.close()
+
+			if self.logObject:
+				self.logObject.info(
+					"Successfully created profile HMMs for each homolog group. Now beginning concatenation into single file.")
+			self.concatenated_profile_HMM = outdir + 'All_GCF_Homologs.hmm'
+			os.system('rm -f %s %s.h3*' % (self.concatenated_profile_HMM, self.concatenated_profile_HMM))
+			for f in os.listdir(prot_hmm_dir):
+				os.system('cat %s >> %s' % (prot_hmm_dir + f, self.concatenated_profile_HMM))
+
+			hmmpress_cmd = ['hmmpress', self.concatenated_profile_HMM]
+			if self.logObject:
+				self.logObject.info(
+					'Running hmmpress on concatenated profiles with the following command: %s' % ' '.join(hmmpress_cmd))
+			try:
+				subprocess.call(' '.join(hmmpress_cmd), shell=True, stdout=subprocess.DEVNULL,
+								stderr=subprocess.DEVNULL,
+								executable='/bin/bash')
+				if self.logObject:
+					self.logObject.info('Successfully ran: %s' % ' '.join(hmmpress_cmd))
+			except:
+				if self.logObject:
+					self.logObject.error('Had an issue running: %s' % ' '.join(hmmpress_cmd))
+					self.logObject.error(traceback.format_exc())
+				raise RuntimeError('Had an issue running: %s' % ' '.join(hmmpress_cmd))
+
+		except:
+			if self.logObject:
+				self.logObject.error("Issues with running hmmpress on profile HMMs.")
+				self.logObject.error(traceback.format_exc())
+			raise RuntimeError(traceback.format_exc())
+
+	def runHMMScan(self, outdir, sample_prokka_data, cores=1):
+		"""
+		Function to run hmmscan and process results as well as read in Genbanks for expanded list of samples.
+
+		:param outdir: The path to the workspace / output directory.
+		:param sample_prokka_data: Dictionary with keys being sample identifiers and values being paths to genbank and
+								   proteome files from Prokka based annotation
+		:param cores: The number of cores (will be used for parallelizing)
+		"""
+		search_res_dir = os.path.abspath(outdir + 'HMMScan_Results') + '/'
+		bgc_genbanks_dir = os.path.abspath(outdir + 'BGC_Genbanks') + '/'
+		if not os.path.isdir(search_res_dir): os.system('mkdir %s' % search_res_dir)
+		if not os.path.isdir(bgc_genbanks_dir): os.system('mkdir %s' % bgc_genbanks_dir)
+
+		hmmscan_cmds = []
+		for sample in sample_prokka_data:
+			sample_genbank = sample_prokka_data[sample]['genbank']
+			sample_proteome = sample_prokka_data[sample]['predicted_proteome']
+
+			gene_to_scaff, scaff_genes, bound_genes, gito, goti = util.parseGenbankAndFindBoundaryGenes(sample_genbank)
+
+			self.boundary_genes[sample] = bound_genes
+			self.scaffold_genes[sample] = scaff_genes
+			self.gene_location[sample] = gene_to_scaff
+			self.gene_id_to_order[sample] = gito
+			self.gene_order_to_id[sample] = goti
+
+			result_file = search_res_dir + sample + '.txt'
+			hmmscan_cmd = ['hmmscan', '--max', '--cpu', '1', '--tblout', result_file, self.concatenated_profile_HMM,
+						   sample_proteome, self.logObject]
+			hmmscan_cmds.append(hmmscan_cmd)
+
+		p = multiprocessing.Pool(cores)
+		p.map(util.multiProcess, hmmscan_cmds)
+		p.close()
+
+		for sample in sample_prokka_data:
+			result_file = search_res_dir + sample + '.txt'
+			assert (os.path.isfile(result_file))
+
+			with open(result_file) as orf:
+				for line in orf:
+					if line.startswith("#"): continue
+					line = line.strip()
+					ls = line.split()
+					hg = ls[0]
+					gene_id = ls[2]
+					scaffold = gene_location[sample][gene_id]['scaffold']
+					eval = float(ls[4])
+					if eval <= 1e-10:
+						self.hmmscan_results[gene_id].append([hg, eval, sample, scaffold])
+
+def create_hmm_profiles(inputs):
+	"""
+	Function to create MAFFT based MSAs of proteins for homolog group and then use Hmmer3 to create HMM profiles.
+	"""
+	hg, sample_sequences, prot_seq_dir, prot_alg_dir, prot_hmm_dir, logObject = inputs
+
+	hg_prot_fasta = prot_seq_dir + '/' + hg + '.faa'
+	hg_prot_msa = prot_alg_dir + '/' + hg + '.msa.faa'
+	hg_prot_hmm = prot_hmm_dir + '/' + hg + '.hmm'
+
+	hg_prot_handle = open(hg_prot_fasta, 'w')
+	for s in sample_sequences:
+		hg_prot_handle.write('>' + s + '\n' + str(sample_sequences[s]) + '\n')
+	hg_prot_handle.close()
+
+	mafft_cmd = ['mafft', '--maxiterate', '1000', '--localpair', hg_prot_fasta, '>', hg_prot_msa]
+	if logObject:
+		logObject.info('Running mafft with the following command: %s' % ' '.join(mafft_cmd))
+	try:
+		subprocess.call(' '.join(mafft_cmd), shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+						executable='/bin/bash')
+		if logObject:
+			logObject.info('Successfully ran: %s' % ' '.join(mafft_cmd))
+	except:
+		if logObject:
+			logObject.error('Had an issue running: %s' % ' '.join(mafft_cmd))
+			logObject.error(traceback.format_exc())
+		raise RuntimeError('Had an issue running: %s' % ' '.join(mafft_cmd))
+
+	hmmbuild_cmd = ['hmmbuild', '--amino', '-n', hg, hg_prot_hmm, hg_prot_msa]
+	if logObject:
+		logObject.info('Running hmmbuild (from HMMER3) with the following command: %s' % ' '.join(hmmbuild_cmd))
+	try:
+		subprocess.call(' '.join(hmmbuild_cmd), shell=True, stdout=subprocess.DEVNULL,
+						stderr=subprocess.DEVNULL,
+						executable='/bin/bash')
+		if logObject:
+			logObject.info('Successfully ran: %s' % ' '.join(hmmbuild_cmd))
+	except:
+		if logObject:
+			logObject.error('Had an issue running: %s' % ' '.join(hmmbuild_cmd))
+			logObject.error(traceback.format_exc())
+		raise RuntimeError('Had an issue running: %s' % ' '.join(hmmbuild_cmd))
+
+	if logObject:
+		logObject.info('Constructed profile HMM for homolog group %s' % hg)

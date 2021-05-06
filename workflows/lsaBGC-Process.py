@@ -184,10 +184,7 @@ def lsaBGC_Process():
 	if not only_run_prokka:
 		# Step 3: Run AntiSMASH for identification of BGCs
 		antismash_outdir = outdir + 'AntiSMASH_Results/'
-		bgc_proteomes_outdir = outdir + 'BGC_Proteomes/'
 		try:
-			if extract_protein_fasta:
-				os.system('mkdir %s' % (bgc_proteomes_outdir))
 			os.system('mkdir %s' % (antismash_outdir))
 		except Exception as e:
 			logObject.error("Can't create AntiSMASH results directories. Exiting now ...")

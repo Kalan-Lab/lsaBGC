@@ -53,18 +53,14 @@ def create_parser():
 	Author: Rauf Salamzade
 	Affiliation: Kalan Lab, UW Madison, Department of Medical Microbiology and Immunology
 
-	Program to parallelize most of lsaBGC programs for each GCF 
+	Program to perform systematic expansion of GCF listings for lineage.
 	
 	""", formatter_class=argparse.RawTextHelpFormatter)
 
 	parser.add_argument('-o', '--output_directory', help="Parent output/workspace directory.", required=True)
-	parser.add_argument('-a', '--assembly_listing', type=str, help="Tab delimited text file. First column is the sample name and the second is the path to its assembly in FASTA format. Please remove troublesome characters in the sample name.", required=True)
 	parser.add_argument('-g', '--gcf_listing_dir', help='Directory with GCF listing files.', required=True)
 	parser.add_argument('-m', '--orthofinder_matrix', help="OrthoFinder homolog group by sample matrix.", required=True)
 	parser.add_argument('-e', '--expansion_input_listing', help="Path to tab delimited file listing: (1) sample name (2) path to Prokka Genbank and (3) path to Prokka predicted proteome. This file is produced by lsaBGC-Process.py.", required=False, default=None)
-	parser.add_argument('-p', '--population_analysis',  action='store_true', help="Whether to construct species phylogeny and use it to determine populations.", default=False, required=False)
-	parser.add_argument('-i', '--discovary_analysis_id', help="Identifier for novelty SNV mining analysis. Not providing this parameter will avoid running lsaBGC-DiscoVary step.", required=False, default=None)
-	parser.add_argument('-n', '--discovary_input_listing', help="Path to tab delimited file listing: (1) sample name (2) path to forward reads and (3) path to reverse reads.", required=False, default=None)
 	parser.add_argument('-c', '--cores', type=int, help="Total number of cores to use.", required=False, default=1)
 
 	args = parser.parse_args()

@@ -15,6 +15,7 @@ from operator import itemgetter
 from collections import defaultdict
 from lsaBGC.classes.Pan import Pan
 from lsaBGC import util
+from pomegranate import *
 
 lsaBGC_main_directory = '/'.join(os.path.realpath(__file__).split('/')[:-3])
 RSCRIPT_FOR_BGSEE = lsaBGC_main_directory + '/lsaBGC/Rscripts/bgSee.R'
@@ -52,6 +53,32 @@ class GCF(Pan):
 		# Set of samples with sequencing reads to avoid for reporting alleles and novel SNVs,
 		# these samples do not exhibit enough support for harboring a full BGC for the GC
 		self.avoid_samples = set([])
+
+	def identifyKeyHomologGroups(self):
+		try:
+			all_samples = set(self.bgc_sample.values())
+			sample_counts = defaultdict(int)
+			for hg in self.hg_genes:
+				for gene in self.hg_genes[hg]:
+					gene_info = self.comp_gene_info[gene]
+					bgc_id = gene_info['bgc_name']
+					sample_id = self.bgc_sample[bgc_id]
+					sample_counts[sample_id] += 1
+				samples_with_single_copy = set([s[0] for s in sample_counts.items() if s[1] == 1])
+				samples_with_any_copy = set([s[0] for s in sample_counts.items() if s[1] > 0])
+
+				# check that hg is single-copy-core or just core
+				if len(samples_with_single_copy.symmetric_difference(all_samples)) == 0:
+					self.scc_homologs.add(hg)
+				if len(samples_with_any_copy.symmetric_difference(all_samples)) == 0:
+					self.core_homologs.add(hg)
+					if self.hg_prop_multi_copy[hg] <= 0.05:
+						self.specific_core_homologs.add(hg)
+		except Exception as e:
+			if self.logObject:
+				self.logObject.error("Issues with identifying key homolog groups.")
+				self.logObject.error(traceback.format_exc())
+			raise RuntimeError(traceback.format_exc())
 
 	def modifyPhylogenyForSamplesWithMultipleBGCs(self, input_phylogeny, result_phylogeny):
 		"""
@@ -651,146 +678,126 @@ class GCF(Pan):
 					final_output_handle.write(line)
 		final_output_handle.close()
 
-	def constructHMMProfiles(self, outdir, cores=1):
+	def identifyGCFInstances(self, outdir, sample_prokka_data, orthofinder_matrix_file):
 		"""
-		Wrapper function to construct Hmmer3 HMMs for each of the homolog groups.
+		Function to search for instances of GCF in sample using HMM based approach based on homolog groups as characters,
+		"part of GCF" and "not part of GCF" as states - all trained on initial BGCs constituting GCF as identified by
+		lsaBGC-Cluster.py. This function utilizes the convenient Python library Pomegranate.
 
 		:param outdir: The path to the workspace / output directory.
+		:param sample_prokka_data: Dictionary with keys being sample identifiers and values being paths to genbank and
+								   proteome files from Prokka based annotation
 		:param cores: The number of cores (will be used for parallelizing)
 		"""
 
-		prot_seq_dir = os.path.abspath(outdir + 'Protein_Sequences') + '/'
-		prot_alg_dir = os.path.abspath(outdir + 'Protein_Alignments') + '/'
-		prot_hmm_dir = os.path.abspath(outdir + 'Profile_HMMs') + '/'
-		if not os.path.isdir(prot_seq_dir): os.system('mkdir %s' % prot_seq_dir)
-		if not os.path.isdir(prot_alg_dir): os.system('mkdir %s' % prot_alg_dir)
-		if not os.path.isdir(prot_hmm_dir): os.system('mkdir %s' % prot_hmm_dir)
+		# Estimate HMM parameters
+		gcf_hg_probabilites = defaultdict(lambda: 0.0)
+		other_hg_probabilites = defaultdict(lambda: 0.0)
+		number_gcf_hgs = 0
+		number_other_hgs = 0
+		with open(orthofinder_matrix_file) as ofmf:
+			for i, line in enumerate(ofmf):
+				if i == 0: continue
+				line = line.strip('\n')
+				ls = line.split('\t')
+				hg = ls[0]
+				if hg in self.hg_genes.keys():
+					number_gcf_hgs += 1
+					total_genes = 0
+					gcf_genes = 0
+					for samp_genes in ls[1:]:
+						for gene in samp_genes.split(', '):
+							total_genes += 1
+							if gene in self.pan_genes:
+								gcf_genes += 1
+					gcf_hg_probabilites[hg] = float(gcf_genes)/float(total_genes)
+					other_hg_probabilites[hg] = 1.0 - [float(gcf_genes)/float(total_genes)]
+				else:
+					number_other_hgs += 1
 
-		all_samples = set(self.bgc_sample.values())
-		try:
-			inputs = []
-			for hg in self.hg_genes:
-				sample_counts = defaultdict(int)
-				sample_sequences = {}
-				for gene in self.hg_genes[hg]:
-					gene_info = self.comp_gene_info[gene]
-					bgc_id = gene_info['bgc_name']
-					sample_id = self.bgc_sample[bgc_id]
-					prot_seq = gene_info['prot_seq']
-					sample_counts[sample_id] += 1
-					sample_sequences[sample_id] = prot_seq
-				samples_with_single_copy = set([s[0] for s in sample_counts.items() if s[1] == 1])
-				samples_with_any_copy = set([s[0] for s in sample_counts.items() if s[1] > 0])
+		gcf_hg_probabilites['other'] = 0.01
+		other_hg_probabilites['other'] = 0.99
 
-				# check that hg is single-copy-core or just core
-				if len(samples_with_single_copy.symmetric_difference(all_samples)) == 0:
-					self.scc_homologs.add(hg)
-				if len(samples_with_any_copy.symmetric_difference(all_samples)) == 0:
-					self.core_homologs.add(hg)
-					if self.hg_prop_multi_copy[hg] <= 0.05:
-						self.specific_core_homologs.add(hg)
-				inputs.append([hg, sample_sequences, prot_seq_dir, prot_alg_dir, prot_hmm_dir, self.logObject])
+		gcf_distribution = DiscreteDistribution(dict(gcf_hg_probabilites))
+		other_distribution = DiscreteDistribution(dict(other_hg_probabilites))
 
-			p = multiprocessing.Pool(cores)
-			p.map(create_hmm_profiles, inputs)
-			p.close()
+		gcf_state = State(gcf_distribution, name='GCF')
+		other_state = State(other_distribution, name='Non GCF')
 
-			if self.logObject:
-				self.logObject.info(
-					"Successfully created profile HMMs for each homolog group. Now beginning concatenation into single file.")
-			self.concatenated_profile_HMM = outdir + 'All_GCF_Homologs.hmm'
-			os.system('rm -f %s %s.h3*' % (self.concatenated_profile_HMM, self.concatenated_profile_HMM))
-			for f in os.listdir(prot_hmm_dir):
-				os.system('cat %s >> %s' % (prot_hmm_dir + f, self.concatenated_profile_HMM))
+		model = HiddenMarkovModel()
+		model.add_states(gcf_state, other_state)
 
-			hmmpress_cmd = ['hmmpress', self.concatenated_profile_HMM]
-			if self.logObject:
-				self.logObject.info(
-				'Running hmmpress on concatenated profiles with the following command: %s' % ' '.join(hmmpress_cmd))
-			try:
-				subprocess.call(' '.join(hmmpress_cmd), shell=True, stdout=subprocess.DEVNULL,
-								stderr=subprocess.DEVNULL,
-								executable='/bin/bash')
-				if self.logObject:
-					self.logObject.info('Successfully ran: %s' % ' '.join(hmmpress_cmd))
-			except:
-				if self.logObject:
-					self.logObject.error('Had an issue running: %s' % ' '.join(hmmpress_cmd))
-					self.logObject.error(traceback.format_exc())
-				raise RuntimeError('Had an issue running: %s' % ' '.join(hmmpress_cmd))
+		# estimate transition probabilities
+		gcf_to_gcf = float(number_gcf_hgs - 1) / float(number_gcf_hgs)
+		gcf_to_other = 1.0 - gcf_to_gcf
+		other_to_other = float(number_other_hgs - 1) / float(number_other_hgs)
+		other_to_gcf = 1.0 - other_to_other
+		start_to_gcf = float(number_gcf_hgs)/float(number_gcf_hgs + number_other_hgs)
+		start_to_other = 1.0 - start_to_gcf
 
-		except:
-			if self.logObject:
-				self.logObject.error("Issues with running hmmpress on profile HMMs.")
-				self.logObject.error(traceback.format_exc())
-			raise RuntimeError(traceback.format_exc())
+		model.add_transition(model.start, gcf_state, start_to_gcf)
+		model.add_transition(model.start, other_state, start_to_other)
+		model.add_transition(gcf_state, gcf_state, gcf_to_gcf)
+		model.add_transition(gcf_state, other_state, gcf_to_other)
+		model.add_transition(other_state, gcf_state, other_to_gcf)
+		model.add_transition(other_state, other_state, other_to_other)
 
-	def runHMMScanAndAssignBGCsToGCF(self, outdir, sample_prokka_data, orthofinder_matrix_file, cores=1):
+		model.bake()
+
+		sample_lt_to_hg = defaultdict(dict)
+		sample_hgs = defaultdict(set)
+		for lt in self.hmmscan_results:
+			for i, hits in enumerate(sorted(self.hmmscan_results[lt], key=itemgetter(1))):
+				if i == 0:
+					sample_lt_to_hg[hits[2]][lt] = hits[0]
+					sample_hgs[hits[2]].add(hits[0])
+
+		for sample in sample_hgs:
+			if len(sample_hgs[sample].intersection(self.core_homologs))/float(len(self.core_homologs)) < 0.90: continue
+			for scaffold in self.scaffold_genes[sample]:
+				lts_with_start = []
+				for lt in self.scaffold_genes[sample][scaffold]:
+					lts_with_start.append([lt, self.gene_location[sample][lt]['start']])
+
+				hgs_ordered = []
+				for lt_start in sorted(lts_ordered, key=itemgetter(1)):
+					lt, start = lt_start
+					if lt in sample_lt_to_hg[sample]:
+						hgs_ordered.append(sample_lt_to_hg[sample][lt])
+					else:
+						hgs_ordered.append('other')
+
+				hg_seq = numpy.array(list(hgs_ordered))
+				hmm_predictions = model.predict(seq)
+				
+
+
+		seq = numpy.array(list('CGACTACTGACTACTCGCCGACGCGACTGCCGTCTATACTGCGCATACGGC'))
+
+		hmm_predictions = model.predict(seq)
+
+		print("sequence: {}".format(''.join(seq)))
+		print("hmm pred: {}".format(''.join(map(str, hmm_predictions))))
+
+
 		"""
-
-		"""
-		search_res_dir = os.path.abspath(outdir + 'HMMScan_Results') + '/'
-		bgc_genbanks_dir = os.path.abspath(outdir + 'BGC_Genbanks') + '/'
-		if not os.path.isdir(search_res_dir): os.system('mkdir %s' % search_res_dir)
-		if not os.path.isdir(bgc_genbanks_dir): os.system('mkdir %s' % bgc_genbanks_dir)
-
-		sample_bgc_ids = defaultdict(lambda: 1)
-		boundary_genes = defaultdict(set)
-		scaffold_genes = defaultdict(lambda: defaultdict(set))
-		gene_location = defaultdict(dict)
-		gene_id_to_order = defaultdict(lambda: defaultdict(lambda: defaultdict(dict)))
-		gene_order_to_id = defaultdict(lambda: defaultdict(lambda: defaultdict(dict)))
-
-		tot_bgc_proteins = defaultdict(int)
-		hmmscan_cmds = []
-		for sample in sample_prokka_data:
-			sample_genbank = sample_prokka_data[sample]['genbank']
-			sample_proteome = sample_prokka_data[sample]['predicted_proteome']
-
-			gene_to_scaff, scaff_genes, bound_genes, gito, goti = util.parseGenbankAndFindBoundaryGenes(sample_genbank)
-
-			boundary_genes[sample] = bound_genes
-			scaffold_genes[sample] = scaff_genes
-			gene_location[sample] = gene_to_scaff
-			gene_id_to_order[sample] = gito
-			gene_order_to_id[sample] = goti
-
-			result_file = search_res_dir + sample + '.txt'
-			hmmscan_cmd = ['hmmscan', '--max', '--cpu', '1', '--tblout', result_file, self.concatenated_profile_HMM, sample_proteome, self.logObject]
-			hmmscan_cmds.append(hmmscan_cmd)
-
-		p = multiprocessing.Pool(cores)
-		p.map(util.multiProcess, hmmscan_cmds)
-		p.close()
-
-		protein_hits = defaultdict(list)
+		
+		****
+		ORIGINAL CODE FOR PERFORMING EXPANSION!
+		****
+		
 		sample_hg_hits_with_evalue = defaultdict(lambda: defaultdict(list))
 		scaffold_proteins = defaultdict(lambda: defaultdict(set))
 		sample_protein_to_hg = defaultdict(dict)
 		sample_hgs = defaultdict(set)
-		for sample in sample_prokka_data:
-			result_file = search_res_dir + sample + '.txt'
-			assert (os.path.isfile(result_file))
-
-			with open(result_file) as orf:
-				for line in orf:
-					if line.startswith("#"): continue
-					line = line.strip()
-					ls = line.split()
-					hg = ls[0]
-					gene_id = ls[2]
-					scaffold = gene_location[sample][gene_id]['scaffold']
-					eval = float(ls[4])
-					if eval <= 1e-5:
-						protein_hits[gene_id].append([hg, eval, sample, scaffold])
-
-		for p in protein_hits:
-			for i, hits in enumerate(sorted(protein_hits[p], key=itemgetter(1))):
+		for p in self.hmmscan_results:
+			for i, hits in enumerate(sorted(self.hmmscan_results[p], key=itemgetter(1))):
 				if i == 0:
 					sample_protein_to_hg[hits[2]][p] = hits[0]
 					sample_hgs[hits[2]].add(hits[0])
 					scaffold_proteins[hits[2]][hits[3]].add(p)
 					sample_hg_hits_with_evalue[hits[2]][hits[0]].append([p, hits[1], hits[3]])
+
 
 		expanded_gcf_list_file = outdir + 'GCF_Expanded.txt'
 		expanded_gcf_list_handle = open(expanded_gcf_list_file, 'w')
@@ -870,8 +877,9 @@ class GCF(Pan):
 						if (number_of_sample_scaffolds_with_anchor_hgs == 1 or \
 								(number_of_sample_scaffolds_with_anchor_hgs > 1 and \
 								 len(boundary_genes[sample].intersection(scaffold_gcf_gene_ids)) > 0)) and \
-								(len(sample_hgs[sample].intersection(self.core_homologs))/len(self.core_homologs) >= 0.9) and \
-								(len(scaffold_hgs.intersection(self.core_homologs))/len(self.core_homologs) >= 0.2):
+								(len(sample_hgs[sample].intersection(self.core_homologs))/len(self.core_homologs) >= 0.95) and \
+								(len(scaffold_hgs.intersection(self.core_homologs))/len(self.core_homologs) >= 0.25 and
+								len(scaffold_hgs.intersection(self.core_homologs)) >= 5):
 							clean_sample_name = sample.replace('-', '_').replace(':', '_').replace('.', '_').replace('=', '_')
 							bgc_genbank_file = bgc_genbanks_dir + clean_sample_name + '_BGC-' + str(sample_bgc_ids[sample]) + '.gbk'
 							sample_bgc_ids[sample] += 1
@@ -914,6 +922,7 @@ class GCF(Pan):
 				printlist.append(', '.join(sample_hg_proteins[s][hg]))
 			expanded_orthofinder_matrix_handle.write('\t'.join(printlist) + '\n')
 		expanded_orthofinder_matrix_handle.close()
+		"""
 
 	def extractGeneWithFlanksAndCluster(self, genes_with_flanks_fasta, cd_hit_clusters_fasta_file, cd_hit_nr_fasta_file, bowtie2_db_prefix):
 		"""
@@ -1056,29 +1065,6 @@ class GCF(Pan):
 
 	def createSummaryMatricesForMetaNovelty(self, paired_end_sequencing_file, snv_mining_outdir, outdir):
 		try:
-
-			all_samples = set([])
-			for hg in self.hg_genes:
-				sample_counts = defaultdict(int)
-				sample_sequences = {}
-				for gene in self.hg_genes[hg]:
-					if len(gene.split('_')[0]) == 3:
-						gene_info = self.comp_gene_info[gene]
-						bgc_id = gene_info['bgc_name']
-						sample_id = self.bgc_sample[bgc_id]
-						sample_counts[sample_id] += 1
-						all_samples.add(sample_id)
-				samples_with_single_copy = set([s[0] for s in sample_counts.items() if s[1] == 1])
-				samples_with_any_copy = set([s[0] for s in sample_counts.items() if s[1] > 0])
-
-				# check that hg is single-copy-core or just core
-				if len(samples_with_single_copy.symmetric_difference(all_samples)) == 0:
-					self.scc_homologs.add(hg)
-				if len(samples_with_any_copy.symmetric_difference(all_samples)) == 0:
-					self.core_homologs.add(hg)
-					if self.hg_prop_multi_copy[hg] <= 0.05:
-						self.specific_core_homologs.add(hg)
-
 			sample_homolog_groups = defaultdict(set)
 			samples = set([])
 			hg_allele_representatives = set([])
@@ -1108,7 +1094,7 @@ class GCF(Pan):
 			for s in samples:
 				samp_hgs = sample_homolog_groups[s]
 				print(self.core_homologs)
-				if len(samp_hgs.intersection(self.core_homologs))/float(len(self.core_homologs)) < 0.9:
+				if len(samp_hgs.intersection(self.core_homologs))/float(len(self.core_homologs)) < 0.95:
 					self.avoid_samples.add(s)
 
 			final_matrix_reads_file = outdir + 'Sample_by_OG_Allele_Read_Counts.matrix.txt'
@@ -1171,9 +1157,6 @@ class GCF(Pan):
 					hg, cod_alignment = line.split('\t')
 					with open(cod_alignment) as oca:
 						for rec in SeqIO.parse(oca, 'fasta'):
-							if hg == 'OG0001886':
-								print(rec.id)
-								print(str(rec.seq))
 							sample_id, gene_id = rec.id.split('|')
 							real_pos = 1
 							for msa_pos, bp in enumerate(str(rec.seq)):
@@ -1442,53 +1425,6 @@ def snv_miner(input_args):
 			logObject.error("Issues with mining for SNVs/parsing alignment file.")
 			logObject.error(traceback.format_exc())
 		raise RuntimeError(traceback.format_exc())
-
-def create_hmm_profiles(inputs):
-	"""
-
-	"""
-	hg, sample_sequences, prot_seq_dir, prot_alg_dir, prot_hmm_dir, logObject = inputs
-
-	hg_prot_fasta = prot_seq_dir + '/' + hg + '.faa'
-	hg_prot_msa = prot_alg_dir + '/' + hg + '.msa.faa'
-	hg_prot_hmm = prot_hmm_dir + '/' + hg + '.hmm'
-
-	hg_prot_handle = open(hg_prot_fasta, 'w')
-	for s in sample_sequences:
-		hg_prot_handle.write('>' + s + '\n' + str(sample_sequences[s]) + '\n')
-	hg_prot_handle.close()
-
-	mafft_cmd = ['mafft', '--maxiterate', '1000', '--localpair', hg_prot_fasta, '>', hg_prot_msa]
-	if logObject:
-		logObject.info('Running mafft with the following command: %s' % ' '.join(mafft_cmd))
-	try:
-		subprocess.call(' '.join(mafft_cmd), shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-						executable='/bin/bash')
-		if logObject:
-			logObject.info('Successfully ran: %s' % ' '.join(mafft_cmd))
-	except:
-		if logObject:
-			logObject.error('Had an issue running: %s' % ' '.join(mafft_cmd))
-			logObject.error(traceback.format_exc())
-		raise RuntimeError('Had an issue running: %s' % ' '.join(mafft_cmd))
-
-	hmmbuild_cmd = ['hmmbuild', '--amino', '-n', hg, hg_prot_hmm, hg_prot_msa]
-	if logObject:
-		logObject.info('Running hmmbuild (from HMMER3) with the following command: %s' % ' '.join(hmmbuild_cmd))
-	try:
-		subprocess.call(' '.join(hmmbuild_cmd), shell=True, stdout=subprocess.DEVNULL,
-						stderr=subprocess.DEVNULL,
-						executable='/bin/bash')
-		if logObject:
-			logObject.info('Successfully ran: %s' % ' '.join(hmmbuild_cmd))
-	except:
-		if logObject:
-			logObject.error('Had an issue running: %s' % ' '.join(hmmbuild_cmd))
-			logObject.error(traceback.format_exc())
-		raise RuntimeError('Had an issue running: %s' % ' '.join(hmmbuild_cmd))
-
-	if logObject:
-		logObject.info('Constructed profile HMM for homolog group %s' % hg)
 
 def popgen_analysis_of_hg(inputs):
 	"""

@@ -132,6 +132,7 @@ def lsaBGC_Expansion():
     logObject.info("Starting to parse OrthoFinder homolog vs sample information.")
     gene_to_hg, hg_genes, hg_median_copy_count, hg_prop_multi_copy = util.parseOrthoFinderMatrix(orthofinder_matrix_file, GCF_Object.pan_genes)
     GCF_Object.inputHomologyInformation(gene_to_hg, hg_genes, hg_median_copy_count, hg_prop_multi_copy)
+    GCF_Object.identifyKeyHomologGroups()
     logObject.info("Successfully parsed homolog matrix.")
 
     # Step 3: Build HMMs for homolog groups observed in representative BGCs for GCF
@@ -144,9 +145,14 @@ def lsaBGC_Expansion():
     sample_prokka_data = processing.readInAnnotationFilesForExpandedSampleSet(expansion_listing_file, logObject)
     logObject.info("Successfully parsed new sample annotation files.")
 
-    # Step 5: Search HMMs in proteomes from comprehensive set of BGCs
+    # Step 5: Search HMM profiles in proteomes from comprehensive set of BGCs
     logObject.info("Searching for homolog group HMMs in proteins extracted from comprehensive list of BGCs.")
-    GCF_Object.runHMMScanAndAssignBGCsToGCF(outdir, sample_prokka_data, orthofinder_matrix_file, cores=cores)
+    GCF_Object.runHMMScan(outdir, sample_prokka_data, orthofinder_matrix_file, cores=cores)
+    logObject.info("Successfully found new instances of GCF in new sample set.")
+
+    # Step 6: Determine whether samples' assemblies feature GCF of interest
+    logObject.info("Searching for homolog group HMMs in proteins extracted from comprehensive list of BGCs.")
+    GCF_Object.identifyGCFInstances(outdir, sample_prokka_data, orthofinder_matrix_file, cores=cores)
     logObject.info("Successfully found new instances of GCF in new sample set.")
 
     # Close logging object and exit
