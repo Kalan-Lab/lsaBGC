@@ -7,7 +7,7 @@ biosynthetic gene cluster diversity across a focal lineage/taxa of interest usin
 
 ## Documentation
 
-Documentation can currently be found on the Github's wiki.
+Documentation can currently be found on this Github repo's wiki: https://github.com/Kalan-Lab/lsaBGC/wiki
 
 ## Installation
 
@@ -36,8 +36,6 @@ As described in the Installation section above, dependencies can be set up easil
 The set of dependencies for the core lsaBGC programs and auxiliary scripts, along with versions used for testing, include:
 
 lsaBGC was developed and tested on UNIX systems; however, there are no apprent reasons users would have difficulty running on OS X or Windows.
-
-
 
 ## Acknowledgements
 
