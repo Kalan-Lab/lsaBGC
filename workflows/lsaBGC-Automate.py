@@ -83,11 +83,11 @@ def lsaBGC_Automate():
 
 	outdir = os.path.abspath(myargs.output_directory) + '/'
 	gcf_listing_dir = os.path.abspath(myargs.gcf_listing_dir) + '/'
-	orthofinder_matrix_file = os.path.abspath(myargs.orthofinder_matrix)
+	original_orthofinder_matrix_file = os.path.abspath(myargs.orthofinder_matrix)
 	assembly_listing_file = os.path.abspath(myargs.assembly_listing)
 
 	try:
-		assert(os.path.isdir(gcf_listing_dir) and os.path.isfile(orthofinder_matrix_file))
+		assert(os.path.isdir(gcf_listing_dir) and os.path.isfile(original_orthofinder_matrix_file))
 	except:
 		raise RuntimeError('Input directory with GCF listings does not exist or the OrthoFinder does not exist. Exiting now ...')
 
@@ -116,15 +116,17 @@ def lsaBGC_Automate():
 	logObject = util.createLoggerObject(log_file)
 
 	# Step 0: Log input arguments and update reference and query FASTA files.
-	#logObject.info("Saving parameters for future provedance.")
-	#parameters_file = outdir + 'Parameter_Inputs.txt'
-	#parameter_values = [gcf_listing_file, assembly_listing_file, outdir, sketch_size, expansion_listing_file, gcf_id,
-	#					cores]
-	#parameter_names = ["GCF Listings Directory", "Assembly Listing File", "Output Directory", "MASH Sketch Size",
-	#				   "Listing File of Prokka Annotation Files for Comprehensive Set of Samples",
-	#				   "GCF Identifier", "Cores"]
-	#util.logParametersToFile(parameters_file, parameter_names, parameter_values)
-	#logObject.info("Done saving parameters!")
+	logObject.info("Saving parameters for easier determination of results' provenance in the future.")
+	parameters_file = outdir + 'Parameter_Inputs.txt'
+	parameter_values = [gcf_listing_dir, assembly_listing_file, original_orthofinder_matrix_file, outdir,
+						expansion_listing_file, population_analysis, discovary_analysis_id, discovary_input_listing,
+						cores]
+	parameter_names = ["GCF Listings Directory", "Assembly Listing File", "OrthoFinder Homolog Matrix",
+					   "Output Directory", "Listing File of Prokka Annotation Files for Comprehensive Set of Samples",
+					   "Delineate Populations and Perform Population Genetics Analytics", "DiscoVary Analysis ID",
+					   "DiscoVary Sequencing Data Location Specification File", "Cores"]
+	util.logParametersToFile(parameters_file, parameter_names, parameter_values)
+	logObject.info("Done saving parameters!")
 
 	if expansion_listing_file:
 		try:
@@ -205,19 +207,19 @@ def lsaBGC_Automate():
 	for g in os.listdir(gcf_listing_dir):
 		gcf_id = g.split('.txt')[0]
 		gcf_listing_file = gcf_listing_dir + g
-
+		orthofinder_matrix_file = original_orthofinder_matrix_file
 		logObject.info("Beginning analysis for GCF %s" % gcf_id)
-		sys.stdout.write("Beginning analysis for GCF %s" % gcf_id)
+		sys.stderr.write("Beginning analysis for GCF %s\n" % gcf_id)
 
 		# 1. Run lsaBGC-Expansion.py
 		if expansion_listing_file:
 			gcf_exp_outdir = exp_outdir + gcf_id + '/'
-			if not os.path.isdir(gcf_exp_outdir):
+			if True: #not os.path.isdir(gcf_exp_outdir):
 				os.system('mkdir %s' % gcf_exp_outdir)
 				cmd = ['lsaBGC-Expansion.py', '-g', gcf_listing_file, '-m', orthofinder_matrix_file, '-e',
 					   expansion_listing_file, '-o', gcf_exp_outdir, '-i', gcf_id, '-c', str(cores)]
 				try:
-					util.run_cmd(cmd, logObject)
+					util.run_cmd(cmd, logObject, stderr=sys.stderr, stdout=sys.stdout)
 					assert (os.path.isfile(gcf_exp_outdir + 'Orthogroups.expanded.csv'))
 					assert (os.path.isfile(gcf_exp_outdir + 'GCF_Expanded.txt'))
 					orthofinder_matrix_file = gcf_exp_outdir + 'Orthogroups.expanded.csv'
@@ -238,10 +240,9 @@ def lsaBGC_Automate():
 					sys.stderr.write("Warning: lsaBGC-Expansion.py was unsuccessful, skipping over GCF %s\n" % gcf_id)
 					continue
 
-		"""
 		# 2. Run lsaBGC-See.py
 		gcf_see_outdir = see_outdir + gcf_id + '/'
-		if not os.path.isdir(gcf_see_outdir):
+		if True: #not os.path.isdir(gcf_see_outdir):
 			os.system('mkdir %s' % gcf_see_outdir)
 			cmd = ['lsaBGC-See.py', '-g', gcf_listing_file, '-m', orthofinder_matrix_file, '-o', gcf_see_outdir,
 				   '-i', gcf_id, '-p', '-c', str(cores)]
@@ -295,8 +296,6 @@ def lsaBGC_Automate():
 					logObject.warning("lsaBGC-DiscoVary.py was unsuccessful for GCF %s" % gcf_id)
 					sys.stderr.write("Warning: lsaBGC-DiscoVary.py was unsuccessful for GCF %s\n" % gcf_id)
 
-		
-		"""
 	# Close logging object and exit
 	util.closeLoggerObject(logObject)
 	sys.exit(0)

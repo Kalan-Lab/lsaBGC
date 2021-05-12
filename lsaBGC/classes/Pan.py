@@ -9,6 +9,8 @@ from lsaBGC.classes.BGC import BGC
 from lsaBGC import util
 import statistics
 import random
+import multiprocessing
+import math
 
 lsaBGC_main_directory = '/'.join(os.path.realpath(__file__).split('/')[:-3])
 RSCRIPT_FOR_CLUSTER_ASSESSMENT_PLOTTING = lsaBGC_main_directory + '/lsaBGC/Rscripts/plotParameterImpactsOnGCF.R'
@@ -49,6 +51,9 @@ class Pan:
 		self.pairwise_relations = None
 		# Concatenated HMMER3 HMM profiles database of homolog groups in GCF
 		self.concatenated_profile_HMM = None
+		self.hg_max_self_evalue = defaultdict(lambda: 0.0)
+		self.lowerbound_hg_count = 100000
+
 		# HMMScan results - dictionary with keys as gene locus tag ids and values as
 		# list of lists: [homolog group, evalue, sample, scaffold]
 		self.hmmscan_results = defaultdict(list)
@@ -734,22 +739,29 @@ class Pan:
 		prot_seq_dir = os.path.abspath(outdir + 'Protein_Sequences') + '/'
 		prot_alg_dir = os.path.abspath(outdir + 'Protein_Alignments') + '/'
 		prot_hmm_dir = os.path.abspath(outdir + 'Profile_HMMs') + '/'
+		search_ref_res_dir = os.path.abspath(outdir + 'HMMScan_Reflexive_Results') + '/'
+
 		if not os.path.isdir(prot_seq_dir): os.system('mkdir %s' % prot_seq_dir)
 		if not os.path.isdir(prot_alg_dir): os.system('mkdir %s' % prot_alg_dir)
 		if not os.path.isdir(prot_hmm_dir): os.system('mkdir %s' % prot_hmm_dir)
+		if not os.path.isdir(search_ref_res_dir): os.system('mkdir %s' % search_ref_res_dir)
 
 		try:
 			inputs = []
+			sample_hgs = defaultdict(set)
 			for hg in self.hg_genes:
 				sample_sequences = {}
 				for gene in self.hg_genes[hg]:
 					gene_info = self.comp_gene_info[gene]
 					bgc_id = gene_info['bgc_name']
 					sample_id = self.bgc_sample[bgc_id]
+					sample_hgs[sample_id].add(hg)
 					prot_seq = gene_info['prot_seq']
-					sample_counts[sample_id] += 1
 					sample_sequences[sample_id] = prot_seq
 				inputs.append([hg, sample_sequences, prot_seq_dir, prot_alg_dir, prot_hmm_dir, self.logObject])
+
+			sample_hg_counts = [len(sample_hgs[x]) for x in sample_hgs]
+			self.lowerbound_hg_count = math.floor(min(sample_hg_counts))
 
 			p = multiprocessing.Pool(cores)
 			p.map(create_hmm_profiles, inputs)
@@ -760,7 +772,14 @@ class Pan:
 					"Successfully created profile HMMs for each homolog group. Now beginning concatenation into single file.")
 			self.concatenated_profile_HMM = outdir + 'All_GCF_Homologs.hmm'
 			os.system('rm -f %s %s.h3*' % (self.concatenated_profile_HMM, self.concatenated_profile_HMM))
+			hmmscan_cmds = []
 			for f in os.listdir(prot_hmm_dir):
+				hg = f.split('.hmm')[0]
+				hg_proteome = prot_seq_dir + hg + '.faa'
+				result_file = search_ref_res_dir + hg + '.txt'
+				hmmscan_cmd = ['hmmscan', '--max', '--cpu', '1', '--tblout', result_file, self.concatenated_profile_HMM,
+							   hg_proteome, self.logObject]
+				hmmscan_cmds.append(hmmscan_cmd)
 				os.system('cat %s >> %s' % (prot_hmm_dir + f, self.concatenated_profile_HMM))
 
 			hmmpress_cmd = ['hmmpress', self.concatenated_profile_HMM]
@@ -779,6 +798,32 @@ class Pan:
 					self.logObject.error(traceback.format_exc())
 				raise RuntimeError('Had an issue running: %s' % ' '.join(hmmpress_cmd))
 
+			p = multiprocessing.Pool(cores)
+			p.map(util.multiProcess, hmmscan_cmds)
+			p.close()
+
+			for f in os.listdir(search_ref_res_dir):
+				hg = f.split('.txt')[0]
+				result_file = search_ref_res_dir + f
+				assert (os.path.isfile(result_file))
+
+				best_hits = defaultdict(list)
+				with open(result_file) as orf:
+					for line in orf:
+						if line.startswith("#"): continue
+						line = line.strip()
+						ls = line.split()
+						if hg != ls[0]: continue
+						gene_id = ls[2]
+						eval = float(ls[4])
+						best_hits[gene_id].append(eval)
+
+				for gene in best_hits:
+					for i, eval in enumerate(sorted(best_hits[gene])):
+						if i == 0:
+							if self.hg_max_self_evalue[hg] < eval:
+								self.hg_max_self_evalue[hg] = eval
+
 		except:
 			if self.logObject:
 				self.logObject.error("Issues with running hmmpress on profile HMMs.")
@@ -795,9 +840,7 @@ class Pan:
 		:param cores: The number of cores (will be used for parallelizing)
 		"""
 		search_res_dir = os.path.abspath(outdir + 'HMMScan_Results') + '/'
-		bgc_genbanks_dir = os.path.abspath(outdir + 'BGC_Genbanks') + '/'
 		if not os.path.isdir(search_res_dir): os.system('mkdir %s' % search_res_dir)
-		if not os.path.isdir(bgc_genbanks_dir): os.system('mkdir %s' % bgc_genbanks_dir)
 
 		hmmscan_cmds = []
 		for sample in sample_prokka_data:
@@ -821,6 +864,7 @@ class Pan:
 		p.map(util.multiProcess, hmmscan_cmds)
 		p.close()
 
+		#print(self.hg_max_self_evalue)
 		for sample in sample_prokka_data:
 			result_file = search_res_dir + sample + '.txt'
 			assert (os.path.isfile(result_file))
@@ -832,9 +876,9 @@ class Pan:
 					ls = line.split()
 					hg = ls[0]
 					gene_id = ls[2]
-					scaffold = gene_location[sample][gene_id]['scaffold']
+					scaffold = self.gene_location[sample][gene_id]['scaffold']
 					eval = float(ls[4])
-					if eval <= 1e-10:
+					if eval <= min(1e2*(self.hg_max_self_evalue[hg]), 1e-10):
 						self.hmmscan_results[gene_id].append([hg, eval, sample, scaffold])
 
 def create_hmm_profiles(inputs):

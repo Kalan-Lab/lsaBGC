@@ -147,12 +147,12 @@ def lsaBGC_Expansion():
 
     # Step 5: Search HMM profiles in proteomes from comprehensive set of BGCs
     logObject.info("Searching for homolog group HMMs in proteins extracted from comprehensive list of BGCs.")
-    GCF_Object.runHMMScan(outdir, sample_prokka_data, orthofinder_matrix_file, cores=cores)
+    GCF_Object.runHMMScan(outdir, sample_prokka_data, cores=cores)
     logObject.info("Successfully found new instances of GCF in new sample set.")
 
     # Step 6: Determine whether samples' assemblies feature GCF of interest
     logObject.info("Searching for homolog group HMMs in proteins extracted from comprehensive list of BGCs.")
-    GCF_Object.identifyGCFInstances(outdir, sample_prokka_data, orthofinder_matrix_file, cores=cores)
+    GCF_Object.identifyGCFInstances(outdir, sample_prokka_data, orthofinder_matrix_file)
     logObject.info("Successfully found new instances of GCF in new sample set.")
 
     # Close logging object and exit

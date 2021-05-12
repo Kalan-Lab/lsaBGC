@@ -1,4 +1,4 @@
-()# Title     : createNJTreeAndDefineClades.R
+# Title     : createNJTreeAndDefineClades.R
 # Objective : TODO
 # Created by: rauf
 # Created on: 4/27/21
@@ -18,8 +18,8 @@ write.tree(mid.njt, file=args[2])
 
 s <- trestruct(mid.njt)
 
-pdf(args[3], height=10, width=7)
-plot(s)  + ggtree::geom_tiplab()
+pdf(args[3], height=20, width=10)
+plot(s)  + ggtree::geom_tiplab() + ggplot2::xlim(NA, 1)
 dev.off()
 
 structureData <- as.data.frame(s)

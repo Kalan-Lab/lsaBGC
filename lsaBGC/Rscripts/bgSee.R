@@ -18,18 +18,21 @@ phylo.tree <- midpoint.root(phylo.tree)
 genes.data <- as.tibble(read.table(genes.data_file, header=T, sep='\t'))
 heatmap.data <- as.tibble(read.table(heatmap.data_file, header=T, sep='\t'))
 
+tree.labels <- phylo.tree$tip.label
 og_colors <- c(genes.data$og_color, '#FFFFFF')
 names(og_colors) <- c(genes.data$og, 'Absent')
 
 pdf(pdf_file, height=30, width=40)
-gg_tr <- ggtree(phylo.tree) + geom_tiplab(align=TRUE) + theme_void()  + ggplot2::xlim(0, 0.5)
+gg_tr <- ggtree(phylo.tree) + theme_void()
 gg_gn <- ggplot(genes.data, aes(xmin = start, xmax = end, y = label, fill = og, forward = forward)) +
-          geom_gene_arrow(show.legend=F) + theme_void() + scale_fill_manual(values=og_colors)
+          geom_gene_arrow(show.legend=F) + theme_void() + scale_y_discrete(limits=tree.labels) + scale_fill_manual(values=og_colors)
 gg_hm <- ggplot(heatmap.data, aes(x=reorder(og, -og_count), y=label, fill=og_presence)) +
          theme_classic() + scale_fill_manual(values=og_colors) +#values=c("#FFFFFF", "#000000")) +
-         xlab("Homolog Group IDs") + ylab("BGC IDs") + geom_tile(color='white', show.legend=F) + theme(axis.title.y=element_blank(),
-        axis.text.y=element_blank(), axis.ticks.y=element_blank(), axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+         xlab("Homolog Group IDs") + ylab("BGC IDs") +
+         geom_tile(color='white', show.legend=F) + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+         scale_y_discrete(position = 'right', limits=tree.labels)
 
+#gg_gn %>% insert_left(gg_tr, width=0.4)
 gg_hm %>% insert_left(gg_gn, width=1.0) %>% insert_left(gg_tr, width=0.4)
 
 dev.off()
