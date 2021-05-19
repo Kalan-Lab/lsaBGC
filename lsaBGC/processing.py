@@ -32,7 +32,7 @@ def readInAnnotationFilesForExpandedSampleSet(expansion_listing_file, logObject)
 			for line in oalf:
 				line = line.strip()
 				sample, genbank, predicted_proteome = line.split('\t')
-				sample = sample.replace(' ', '_').replace('|', '_').replace('"', '_').replace("'", '_').replace("=", "_")
+				sample = sample.replace(' ', '_').replace('|', '_').replace('"', '_').replace("'", '_').replace("=", "_").replace('-', '_')
 				try:
 					assert (util.is_genbank(genbank))
 					assert (util.is_fasta(predicted_proteome))

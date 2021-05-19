@@ -11,6 +11,8 @@ import statistics
 import random
 import multiprocessing
 import math
+from operator import itemgetter
+from scipy import stats
 
 lsaBGC_main_directory = '/'.join(os.path.realpath(__file__).split('/')[:-3])
 RSCRIPT_FOR_CLUSTER_ASSESSMENT_PLOTTING = lsaBGC_main_directory + '/lsaBGC/Rscripts/plotParameterImpactsOnGCF.R'
@@ -49,6 +51,8 @@ class Pan:
 		### other variables
 		# Jaccard similarity distance between bgcs
 		self.pairwise_relations = None
+		# Absolute pearson correlation coefficient for syntenic similarity between bgcs
+		self.pairwise_syntenic_relations = None
 		# Concatenated HMMER3 HMM profiles database of homolog groups in GCF
 		self.concatenated_profile_HMM = None
 		self.hg_max_self_evalue = defaultdict(lambda: 0.0)
@@ -192,28 +196,58 @@ class Pan:
 		try:
 			pair_relations_txt_file = outdir + 'bgc_pair_relationships.txt'
 			prf_handle = open(pair_relations_txt_file, 'w')
+
 			pairwise_relations = defaultdict(lambda: defaultdict(float))
+			pairwise_syntenic_relations = defaultdict(lambda: defaultdict(lambda: 0.0))
+
+			bgc_hg_ranked_orders = defaultdict(dict)
+			for bgc in enumerate(self.bgc_hgs):
+				sc_hg_starts = []
+				for hg in self.bgc_hgs[bgc]:
+					gene_counts = 0
+					hg_start = 0
+					for g in self.hg_genes[hg]:
+						if self.comp_gene_info[g]['bgc_name'] == bgc1:
+							hg_start = self.comp_gene_info[g]['start']
+							gene_counts += 1
+					if gene_counts == 1:
+						sc_hg_starts.append([hg, hg_start])
+
+				for hg_ord, hg_its in enumerate(sc_hg_starts, key=itemgetter(1)):
+					bgc_hg_ranked_orders[bgc][hg_its[0]] = (hg_ord + 1)
+
 			for i, bgc1 in enumerate(self.bgc_hgs):
-				bgc1_cogs_sc = set([x for x in self.bgc_hgs[bgc1] if self.hg_prop_multi_copy[x] <= 0.05])
 				bgc1_hgs = self.bgc_hgs[bgc1]
+				bgc1_hgs_ranked_orders = bgc_hg_ranked_orders[bgc1]
 				for j, bgc2 in enumerate(self.bgc_hgs):
 					if i < j:
-						bgc2_hgs_sc = set([x for x in self.bgc_hgs[bgc2] if self.hg_prop_multi_copy[x] <= 0.05])
 						bgc2_hgs = self.bgc_hgs[bgc2]
-						if len(bgc1_cogs_sc.intersection(bgc2_hgs_sc)) < 3: continue
-						overlap_metric = float(len(bgc1_hgs.intersection(bgc2_hgs))) / float(
-							len(bgc1_hgs.union(bgc2_hgs)))
+						bgc2_hgs_ranked_orders = bgc_hg_ranked_orders[bgc2]
+
+						overlap_metric = float(len(bgc1_hgs.intersection(bgc2_hgs))) / float(len(bgc1_hgs.union(bgc2_hgs)))
 						overlap_metric_scaled = 100.00 * overlap_metric
 						pairwise_relations[bgc1][bgc2] = overlap_metric_scaled
 						pairwise_relations[bgc2][bgc1] = overlap_metric_scaled
-						if not split_by_annotation or (
-								split_by_annotation and self.bgc_product[bgc1] == self.bgc_product[bgc2]):
+
+						sc_hgs_intersect = set(bgc1_hgs_ranked_orders.keys()).intersection(set(bgc2_hgs_ranked_orders.keys()))
+						if len(sc_hgs_intersect) >= 3:
+							bgc1_orders = []
+							bgc2_orders = []
+							for hg in sc_hgs_intersect:
+								bgc1_orders.append(bgc1_hgs_ranked_orders[hg])
+								bgc2_orders.append(bgc2_hgs_ranked_orders[hg])
+							abs_correlation_coefficient = abs(stats.pearson(bgc1_orders, bgc2_orders))
+							pairwise_syntenic_relations[bgc1][bgc2] = abs_correlation_coefficient
+							pairwise_syntenic_relations[bgc2][bgc1] = abs_correlation_coefficient
+
+						if not split_by_annotation or (split_by_annotation and len(set(self.bgc_product[bgc1]).intersection(set(self.bgc_product[bgc2])))) > 0:
 							prf_handle.write('%s\t%s\t%f\n' % (bgc1, bgc2, overlap_metric_scaled))
 			prf_handle.close()
 
 			if self.logObject:
 				self.logObject.info("Calculated pairwise relations and wrote to: %s" % pair_relations_txt_file)
 			self.pairwise_relations = pairwise_relations
+			self.pairwise_syntenic_relations = pairwise_syntenic_relations
 			self.pair_relations_txt_file = pair_relations_txt_file
 			self.bgc_to_gcf_map_file = outdir + 'BGC_to_GCF_Mapping.txt'
 		except Exception as e:
@@ -222,7 +256,7 @@ class Pan:
 				self.logObject.error(traceback.format_exc())
 			raise RuntimeError(traceback.format_exc())
 
-	def runMCLAndReportGCFs(self, mip, jcp, outdir, run_parameter_tests=False, cores=1):
+	def runMCLAndReportGCFs(self, mip, jcp, sccp, outdir, run_parameter_tests=False, cores=1):
 		"""
 		Function to run MCL and report the GCFs (gene-cluster families) of homologous BGCs identified.
 
@@ -238,8 +272,8 @@ class Pan:
 			with open(self.pair_relations_txt_file) as oprtf:
 				for line in oprtf:
 					line = line.strip('\n')
-					s1, s2, jaccard_sim = line.split('\t')
-					if float(jaccard_sim) >= jcp:
+					b1, b2, jaccard_sim = line.split('\t')
+					if float(jaccard_sim) >= jcp and self.pairwise_syntenic_relations[b1][b2] >= sccp:
 						prftf_handle.write(line + '\n')
 			prftf_handle.close()
 		except Exception as e:
@@ -728,11 +762,13 @@ class Pan:
 				self.logObject.error(traceback.format_exc())
 			raise RuntimeError(traceback.format_exc())
 
-	def constructHMMProfiles(self, outdir, cores=1):
+	def constructHMMProfiles(self, outdir, initial_sample_prokka_data, cores=1):
 		"""
 		Wrapper function to construct Hmmer3 HMMs for each of the homolog groups.
 
 		:param outdir: The path to the workspace / output directory.
+		:param initial_sample_prokka_data: Dictionary with keys being sample identifiers and values being paths to
+										   genbank and proteome files from Prokka based annotation
 		:param cores: The number of cores (will be used for parallelizing)
 		"""
 
@@ -763,24 +799,26 @@ class Pan:
 			sample_hg_counts = [len(sample_hgs[x]) for x in sample_hgs]
 			self.lowerbound_hg_count = math.floor(min(sample_hg_counts))
 
-			p = multiprocessing.Pool(cores)
-			p.map(create_hmm_profiles, inputs)
-			p.close()
+			#p = multiprocessing.Pool(cores)
+			#p.map(create_hmm_profiles, inputs)
+			#p.close()
 
 			if self.logObject:
 				self.logObject.info(
 					"Successfully created profile HMMs for each homolog group. Now beginning concatenation into single file.")
 			self.concatenated_profile_HMM = outdir + 'All_GCF_Homologs.hmm'
 			os.system('rm -f %s %s.h3*' % (self.concatenated_profile_HMM, self.concatenated_profile_HMM))
-			hmmscan_cmds = []
+
 			for f in os.listdir(prot_hmm_dir):
-				hg = f.split('.hmm')[0]
-				hg_proteome = prot_seq_dir + hg + '.faa'
-				result_file = search_ref_res_dir + hg + '.txt'
-				hmmscan_cmd = ['hmmscan', '--max', '--cpu', '1', '--tblout', result_file, self.concatenated_profile_HMM,
-							   hg_proteome, self.logObject]
-				hmmscan_cmds.append(hmmscan_cmd)
 				os.system('cat %s >> %s' % (prot_hmm_dir + f, self.concatenated_profile_HMM))
+
+			hmmscan_cmds = []
+			for sample in initial_sample_prokka_data:
+				sample_proteome = initial_sample_prokka_data[sample]['predicted_proteome']
+				result_file = search_ref_res_dir + sample + '.txt'
+				hmmscan_cmd = ['hmmscan', '--max', '--cpu', '1', '--tblout', result_file, self.concatenated_profile_HMM,
+							   sample_proteome, self.logObject]
+				hmmscan_cmds.append(hmmscan_cmd)
 
 			hmmpress_cmd = ['hmmpress', self.concatenated_profile_HMM]
 			if self.logObject:
@@ -798,31 +836,60 @@ class Pan:
 					self.logObject.error(traceback.format_exc())
 				raise RuntimeError('Had an issue running: %s' % ' '.join(hmmpress_cmd))
 
-			p = multiprocessing.Pool(cores)
-			p.map(util.multiProcess, hmmscan_cmds)
-			p.close()
+			#p = multiprocessing.Pool(cores)
+			#p.map(util.multiProcess, hmmscan_cmds)
+			#p.close()
 
-			for f in os.listdir(search_ref_res_dir):
-				hg = f.split('.txt')[0]
-				result_file = search_ref_res_dir + f
+			best_hits = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
+			for sample in initial_sample_prokka_data:
+				result_file = search_ref_res_dir + sample + '.txt'
 				assert (os.path.isfile(result_file))
 
-				best_hits = defaultdict(list)
+				hits_per_gene = defaultdict(list)
 				with open(result_file) as orf:
 					for line in orf:
 						if line.startswith("#"): continue
 						line = line.strip()
 						ls = line.split()
-						if hg != ls[0]: continue
+						hg = ls[0]
 						gene_id = ls[2]
 						eval = float(ls[4])
-						best_hits[gene_id].append(eval)
+						hits_per_gene[gene_id].append([hg, eval])
 
-				for gene in best_hits:
-					for i, eval in enumerate(sorted(best_hits[gene])):
+				for gene_id in hits_per_gene:
+					for i, hit in enumerate(sorted(hits_per_gene[gene_id], key=itemgetter(1))):
 						if i == 0:
-							if self.hg_max_self_evalue[hg] < eval:
-								self.hg_max_self_evalue[hg] = eval
+							in_hg_flag = False
+							if gene_id in self.gene_to_hg and hit[0] == self.gene_to_hg[gene_id]: in_hg_flag = True
+							best_hits[hit[0]][sample][in_hg_flag].append(hit[1])
+
+			for hg in best_hits:
+				true_hits = []
+				false_hits = []
+				for sample in best_hits[hg]:
+					true_hits += best_hits[hg][sample][True]
+					false_hits += best_hits[hg][sample][False]
+				worst_true_hit = max(true_hits)
+				best_false_hit = min(false_hits)
+				able_to_differentiate = False
+				eval_threshold = 1e-10
+				if best_false_hit > worst_true_hit:
+					able_to_differentiate = True
+					if worst_true_hit == 0.0:
+						worst_true_hit = 1e-300
+					if best_false_hit == 0.0:
+						best_false_hit = 1e-300
+					wth_log10 = math.log(worst_true_hit, 10)
+					bfh_log10 = math.log(best_false_hit, 10)
+					eval_threshold = max([math.pow(10.0, ((wth_log10 + bfh_log10)/2.0)), math.pow(10.0, (bfh_log10 + -5))])
+					#eval_threshold = math.pow(10.0, ((wth_log10 + bfh_log10)/2.0))
+
+				print(hg)
+				print(sorted(true_hits))
+				print(sorted(false_hits))
+				print(eval_threshold)
+				print(able_to_differentiate)
+				self.hg_max_self_evalue[hg] = [eval_threshold, able_to_differentiate]
 
 		except:
 			if self.logObject:
@@ -830,22 +897,22 @@ class Pan:
 				self.logObject.error(traceback.format_exc())
 			raise RuntimeError(traceback.format_exc())
 
-	def runHMMScan(self, outdir, sample_prokka_data, cores=1):
+	def runHMMScan(self, outdir, expanded_sample_prokka_data, cores=1):
 		"""
 		Function to run hmmscan and process results as well as read in Genbanks for expanded list of samples.
 
 		:param outdir: The path to the workspace / output directory.
-		:param sample_prokka_data: Dictionary with keys being sample identifiers and values being paths to genbank and
-								   proteome files from Prokka based annotation
+		:param expanded_sample_prokka_data: Dictionary with keys being sample identifiers and values being paths to
+											genbank and proteome files from Prokka based annotation
 		:param cores: The number of cores (will be used for parallelizing)
 		"""
 		search_res_dir = os.path.abspath(outdir + 'HMMScan_Results') + '/'
 		if not os.path.isdir(search_res_dir): os.system('mkdir %s' % search_res_dir)
 
 		hmmscan_cmds = []
-		for sample in sample_prokka_data:
-			sample_genbank = sample_prokka_data[sample]['genbank']
-			sample_proteome = sample_prokka_data[sample]['predicted_proteome']
+		for sample in expanded_sample_prokka_data:
+			sample_genbank = expanded_sample_prokka_data[sample]['genbank']
+			sample_proteome = expanded_sample_prokka_data[sample]['predicted_proteome']
 
 			gene_to_scaff, scaff_genes, bound_genes, gito, goti = util.parseGenbankAndFindBoundaryGenes(sample_genbank)
 
@@ -860,12 +927,12 @@ class Pan:
 						   sample_proteome, self.logObject]
 			hmmscan_cmds.append(hmmscan_cmd)
 
-		p = multiprocessing.Pool(cores)
-		p.map(util.multiProcess, hmmscan_cmds)
-		p.close()
+		#p = multiprocessing.Pool(cores)
+		#p.map(util.multiProcess, hmmscan_cmds)
+		#p.close()
 
-		#print(self.hg_max_self_evalue)
-		for sample in sample_prokka_data:
+		print(self.hg_max_self_evalue)
+		for sample in expanded_sample_prokka_data:
 			result_file = search_res_dir + sample + '.txt'
 			assert (os.path.isfile(result_file))
 
@@ -878,7 +945,7 @@ class Pan:
 					gene_id = ls[2]
 					scaffold = self.gene_location[sample][gene_id]['scaffold']
 					eval = float(ls[4])
-					if eval <= min(1e2*(self.hg_max_self_evalue[hg]), 1e-10):
+					if eval <= self.hg_max_self_evalue[hg][0]:
 						self.hmmscan_results[gene_id].append([hg, eval, sample, scaffold])
 
 def create_hmm_profiles(inputs):

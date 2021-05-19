@@ -15,7 +15,6 @@ import multiprocessing
 import copy
 import pysam
 
-
 def read_pair_generator(bam, region_string=None, start=None, stop=None):
 	"""
     Function taken from: https://www.biostars.org/p/306041/

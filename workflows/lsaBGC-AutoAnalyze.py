@@ -58,7 +58,7 @@ def create_parser():
 	""", formatter_class=argparse.RawTextHelpFormatter)
 
 	parser.add_argument('-o', '--output_directory', help="Parent output/workspace directory.", required=True)
-	parser.add_argument('-a', '--assembly_listing', type=str, help="Tab delimited text file. First column is the sample name and the second is the path to its assembly in FASTA format. Please remove troublesome characters in the sample name.", required=True)
+	parser.add_argument('-l', '--initial_input_listing', type=str, help="Tab delimited text file. First column is the sample name and the second is the path to its assembly in FASTA format. Please remove troublesome characters in the sample name.", required=True)
 	parser.add_argument('-g', '--gcf_listing_dir', help='Directory with GCF listing files.', required=True)
 	parser.add_argument('-m', '--orthofinder_matrix', help="OrthoFinder homolog group by sample matrix.", required=True)
 	parser.add_argument('-e', '--expansion_input_listing', help="Path to tab delimited file listing: (1) sample name (2) path to Prokka Genbank and (3) path to Prokka predicted proteome. This file is produced by lsaBGC-Process.py.", required=False, default=None)
@@ -84,10 +84,10 @@ def lsaBGC_Automate():
 	outdir = os.path.abspath(myargs.output_directory) + '/'
 	gcf_listing_dir = os.path.abspath(myargs.gcf_listing_dir) + '/'
 	original_orthofinder_matrix_file = os.path.abspath(myargs.orthofinder_matrix)
-	assembly_listing_file = os.path.abspath(myargs.assembly_listing)
+	initial_input_listing_file = os.path.abspath(myargs.initial_input_listing)
 
 	try:
-		assert(os.path.isdir(gcf_listing_dir) and os.path.isfile(original_orthofinder_matrix_file))
+		assert(os.path.isdir(gcf_listing_dir) and os.path.isfile(original_orthofinder_matrix_file) and os.path.isfile(initial_input_listing_file))
 	except:
 		raise RuntimeError('Input directory with GCF listings does not exist or the OrthoFinder does not exist. Exiting now ...')
 
@@ -118,16 +118,18 @@ def lsaBGC_Automate():
 	# Step 0: Log input arguments and update reference and query FASTA files.
 	logObject.info("Saving parameters for easier determination of results' provenance in the future.")
 	parameters_file = outdir + 'Parameter_Inputs.txt'
-	parameter_values = [gcf_listing_dir, assembly_listing_file, original_orthofinder_matrix_file, outdir,
+	parameter_values = [gcf_listing_dir, initial_input_listing_file, original_orthofinder_matrix_file, outdir,
 						expansion_listing_file, population_analysis, discovary_analysis_id, discovary_input_listing,
 						cores]
-	parameter_names = ["GCF Listings Directory", "Assembly Listing File", "OrthoFinder Homolog Matrix",
-					   "Output Directory", "Listing File of Prokka Annotation Files for Comprehensive Set of Samples",
+	parameter_names = ["GCF Listings Directory", "Listing File of Prokka Annotation Files for Initial Set of Samples",
+					   "OrthoFinder Homolog Matrix", "Output Directory",
+					   "Listing File of Prokka Annotation Files for Expansion/Additional Set of Samples",
 					   "Delineate Populations and Perform Population Genetics Analytics", "DiscoVary Analysis ID",
 					   "DiscoVary Sequencing Data Location Specification File", "Cores"]
 	util.logParametersToFile(parameters_file, parameter_names, parameter_values)
 	logObject.info("Done saving parameters!")
 
+	"""
 	if expansion_listing_file:
 		try:
 			assert (os.path.isfile(expansion_listing_file))
@@ -158,6 +160,7 @@ def lsaBGC_Automate():
 			logObject.info("Successfully updated genomes listing")
 		except:
 			raise RuntimeError('Issues with updating genomes listing')
+	"""
 
 	mash_nj_tree = None
 	population_listing_file = None
@@ -204,6 +207,7 @@ def lsaBGC_Automate():
 		dis_outdir = outdir + 'DiscoVary_' + '_'.join(discovary_analysis_id.split()) + '/'
 		if not os.path.isdir(dis_outdir): os.system('mkdir %s' % dis_outdir)
 
+	mash_nj_tree = "/home/salamzade/lsaBGC_Development/Micrococcus_luteus_Dataset/Processing_All/SpeciesTree_rooted.nwk"
 	for g in os.listdir(gcf_listing_dir):
 		gcf_id = g.split('.txt')[0]
 		gcf_listing_file = gcf_listing_dir + g
@@ -216,8 +220,9 @@ def lsaBGC_Automate():
 			gcf_exp_outdir = exp_outdir + gcf_id + '/'
 			if True: #not os.path.isdir(gcf_exp_outdir):
 				os.system('mkdir %s' % gcf_exp_outdir)
-				cmd = ['lsaBGC-Expansion.py', '-g', gcf_listing_file, '-m', orthofinder_matrix_file, '-e',
-					   expansion_listing_file, '-o', gcf_exp_outdir, '-i', gcf_id, '-c', str(cores)]
+				cmd = ['lsaBGC-Expansion.py', '-g', gcf_listing_file, '-m', orthofinder_matrix_file, '-l',
+					   initial_input_listing_file, '-e', expansion_listing_file, '-o', gcf_exp_outdir, '-i', gcf_id,
+					   '-c', str(cores)]
 				try:
 					util.run_cmd(cmd, logObject, stderr=sys.stderr, stdout=sys.stdout)
 					assert (os.path.isfile(gcf_exp_outdir + 'Orthogroups.expanded.csv'))
@@ -254,6 +259,7 @@ def lsaBGC_Automate():
 				logObject.warning("lsaBGC-See.py was unsuccessful for GCF %s" % gcf_id)
 				sys.stderr.write("Warning: lsaBGC-See.py was unsuccessful for GCF %s\n" % gcf_id)
 
+		"""
 		# 3. Run lsaBGC-PopGene.py
 		gcf_pop_outdir = pop_outdir + gcf_id + '/'
 		if not os.path.isdir(gcf_pop_outdir):
@@ -295,7 +301,7 @@ def lsaBGC_Automate():
 				except Exception as e:
 					logObject.warning("lsaBGC-DiscoVary.py was unsuccessful for GCF %s" % gcf_id)
 					sys.stderr.write("Warning: lsaBGC-DiscoVary.py was unsuccessful for GCF %s\n" % gcf_id)
-
+	"""
 	# Close logging object and exit
 	util.closeLoggerObject(logObject)
 	sys.exit(0)

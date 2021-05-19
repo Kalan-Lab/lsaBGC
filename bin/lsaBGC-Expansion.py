@@ -60,7 +60,8 @@ def create_parser():
     parser.add_argument('-g', '--gcf_listing', help='BGC listings file for a gcf. Tab delimited: 1st column lists sample name while the 2nd column is the path to an AntiSMASH BGC in Genbank format.', required=True)
     parser.add_argument('-m', '--orthofinder_matrix', help="OrthoFinder matrix.", required=True)
     parser.add_argument('-i', '--gcf_id', help="GCF identifier.", required=False, default='GCF_X')
-    parser.add_argument('-e', '--expansion_listing', type=str, help="Tab delimited text file with three columns: (1) sample name (2) Prokka generated Genbank file (*.gbk), and (3) Prokka generated predicted-proteome file (*.faa). Please remove troublesome characters in the sample name.", required=True)
+    parser.add_argument('-l', '--initial_listing', type=str, help="Tab delimited text file for samples with three columns: (1) sample name (2) Prokka generated Genbank file (*.gbk), and (3) Prokka generated predicted-proteome file (*.faa). Please remove troublesome characters in the sample name.")
+    parser.add_argument('-e', '--expansion_listing', type=str, help="Tab delimited text file for samples in the expansion set with three columns: (1) sample name (2) Prokka generated Genbank file (*.gbk), and (3) Prokka generated predicted-proteome file (*.faa). Please remove troublesome characters in the sample name.", required=True)
     parser.add_argument('-o', '--output_directory', help="Path to output directory.", required=True)
     parser.add_argument('-c', '--cores', type=int, help="The number of cores to use.", required=False, default=1)
     args = parser.parse_args()
@@ -79,6 +80,7 @@ def lsaBGC_Expansion():
 
     gcf_listing_file = os.path.abspath(myargs.gcf_listing)
     orthofinder_matrix_file = os.path.abspath(myargs.orthofinder_matrix)
+    initial_listing_file = os.path.abspath(myargs.initial_listing)
     expansion_listing_file = os.path.abspath(myargs.expansion_listing)
     outdir = os.path.abspath(myargs.output_directory) + '/'
 
@@ -86,6 +88,7 @@ def lsaBGC_Expansion():
     try:
         assert (os.path.isfile(orthofinder_matrix_file))
         assert (os.path.isfile(gcf_listing_file))
+        assert (os.path.isfile(initial_listing_file))
         assert (os.path.isfile(expansion_listing_file))
     except:
         raise RuntimeError('One or more of the input files provided, does not exist. Exiting now ...')
@@ -113,9 +116,10 @@ def lsaBGC_Expansion():
     # Step 0: Log input arguments and update reference and query FASTA files.
     logObject.info("Saving parameters for future provedance.")
     parameters_file = outdir + 'Parameter_Inputs.txt'
-    parameter_values = [gcf_listing_file, orthofinder_matrix_file, expansion_listing_file, outdir, gcf_id, cores]
+    parameter_values = [gcf_listing_file, orthofinder_matrix_file, initial_listing_file, expansion_listing_file, outdir, gcf_id, cores]
     parameter_names = ["GCF Listing File", "OrthoFinder Orthogroups.csv File",
-                       "Listing File of Prokka Annotation Files for Comprehensive Set of Samples",
+                       "Listing File of Prokka Annotation Files for Initial Set of Samples",
+                       "Listing File of Prokka Annotation Files for Expansion/Additional Set of Samples",
                        "Output Directory", "GCF Identifier", "Cores"]
     util.logParametersToFile(parameters_file, parameter_names, parameter_values)
     logObject.info("Done saving parameters!")
@@ -135,24 +139,25 @@ def lsaBGC_Expansion():
     GCF_Object.identifyKeyHomologGroups()
     logObject.info("Successfully parsed homolog matrix.")
 
-    # Step 3: Build HMMs for homolog groups observed in representative BGCs for GCF
-    logObject.info("Building profile HMMs of homolog groups observed in representative BGCs for GCF.")
-    GCF_Object.constructHMMProfiles(outdir, cores=cores)
-    logObject.info("HMM profiles constructed and concatenated successfully!")
-
-    # Step 4: Process annotation files related to expanded sample set
+    # Step 3: Process annotation files related to input and expanded sample sets
     logObject.info("Parsing annotation file provided in expansion listing file for larger set of samples to incorporate into analysis.")
-    sample_prokka_data = processing.readInAnnotationFilesForExpandedSampleSet(expansion_listing_file, logObject)
+    initial_sample_prokka_data = processing.readInAnnotationFilesForExpandedSampleSet(initial_listing_file, logObject)
+    expanded_sample_prokka_data = processing.readInAnnotationFilesForExpandedSampleSet(expansion_listing_file, logObject)
     logObject.info("Successfully parsed new sample annotation files.")
+
+    # Step 4: Build HMMs for homolog groups observed in representative BGCs for GCF
+    logObject.info("Building profile HMMs of homolog groups observed in representative BGCs for GCF.")
+    GCF_Object.constructHMMProfiles(outdir, initial_sample_prokka_data, cores=cores)
+    logObject.info("HMM profiles constructed and concatenated successfully!")
 
     # Step 5: Search HMM profiles in proteomes from comprehensive set of BGCs
     logObject.info("Searching for homolog group HMMs in proteins extracted from comprehensive list of BGCs.")
-    GCF_Object.runHMMScan(outdir, sample_prokka_data, cores=cores)
+    GCF_Object.runHMMScan(outdir, expanded_sample_prokka_data, cores=cores)
     logObject.info("Successfully found new instances of GCF in new sample set.")
 
     # Step 6: Determine whether samples' assemblies feature GCF of interest
     logObject.info("Searching for homolog group HMMs in proteins extracted from comprehensive list of BGCs.")
-    GCF_Object.identifyGCFInstances(outdir, sample_prokka_data, orthofinder_matrix_file)
+    GCF_Object.identifyGCFInstances(outdir, expanded_sample_prokka_data, orthofinder_matrix_file)
     logObject.info("Successfully found new instances of GCF in new sample set.")
 
     # Close logging object and exit

@@ -99,6 +99,7 @@ class GCF(Pan):
 						child_node = t.search_nodes(name=bgc_id)[0]
 						child_node.dist = 0
 						if bgc_id != og_node_name: number_of_added_leaves += 1
+
 			t.write(format=0, outfile=result_phylogeny)
 			if self.logObject:
 				self.logObject.info(
@@ -270,13 +271,17 @@ class GCF(Pan):
 
 			tree_obj = Tree(phylogeny_file)
 			bgc_weights = defaultdict(int)
+			all_bgcs_in_tree = set([])
 			for leaf in tree_obj:
+				all_bgcs_in_tree.add(str(leaf).strip('\n').lstrip('-'))
 				bgc_weights[str(leaf).strip('\n').lstrip('-')] += 1
 
-			bgc_hg_presence = defaultdict(lambda: defaultdict(lambda: 'Absent'))
+			bgcs_accounted =set([])
+			bgc_hg_presence = defaultdict(lambda: defaultdict(lambda: 'NA'))
 			hg_counts = defaultdict(int)
 			for i, item in enumerate(sorted(bgc_gene_counts.items(), key=itemgetter(1), reverse=True)):
 				bgc = item[0]
+				bgcs_accounted.add(bgc)
 				curr_bgc_genes = self.bgc_genes[bgc]
 				last_gene_end = max([self.comp_gene_info[lt]['end'] for lt in curr_bgc_genes])
 				printlist = []
@@ -334,12 +339,18 @@ class GCF(Pan):
 						gggenes_track_handle.write('\n'.join(flip_printlist) + '\n')
 					else:
 						gggenes_track_handle.write('\n'.join(printlist) + '\n')
-			gggenes_track_handle.close()
 
 			for bgc in bgc_hg_presence:
 				for hg in hg_counts:
 					heatmap_track_handle.write(
 						'\t'.join([bgc, hg, bgc_hg_presence[bgc][hg], str(hg_counts[hg])]) + '\n')
+
+			for bgc in all_bgcs_in_tree:
+				if not bgc in bgcs_accounted:
+					gggenes_track_handle.write('\t'.join([bgc] + ['NA']*6) + '\n')
+					heatmap_track_handle.write('\t'.join([bgc] + ['NA']*3) + '\n')
+
+			gggenes_track_handle.close()
 			heatmap_track_handle.close()
 		except Exception as e:
 			if self.logObject:
@@ -676,7 +687,7 @@ class GCF(Pan):
 					final_output_handle.write(line)
 		final_output_handle.close()
 
-	def identifyGCFInstances(self, outdir, sample_prokka_data, orthofinder_matrix_file, hg_prop_cutoff=0.50, hg_core_prop_cutoff=0.50):
+	def identifyGCFInstances(self, outdir, sample_prokka_data, orthofinder_matrix_file, min_size=5, min_core_size=3):
 		"""
 		Function to search for instances of GCF in sample using HMM based approach based on homolog groups as characters,
 		"part of GCF" and "not part of GCF" as states - all trained on initial BGCs constituting GCF as identified by
@@ -689,8 +700,8 @@ class GCF(Pan):
 		"""
 
 		# Estimate HMM parameters
-		gcf_hg_probabilites = defaultdict(lambda: 0.0)
-		other_hg_probabilites = defaultdict(lambda: 0.0)
+		gcf_hg_probabilities = defaultdict(lambda: 0.0)
+		other_hg_probabilities = defaultdict(lambda: 0.0)
 		number_gcf_hgs = 0
 		number_other_hgs = 0
 		specific_hgs = set([])
@@ -711,20 +722,26 @@ class GCF(Pan):
 							if gene in self.pan_genes:
 								gcf_genes += 1
 
-					if float(gcf_genes) == float(total_genes):
+					if float(gcf_genes) == float(total_genes) and self.hg_max_self_evalue[hg][1] == True:
 						specific_hgs.add(hg)
-					other_hg_probabilites[hg] = 0.05 * (1.0 - (float(gcf_genes) / float(total_genes)))
-					gcf_hg_probabilites[hg] = 1.0 - other_hg_probabilites[hg]
+
+					other_hg_probabilities[hg] = 0.01
+					gcf_hg_probabilities[hg] = 0.99
+
+					if self.hg_max_self_evalue[hg][1] == False:
+						other_hg_probabilities[hg] = 1.0 - (gcf_genes/float(total_genes))
+						gcf_hg_probabilities[hg] = gcf_genes/float(total_genes)
 				else:
 					number_other_hgs += 1
-		gcf_hg_probabilites['other'] = 0.05
-		other_hg_probabilites['other'] = 0.95
 
-		gcf_distribution = DiscreteDistribution(dict(gcf_hg_probabilites))
-		other_distribution = DiscreteDistribution(dict(other_hg_probabilites))
+		gcf_hg_probabilities['other'] = 0.2
+		other_hg_probabilities['other'] = 0.8
 
-		#print(gcf_distribution)
-		#print(other_distribution)
+		gcf_distribution = DiscreteDistribution(dict(gcf_hg_probabilities))
+		other_distribution = DiscreteDistribution(dict(other_hg_probabilities))
+
+		print(gcf_distribution)
+		print(other_distribution)
 		gcf_state = State(gcf_distribution, name='GCF')
 		other_state = State(other_distribution, name='Non GCF')
 
@@ -734,13 +751,18 @@ class GCF(Pan):
 		# estimate transition probabilities
 		gcf_to_gcf = float(number_gcf_hgs - 1) / float(number_gcf_hgs)
 		gcf_to_other = 1.0 - gcf_to_gcf
-		other_to_other = float(number_other_hgs - 1) / float(number_other_hgs)
-		other_to_gcf = 1.0 - other_to_other
-		start_to_gcf = float(number_gcf_hgs)/float(number_gcf_hgs + number_other_hgs)
-		start_to_other = 1.0 - start_to_gcf
+		other_to_other = 0.9 #float(number_other_hgs - 1) / float(number_other_hgs)
+		other_to_gcf = 0.1 #1.0 - other_to_other
+
+		start_to_gcf = 0.5 # float(number_gcf_hgs)/float(number_gcf_hgs + number_other_hgs)
+		start_to_other = 0.5 #1.0 - start_to_gcf
+		gcf_to_end = 0.5 # float(number_gcf_hgs)/float(number_gcf_hgs + number_other_hgs)
+		other_to_end = 0.5 # 1.0 - gcf_to_end
 
 		model.add_transition(model.start, gcf_state, start_to_gcf)
 		model.add_transition(model.start, other_state, start_to_other)
+		model.add_transition(gcf_state, model.end, gcf_to_end)
+		model.add_transition(other_state, model.end, other_to_end)
 		model.add_transition(gcf_state, gcf_state, gcf_to_gcf)
 		model.add_transition(gcf_state, other_state, gcf_to_other)
 		model.add_transition(other_state, gcf_state, other_to_gcf)
@@ -761,6 +783,9 @@ class GCF(Pan):
 		bgc_genbanks_dir = os.path.abspath(outdir + 'BGC_Genbanks') + '/'
 		if not os.path.isdir(bgc_genbanks_dir): os.system('mkdir %s' % bgc_genbanks_dir)
 
+		bgc_hmm_evalues_file = outdir + 'GCF_NewInstances_HMMEvalues.txt'
+		bgc_hmm_evalues_handle = open(bgc_hmm_evalues_file, 'w')
+
 		# start process of finding new BGCs
 		sample_lt_to_hg = defaultdict(dict)
 		sample_hgs = defaultdict(set)
@@ -772,11 +797,10 @@ class GCF(Pan):
 					sample_hgs[hits[2]].add(hits[0])
 					sample_protein_to_hg[hits[2]][lt] = hits[0]
 
-		#print(self.lowerbound_hg_count)
 		sample_hg_proteins = defaultdict(lambda: defaultdict(set))
 		for sample in sample_hgs:
 			if len(sample_hgs[sample]) < 3: continue
-			#print(sample)
+			print(sample)
 			sample_gcf_predictions = []
 			for scaffold in self.scaffold_genes[sample]:
 				lts_with_start = []
@@ -796,8 +820,8 @@ class GCF(Pan):
 				hg_seq = numpy.array(list(hgs_ordered))
 				hmm_predictions = model.predict(hg_seq)
 
-				#print(hg_seq)
-				#print(hmm_predictions)
+				print(hg_seq)
+				print(hmm_predictions)
 				gcf_state_lts = []
 				gcf_state_hgs = []
 				for i, hg_state in enumerate(hmm_predictions):
@@ -812,39 +836,29 @@ class GCF(Pan):
 							features_specific_hg = False
 							if len(self.boundary_genes[sample].intersection(set(gcf_state_lts))) > 0: boundary_lt_featured = True
 							if len(specific_hgs.intersection(set(gcf_state_hgs).difference('other'))) > 0: features_specific_hg = True
-							sample_gcf_predictions.append([gcf_state_lts, gcf_state_hgs, len(gcf_state_lts), len(set(gcf_state_hgs).difference("other")), scaffold, boundary_lt_featured, features_specific_hg])
+							sample_gcf_predictions.append([gcf_state_lts, gcf_state_hgs, len(gcf_state_lts), len(set(gcf_state_hgs).difference("other")), len(set(gcf_state_hgs).difference("other").intersection(self.core_homologs)), scaffold, boundary_lt_featured, features_specific_hg])
 						gcf_state_lts = []
 						gcf_state_hgs = []
 
 			if len(sample_gcf_predictions) == 0: continue
+
 			sorted_sample_gcf_predictions = [x for x in sorted(sample_gcf_predictions, key=itemgetter(3), reverse=True)]
+
 			sample_gcf_predictions_filtered = []
-			if sorted_sample_gcf_predictions[0][3] >= max(5, hg_prop_cutoff*self.lowerbound_hg_count) and \
-					len(set(sorted_sample_gcf_predictions[0][1]).intersection(self.core_homologs))/len(self.core_homologs) >= hg_core_prop_cutoff and\
-					not sorted_sample_gcf_predictions[0][5]:
-				sample_gcf_predictions_filtered = [sorted_sample_gcf_predictions[0]]
-			else:
-				scaffolds_visited = set([])
-				cumulative_hgs = set([])
-				for gcf_segment in sorted_sample_gcf_predictions:
-					if gcf_segment[5] and (not gcf_segment[4] in scaffolds_visited):
-						sample_gcf_predictions_filtered.append(gcf_segment)
-						cumulative_hgs = cumulative_hgs.union(set(gcf_segment[1]).difference('other'))
-						scaffolds_visited.add(gcf_segment[4])
-				if len(cumulative_hgs) < max(5, hg_prop_cutoff*self.lowerbound_hg_count) or \
-						float(len(cumulative_hgs.intersection(self.core_homologs)))/len(self.core_homologs) <= hg_core_prop_cutoff:
-					sample_gcf_predictions_filtered = []
-			if len(sample_gcf_predictions_filtered) == 0 and len(specific_hgs) >= 1:
-				specific_gene_feature_gcf_predictions = [x for x in sorted(sample_gcf_predictions, key=itemgetter(3), reverse=True) if x[6]]
-				if len(specific_gene_feature_gcf_predictions) == 0: continue
-				if not specific_gene_feature_gcf_predictions[0][5]:
-					sample_gcf_predictions_filtered = [sorted_sample_gcf_predictions[0]]
-				else:
-					scaffolds_visited = set([])
-					for gcf_segment in specific_gene_feature_gcf_predictions:
-						if gcf_segment[5] and (not gcf_segment[4] in scaffolds_visited):
-							sample_gcf_predictions_filtered.append(gcf_segment)
-							scaffolds_visited.add(gcf_segment[4])
+			sample_edge_gcf_predictions_filtered = []
+			cumulative_edge_hgs = set([])
+			visited_scaffolds_with_edge_gcf_segment = set([])
+			for gcf_segment in sorted_sample_gcf_predictions:
+				if (gcf_segment[3] >= min_size and gcf_segment[4] >= min_core_size) or (gcf_segment[-1]):
+					sample_gcf_predictions_filtered.append(gcf_segment)
+				elif gcf_segment[3] >= 3 and gcf_segment[-2] and not gcf_segment[5] in visited_scaffolds_with_edge_gcf_segment:
+					sample_edge_gcf_predictions_filtered.appen(gcf_segment)
+					visited_scaffolds_with_edge_gcf_segment.add(gcf_segment[5])
+					cumulative_edge_hgs = cumulative_edge_hgs.union(set(gcf_segment[1]))
+
+			if len(sample_edge_gcf_predictions_filtered) >= 2:
+				if len(cumulative_edge_hgs) >= min_size and len(cumulative_edge_hgs.intersection(self.core_homologs)) >= min_core_size:
+					sample_gcf_predictions_filtered += sample_edge_gcf_predictions_filtered
 
 			for gcf_state_lts in sample_gcf_predictions_filtered:
 				clean_sample_name = sample.replace('-', '_').replace(':', '_').replace('.', '_').replace('=', '_')
@@ -853,8 +867,13 @@ class GCF(Pan):
 
 				min_bgc_pos = min([self.gene_location[sample][g]['start'] for g in gcf_state_lts[0]])
 				max_bgc_pos = max([self.gene_location[sample][g]['end'] for g in gcf_state_lts[0]])
+
 				util.createBGCGenbank(sample_prokka_data[sample]['genbank'], bgc_genbank_file, gcf_state_lts[4], min_bgc_pos, max_bgc_pos)
 				expanded_gcf_list_handle.write('\t'.join([clean_sample_name, bgc_genbank_file]) + '\n')
+
+				for i, lt in gcf_segment[0]:
+					hg = gcf_segment[hg][i]
+					bgc_hmm_evalues_handle.write('\t'.join([bgc_genbank_file, sample, lt, hg, str(self.hmmscan_results[lt][1])]) + '\n')
 
 				for lt in gcf_state_lts[0]:
 					if lt in sample_protein_to_hg[sample].keys():
@@ -863,6 +882,7 @@ class GCF(Pan):
 				all_samples.add(clean_sample_name)
 
 		expanded_gcf_list_handle.close()
+		bgc_hmm_evalues_handle.close()
 
 		original_samples = []
 		all_hgs = set([])
@@ -890,150 +910,6 @@ class GCF(Pan):
 				printlist.append(', '.join(sample_hg_proteins[s][hg]))
 			expanded_orthofinder_matrix_handle.write('\t'.join(printlist) + '\n')
 		expanded_orthofinder_matrix_handle.close()
-
-		"""
-		
-		****
-		ORIGINAL CODE FOR PERFORMING EXPANSION!
-		****
-		
-		sample_hg_hits_with_evalue = defaultdict(lambda: defaultdict(list))
-		scaffold_proteins = defaultdict(lambda: defaultdict(set))
-		sample_protein_to_hg = defaultdict(dict)
-		sample_hgs = defaultdict(set)
-		for p in self.hmmscan_results:
-			for i, hits in enumerate(sorted(self.hmmscan_results[p], key=itemgetter(1))):
-				if i == 0:
-					sample_protein_to_hg[hits[2]][p] = hits[0]
-					sample_hgs[hits[2]].add(hits[0])
-					scaffold_proteins[hits[2]][hits[3]].add(p)
-					sample_hg_hits_with_evalue[hits[2]][hits[0]].append([p, hits[1], hits[3]])
-
-
-		expanded_gcf_list_file = outdir + 'GCF_Expanded.txt'
-		expanded_gcf_list_handle = open(expanded_gcf_list_file, 'w')
-
-		with open(self.bgc_genbanks_listing) as obglf:
-			for line in obglf:
-				expanded_gcf_list_handle.write(line)
-
-		all_samples = set([])
-		sample_hg_proteins = defaultdict(lambda: defaultdict(set))
-		for sample in sample_hg_hits_with_evalue:
-			sample_gcf_anchor_proteins = set([])
-			scaffold_anchor_proteins = defaultdict(set)
-			for hg in self.specific_core_homologs:
-				for i, hits in enumerate(sorted(sample_hg_hits_with_evalue[sample][hg], key=itemgetter(1))):
-					if i == 0:
-						sample_gcf_anchor_proteins.add(hits[0])
-						if hits[1] <= 1e-20:
-							scaffold_anchor_proteins[hits[2]].add(hits[0])
-
-			if len(sample_gcf_anchor_proteins) > 0:
-				number_of_sample_scaffolds_with_anchor_hgs = len(set(scaffold_anchor_proteins.keys()))
-
-				for scaffold in scaffold_anchor_proteins:
-					max_anchor_pos = [0, None]
-					min_anchor_pos = [100000000, None]
-
-					for protein in list(scaffold_anchor_proteins[scaffold]):
-						anchor_protein_start = gene_location[sample][protein]['start']
-						anchor_protein_end = gene_location[sample][protein]['end']
-						if anchor_protein_start < min_anchor_pos[0]: min_anchor_pos = [anchor_protein_start, protein]
-						if anchor_protein_end > max_anchor_pos[0]: max_anchor_pos = [anchor_protein_end, protein]
-
-					range_between_anchor_proteins = max_anchor_pos[0] - min_anchor_pos[0]
-					if range_between_anchor_proteins <= 50000 and range_between_anchor_proteins > 0:
-						start_anchor_gene_id = min_anchor_pos[1]
-						end_anchor_gene_id = max_anchor_pos[1]
-						start_anchor_gene_rank = gene_id_to_order[sample][scaffold][start_anchor_gene_id]
-						end_anchor_gene_rank = gene_id_to_order[sample][scaffold][end_anchor_gene_id]
-
-						scaffold_gcf_gene_ids = set([])
-						for gene_rank in range(start_anchor_gene_rank, end_anchor_gene_rank + 1):
-							scaffold_gcf_gene_ids.add(gene_order_to_id[sample][scaffold][gene_rank])
-
-						# try expanding upstream
-						strikes = 0
-						curr_rank = start_anchor_gene_rank - 1
-						while strikes < 3:
-							if not curr_rank in gene_order_to_id[sample][scaffold]: break
-							curr_rank_gene = gene_order_to_id[sample][scaffold][curr_rank]
-							if curr_rank_gene in scaffold_proteins[sample][scaffold]:
-								scaffold_gcf_gene_ids.add(curr_rank_gene)
-								strikes = 0
-							else:
-								strikes += 1
-							curr_rank -= 1
-
-						# try expanding downstream
-						strikes = 0
-						curr_rank = end_anchor_gene_rank + 1
-						while strikes < 3:
-							if not curr_rank in gene_order_to_id[sample][scaffold]: break
-							curr_rank_gene = gene_order_to_id[sample][scaffold][curr_rank]
-							if curr_rank_gene in scaffold_proteins[sample][scaffold]:
-								scaffold_gcf_gene_ids.add(curr_rank_gene)
-								strikes = 0
-							else:
-								strikes += 1
-							curr_rank += 1
-
-						scaffold_hgs = set([])
-						for g in scaffold_gcf_gene_ids:
-							if g in sample_protein_to_hg[sample].keys():
-								hg = sample_protein_to_hg[sample][g]
-								scaffold_hgs.add(hg)
-
-						if (number_of_sample_scaffolds_with_anchor_hgs == 1 or \
-								(number_of_sample_scaffolds_with_anchor_hgs > 1 and \
-								 len(boundary_genes[sample].intersection(scaffold_gcf_gene_ids)) > 0)) and \
-								(len(sample_hgs[sample].intersection(self.core_homologs))/len(self.core_homologs) >= 0.95) and \
-								(len(scaffold_hgs.intersection(self.core_homologs))/len(self.core_homologs) >= 0.25 and
-								len(scaffold_hgs.intersection(self.core_homologs)) >= 5):
-							clean_sample_name = sample.replace('-', '_').replace(':', '_').replace('.', '_').replace('=', '_')
-							bgc_genbank_file = bgc_genbanks_dir + clean_sample_name + '_BGC-' + str(sample_bgc_ids[sample]) + '.gbk'
-							sample_bgc_ids[sample] += 1
-
-							min_bgc_pos = min([gene_location[sample][g]['start'] for g in scaffold_gcf_gene_ids])
-							max_bgc_pos = max([gene_location[sample][g]['end'] for g in scaffold_gcf_gene_ids])
-							util.createBGCGenbank(sample_prokka_data[sample]['genbank'], bgc_genbank_file, scaffold, min_bgc_pos, max_bgc_pos)
-							expanded_gcf_list_handle.write('\t'.join([clean_sample_name, bgc_genbank_file]) + '\n')
-
-							for g in scaffold_gcf_gene_ids:
-								if g in sample_protein_to_hg[sample].keys():
-									hg = sample_protein_to_hg[sample][g]
-									sample_hg_proteins[clean_sample_name][hg].add(g)
-							all_samples.add(clean_sample_name)
-		expanded_gcf_list_handle.close()
-
-		original_samples = []
-		all_hgs = set([])
-		with open(orthofinder_matrix_file) as omf:
-			for i, line in enumerate(omf):
-				line = line.strip('\n')
-				ls = line.split('\t')
-				if i == 0:
-					original_samples = ls[1:]
-					all_samples = all_samples.union(set(original_samples))
-				else:
-					hg = ls[0]
-					all_hgs.add(hg)
-					for j, prot in enumerate(ls[1:]):
-						sample_hg_proteins[original_samples[j]][hg] = sample_hg_proteins[original_samples[j]][hg].union(set(prot.split(', ')))
-
-		expanded_orthofinder_matrix_file = outdir + 'Orthogroups.expanded.csv'
-		expanded_orthofinder_matrix_handle = open(expanded_orthofinder_matrix_file, 'w')
-
-		header = [''] + [s for s in sorted(all_samples)]
-		expanded_orthofinder_matrix_handle.write('\t'.join(header) + '\n')
-		for hg in sorted(all_hgs):
-			printlist = [hg]
-			for s in sorted(all_samples):
-				printlist.append(', '.join(sample_hg_proteins[s][hg]))
-			expanded_orthofinder_matrix_handle.write('\t'.join(printlist) + '\n')
-		expanded_orthofinder_matrix_handle.close()
-		"""
 
 	def extractGeneWithFlanksAndCluster(self, genes_with_flanks_fasta, cd_hit_clusters_fasta_file, cd_hit_nr_fasta_file, bowtie2_db_prefix):
 		"""

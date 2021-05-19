@@ -15,6 +15,7 @@ dependencies:
   - bioconda::fasttree=
   - bioconda::ete3
   - bioconda::mash=
+  - bioconda::treecluster=
   - conda-forge::r-base
   - conda-forge::r-pegas
   - conda-forge::r-ggplot2
