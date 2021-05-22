@@ -15,7 +15,7 @@ dependencies:
   - bioconda::fasttree=
   - bioconda::ete3
   - bioconda::mash=
-  - bioconda::treecluster=
+  - conda-forge:pingouin=
   - conda-forge::r-base
   - conda-forge::r-pegas
   - conda-forge::r-ggplot2
@@ -25,3 +25,4 @@ dependencies:
   - conda-forge::r-gggenes
   - bioconda::bioconductor-ggtree
   - conda-forge::r-ggalluvial
+  - conda-forge::r-dynamicTreeCut

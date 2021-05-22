@@ -69,6 +69,7 @@ class Pan:
 
 		# variables containing location of files
 		self.final_stats_file = None
+		self.final_stats_expanded_singletons_file = None
 		self.pair_relations_txt_file = None
 		self.bgc_to_gcf_map_file = None
 
@@ -158,7 +159,8 @@ class Pan:
 		:param run_parameter_tests: whether lsaBGC-Cluster is being run in "run_parameter_tests mode".
 		"""
 		try:
-			final_stats_file = outdir + 'GCF_details.txt'
+			final_stats_file = outdir + 'GCF_Details.txt'
+			final_stats_expanded_singletons_file = outdir + 'GCF_Details_Expanded_Singletons.txt'
 			sf_handle = open(final_stats_file, 'w')
 			if run_parameter_tests:
 				sf_handle.write('\t'.join(
@@ -169,13 +171,22 @@ class Pan:
 					 'number of core gene aggregates',
 					 'annotations']) + '\n')
 			else:
+				sfes_handle = open(final_stats_expanded_singletons_file, 'w')
 				sf_handle.write(
 					'\t'.join(['GCF id', 'number of BGCs', 'number of samples', 'samples with multiple BGCs in GCF',
 							   'size of the SCC', 'mean number of OGs', 'stdev for number of OGs',
 							   'number of core gene aggregates',
 							   'min difference', 'max difference', 'annotations']) + '\n')
+				sfes_handle.write(
+					'\t'.join(['GCF id', 'number of BGCs', 'number of samples', 'samples with multiple BGCs in GCF',
+							   'size of the SCC', 'mean number of OGs', 'stdev for number of OGs',
+							   'number of core gene aggregates',
+							   'min difference', 'max difference', 'annotations']) + '\n')
+				sfes_handle.close()
+
 			sf_handle.close()
 			self.final_stats_file = final_stats_file
+			self.final_stats_expanded_singletons_file = final_stats_expanded_singletons_file
 			if self.logObject:
 				self.logObject.info(
 					"Will be writing final stats report on GCF clustering to file %s" % final_stats_file)
@@ -201,19 +212,19 @@ class Pan:
 			pairwise_syntenic_relations = defaultdict(lambda: defaultdict(lambda: 0.0))
 
 			bgc_hg_ranked_orders = defaultdict(dict)
-			for bgc in enumerate(self.bgc_hgs):
+			for bgc in self.bgc_hgs:
 				sc_hg_starts = []
 				for hg in self.bgc_hgs[bgc]:
 					gene_counts = 0
 					hg_start = 0
 					for g in self.hg_genes[hg]:
-						if self.comp_gene_info[g]['bgc_name'] == bgc1:
+						if self.comp_gene_info[g]['bgc_name'] == bgc:
 							hg_start = self.comp_gene_info[g]['start']
 							gene_counts += 1
 					if gene_counts == 1:
 						sc_hg_starts.append([hg, hg_start])
 
-				for hg_ord, hg_its in enumerate(sc_hg_starts, key=itemgetter(1)):
+				for hg_ord, hg_its in enumerate(sorted(sc_hg_starts, key=itemgetter(1))):
 					bgc_hg_ranked_orders[bgc][hg_its[0]] = (hg_ord + 1)
 
 			for i, bgc1 in enumerate(self.bgc_hgs):
@@ -236,7 +247,8 @@ class Pan:
 							for hg in sc_hgs_intersect:
 								bgc1_orders.append(bgc1_hgs_ranked_orders[hg])
 								bgc2_orders.append(bgc2_hgs_ranked_orders[hg])
-							abs_correlation_coefficient = abs(stats.pearson(bgc1_orders, bgc2_orders))
+							r, pval = stats.pearsonr(bgc1_orders, bgc2_orders)
+							abs_correlation_coefficient = abs(r)
 							pairwise_syntenic_relations[bgc1][bgc2] = abs_correlation_coefficient
 							pairwise_syntenic_relations[bgc2][bgc1] = abs_correlation_coefficient
 
@@ -343,9 +355,12 @@ class Pan:
 
 		try:
 			sf_handle = open(self.final_stats_file, 'a+')
+			sfes_handle = open(self.final_stats_expanded_singletons_file, 'a+')
+
 			clustered_bgcs = set([])
+			gcf_identifier = 1
 			with open(mcxdump_out_file) as omo:
-				for j, gcf in enumerate(omo):
+				for gcf in omo:
 					gcf = gcf.strip()
 					gcf_mems = gcf.split()
 					if len(gcf_mems) < 2: continue
@@ -381,24 +396,37 @@ class Pan:
 						stdev = statistics.stdev(num_ogs)
 					except:
 						pass
-					gcf_stats = ['GCF_' + str(j + 1), len(gcf_mems), len(samp_counts.keys()), multi_same_sample,
+					gcf_stats = ['GCF_' + str(gcf_identifier), len(gcf_mems), len(samp_counts.keys()), multi_same_sample,
 								 len(scc),
 								 mean, stdev, min(diffs),
 								 max(diffs), core_gene_cluster_counts,
 								 '; '.join([x[0] + ':' + str(x[1]) for x in products.items()])]
 					if run_parameter_tests:
 						gcf_stats = [mip, jcp] + gcf_stats
+					else:
+						sfes_handle.write('\t'.join([str(x) for x in gcf_stats]) + '\n')
 					sf_handle.write('\t'.join([str(x) for x in gcf_stats]) + '\n')
+					gcf_identifier += 1
 
 			singleton_bgcs = set([])
 			for bgc in self.bgc_hgs:
-				if not bgc in clustered_bgcs: singleton_bgcs.add(bgc)
+				if not bgc in clustered_bgcs:
+					singleton_bgcs.add(bgc)
+					if not run_parameter_tests:
+						products = {}
+						for prod in self.bgc_product[bgc]: products[prod] = 1.0 / len(self.bgc_product[bgc])
+						mean_og_count = len(self.bgc_hgs[bgc])
+						gcf_stats = ['GCF_' + str(gcf_identifier), 1, 1, 0, "NA", mean_og_count, 0, 0,  '; '.join([x[0] + ':' + str(x[1]) for x in products.items()]) ]
+						sfes_handle.write('\t'.join([str(x) for x in gcf_stats]) + '\n')
+						gcf_identifier += 1
+
 			singleton_stats = ['singletons', len(singleton_bgcs)] + (['NA'] * 7)
 			if run_parameter_tests:
 				singleton_stats = [mip, jcp] + singleton_stats
 			sf_handle.write('\t'.join([str(x) for x in singleton_stats]) + '\n')
 
 			sf_handle.close()
+			sfes_handle.close()
 		except Exception as e:
 			if self.logObject:
 				self.logObject.error(
@@ -413,16 +441,22 @@ class Pan:
 					"Writing list of BGCs for each GCF, which will be used as input for downstream programs in the suite!")
 				gcf_listing_dir = outdir + 'GCF_Listings/'
 				if not os.path.isdir(gcf_listing_dir): os.system('mkdir %s' % gcf_listing_dir)
+				gcf_identifier = 1
 				with open(mcxdump_out_file) as omo:
-					for j, gcf in enumerate(omo):
+					for gcf in omo:
 						gcf = gcf.strip()
 						gcf_mems = gcf.split()
 						if len(gcf_mems) < 2: continue
-						outf_list = open(gcf_listing_dir + 'GCF_' + str(j + 1) + '.txt', 'w')
+						outf_list = open(gcf_listing_dir + 'GCF_' + str(gcf_identifier) + '.txt', 'w')
 						for bgc in gcf_mems:
-							sname = self.bgc_sample[bgc]
-							outf_list.write('%s\t%s\n' % (sname, self.bgc_gbk[bgc]))
+							outf_list.write('%s\t%s\n' % (self.bgc_sample[bgc], self.bgc_gbk[bgc]))
 						outf_list.close()
+						gcf_identifier += 1
+				for bgc in singleton_bgcs:
+					outf_list = open(gcf_listing_dir + 'GCF_' + str(gcf_identifier) + '.txt', 'w')
+					outf_list.write('%s\t%s\n' % (self.bgc_sample[bgc], self.bgc_gbk[bgc]))
+					gcf_identifier += 1
+
 				if self.logObject:
 					self.logObject.info("Successfully wrote lists of BGCs for each GCF.")
 			except Exception as e:
@@ -750,7 +784,7 @@ class Pan:
 			with open(pop_specs_file) as opsf:
 				for line in opsf:
 					line = line.strip()
-					sample, cluster, partition = line.split('\t')
+					sample, cluster = line.split('\t')
 					population = cluster
 					self.sample_population[sample] = population
 					for bgc in self.sample_bgcs[sample]:

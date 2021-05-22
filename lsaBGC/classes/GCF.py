@@ -11,10 +11,13 @@ from scipy.stats import f_oneway
 from ete3 import Tree
 from Bio import SeqIO
 from Bio.Seq import Seq
+import numpy as np
 from operator import itemgetter
 from collections import defaultdict
 from lsaBGC.classes.Pan import Pan
 from lsaBGC import util
+from pingouin import welch_anova
+from pandas import DataFrame
 from pomegranate import *
 
 lsaBGC_main_directory = '/'.join(os.path.realpath(__file__).split('/')[:-3])
@@ -56,22 +59,29 @@ class GCF(Pan):
 
 	def identifyKeyHomologGroups(self):
 		try:
-			all_samples = set(self.bgc_sample.values())
-			sample_counts = defaultdict(int)
+			initial_samples_with_at_least_one_gcf_hg = set([])
 			for hg in self.hg_genes:
 				for gene in self.hg_genes[hg]:
-					gene_info = self.comp_gene_info[gene]
-					bgc_id = gene_info['bgc_name']
-					sample_id = self.bgc_sample[bgc_id]
-					sample_counts[sample_id] += 1
+					if len(gene.split('_')) == 3:
+						initial_samples_with_at_least_one_gcf_hg.add(sample_id)
+
+			for hg in self.hg_genes:
+				sample_counts = defaultdict(int)
+				for gene in self.hg_genes[hg]:
+					if len(gene.split('_')) == 3:
+						gene_info = self.comp_gene_info[gene]
+						bgc_id = gene_info['bgc_name']
+						sample_id = self.bgc_sample[bgc_id]
+						sample_counts[sample_id] += 1
 				samples_with_single_copy = set([s[0] for s in sample_counts.items() if s[1] == 1])
 				samples_with_any_copy = set([s[0] for s in sample_counts.items() if s[1] > 0])
 
 				# check that hg is single-copy-core or just core
-				if len(samples_with_single_copy.symmetric_difference(all_samples)) == 0:
+				if len(samples_with_single_copy.symmetric_difference(initial_samples_with_at_least_one_gcf_hg)) == 0:
 					self.scc_homologs.add(hg)
-				if len(samples_with_any_copy.symmetric_difference(all_samples)) == 0:
+				if len(samples_with_any_copy.symmetric_difference(initial_samples_with_at_least_one_gcf_hg)) == 0:
 					self.core_homologs.add(hg)
+
 		except Exception as e:
 			if self.logObject:
 				self.logObject.error("Issues with identifying key homolog groups.")
@@ -340,15 +350,17 @@ class GCF(Pan):
 					else:
 						gggenes_track_handle.write('\n'.join(printlist) + '\n')
 
+			dummy_hg = None
 			for bgc in bgc_hg_presence:
 				for hg in hg_counts:
+					dummy_hg = hg
 					heatmap_track_handle.write(
 						'\t'.join([bgc, hg, bgc_hg_presence[bgc][hg], str(hg_counts[hg])]) + '\n')
 
 			for bgc in all_bgcs_in_tree:
 				if not bgc in bgcs_accounted:
 					gggenes_track_handle.write('\t'.join([bgc] + ['NA']*6) + '\n')
-					heatmap_track_handle.write('\t'.join([bgc] + ['NA']*3) + '\n')
+					heatmap_track_handle.write('\t'.join([bgc, dummy_hg] + ['NA']*2) + '\n')
 
 			gggenes_track_handle.close()
 			heatmap_track_handle.close()
@@ -729,8 +741,8 @@ class GCF(Pan):
 					gcf_hg_probabilities[hg] = 0.99
 
 					if self.hg_max_self_evalue[hg][1] == False:
-						other_hg_probabilities[hg] = 1.0 - (gcf_genes/float(total_genes))
-						gcf_hg_probabilities[hg] = gcf_genes/float(total_genes)
+						other_hg_probabilities[hg] = min(1.0 - (gcf_genes/float(total_genes)), 0.2)
+						gcf_hg_probabilities[hg] = 1.0 - other_hg_probabilities[hg]
 				else:
 					number_other_hgs += 1
 
@@ -749,8 +761,8 @@ class GCF(Pan):
 		model.add_states(gcf_state, other_state)
 
 		# estimate transition probabilities
-		gcf_to_gcf = float(number_gcf_hgs - 1) / float(number_gcf_hgs)
-		gcf_to_other = 1.0 - gcf_to_gcf
+		gcf_to_gcf = 0.9 #float(number_gcf_hgs - 1) / float(number_gcf_hgs)
+		gcf_to_other = 0.1 #1.0 - gcf_to_gcf
 		other_to_other = 0.9 #float(number_other_hgs - 1) / float(number_other_hgs)
 		other_to_gcf = 0.1 #1.0 - other_to_other
 
@@ -790,17 +802,19 @@ class GCF(Pan):
 		sample_lt_to_hg = defaultdict(dict)
 		sample_hgs = defaultdict(set)
 		sample_protein_to_hg = defaultdict(dict)
+		sample_lt_to_evalue = defaultdict(dict)
 		for lt in self.hmmscan_results:
 			for i, hits in enumerate(sorted(self.hmmscan_results[lt], key=itemgetter(1))):
 				if i == 0:
 					sample_lt_to_hg[hits[2]][lt] = hits[0]
 					sample_hgs[hits[2]].add(hits[0])
 					sample_protein_to_hg[hits[2]][lt] = hits[0]
+					sample_lt_to_evalue[hits[2]][lt] = hits[1]
 
 		sample_hg_proteins = defaultdict(lambda: defaultdict(set))
 		for sample in sample_hgs:
 			if len(sample_hgs[sample]) < 3: continue
-			print(sample)
+			#print(sample)
 			sample_gcf_predictions = []
 			for scaffold in self.scaffold_genes[sample]:
 				lts_with_start = []
@@ -820,8 +834,8 @@ class GCF(Pan):
 				hg_seq = numpy.array(list(hgs_ordered))
 				hmm_predictions = model.predict(hg_seq)
 
-				print(hg_seq)
-				print(hmm_predictions)
+				#print(hg_seq)
+				#print(hmm_predictions)
 				gcf_state_lts = []
 				gcf_state_hgs = []
 				for i, hg_state in enumerate(hmm_predictions):
@@ -852,15 +866,18 @@ class GCF(Pan):
 				if (gcf_segment[3] >= min_size and gcf_segment[4] >= min_core_size) or (gcf_segment[-1]):
 					sample_gcf_predictions_filtered.append(gcf_segment)
 				elif gcf_segment[3] >= 3 and gcf_segment[-2] and not gcf_segment[5] in visited_scaffolds_with_edge_gcf_segment:
-					sample_edge_gcf_predictions_filtered.appen(gcf_segment)
+					sample_edge_gcf_predictions_filtered.append(gcf_segment)
 					visited_scaffolds_with_edge_gcf_segment.add(gcf_segment[5])
 					cumulative_edge_hgs = cumulative_edge_hgs.union(set(gcf_segment[1]))
 
 			if len(sample_edge_gcf_predictions_filtered) >= 2:
+				print(sample_edge_gcf_predictions_filtered)
 				if len(cumulative_edge_hgs) >= min_size and len(cumulative_edge_hgs.intersection(self.core_homologs)) >= min_core_size:
 					sample_gcf_predictions_filtered += sample_edge_gcf_predictions_filtered
 
+			print(sample)
 			for gcf_state_lts in sample_gcf_predictions_filtered:
+				print(gcf_state_lts)
 				clean_sample_name = sample.replace('-', '_').replace(':', '_').replace('.', '_').replace('=', '_')
 				bgc_genbank_file = bgc_genbanks_dir + clean_sample_name + '_BGC-' + str(sample_bgc_ids[sample]) + '.gbk'
 				sample_bgc_ids[sample] += 1
@@ -868,12 +885,14 @@ class GCF(Pan):
 				min_bgc_pos = min([self.gene_location[sample][g]['start'] for g in gcf_state_lts[0]])
 				max_bgc_pos = max([self.gene_location[sample][g]['end'] for g in gcf_state_lts[0]])
 
-				util.createBGCGenbank(sample_prokka_data[sample]['genbank'], bgc_genbank_file, gcf_state_lts[4], min_bgc_pos, max_bgc_pos)
+				util.createBGCGenbank(sample_prokka_data[sample]['genbank'], bgc_genbank_file, gcf_state_lts[5], min_bgc_pos, max_bgc_pos)
 				expanded_gcf_list_handle.write('\t'.join([clean_sample_name, bgc_genbank_file]) + '\n')
 
-				for i, lt in gcf_segment[0]:
-					hg = gcf_segment[hg][i]
-					bgc_hmm_evalues_handle.write('\t'.join([bgc_genbank_file, sample, lt, hg, str(self.hmmscan_results[lt][1])]) + '\n')
+				for i, lt in enumerate(gcf_state_lts[0]):
+					hg = gcf_state_lts[1][i]
+					evalue = 10.0
+					if lt in sample_lt_to_evalue[sample]: evalue = sample_lt_to_evalue[sample][lt]
+					bgc_hmm_evalues_handle.write('\t'.join([bgc_genbank_file, sample, lt, hg, str(evalue)]) + '\n')
 
 				for lt in gcf_state_lts[0]:
 					if lt in sample_protein_to_hg[sample].keys():
@@ -1080,8 +1099,11 @@ class GCF(Pan):
 
 			for s in samples:
 				samp_hgs = sample_homolog_groups[s]
-				#print(self.core_homologs)
-				if len(samp_hgs.intersection(self.core_homologs))/float(len(self.core_homologs)) < 0.95:
+				print(s)
+				print(self.core_homologs.difference(samp_hgs))
+				print(len(samp_hgs.intersection(self.core_homologs))/float(len(self.core_homologs)))
+				print('-'*10)
+				if len(samp_hgs.intersection(self.core_homologs))/float(len(self.core_homologs)) < 0.90:
 					self.avoid_samples.add(s)
 
 			final_matrix_reads_file = outdir + 'Sample_by_OG_Allele_Read_Counts.matrix.txt'
@@ -1431,6 +1453,8 @@ def popgen_analysis_of_hg(inputs):
 	popgen_plot_handle = open(popgen_plot_file, 'w')
 
 	seqs = []
+	samples_ordered = []
+	genes_ordered = []
 	bgc_codons = defaultdict(list)
 	num_codons = None
 	samples = set([])
@@ -1452,6 +1476,8 @@ def popgen_analysis_of_hg(inputs):
 			num_codons = len(codons)
 			bgc_codons[rec.id] = codons
 			samples.add(sample_id)
+			samples_ordered.append(sample_id)
+			genes_ordered.append(gene_id)
 			for msa_pos, bp in enumerate(str(rec.seq)):
 				if bp != '-':
 					gene_locs[gene_id][real_pos] = msa_pos + 1
@@ -1465,8 +1491,9 @@ def popgen_analysis_of_hg(inputs):
 
 	variable_sites = set([])
 	conserved_sites = set([])
-	position_plot_handle.write(
-		'\t'.join(['pos', 'num_seqs', 'num_alleles', 'num_gaps', 'maj_allele_freq']) + '\n')
+	position_plot_handle.write('\t'.join(['pos', 'num_seqs', 'num_alleles', 'num_gaps', 'maj_allele_freq']) + '\n')
+
+	sample_differences_to_consensus = defaultdict(lambda: defaultdict(int))
 	for i, ls in enumerate(zip(*seqs)):
 		al_counts = defaultdict(int)
 		for al in ls:
@@ -1477,8 +1504,13 @@ def popgen_analysis_of_hg(inputs):
 		num_alleles = len(al_counts.keys())
 		num_gaps = num_seqs - tot_count
 		maj_allele_freq = float(maj_allele_count) / tot_count
-		position_plot_handle.write(
-			'\t'.join([str(x) for x in [i + 1, num_seqs, num_alleles, num_gaps, maj_allele_freq]]) + '\n')
+		maj_allele = [a[0] for a in al_counts.items() if a[0] != '-' and maj_allele_count == a[1]][0]
+		for j, al in enumerate(ls):
+			sid = samples_ordered[j]
+			gid = genes_ordered[j]
+			if al != maj_allele:
+				sample_differences_to_consensus[sid][gid] += 1
+		position_plot_handle.write('\t'.join([str(x) for x in [i + 1, num_seqs, num_alleles, num_gaps, maj_allele_freq]]) + '\n')
 		if maj_allele_freq <= 0.90:
 			variable_sites.add(i)
 		else:
@@ -1634,54 +1666,83 @@ def popgen_analysis_of_hg(inputs):
 				median_gene_length, is_core, len(seqs), prop_samples_with_hg, tajimas_d, total_core_codons,
 				total_variable_codons, nonsynonymous_sites, synonymous_sites, dn_ds, '; '.join(all_domains)]
 
+	input_anova_data = []
+	input_anova_header = ['sample', 'population', 'differences_to_consensus']
 	if sample_population:
-		population_samples = defaultdict(set)
-		for sp in sample_population.items():
-			population_samples[sp[1]].add(sp[0])
+		population_counts = defaultdict(int)
+		for s, p in sample_population.items():
+			population_counts[p] += 1
 
-		sample_seqs = {}
-		with open(codon_alignment_fasta) as ocaf:
-			for rec in SeqIO.parse(ocaf, 'fasta'):
-				sample_seqs[rec.id.split('|')[0]] = str(rec.seq).upper()
-
-		pairwise_differences = defaultdict(lambda: defaultdict(int))
-		for i, s1 in enumerate(sample_seqs):
-			for j, s2 in enumerate(sample_seqs):
-				if i < j:
-					for p, s1b in enumerate(sample_seqs[s1]):
-						s2b = sample_seqs[s2][p]
-						if s1b != s2b:
-							pairwise_differences[s1][s2] += 1
-							pairwise_differences[s2][s1] += 1
-
-		pop_prop_with_hg = defaultdict(float)
-		pops_with_hg = 0
-		populations_order = []
-		within_population_differences = []
-		for pop in population_samples:
-			pop_prop_with_hg[pop] = len(population_samples[pop].intersection(samples)) / len(
-				population_samples[pop])
-			if pop_prop_with_hg[pop] > 0: pops_with_hg += 1
-			if len(population_samples[pop]) >= 2:
-				within_pop = []
-				for i, s1 in enumerate(population_samples[pop]):
-					for j, s2 in enumerate(population_samples[pop]):
-						if i < j:
-							within_pop.append(pairwise_differences[s1][s2])
-				within_population_differences.append(within_pop)
-				populations_order.append(pop)
+		pops_with_hg = set([])
+		pop_count_with_hg = defaultdict(int)
+		for s in sample_differences_to_consensus:
+			min_diff_to_consensus = 1e100
+			for g in sample_differences_to_consensus[s]:
+				if min_diff_to_consensus > sample_differences_to_consensus[s][g]:
+					min_diff_to_consensus = sample_differences_to_consensus[s][g]
+			if min_diff_to_consensus < 1e100:
+				pop_count_with_hg[sample_population[s]] += 1
+				data_row = [s, sample_population[s], float(min_diff_to_consensus)]
+				input_anova_data.append(data_row)
+				pops_with_hg.add(sample_population[s])
 
 		anova_pval = "NA"
-		if len(within_population_differences) >= 2:
-			F, anova_pval = f_oneway(*within_population_differences)
-		hg_population_info = [pops_with_hg,
-							   '|'.join([str(x[0]) + '=' + str(x[1]) for x in pop_prop_with_hg.items()]),
+		if len(pops_with_hg) >= 2:
+			anova_input_df = DataFrame(np.array(input_anova_data), columns=input_anova_header)
+			anova_input_df['differences_to_consensus'] = anova_input_df['differences_to_consensus'].astype(float)
+			aov = welch_anova(dv='differences_to_consensus', between='population', data=anova_input_df)
+			print(aov)
+			anova_pval = aov.iloc[0, 4]
+
+		hg_population_info = [len(pops_with_hg), '|'.join([str(x[0]) + '=' + str(float(x[1])/population_counts[x[0]]) for x in pop_count_with_hg.items()]),
 							   anova_pval]
 		hg_info += hg_population_info
 
 	hg_stats_handle = open(popgen_dir + hg + '_stats.txt', 'w')
 	hg_stats_handle.write('\t'.join([str(x) for x in hg_info]) + '\n')
 	hg_stats_handle.close()
+
+def filter_codon_msas(inputs):
+	"""
+	Helper function which filters codon alignments to retain only the gene copy from each sample which most closely
+	matches the consensus sequence.
+	"""
+
+	input_codon_msa_file, filterd_codon_msa_file = inputs
+	seqs = []
+	samples_ordered = []
+	genes_ordered = []
+	sample_gene_seq_dict = {}
+	with open(codon_alignment_fasta) as ocaf:
+		for rec in SeqIO.parse(ocaf, 'fasta'):
+			sample_id, gene_id = rec.id.split('|')
+			seqs.append(list(str(rec.seq)))
+			samples_ordered.append(sample_id)
+			genes_ordered.append(gene_id)
+			sample_gene_seq_dict[rec.id] = str(rec.seq)
+
+	sample_differences_to_consensus = defaultdict(lambda: defaultdict(int))
+	for i, ls in enumerate(zip(*seqs)):
+		al_counts = defaultdict(int)
+		for al in ls:
+			if al != '-': al_counts[al] += 1
+		maj_allele_count = max(al_counts.values())
+		maj_allele = [a[0] for a in al_counts.items() if a[0] != '-' and maj_allele_count == a[1]][0]
+		for j, al in enumerate(ls):
+			sid = samples_ordered[j]
+			gid = genes_ordered[j]
+			if al != maj_allele:
+				sample_differences_to_consensus[sid][gid] += 1
+
+	outf = open(filterd_codon_msa_file, 'w')
+	for s in sample_differences_to_consensus:
+		min_diff_to_consensus = [1e100, None]
+		for g in sample_differences_to_consensus[s]:
+			if min_diff_to_consensus[0] > sample_differences_to_consensus[s][g]:
+				min_diff_to_consensus = [sample_differences_to_consensus[s][g], s + '|' + g]
+		assert(min_diff_to_consensus[0] != 1e100)
+		outf.write('>' + min_diff_to_consensus[1] + '\n' + str(sample_gene_seq_dict[min_diff_to_consensus[1]]) + '\n')
+	outf.close()
 
 def create_codon_msas(inputs):
 	"""

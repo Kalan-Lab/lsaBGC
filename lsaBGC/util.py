@@ -399,6 +399,19 @@ def multiProcess(input):
 		logObject.warning(traceback.format_exc())
 		sys.stderr.write(traceback.format_exc())
 
+
+def is_newick(newick):
+	"""
+	Function to validate if Newick phylogeny file is correctly formatted.
+	"""
+	try:
+		with open(newick) as onf:
+			t = Tree(onf)
+		return True
+	except:
+		return False
+
+
 def is_fasta(fasta):
 	"""
 	Function to validate if FASTA file is correctly formatted.
