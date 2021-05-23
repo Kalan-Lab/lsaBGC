@@ -141,13 +141,15 @@ def lsaBGC_PopGene():
     # Step 5: Create codon alignments if not provided a directory with them (e.g. one produced by lsaBGC-See.py)
     logObject.info("User requested construction of phylogeny from SCCs in BGC! Beginning phylogeny construction.")
     logObject.info("Beginning process of creating protein alignments for each homolog group using mafft, then translating these to codon alignments using PAL2NAL.")
-    GCF_Object.constructCodonAlignments(outdir, only_scc=False, cores=cores, list_alignments=True)
+    GCF_Object.constructCodonAlignments(outdir, only_scc=False, cores=cores, list_alignments=True, filter_outliers=False)
+    GCF_Object.constructCodonAlignments(outdir, only_scc=False, cores=cores, list_alignments=True, filter_outliers=True)
     logObject.info("All codon alignments for SCC homologs now successfully achieved!")
 
     # Step 6: Analyze codon alignments and parse population genetics and conservation stats
-    logObject.info("Beginning population genetics analysis of each codon alignment.")
-    GCF_Object.runPopulationGeneticsAnalysis(outdir, cores=cores)
-    logObject.info("")
+    logObject.info("Beginning population genetics analyses of each codon alignment.")
+    GCF_Object.runPopulationGeneticsAnalysis(outdir, cores=cores, filter_outliers=False)
+    GCF_Object.runPopulationGeneticsAnalysis(outdir, cores=cores, filter_outliers=True)
+    logObject.info("Successfully ran population genetics and evolutionary analyses of each codon alignment.")
 
     # Close logging object and exit
     util.closeLoggerObject(logObject)

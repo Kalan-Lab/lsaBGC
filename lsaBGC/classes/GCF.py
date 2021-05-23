@@ -46,6 +46,10 @@ class GCF(Pan):
 		self.prot_seq_dir = None
 		self.prot_alg_dir = None
 		self.codo_alg_dir = None
+		self.nucl_filt_seq_dir = None
+		self.prot_filt_seq_dir = None
+		self.prot_filt_alg_dir = None
+		self.codo_filt_alg_dir = None
 
 		# Concatenated HMMER3 HMM profiles database of homolog groups in GCF
 		self.concatenated_profile_HMM = None
@@ -389,7 +393,7 @@ class GCF(Pan):
 		if self.logObject:
 			self.logObject.info('Plotting completed (I think successfully)!')
 
-	def constructCodonAlignments(self, outdir, cores=1, only_scc=False, list_alignments=False):
+	def constructCodonAlignments(self, outdir, cores=1, only_scc=False, list_alignments=False, filter_outliers=False):
 		"""
 		Function to automate construction of codon alignments. This function first extracts protein and nucleotide sequnces
 		from BGC Genbanks, then creates protein alignments for each homolog group using MAFFT, and finally converts those
@@ -405,10 +409,15 @@ class GCF(Pan):
 						 GCF.
 		"""
 
-		nucl_seq_dir = os.path.abspath(outdir + 'Nucleotide_Sequences') + '/'
-		prot_seq_dir = os.path.abspath(outdir + 'Protein_Sequences') + '/'
-		prot_alg_dir = os.path.abspath(outdir + 'Protein_Alignments') + '/'
-		codo_alg_dir = os.path.abspath(outdir + 'Codon_Alignments') + '/'
+		nucl_seq_dir = os.path.abspath(outdir) + '/Nucleotide_Sequences/'
+		prot_seq_dir = os.path.abspath(outdir) + '/Protein_Sequences/'
+		prot_alg_dir = os.path.abspath(outdir) + '/Protein_Alignments/'
+		codo_alg_dir = os.path.abspath(outdir) + '/Codon_Alignments/'
+		if filter_outliers:
+			nucl_seq_dir = os.path.abspath(outdir) + '/Nucleotide_Sequences_MAD_Refined/'
+			prot_seq_dir = os.path.abspath(outdir) + '/Protein_Sequences_MAD_Refined/'
+			prot_alg_dir = os.path.abspath(outdir) + '/Protein_Alignments_MAD_Refined/'
+			codo_alg_dir = os.path.abspath(outdir) + '/Codon_Alignments_MAD_Refined/'
 
 		if not os.path.isdir(nucl_seq_dir): os.system('mkdir %s' % nucl_seq_dir)
 		if not os.path.isdir(prot_seq_dir): os.system('mkdir %s' % prot_seq_dir)
@@ -439,19 +448,30 @@ class GCF(Pan):
 					continue
 				elif only_scc and self.logObject:
 					self.logObject.info('Homolog group %s detected as SCC across samples (not individual BGCs).' % hg)
+
+				if filter_outliers:
+					gene_sequences = util.determineOutliersByGeneLength(gene_sequences)
 				inputs.append(
 					[hg, gene_sequences, nucl_seq_dir, prot_seq_dir, prot_alg_dir, codo_alg_dir, self.logObject])
 
 			p = multiprocessing.Pool(cores)
 			p.map(create_codon_msas, inputs)
 
-			self.nucl_seq_dir = nucl_seq_dir
-			self.prot_seq_dir = prot_seq_dir
-			self.prot_alg_dir = prot_alg_dir
-			self.codo_alg_dir = codo_alg_dir
+			if not filter_outliers:
+				self.nucl_seq_dir = nucl_seq_dir
+				self.prot_seq_dir = prot_seq_dir
+				self.prot_alg_dir = prot_alg_dir
+				self.codo_alg_dir = codo_alg_dir
+			else:
+				self.nucl_filt_seq_dir = nucl_seq_dir
+				self.prot_filt_seq_dir = prot_seq_dir
+				self.prot_filt_alg_dir = prot_alg_dir
+				self.codo_filt_alg_dir = codo_alg_dir
 
 			if list_alignments:
 				codon_alg_listings_file = outdir + 'Codon_Alignments_Listings.txt'
+				if filter_outliers:
+					codon_alg_listings_file = outdir + 'Codon_Alignments_Listings.MAD_Refined.txt'
 				codon_alg_listings_handle = open(codon_alg_listings_file, 'w')
 				for f in os.listdir(codo_alg_dir):
 					codon_alg_listings_handle.write(f.split('.msa.fna')[0] + '\t' + codo_alg_dir + f + '\n')
@@ -658,7 +678,7 @@ class GCF(Pan):
 				self.logObject.error(traceback.format_exc())
 			raise RuntimeError(traceback.format_exc())
 
-	def runPopulationGeneticsAnalysis(self, outdir, cores=1):
+	def runPopulationGeneticsAnalysis(self, outdir, cores=1, filter_outliers=False):
 		"""
 		Wrapper function which serves to parallelize population genetics analysis.
 
@@ -668,22 +688,31 @@ class GCF(Pan):
 
 		popgen_dir = outdir + 'Codon_PopGen_Analyses/'
 		plots_dir = outdir + 'Codon_MSA_Plots/'
+		if filter_outliers:
+			popgen_dir = outdir + 'Codon_PopGen_Analyses_MAD_Refined/'
+			plots_dir = outdir + 'Codon_MSA_Plots_MAD_Refined/'
 		if not os.path.isdir(popgen_dir): os.system('mkdir %s' % popgen_dir)
 		if not os.path.isdir(plots_dir): os.system('mkdir %s' % plots_dir)
 
-		final_output_handle = open(outdir + 'Ortholog_Group_Information.txt', 'w')
+		final_output_file = outdir + 'Ortholog_Group_Information.txt'
+		if filter_outliers:
+			final_output_file = outdir + 'Ortholog_Group_Information_Mad_Refined.txt'
+
+		final_output_handle = open(final_output_file, 'w')
 		header = ['gcf_id', 'homolog_group', 'annotation', 'hg_order_index', 'hg_median_copy_count', 'median_gene_length',
 				  'is_core_to_bgc', 'bgcs_with_hg', 'proportion_of_samples_with_hg', 'Tajimas_D', 'core_codons',
 				  'total_variable_codons', 'nonsynonymous_codons', 'synonymous_codons', 'dn_ds', 'all_domains']
 		if self.bgc_population != None:
 			header += ['populations_with_hg', 'population_proportion_of_members_with_hg', 'one_way_ANOVA_pvalues']
-
 		final_output_handle.write('\t'.join(header) + '\n')
 
 		inputs = []
-		for f in os.listdir(self.codo_alg_dir):
+		input_codon_dir = self.codo_alg_dir
+		if filter_outliers:
+			input_codon_dir = self.codo_filt_alg_dir
+		for f in os.listdir(input_codon_dir):
 			hg = f.split('.msa.fna')[0]
-			codon_alignment_fasta = self.codo_alg_dir + f
+			codon_alignment_fasta = input_codon_dir + f
 			inputs.append([self.gcf_id, hg, codon_alignment_fasta, popgen_dir, plots_dir, self.comp_gene_info, self.hg_genes,
 						   self.bgc_sample, self.hg_prop_multi_copy, self.hg_order_scores, dict(self.sample_population),
 						   self.logObject])
@@ -691,6 +720,7 @@ class GCF(Pan):
 		p = multiprocessing.Pool(cores)
 		p.map(popgen_analysis_of_hg, inputs)
 
+		final_output_handle = open(final_output_handle, 'a+')
 		for f in os.listdir(popgen_dir):
 			if not f.endswith('_stats.txt'): continue
 			with open(popgen_dir + f) as opf:
