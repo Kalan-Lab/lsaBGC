@@ -63,7 +63,7 @@ def create_parser():
 
 	parser.add_argument('-g', '--gcf_listing_dir', help='Directory with GCF listing files.', required=True)
 	parser.add_argument('-m', '--orthofinder_matrix', help="OrthoFinder homolog group by sample matrix.", required=True)
-	parser.add_argument('-l', '--input_listing', type=str, help="Tab delimited text file for samples with three columns: (1) sample name (2) Prokka generated Genbank file (*.gbk), and (3) Prokka generated predicted-proteome file (*.faa). Please remove troublesome characters in the sample name.")
+	parser.add_argument('-l', '--initial_listing', type=str, help="Tab delimited text file for samples with three columns: (1) sample name (2) Prokka generated Genbank file (*.gbk), and (3) Prokka generated predicted-proteome file (*.faa). Please remove troublesome characters in the sample name.")
 	parser.add_argument('-e', '--expansion_listing', help="Path to tab delimited file listing: (1) sample name (2) path to Prokka Genbank and (3) path to Prokka predicted proteome. This file is produced by lsaBGC-AutoProcess.py.", required=True)
 	parser.add_argument('-o', '--output_directory', help="Parent output/workspace directory.", required=True)
 	parser.add_argument('-c', '--cores', type=int, help="Total number of cores to use.", required=False, default=1)
@@ -157,7 +157,7 @@ def lsaBGC_AutoExpansion():
 			   initial_listing_file, '-e', expansion_listing_file, '-o', gcf_exp_outdir, '-i', gcf_id,
 			   '-c', str(cores)]
 		try:
-			util.run_cmd(cmd, logObject, stderr=sys.stderr, stdout=sys.stdout)
+			#util.run_cmd(cmd, logObject, stderr=sys.stderr, stdout=sys.stdout)
 
 			updated_gcf_listing_file = gcf_exp_outdir + 'GCF_Expanded.txt'
 			gcf_hmm_evalues_file = gcf_exp_outdir + 'GCF_NewInstances_HMMEvalues.txt'
@@ -209,7 +209,14 @@ def lsaBGC_AutoExpansion():
 
 							gcf_to_edit = None
 							bgc_to_remove = None
-							if bgc1_score < bgc2_score:
+
+							if bgc1 in original_gcfs and not bgc2 in original_gcfs:
+								gcf_to_edit = gcf2
+								bgc_to_remove = bgc2
+							elif bgc2 in original_gcfs and not bgc1 in original_gcfs:
+								gcf_to_edit = gcf1
+								bgc_to_remove = bgc1
+							elif bgc1_score < bgc2_score:
 								gcf_to_edit = gcf2
 								bgc_to_remove = bgc2
 							else:
@@ -269,7 +276,7 @@ def lsaBGC_AutoExpansion():
 			line = line.strip('\n')
 			ls = line.split('\t')
 			if i == 0:
-				original_samples = ls[1:]
+				original_samples = [x.replace(' ', '_').replace('|', '_').replace('"', '_').replace("'", '_').replace("=", "_").replace('-', '_') for x in ls[1:]]
 				all_samples = all_samples.union(set(original_samples))
 			else:
 				hg = ls[0]

@@ -448,11 +448,11 @@ class GCF(Pan):
 					continue
 				elif only_scc and self.logObject:
 					self.logObject.info('Homolog group %s detected as SCC across samples (not individual BGCs).' % hg)
-
+				# check that hg is present in the original instances of GCF
+				if len([x for x in gene_sequences.keys() if len(x.split('|')[1].split('_')[0]) == 3]) == 0: continue
 				if filter_outliers:
 					gene_sequences = util.determineOutliersByGeneLength(gene_sequences)
-				inputs.append(
-					[hg, gene_sequences, nucl_seq_dir, prot_seq_dir, prot_alg_dir, codo_alg_dir, self.logObject])
+				inputs.append([hg, gene_sequences, nucl_seq_dir, prot_seq_dir, prot_alg_dir, codo_alg_dir, self.logObject])
 
 			p = multiprocessing.Pool(cores)
 			p.map(create_codon_msas, inputs)
@@ -720,7 +720,7 @@ class GCF(Pan):
 		p = multiprocessing.Pool(cores)
 		p.map(popgen_analysis_of_hg, inputs)
 
-		final_output_handle = open(final_output_handle, 'a+')
+		final_output_handle = open(final_output_file, 'a+')
 		for f in os.listdir(popgen_dir):
 			if not f.endswith('_stats.txt'): continue
 			with open(popgen_dir + f) as opf:
@@ -940,7 +940,7 @@ class GCF(Pan):
 				line = line.strip('\n')
 				ls = line.split('\t')
 				if i == 0:
-					original_samples = ls[1:]
+					original_samples = [x.replace(' ', '_').replace('|', '_').replace('"', '_').replace("'", '_').replace("=", "_").replace('-', '_') for x in ls[1:]]
 					all_samples = all_samples.union(set(original_samples))
 				else:
 					hg = ls[0]
@@ -1551,7 +1551,7 @@ def popgen_analysis_of_hg(inputs):
 	domain_positions_msa = defaultdict(set)
 	domain_min_position_msa = defaultdict(lambda: 1e8)
 	all_domains = set([])
-	for gene in hg_genes[hg]:
+	for gene in gene_locs:
 		gene_start = comp_gene_info[gene]['start']
 		gene_end = comp_gene_info[gene]['end']
 		for domain in comp_gene_info[gene]['gene_domains']:

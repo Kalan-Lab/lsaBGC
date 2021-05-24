@@ -17,20 +17,20 @@ import pysam
 from scipy import stats
 
 def determineOutliersByGeneLength(gene_sequences):
-	filtered_gene_sequences = defaultdict(dict)
+	filtered_gene_sequences = {}
 	og_gene_nucl_seq_lens = []
 	for g in gene_sequences:
-		gene, sample = gene.split('|')
-		if len(gene.split('_')) == 3:
-			gene_nucl_seq = gene_sequences[g]['nucl_seq']
+		sample, gene = g.split('|')
+		if len(gene.split('_')[0]) == 3:
+			gene_nucl_seq = gene_sequences[g][0]
 			gene_nucl_seq_len = len(gene_nucl_seq)
 			og_gene_nucl_seq_lens.append(gene_nucl_seq_len)
 
 	median_gene_nucl_seq_lens = statistics.median(og_gene_nucl_seq_lens)
-	mad_gene_nucl_seq_lens = stats.median_absolute_deviation(og_gene_nucl_seq_lens)
+	mad_gene_nucl_seq_lens = max(stats.median_absolute_deviation(og_gene_nucl_seq_lens), 25)
 
 	for g in gene_sequences:
-		gene_nucl_seq = gene_sequences[g]['nucl_seq']
+		gene_nucl_seq = gene_sequences[g][0]
 		gene_nucl_seq_len = len(gene_nucl_seq)
 		if abs(gene_nucl_seq_len-median_gene_nucl_seq_lens) <= 2*mad_gene_nucl_seq_lens:
 			filtered_gene_sequences[g] = gene_sequences[g]

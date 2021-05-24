@@ -20,7 +20,7 @@ mid.njt <- force.ultrametric(mid.njt, method=c("nnls"))
 mid.njt <-multi2di(mid.njt)
 
 hc <- as.hclust(mid.njt)
-clusters <- cutreeDynamic(hc, distM=dist, minClusterSize=1, deepSplit=3, method="hybrid", useMedoids=T)
+clusters <- cutreeDynamic(hc, distM=dist, minClusterSize=1, deepSplit=4, method="hybrid", useMedoids=T)
 
 hc.labels <- mid.njt$tip.label
 results <- cbind(hc.labels, clusters)
