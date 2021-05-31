@@ -133,7 +133,6 @@ def lsaBGC_PopGene():
     GCF_Object.determineHgOrderIndex()
 
     # Step 4: (Optional) Parse population specifications file, if provided by user
-    sample_population = None
     if population_classification_file:
         logObject.info("User provided information on populations, parsing this information.")
         GCF_Object.readInPopulationsSpecification(population_classification_file)
@@ -147,8 +146,13 @@ def lsaBGC_PopGene():
 
     # Step 6: Analyze codon alignments and parse population genetics and conservation stats
     logObject.info("Beginning population genetics analyses of each codon alignment.")
-    GCF_Object.runPopulationGeneticsAnalysis(outdir, cores=cores, filter_outliers=False)
-    GCF_Object.runPopulationGeneticsAnalysis(outdir, cores=cores, filter_outliers=True)
+    populations = [None]
+    if population_classification_file:
+        populations = populations + list(sorted(set(GCF_Object.sample_population.values())))
+    for pop in populations:
+        print(pop)
+        GCF_Object.runPopulationGeneticsAnalysis(outdir, cores=cores, population=pop, filter_outliers=False)
+        GCF_Object.runPopulationGeneticsAnalysis(outdir, cores=cores, population=pop, filter_outliers=True)
     logObject.info("Successfully ran population genetics and evolutionary analyses of each codon alignment.")
 
     # Close logging object and exit

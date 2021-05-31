@@ -16,7 +16,7 @@ class BGC:
 		self.cluster_information = None
 		self.parseGenbanks(comprehensive_parsing=comprehensive_parsing)
 
-	def parseGenbanks(self, comprehensive_parsing=True, flank_size=500):
+	def parseGenbanks(self, comprehensive_parsing=True, flank_size=2000):
 		"""
 		Function to parse an AntiSMASH Genbank file. Values of the object
 		"""

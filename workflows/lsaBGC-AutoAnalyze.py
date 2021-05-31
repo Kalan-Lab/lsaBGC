@@ -71,6 +71,13 @@ def create_parser():
 	args = parser.parse_args()
 	return args
 
+def writeToOpenHandle(gcf_results_file, combined_results_handle, include_header):
+	with open(gcf_results_file) as ogrf:
+		for i, line in enumerate(ogrf):
+			if i == 0 and include_header:
+				combined_results_handle.write(line)
+			elif i != 0:
+				combined_results_handle.write(line)
 
 def lsaBGC_AutoAnalyze():
 	"""
@@ -220,7 +227,7 @@ def lsaBGC_AutoAnalyze():
 			if population_listing_file:
 				cmd += ['-p', population_listing_file]
 			try:
-				util.run_cmd(cmd, logObject)
+				util.run_cmd(cmd, logObject, stderr=sys.stderr, stdout=sys.stdout)
 			except Exception as e:
 				logObject.warning("lsaBGC-PopGene.py was unsuccessful for GCF %s" % gcf_id)
 				sys.stderr.write("Warning: lsaBGC-PopGene.py was unsuccessful for GCF %s\n" % gcf_id)
@@ -240,16 +247,55 @@ def lsaBGC_AutoAnalyze():
 		# 4. Run lsaBGC-DiscoVary.py
 		if discovary_analysis_id and discovary_input_listing:
 			gcf_dis_outdir = dis_outdir + gcf_id + '/'
-			if not os.path.isdir(gcf_dis_outdir):
+			if gcf_id == 'GCF_2': #not os.path.isdir(gcf_dis_outdir):
 				os.system('mkdir %s' % gcf_dis_outdir)
 				cmd = ['lsaBGC-DiscoVary.py', '-g', gcf_listing_file, '-m', orthofinder_matrix_file, '-o',
 					   gcf_dis_outdir, '-i', gcf_id, '-c', str(cores), '-p', discovary_input_listing, '-a',
 					   gcf_pop_outdir + 'Codon_Alignments_Listings.txt']
 				try:
-					util.run_cmd(cmd, logObject)
+					util.run_cmd(cmd, logObject, stderr=sys.stderr, stdout=sys.stdout)
 				except Exception as e:
 					logObject.warning("lsaBGC-DiscoVary.py was unsuccessful for GCF %s" % gcf_id)
 					sys.stderr.write("Warning: lsaBGC-DiscoVary.py was unsuccessful for GCF %s\n" % gcf_id)
+
+	combined_orthoresults_refined_handle = open(outdir + 'GCF_Ortholog_Group_Information.txt', 'w')
+	combined_orthoresults_pop_refined_handle = open(outdir + 'Population_GCF_Ortholog_Group_Information.txt', 'w')
+	combined_orthoresults_unrefined_handle = open(outdir + 'GCF_Ortholog_Group_Information_Mad_Refined.txt', 'w')
+	combined_orthoresults_pop_unrefined_handle = open(outdir + 'Population_GCF_Ortholog_Group_Information_Mad_Refined.txt', 'w')
+	combined_divergence_results_handle = open(outdir + 'GCF_Divergences.txt', 'w')
+	for i, g in enumerate(os.listdir(gcf_listing_dir)):
+		gcf_id = g.split('.txt')[0]
+		gcf_pop_outdir = pop_outdir + gcf_id + '/'
+		gcf_div_outdir = div_outdir + gcf_id + '/'
+		gcf_pop_results_refined = gcf_pop_outdir + 'Ortholog_Group_Information_MAD_Refined.txt'
+		gcf_pop_results_unrefined = gcf_pop_outdir + 'Ortholog_Group_Information.txt'
+
+		jref = 0
+		junref = 0
+		for f in os.listdir(gcf_pop_outdir):
+			include_header = False
+			popgene_result_file = gcf_pop_outdir + f
+			if 'Ortholog_Group_Information' in f and 'Pop-' in f and not 'Ortholog_Group_Information_MAD_Refined' in f:
+				if jref == 0 and i == 0: include_header = True
+				writeToOpenHandle(popgene_result_file, combined_orthoresults_pop_refined_handle, include_header)
+				jref += 1
+			if 'Ortholog_Group_Information_MAD_Refined' in f and 'Pop-' in f:
+				if junref == 0 and i == 0: include_header = True
+				writeToOpenHandle(popgene_result_file, combined_orthoresults_pop_unrefined_handle, include_header)
+				junref += 1
+
+		gcf_div_results = gcf_div_outdir + 'Relative_Divergence_Report.txt'
+
+		include_header = False
+		if i == 0: include_header = True
+		writeToOpenHandle(gcf_pop_results_refined, combined_orthoresults_refined_handle, include_header)
+		writeToOpenHandle(gcf_pop_results_unrefined, combined_orthoresults_unrefined_handle, include_header)
+		writeToOpenHandle(gcf_div_results, combined_divergence_results_handle, include_header)
+
+	combined_orthoresults_refined_handle.close()
+	combined_orthoresults_unrefined_handle.close()
+	combined_divergence_results_handle.close()
+
 	# Close logging object and exit
 	util.closeLoggerObject(logObject)
 	sys.exit(0)

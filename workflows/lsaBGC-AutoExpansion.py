@@ -157,7 +157,7 @@ def lsaBGC_AutoExpansion():
 			   initial_listing_file, '-e', expansion_listing_file, '-o', gcf_exp_outdir, '-i', gcf_id,
 			   '-c', str(cores)]
 		try:
-			#util.run_cmd(cmd, logObject, stderr=sys.stderr, stdout=sys.stdout)
+			util.run_cmd(cmd, logObject, stderr=sys.stderr, stdout=sys.stdout)
 
 			updated_gcf_listing_file = gcf_exp_outdir + 'GCF_Expanded.txt'
 			gcf_hmm_evalues_file = gcf_exp_outdir + 'GCF_NewInstances_HMMEvalues.txt'

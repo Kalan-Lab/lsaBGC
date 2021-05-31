@@ -833,9 +833,9 @@ class Pan:
 			sample_hg_counts = [len(sample_hgs[x]) for x in sample_hgs]
 			self.lowerbound_hg_count = math.floor(min(sample_hg_counts))
 
-			#p = multiprocessing.Pool(cores)
-			#p.map(create_hmm_profiles, inputs)
-			#p.close()
+			p = multiprocessing.Pool(cores)
+			p.map(create_hmm_profiles, inputs)
+			p.close()
 
 			if self.logObject:
 				self.logObject.info(
@@ -870,9 +870,9 @@ class Pan:
 					self.logObject.error(traceback.format_exc())
 				raise RuntimeError('Had an issue running: %s' % ' '.join(hmmpress_cmd))
 
-			#p = multiprocessing.Pool(cores)
-			#p.map(util.multiProcess, hmmscan_cmds)
-			#p.close()
+			p = multiprocessing.Pool(cores)
+			p.map(util.multiProcess, hmmscan_cmds)
+			p.close()
 
 			best_hits = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
 			for sample in initial_sample_prokka_data:
@@ -961,9 +961,9 @@ class Pan:
 						   sample_proteome, self.logObject]
 			hmmscan_cmds.append(hmmscan_cmd)
 
-		#p = multiprocessing.Pool(cores)
-		#p.map(util.multiProcess, hmmscan_cmds)
-		#p.close()
+		p = multiprocessing.Pool(cores)
+		p.map(util.multiProcess, hmmscan_cmds)
+		p.close()
 
 		print(self.hg_max_self_evalue)
 		for sample in expanded_sample_prokka_data:

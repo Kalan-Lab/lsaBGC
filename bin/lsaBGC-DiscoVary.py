@@ -144,7 +144,6 @@ def lsaBGC_DiscoVary():
     bowtie2_db_prefix = outdir + 'GCF_Genes'
 
     GCF_Object.extractGeneWithFlanksAndCluster(genes_with_flanks_fasta, cd_hit_clusters_fasta_file, cd_hit_nr_fasta_file, bowtie2_db_prefix)
-
     logObject.info("Successfully extracted genes with flanks and clustered them into discrete haplotypes.")
 
     # Step 4: Align paired-end reads to database genes with surrounding flanks

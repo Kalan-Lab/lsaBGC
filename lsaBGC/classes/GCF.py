@@ -7,7 +7,7 @@ import random
 import subprocess
 import pysam
 import multiprocessing
-from scipy.stats import f_oneway
+from scipy.stats import f_oneway, fisher_exact
 from ete3 import Tree
 from Bio import SeqIO
 from Bio.Seq import Seq
@@ -400,8 +400,8 @@ class GCF(Pan):
 		into codon alignments using PAL2NAL.
 
 		:param outdir: Path to output/workspace directory. Intermediate files (like extracted nucleotide and protein
-					   sequences, protein and codon alignments, will be writen to respective subdirectories underneath this
-					   one).
+						 sequences, protein and codon alignments, will be writen to respective subdirectories underneath this
+						 one).
 		:param cores: Number of cores/threads to use when fake-parallelizing jobs using multiprocessing.
 		:param only_scc: Whether to construct codon alignments only for homolog groups which are found to be core and in
 						 single copy for samples with the GCF. Note, if working with draft genomes and the BGC is fragmented
@@ -489,7 +489,7 @@ class GCF(Pan):
 
 		:param output_alignment: Path to output file for concatenated SCC homolog group alignment.
 		:param output_phylogeny: Path to output file for approximate maximum-likelihood phylogeny produced by FastTree2 from
-							     concatenated SCC homolog group alignment.
+									 concatenated SCC homolog group alignment.
 		"""
 		try:
 			if only_scc:
@@ -678,7 +678,7 @@ class GCF(Pan):
 				self.logObject.error(traceback.format_exc())
 			raise RuntimeError(traceback.format_exc())
 
-	def runPopulationGeneticsAnalysis(self, outdir, cores=1, filter_outliers=False):
+	def runPopulationGeneticsAnalysis(self, outdir, cores=1, population=None, filter_outliers=False):
 		"""
 		Wrapper function which serves to parallelize population genetics analysis.
 
@@ -686,24 +686,35 @@ class GCF(Pan):
 		:param cores: The number of cores (will be used for parallelizing)
 		"""
 
-		popgen_dir = outdir + 'Codon_PopGen_Analyses/'
-		plots_dir = outdir + 'Codon_MSA_Plots/'
+		popgen_dir = outdir + 'Codon_PopGen_Analyses'
+		plots_dir = outdir + 'Codon_MSA_Plots'
+		final_output_file = outdir + 'Ortholog_Group_Information'
+
 		if filter_outliers:
-			popgen_dir = outdir + 'Codon_PopGen_Analyses_MAD_Refined/'
-			plots_dir = outdir + 'Codon_MSA_Plots_MAD_Refined/'
+			final_output_file = outdir + 'Ortholog_Group_Information_MAD_Refined'
+			popgen_dir = outdir + 'Codon_PopGen_Analyses_MAD_Refined'
+			plots_dir = outdir + 'Codon_MSA_Plots_MAD_Refined'
+
+		if population:
+			final_output_file = final_output_file + '_Pop-' + str(population) + '.txt'
+			popgen_dir += '_Pop-' + str(population) + '/'
+			plots_dir += '_Pop-' + str(population) + '/'
+		else:
+			final_output_file = final_output_file + '.txt'
+			popgen_dir += '/'
+			plots_dir += '/'
+
 		if not os.path.isdir(popgen_dir): os.system('mkdir %s' % popgen_dir)
 		if not os.path.isdir(plots_dir): os.system('mkdir %s' % plots_dir)
 
-		final_output_file = outdir + 'Ortholog_Group_Information.txt'
-		if filter_outliers:
-			final_output_file = outdir + 'Ortholog_Group_Information_Mad_Refined.txt'
-
 		final_output_handle = open(final_output_file, 'w')
 		header = ['gcf_id', 'homolog_group', 'annotation', 'hg_order_index', 'hg_median_copy_count', 'median_gene_length',
-				  'is_core_to_bgc', 'bgcs_with_hg', 'proportion_of_samples_with_hg', 'Tajimas_D', 'core_codons',
-				  'total_variable_codons', 'nonsynonymous_codons', 'synonymous_codons', 'dn_ds', 'all_domains']
+					'is_core_to_bgc', 'bgcs_with_hg', 'samples_with_hg', 'proportion_of_samples_with_hg', 'Tajimas_D', 'core_codons',
+					'total_variable_codons', 'nonsynonymous_codons', 'synonymous_codons', 'dn_ds', 'all_domains']
+		if population:
+			header = ['population'] + header
 		if self.bgc_population != None:
-			header += ['populations_with_hg', 'population_proportion_of_members_with_hg', 'one_way_ANOVA_pvalues']
+			header += ['populations_with_hg', 'population_proportion_of_members_with_hg', 'one_way_ANOVA_pvalues_sequence_similarity', 'one_way_ANOVA_pvalues_presence_absence']
 		final_output_handle.write('\t'.join(header) + '\n')
 
 		inputs = []
@@ -714,8 +725,8 @@ class GCF(Pan):
 			hg = f.split('.msa.fna')[0]
 			codon_alignment_fasta = input_codon_dir + f
 			inputs.append([self.gcf_id, hg, codon_alignment_fasta, popgen_dir, plots_dir, self.comp_gene_info, self.hg_genes,
-						   self.bgc_sample, self.hg_prop_multi_copy, self.hg_order_scores, dict(self.sample_population),
-						   self.logObject])
+							 self.bgc_sample, self.hg_prop_multi_copy, self.hg_order_scores, dict(self.sample_population),
+							 population, self.logObject])
 
 		p = multiprocessing.Pool(cores)
 		p.map(popgen_analysis_of_hg, inputs)
@@ -737,7 +748,7 @@ class GCF(Pan):
 
 		:param outdir: The path to the workspace / output directory.
 		:param sample_prokka_data: Dictionary with keys being sample identifiers and values being paths to genbank and
-								   proteome files from Prokka based annotation
+									 proteome files from Prokka based annotation
 		:param cores: The number of cores (will be used for parallelizing)
 		"""
 
@@ -969,17 +980,16 @@ class GCF(Pan):
 
 		:param genes_with_flanks_fasta: Path to FASTA file which will harbor gene + flanks
 		:param cd_hit_clusters_fasta_file: Path to FASTA file which will be used to output coarse level clustering by
-										   CD-HIT
+											 CD-HIT
 		:param cd_hit_nr_fasta_file: Path to FASTA file which will be used to output granular level clustering by CD-HIT
 		:param bowtei2_db_prefix: Path to prefix of Bowtie2 refernece database/index to be used for aligning downstream
-		                          in the lsaBGC-DiscoVary workflow
+															in the lsaBGC-DiscoVary workflow
 		"""
 		try:
 			gwff_handle = open(genes_with_flanks_fasta, 'w')
 			for bgc in self.bgc_genes:
 				for gene in self.bgc_genes[bgc]:
 					if gene in self.gene_to_hg:
-						#print('>' + gene + '|' + bgc + '|' + self.gene_to_hg[gene] + '\n' + self.comp_gene_info[gene]['nucl_seq_with_flanks'])
 						gwff_handle.write('>' + gene + '|' + bgc + '|' + self.gene_to_hg[gene] + '\n' + self.comp_gene_info[gene]['nucl_seq_with_flanks'] + '\n')
 			gwff_handle.close()
 		except Exception as e:
@@ -989,7 +999,7 @@ class GCF(Pan):
 			raise RuntimeError(traceback.format_exc())
 
 		cd_hit_nr = ['cd-hit-est', '-i', genes_with_flanks_fasta, '-o', cd_hit_nr_fasta_file, '-G', '1', '-g',
-					 '1', '-d', '0', '-n', '10', '-M', '2000', '-c', '1.0', '-aL', '0.0', '-aS', '1.0', '-T', '1']
+					 '1', '-d', '0', '-n', '10', '-M', '2000', '-c', '1.0', '-aL', '1.0', '-aS', '1.0', '-T', '1']
 		if self.logObject:
 			self.logObject.info('Running the following command: %s' % ' '.join(cd_hit_nr))
 		try:
@@ -1005,9 +1015,9 @@ class GCF(Pan):
 			self.logObject.info('Ran CD-HIT for collapsing redundancy.')
 
 		cd_hit_cluster = ['cd-hit-est', '-i', genes_with_flanks_fasta, '-o', cd_hit_clusters_fasta_file, '-G', '1',
-						  '-g',
-						  '1', '-d', '0', '-n', '10', '-M', '2000', '-c', '0.98', '-aL', '0.95', '-aS', '0.95', '-T',
-						  '1']
+							'-g',
+							'1', '-d', '0', '-n', '10', '-M', '2000', '-c', '0.98', '-aL', '0.95', '-aS', '0.95', '-T',
+							'1']
 		if self.logObject:
 			self.logObject.info('Running the following command: %s' % ' '.join(cd_hit_cluster))
 		try:
@@ -1072,10 +1082,10 @@ class GCF(Pan):
 		Wrapper function for mining for novel SNVs across genes of GCF.
 
 		:param paired_end_sequencing_file: tab delimited file with three columns: (1) sample name (2) path to forward
-										   reads and (3) path to reverse reads
+											 reads and (3) path to reverse reads
 		:param bowtie2_ref_fasta: FASTA file corresponding
 		:param bowtie2_alignment_dir: Path to directory where Bowtie2 alignments were written. This directory should
-									  include BAM files ending in *.filtered.sorted.bam which are sorted and indexed.
+										include BAM files ending in *.filtered.sorted.bam which are sorted and indexed.
 		:param results_dir: Path to directory where results of SNV mining will be written.
 		:param cores: The number of processes to be run in parallel.
 		"""
@@ -1132,8 +1142,9 @@ class GCF(Pan):
 				print(s)
 				print(self.core_homologs.difference(samp_hgs))
 				print(len(samp_hgs.intersection(self.core_homologs))/float(len(self.core_homologs)))
+				print(samp_hgs)
 				print('-'*10)
-				if len(samp_hgs.intersection(self.core_homologs))/float(len(self.core_homologs)) < 0.90:
+				if len(samp_hgs.intersection(self.core_homologs))/float(len(self.core_homologs)) < 0.7 or len(samp_hgs) < 5:
 					self.avoid_samples.add(s)
 
 			final_matrix_reads_file = outdir + 'Sample_by_OG_Allele_Read_Counts.matrix.txt'
@@ -1185,15 +1196,18 @@ class GCF(Pan):
 			novelty_report_file = outdir + 'Novelty_Report.txt'
 			no_handle = open(novelty_report_file, 'w')
 			no_handle.write('\t'.join(['gcf_id', 'sample', 'homolog_group', 'position_along_msa', 'alternate_allele',
-									   'snv_count', 'reference_sample', 'reference_gene', 'reference_position',
-									   'reference_allele']) + '\n')
+										 'snv_count', 'reference_sample', 'reference_gene', 'reference_position',
+										 'reference_allele']) + '\n')
 
 			gene_pos_to_msa_pos = defaultdict(lambda: defaultdict(dict))
 			msa_pos_alleles = defaultdict(lambda: defaultdict(set))
+			msa_pos_ambiguous_freqs = defaultdict(lambda: defaultdict(float))
 			with open(codon_alignment_file) as ocaf:
 				for line in ocaf:
 					line = line.strip()
 					hg, cod_alignment = line.split('\t')
+					seq_count = 0
+					msa_pos_ambiguous_counts = defaultdict(int)
 					with open(cod_alignment) as oca:
 						for rec in SeqIO.parse(oca, 'fasta'):
 							sample_id, gene_id = rec.id.split('|')
@@ -1203,6 +1217,11 @@ class GCF(Pan):
 									gene_pos_to_msa_pos[hg][gene_id][real_pos] = msa_pos+1
 									real_pos += 1
 									msa_pos_alleles[hg][msa_pos+1].add(bp.upper())
+								else:
+									msa_pos_ambiguous_counts[msa_pos+1] += 1
+							seq_count += 1
+					for pos in msa_pos_ambiguous_counts:
+						msa_pos_ambiguous_freqs[hg][pos] = msa_pos_ambiguous_counts[pos]/float(seq_count)
 
 			for f in os.listdir(snv_mining_outdir):
 				if not f.endswith('.snvs'): continue
@@ -1218,6 +1237,10 @@ class GCF(Pan):
 						snv_count = ls[1]
 						gsh, ref_pos, ref_al, alt_al = ls[0].split('_|_')
 						gene, sample, hg = gsh.split('|')
+
+						max_msa_pos = max(msa_pos_alleles[hg].keys())
+						msa_edge_length = 50
+
 						if self.hg_prop_multi_copy[hg] >= 0.05: continue
 						if any(word in self.comp_gene_info[gene]['product'].lower() for word in mges): continue
 						ref_pos = int(ref_pos)+1
@@ -1227,7 +1250,7 @@ class GCF(Pan):
 						#print(ref_pos)
 						#print(line)
 						#print(self.comp_gene_info[gene])
-						#rint(self.comp_gene_info[gene]['nucl_seq_with_flanks'][ref_pos+self.comp_gene_info[gene]['relative_start']-3:ref_pos+self.comp_gene_info[gene]['relative_start']+4])
+						#print(self.comp_gene_info[gene]['nucl_seq_with_flanks'][ref_pos+self.comp_gene_info[gene]['relative_start']-3:ref_pos+self.comp_gene_info[gene]['relative_start']+4])
 						if not ref_pos in gene_pos_to_msa_pos[hg][gene]: continue
 						msa_pos = gene_pos_to_msa_pos[hg][gene][int(ref_pos)]
 						msa_pos_als = msa_pos_alleles[hg][msa_pos]
@@ -1240,7 +1263,7 @@ class GCF(Pan):
 						#print('\t'.join([pe_sample, hg, str(msa_pos), sample, gene, str(ref_pos), ref_al, alt_al, snv_count]))
 						#print('-'*80)
 						assert (ref_al in msa_pos_alleles[hg][msa_pos])
-						if not alt_al in msa_pos_als:
+						if not alt_al in msa_pos_als and msa_pos >= msa_edge_length and msa_pos <= (max_msa_pos - msa_edge_length) and msa_pos_ambiguous_freqs[hg][msa_pos] <= 0.1:
 							no_handle.write('\t'.join([self.gcf_id, pe_sample, hg, str(msa_pos), alt_al, snv_count, sample, gene, str(ref_pos), ref_al]) + '\n')
 
 			no_handle.close()
@@ -1267,7 +1290,7 @@ def snv_miner(input_args):
 		result_file = res_dir + sample + '.txt'
 		outf = open(result_file, 'w')
 		outf.write('\t'.join(['# hg', 'allele_representative', 'reads', 'reads_with_novelty', 'reads_uniquely_mapping',
-							  'reads_uniquely_mapping_with_novelty']) + '\n')
+								'reads_uniquely_mapping_with_novelty']) + '\n')
 
 		bam_handle = pysam.AlignmentFile(bam_alignment, 'rb')
 
@@ -1282,6 +1305,7 @@ def snv_miner(input_args):
 		for hg, hg_genes in bgc_hg_genes.items():
 			read_ascores_per_allele = defaultdict(list)
 			read_genes_mapped = defaultdict(set)
+			read_genes_mapped_reps = defaultdict(set)
 			snv_counts = defaultdict(set)
 			hg_genes_covered = 0
 			rep_alignments = defaultdict(lambda: defaultdict(set))
@@ -1297,24 +1321,29 @@ def snv_miner(input_args):
 
 					gene_length = gend - gstart
 
+					print(hg)
+					print(gstart)
+					print(gend)
+					print(gene_length)
 					gene_covered_1 = 0
 					gene_covered_3 = 0
 					for pileupcolumn in bam_handle.pileup(contig=rec.id, start=gstart, stop=gend + 1, stepper="nofilter",
-														  truncate=True):
+															truncate=True):
 						pos_depth = 0
 						for pileupread in pileupcolumn.pileups:
 							read = pileupread.alignment
 							if pileupread.is_del or pileupread.is_refskip or not read.is_proper_pair: continue
 							if read.query_qualities[pileupread.query_position] < 20: continue
 							pos_depth += 1
-							if pos_depth >= 1:
-								gene_covered_1 += 1
-								if pos_depth >= 3:
-									gene_covered_3 += 1
+
+						if pos_depth >= 1:
+							gene_covered_1 += 1
+							if pos_depth >= 3:
+								gene_covered_3 += 1
 
 					gene_coverage_1 = gene_covered_1 / float(gene_length)
 					gene_coverage_3 = gene_covered_3 / float(gene_length)
-					if gene_coverage_1 < 0.90: continue
+					if gene_coverage_3 < 0.7 or gene_coverage_1 < 0.9: continue
 					hg_genes_covered += 1
 
 					for read1_alignment, read2_alignment in util.read_pair_generator(bam_handle, region_string=rec.id,
@@ -1325,15 +1354,14 @@ def snv_miner(input_args):
 						read2_ascore = read2_alignment.tags[0][1]
 						combined_ascore = read1_ascore + read2_ascore
 
-						snvs = set([])
 						g_rep = hg_gene_to_rep[rec.id]
 
 						read1_ref_positions = set(read1_alignment.get_reference_positions())
 						read2_ref_positions = set(read2_alignment.get_reference_positions())
 
-						read_intersect = len(read1_ref_positions.intersection(read2_ref_positions))
-						min_read_length = min(len(read1_ref_positions), len(read2_ref_positions))
-						read_overlap_prop = read_intersect / min_read_length
+						align_intersect = len(read1_ref_positions.intersection(read2_ref_positions))
+						min_align_length = min(len(read1_ref_positions), len(read2_ref_positions))
+						align_overlap_prop = align_intersect / min_align_length
 
 						min_read1_ref_pos = min(read1_ref_positions)
 						read1_referseq = read1_alignment.get_reference_sequence().upper()
@@ -1346,21 +1374,26 @@ def snv_miner(input_args):
 						read2_queryqua = read2_alignment.query_qualities
 
 						alignment_has_indel = False
-						mismatch_count = 0
+						hq_mismatch_count = 0
+						total_mismatch_count = 0
 						for b in read1_alignment.get_aligned_pairs(with_seq=True):
 							if b[0] == None or b[1] == None:
 								alignment_has_indel = True
 							elif b[2].islower():
 								que_qual = read1_queryqua[b[0]]
-								if que_qual >= 30: mismatch_count += 1
+								if que_qual >= 30: hq_mismatch_count += 1
+								total_mismatch_count += 1
+
 						for b in read2_alignment.get_aligned_pairs(with_seq=True):
 							if b[0] == None or b[1] == None:
 								alignment_has_indel = True
 							elif b[2].islower():
 								que_qual = read2_queryqua[b[0]]
-								if que_qual >= 30: mismatch_count += 1
+								if que_qual >= 30: hq_mismatch_count += 1
+								total_mismatch_count += 1
 
 						n_found = False
+						snvs = set([])
 						for b in read1_alignment.get_aligned_pairs(with_seq=True):
 							if b[0] == None or b[1] == None: continue
 							if not b[2].islower(): continue
@@ -1371,11 +1404,9 @@ def snv_miner(input_args):
 							if b[2] == 'n' or ref_al == 'N' or alt_al == 'N': n_found = True; break
 							assert (ref_al == str(rec.seq).upper()[b[1]])
 							assert (alt_al != ref_al)
-							if que_qual >= 30 and not alignment_has_indel and mismatch_count <= 5 and read_overlap_prop <= 0.25 and min_read_length >= 75:
-								snvs.add(str(rec.id) + '_|_' + str(ref_pos - offset) + '_|_' + ref_al + '_|_' + alt_al)
-								snv_counts[
-									str(rec.id) + '_|_' + str(ref_pos - offset) + '_|_' + ref_al + '_|_' + alt_al].add(
-									read_name)
+							if que_qual >= 30:
+								snv_id = str(rec.id) + '_|_' + str(ref_pos - offset) + '_|_' + ref_al + '_|_' + alt_al
+								snvs.add(snv_id)
 
 						for b in read2_alignment.get_aligned_pairs(with_seq=True):
 							if b[0] == None or b[1] == None: continue
@@ -1387,17 +1418,19 @@ def snv_miner(input_args):
 							if b[2] == 'n' or ref_al == 'N' or alt_al == 'N': n_found = True; break
 							assert (ref_al == str(rec.seq).upper()[b[1]])
 							assert (alt_al != ref_al)
-							if que_qual >= 30 and not alignment_has_indel and mismatch_count <= 5 and read_overlap_prop <= 0.25 and min_read_length >= 75:
-								snvs.add(str(rec.id) + '_|_' + str(ref_pos - offset) + '_|_' + ref_al + '_|_' + alt_al)
-								snv_counts[
-									str(rec.id) + '_|_' + str(ref_pos - offset) + '_|_' + ref_al + '_|_' + alt_al].add(
-									read_name)
+							if que_qual >= 30:
+								snv_id = str(rec.id) + '_|_' + str(ref_pos - offset) + '_|_' + ref_al + '_|_' + alt_al
+								snvs.add(snv_id)
 
-						if n_found: continue
-						read_genes_mapped[read1_alignment.query_name].add(rec.id)
-						rep_alignments[rec.id][read1_alignment.query_name].add(tuple([read1_alignment, read2_alignment]))
-						read_ascores_per_allele[read1_alignment.query_name].append(
-							[g_rep.split('|')[0], g_rep.split('|')[1], combined_ascore, snvs, g])
+						if n_found or alignment_has_indel or total_mismatch_count > 5 or hq_mismatch_count > 2 or align_overlap_prop > 0.75 or min_align_length < 50: continue
+
+						for snv in snvs:
+							snv_counts[snv].add(read_name)
+
+						read_genes_mapped[read_name].add(rec.id)
+						read_genes_mapped_reps[read_name].add(g_rep)
+						rep_alignments[rec.id][read_name].add(tuple([read1_alignment, read2_alignment]))
+						read_ascores_per_allele[read_name].append([g_rep.split('|')[0], g_rep.split('|')[1], combined_ascore, snvs, g]) #, read1_alignment.get_aligned_pairs(with_seq=True), read2_alignment.get_aligned_pairs(with_seq=True)])
 
 			#if hg_genes_covered / float(len(hg_genes)) < 0.80: continue
 
@@ -1406,22 +1439,26 @@ def snv_miner(input_args):
 			allele_reads_with_mismatch = defaultdict(set)
 			multi_partitioned_reads = set([])
 			for read in read_ascores_per_allele:
+				#g_rep_map_prop = float(len(read_genes_mapped_reps[read]))/float(len(hg_rep_genes.keys()))
+				#print(g_rep_map_prop)
+				#print(len(read_genes_mapped_reps[read]))
+				#print(float(len(read_genes_mapped[read]))/float(len(hg_gene_to_rep.keys())))
+				#print(len(read_genes_mapped[read]))
+				#print('-'*40)
+				#if len(read_genes_mapped[read]) < 5 or len(read_genes_mapped_reps[read]) < 2: continue
+
 				top_score = -1000000
 				top_score_grep = None
 				score_sorted_alignments = sorted(read_ascores_per_allele[read], key=itemgetter(2), reverse=True)
 				for i, align in enumerate(score_sorted_alignments):
+
 					g_rep = align[0] + '|' + align[1] + '|' + hg
 					if i == 0: top_score = align[2]; top_score_grep = g_rep
-					if (i == 0 and align[2] == top_score) and (
-							len(score_sorted_alignments) == 1 or align[2] > score_sorted_alignments[i + 1][2]):
+					if (i == 0 and align[2] == top_score) and (len(score_sorted_alignments) == 1 or align[2] > score_sorted_alignments[i + 1][2]):
 						for snv in align[3]:
 							if len(snv_counts[snv]) >= 5:
 								supported_snvs.add(snv)
 					if align[2] == top_score:
-						#g_map = read_genes_mapped[read].intersection(hg_rep_genes[g_rep])
-						#g_map_prop = len(g_map) / float(len(hg_rep_genes[g_rep]))
-						#if g_map_prop < 0.80: continue
-
 						allele_reads[g_rep].add(read)
 						for snv in align[3]:
 							if len(snv_counts[snv]) >= 5:
@@ -1430,9 +1467,13 @@ def snv_miner(input_args):
 
 					if g_rep != top_score_grep and align[2] == top_score and i > 0:
 						multi_partitioned_reads.add(read)
-
+				#if flag:
+				#	print('-'*80)
+				#	print(read)
+				#	for i, align in enumerate(score_sorted_alignments):
+				#		print(align)
 			for snv in supported_snvs:
-				snv_outf.write(snv + '\t' + str(len(snv_counts[snv])) + '\n')
+				snv_outf.write(snv + '\t' + str(len(snv_counts[snv])) +'\n') # + '\t' + str(snv_counts[snv]) + '\n')
 
 			for al in allele_reads:
 				for r in allele_reads[al]:
@@ -1442,11 +1483,10 @@ def snv_miner(input_args):
 						if not r in multi_partitioned_reads:
 							unialigns_handle.write(pa[0])
 							unialigns_handle.write(pa[1])
-				outf.write(
-					'\t'.join([str(x) for x in [hg, al, len(allele_reads[al]), len(allele_reads_with_mismatch[al]),
-												len(allele_reads[al].difference(multi_partitioned_reads)),
-												len(allele_reads_with_mismatch[al].difference(
-													multi_partitioned_reads))]]) + '\n')
+				outf.write('\t'.join([str(x) for x in [hg, al, len(allele_reads[al]),
+													   len(allele_reads_with_mismatch[al]),
+													   len(allele_reads[al].difference(multi_partitioned_reads)),
+													   len(allele_reads_with_mismatch[al].difference(multi_partitioned_reads))]]) + '\n')
 
 		snv_outf.close()
 		outf.close()
@@ -1472,7 +1512,7 @@ def popgen_analysis_of_hg(inputs):
 
 	:param inputs: list of inputs passed in by GCF.runPopulationGeneticsAnalysis().
 	"""
-	gcf_id, hg, codon_alignment_fasta, popgen_dir, plots_dir, comp_gene_info, hg_genes, bgc_sample, hg_prop_multi_copy, hg_order_scores, sample_population, logObject = inputs
+	gcf_id, hg, codon_alignment_fasta, popgen_dir, plots_dir, comp_gene_info, hg_genes, bgc_sample, hg_prop_multi_copy, hg_order_scores, sample_population, population, logObject = inputs
 	domain_plot_file = plots_dir + hg + '_domain.txt'
 	position_plot_file = plots_dir + hg + '_position.txt'
 	popgen_plot_file = plots_dir + hg + '_popgen.txt'
@@ -1492,13 +1532,20 @@ def popgen_analysis_of_hg(inputs):
 	gene_locs = defaultdict(dict)
 	core_counts = defaultdict(int)
 	products = set([])
+
+	updated_codon_alignment_fasta = popgen_dir + codon_alignment_fasta.split('/')[-1]
+	updated_codon_alignment_handle = open(updated_codon_alignment_fasta, 'w')
+
 	with open(codon_alignment_fasta) as ocaf:
 		for rec in SeqIO.parse(ocaf, 'fasta'):
 			sample_id, gene_id = rec.id.split('|')
-			if comp_gene_info[gene_id]['core_overlap']:
-				core_counts['core'] += 1
-			else:
-				core_counts['auxiliary'] += 1
+			if len(gene_id.split('_')[0]) == 3:
+				if comp_gene_info[gene_id]['core_overlap']:
+					core_counts['core'] += 1
+				else:
+					core_counts['auxiliary'] += 1
+			if population != sample_population[sample_id] and population != None: continue
+			updated_codon_alignment_handle.write('>' + rec.description + '\n' + str(rec.seq) + '\n')
 			products.add(comp_gene_info[gene_id]['product'])
 			real_pos = 1
 			seqs.append(list(str(rec.seq)))
@@ -1514,6 +1561,10 @@ def popgen_analysis_of_hg(inputs):
 					real_pos += 1
 			gene_lengths.append(len(str(rec.seq).replace('-', '')))
 
+	updated_codon_alignment_handle.close()
+	codon_alignment_fasta = updated_codon_alignment_fasta
+	if len(seqs) == 0: return
+
 	is_core = False
 	if float(core_counts['core']) / sum(core_counts.values()) >= 0.8: is_core = True
 
@@ -1528,6 +1579,7 @@ def popgen_analysis_of_hg(inputs):
 		al_counts = defaultdict(int)
 		for al in ls:
 			if al != '-': al_counts[al] += 1
+		if sum(al_counts.values()) == 0: continue
 		maj_allele_count = max(al_counts.values())
 		tot_count = sum(al_counts.values())
 		num_seqs = len(ls)
@@ -1540,6 +1592,8 @@ def popgen_analysis_of_hg(inputs):
 			gid = genes_ordered[j]
 			if al != maj_allele:
 				sample_differences_to_consensus[sid][gid] += 1
+			else:
+				sample_differences_to_consensus[sid][gid] += 0
 		position_plot_handle.write('\t'.join([str(x) for x in [i + 1, num_seqs, num_alleles, num_gaps, maj_allele_freq]]) + '\n')
 		if maj_allele_freq <= 0.90:
 			variable_sites.add(i)
@@ -1692,13 +1746,17 @@ def popgen_analysis_of_hg(inputs):
 
 	prop_samples_with_hg = len(samples) / float(len(set(bgc_sample.values())))
 
-	hg_info = [gcf_id, hg, '; '.join(products), hg_order_scores[hg], hg_prop_multi_copy[hg],
-				median_gene_length, is_core, len(seqs), prop_samples_with_hg, tajimas_d, total_core_codons,
+	hg_info = []
+	if population:
+		hg_info = [population]
+	hg_info += [gcf_id, hg, '; '.join(products), hg_order_scores[hg], hg_prop_multi_copy[hg],
+				median_gene_length, is_core, len(seqs), len(samples), prop_samples_with_hg, tajimas_d, total_core_codons,
 				total_variable_codons, nonsynonymous_sites, synonymous_sites, dn_ds, '; '.join(all_domains)]
 
-	input_anova_data = []
-	input_anova_header = ['sample', 'population', 'differences_to_consensus']
-	if sample_population:
+	if sample_population and not population:
+		input_anova_data_seqsim = []
+		input_anova_header_seqsim = ['sample', 'population', 'differences_to_consensus']
+
 		population_counts = defaultdict(int)
 		for s, p in sample_population.items():
 			population_counts[p] += 1
@@ -1713,66 +1771,33 @@ def popgen_analysis_of_hg(inputs):
 			if min_diff_to_consensus < 1e100:
 				pop_count_with_hg[sample_population[s]] += 1
 				data_row = [s, sample_population[s], float(min_diff_to_consensus)]
-				input_anova_data.append(data_row)
+				input_anova_data_seqsim.append(data_row)
 				pops_with_hg.add(sample_population[s])
 
-		anova_pval = "NA"
+		anova_pval_seqsim = "NA"
 		if len(pops_with_hg) >= 2:
-			anova_input_df = DataFrame(np.array(input_anova_data), columns=input_anova_header)
+			anova_input_df = DataFrame(np.array(input_anova_data_seqsim), columns=input_anova_header_seqsim)
 			anova_input_df['differences_to_consensus'] = anova_input_df['differences_to_consensus'].astype(float)
 			aov = welch_anova(dv='differences_to_consensus', between='population', data=anova_input_df)
-			print(aov)
-			anova_pval = aov.iloc[0, 4]
+			anova_pval_seqsim = aov.iloc[0, 4]
+
+		fishers_pvals = []
+		for pop in pop_count_with_hg:
+			other_count = sum([x[1] for x in pop_count_with_hg.items() if x[0] != pop])
+			other_total = sum([x[1] for x in population_counts.items() if x[0] != pop])
+			odds, pval = fisher_exact([[pop_count_with_hg[pop], population_counts[pop]], [other_count, other_total]])
+			fishers_pvals.append(pval)
+
+		fisher_pval = "NA"
+		if len(fishers_pvals) > 0: fisher_pval = min(fishers_pvals)
 
 		hg_population_info = [len(pops_with_hg), '|'.join([str(x[0]) + '=' + str(float(x[1])/population_counts[x[0]]) for x in pop_count_with_hg.items()]),
-							   anova_pval]
+								 fisher_pval, str(anova_pval_seqsim).replace('nan', 'NA')]
 		hg_info += hg_population_info
 
 	hg_stats_handle = open(popgen_dir + hg + '_stats.txt', 'w')
 	hg_stats_handle.write('\t'.join([str(x) for x in hg_info]) + '\n')
 	hg_stats_handle.close()
-
-def filter_codon_msas(inputs):
-	"""
-	Helper function which filters codon alignments to retain only the gene copy from each sample which most closely
-	matches the consensus sequence.
-	"""
-
-	input_codon_msa_file, filterd_codon_msa_file = inputs
-	seqs = []
-	samples_ordered = []
-	genes_ordered = []
-	sample_gene_seq_dict = {}
-	with open(codon_alignment_fasta) as ocaf:
-		for rec in SeqIO.parse(ocaf, 'fasta'):
-			sample_id, gene_id = rec.id.split('|')
-			seqs.append(list(str(rec.seq)))
-			samples_ordered.append(sample_id)
-			genes_ordered.append(gene_id)
-			sample_gene_seq_dict[rec.id] = str(rec.seq)
-
-	sample_differences_to_consensus = defaultdict(lambda: defaultdict(int))
-	for i, ls in enumerate(zip(*seqs)):
-		al_counts = defaultdict(int)
-		for al in ls:
-			if al != '-': al_counts[al] += 1
-		maj_allele_count = max(al_counts.values())
-		maj_allele = [a[0] for a in al_counts.items() if a[0] != '-' and maj_allele_count == a[1]][0]
-		for j, al in enumerate(ls):
-			sid = samples_ordered[j]
-			gid = genes_ordered[j]
-			if al != maj_allele:
-				sample_differences_to_consensus[sid][gid] += 1
-
-	outf = open(filterd_codon_msa_file, 'w')
-	for s in sample_differences_to_consensus:
-		min_diff_to_consensus = [1e100, None]
-		for g in sample_differences_to_consensus[s]:
-			if min_diff_to_consensus[0] > sample_differences_to_consensus[s][g]:
-				min_diff_to_consensus = [sample_differences_to_consensus[s][g], s + '|' + g]
-		assert(min_diff_to_consensus[0] != 1e100)
-		outf.write('>' + min_diff_to_consensus[1] + '\n' + str(sample_gene_seq_dict[min_diff_to_consensus[1]]) + '\n')
-	outf.close()
 
 def create_codon_msas(inputs):
 	"""

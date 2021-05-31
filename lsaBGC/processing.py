@@ -32,7 +32,7 @@ def readInAnnotationFilesForExpandedSampleSet(expansion_listing_file, logObject)
 			for line in oalf:
 				line = line.strip()
 				sample, genbank, predicted_proteome = line.split('\t')
-				sample = sample.replace(' ', '_').replace('|', '_').replace('"', '_').replace("'", '_').replace("=", "_").replace('-', '_')
+				sample = sample.replace(' ', '_').replace('|', '_').replace('"', '_').replace("'", '_').replace("=", "_").replace('-', '_').replace('(', '').replace(')', '').replace('/', '').replace('\\', '')
 				try:
 					assert (util.is_genbank(genbank))
 					assert (util.is_fasta(predicted_proteome))
@@ -63,15 +63,13 @@ def readInAssemblyListing(assembly_listing_file, logObject):
 			for line in oalf:
 				line = line.strip()
 				sample, assembly = line.split('\t')
-				sample = sample.replace(' ', '_').replace('|', '_').replace('"', '_').replace("'", '_').replace("=", "_")
+				sample = sample.replace(' ', '_').replace('|', '_').replace('"', '_').replace("'", '_').replace("=", "_").replace('-', '_').replace('(', '').replace(')', '').replace('/', '').replace('\\', '')
 				try:
 					assert (util.is_fasta(assembly))
 					sample_assembly_paths[sample] = assembly
 				except:
-					logObject.info(
-						'Ignoring sample %s, because assembly at: does not seem to exist or be a FASTA.' % sample)
-					sys.stderr.write(
-						'Ignoring sample %s, because assembly at: does not seem to exist or be a FASTA.\n' % sample)
+					logObject.info('Ignoring sample %s, because assembly at: does not seem to exist or be a FASTA.' % sample)
+					sys.stderr.write('Ignoring sample %s, because assembly at: does not seem to exist or be a FASTA.\n' % sample)
 		assert (len(sample_assembly_paths) >= 2)
 		return (sample_assembly_paths)
 	except Exception as e:

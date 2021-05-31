@@ -15,6 +15,7 @@ import multiprocessing
 import copy
 import pysam
 from scipy import stats
+from ete3 import Tree
 
 def determineOutliersByGeneLength(gene_sequences):
 	filtered_gene_sequences = {}
@@ -426,8 +427,7 @@ def is_newick(newick):
 	Function to validate if Newick phylogeny file is correctly formatted.
 	"""
 	try:
-		with open(newick) as onf:
-			t = Tree(onf)
+		t = Tree(newick)
 		return True
 	except:
 		return False
