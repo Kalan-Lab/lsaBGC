@@ -1196,10 +1196,12 @@ class GCF(Pan):
 			novelty_report_file = outdir + 'Novelty_Report.txt'
 			no_handle = open(novelty_report_file, 'w')
 			no_handle.write('\t'.join(['gcf_id', 'sample', 'homolog_group', 'position_along_msa', 'alternate_allele',
-										 'snv_count', 'reference_sample', 'reference_gene', 'reference_position',
-										 'reference_allele']) + '\n')
+									   'codon_position', 'alternate_codon', 'alternate_aa', 'dn_or_ds', 'ts_or_tv',
+									   'reference_allele', 'reference_sample', 'reference_gene', 'reference_position',
+									   'ref_codon', 'ref_aa', 'snv_support']) + '\n')
 
 			gene_pos_to_msa_pos = defaultdict(lambda: defaultdict(dict))
+			gene_pos_to_allele = defaultdict(lambda: defaultdict(dict))
 			msa_pos_alleles = defaultdict(lambda: defaultdict(set))
 			msa_pos_ambiguous_freqs = defaultdict(lambda: defaultdict(float))
 			with open(codon_alignment_file) as ocaf:
@@ -1214,6 +1216,7 @@ class GCF(Pan):
 							real_pos = 1
 							for msa_pos, bp in enumerate(str(rec.seq)):
 								if bp != '-':
+									gene_pos_to_allele[hg][gene_id][real_pos] = bp.upper()
 									gene_pos_to_msa_pos[hg][gene_id][real_pos] = msa_pos+1
 									real_pos += 1
 									msa_pos_alleles[hg][msa_pos+1].add(bp.upper())
@@ -1223,11 +1226,12 @@ class GCF(Pan):
 					for pos in msa_pos_ambiguous_counts:
 						msa_pos_ambiguous_freqs[hg][pos] = msa_pos_ambiguous_counts[pos]/float(seq_count)
 
+			mges = set(['transp', 'integrase'])
+			purine_alleles = set(['A', 'G'])
 			for f in os.listdir(snv_mining_outdir):
 				if not f.endswith('.snvs'): continue
 				pe_sample = f.split('.snvs')[0]
 				if pe_sample in self.avoid_samples: continue
-				mges = set(['transp', 'integrase'])
 
 				with open(snv_mining_outdir + f) as of:
 					for i, line in enumerate(of):
@@ -1262,9 +1266,43 @@ class GCF(Pan):
 						#print(msa_pos_alleles[hg][msa_pos + 2])
 						#print('\t'.join([pe_sample, hg, str(msa_pos), sample, gene, str(ref_pos), ref_al, alt_al, snv_count]))
 						#print('-'*80)
-						assert (ref_al in msa_pos_alleles[hg][msa_pos])
+						assert (ref_al in msa_pos_alleles[hg][msa_pos] and ref_al == gene_pos_to_allele[hg][gene][ref_pos])
 						if not alt_al in msa_pos_als and msa_pos >= msa_edge_length and msa_pos <= (max_msa_pos - msa_edge_length) and msa_pos_ambiguous_freqs[hg][msa_pos] <= 0.1:
-							no_handle.write('\t'.join([self.gcf_id, pe_sample, hg, str(msa_pos), alt_al, snv_count, sample, gene, str(ref_pos), ref_al]) + '\n')
+							codon_position = None
+							ref_codon = None
+							ref_aa = None
+							alt_codon = None
+							alt_aa = None
+							dn_or_ds = None
+							ts_or_tv = "transition"
+							if (ref_al in purine_alleles != alt_al in purine_alleles):
+								ts_or_tv = "transversion"
+							if ref_pos%3 == 1:
+								codon_position = 1
+								ref_codon = ref_al + gene_pos_to_allele[hg][gene][ref_pos+1] + gene_pos_to_allele[hg][gene][ref_pos+2]
+								alt_codon = ref_al + gene_pos_to_allele[hg][gene][ref_pos+1] + gene_pos_to_allele[hg][gene][ref_pos+2]
+								ref_aa = str(Seq(ref_codon).translate())
+								alt_aa = str(Seq(alt_codon).translate())
+							elif ref_pos%3 == 2:
+								codon_position = 2
+								ref_codon = gene_pos_to_allele[hg][gene][ref_pos-1] + ref_al + gene_pos_to_allele[hg][gene][ref_pos+1]
+								alt_codon = gene_pos_to_allele[hg][gene][ref_pos-1] + ref_al + gene_pos_to_allele[hg][gene][ref_pos+1]
+								ref_aa = str(Seq(ref_codon).translate())
+								alt_aa = str(Seq(alt_codon).translate())
+							elif cref_pos%3 == 0:
+								codon_position = 3
+								ref_codon = gene_pos_to_allele[hg][gene][ref_pos-2] + gene_pos_to_allele[hg][gene][ref_pos-1] + ref_al
+								alt_codon = gene_pos_to_allele[hg][gene][ref_pos-2] + gene_pos_to_allele[hg][gene][ref_pos-1] + ref_al
+								ref_aa = str(Seq(ref_codon).translate())
+								alt_aa = str(Seq(alt_codon).translate())
+							if ref_aa != alt_aa:
+								dn_or_ds = "non-synonymous"
+							else:
+								dn_or_ds = "synonymous"
+							no_handle.write('\t'.join([str(x) for x in [self.gcf_id, pe_sample, hg, msa_pos, alt_al,
+																		codon_position, alt_codon, alt_aa, dn_or_ds,
+																		ts_or_tv, ref_al, sample, gene, ref_pos,
+																		ref_codon, ref_aa, snv_count]]) + '\n')
 
 			no_handle.close()
 		except Exception as e:
