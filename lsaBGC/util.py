@@ -124,7 +124,7 @@ def bowtie2_alignment(input_args):
 	bam_file_filtered = bowtie2_outdir + sample + '.filtered.bam'
 	bam_file_filtered_sorted = bowtie2_outdir + sample + '.filtered.sorted.bam'
 
-	bowtie2_cmd = ['bowtie2', '--very-sensitive', '--no-mixed', '--no-discordant', '--no-unal', '-a', '-x',
+	bowtie2_cmd = ['bowtie2', '--very-sensitive-local', '--no-mixed', '--no-discordant', '--no-unal', '-a', '-x',
 				   bowtie2_reference, '-1', frw_read, '-2', rev_read, '-S', sam_file, '-p', str(bowtie2_cores)]
 	samtools_view_cmd = ['samtools', 'view', '-h', '-Sb', sam_file, '>', bam_file]
 	samtools_sort_cmd = ['samtools', 'sort', '-@', str(bowtie2_cores), bam_file, '-o', bam_file_sorted]

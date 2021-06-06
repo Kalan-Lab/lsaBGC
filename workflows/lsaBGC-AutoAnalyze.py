@@ -47,6 +47,8 @@ lsaBGC_main_directory = '/'.join(os.path.realpath(__file__).split('/')[:-2])
 RSCRIPT_FOR_NJTREECONSTRUCTION = lsaBGC_main_directory + '/lsaBGC/Rscripts/createNJTree.R'
 RSCRIPT_FOR_DEFINECLADES = lsaBGC_main_directory + '/lsaBGC/Rscripts/defineClades.R'
 
+annotated_gcfs = set(['GCF_6', 'GCF_8', 'GCF_9', 'GCF_10', 'GCF_11', 'GCF_12'])
+
 def create_parser():
 	""" Parse arguments """
 	parser = argparse.ArgumentParser(description="""
@@ -247,7 +249,7 @@ def lsaBGC_AutoAnalyze():
 		# 4. Run lsaBGC-DiscoVary.py
 		if discovary_analysis_id and discovary_input_listing:
 			gcf_dis_outdir = dis_outdir + gcf_id + '/'
-			if gcf_id == 'GCF_2': #not os.path.isdir(gcf_dis_outdir):
+			if gcf_id in annotated_gcfs: #not os.path.isdir(gcf_dis_outdir):
 				os.system('mkdir %s' % gcf_dis_outdir)
 				cmd = ['lsaBGC-DiscoVary.py', '-g', gcf_listing_file, '-m', orthofinder_matrix_file, '-o',
 					   gcf_dis_outdir, '-i', gcf_id, '-c', str(cores), '-p', discovary_input_listing, '-a',

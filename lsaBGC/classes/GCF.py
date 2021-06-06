@@ -157,7 +157,7 @@ class GCF(Pan):
 		hg_to_color = {}
 		for i, c in enumerate(set(hgs)):
 			hg_to_color[c] = colors[i]
-		self.hg_to_color = hg_to_color
+		print(hg_to_color); self.hg_to_color = hg_to_color
 
 	def createItolBGCSeeTrack(self, result_track_file):
 		"""
@@ -290,12 +290,10 @@ class GCF(Pan):
 				all_bgcs_in_tree.add(str(leaf).strip('\n').lstrip('-'))
 				bgc_weights[str(leaf).strip('\n').lstrip('-')] += 1
 
-			bgcs_accounted =set([])
-			bgc_hg_presence = defaultdict(lambda: defaultdict(lambda: 'NA'))
+			bgc_hg_presence = defaultdict(lambda: defaultdict(lambda: 'Absent'))
 			hg_counts = defaultdict(int)
 			for i, item in enumerate(sorted(bgc_gene_counts.items(), key=itemgetter(1), reverse=True)):
 				bgc = item[0]
-				bgcs_accounted.add(bgc)
 				curr_bgc_genes = self.bgc_genes[bgc]
 				last_gene_end = max([self.comp_gene_info[lt]['end'] for lt in curr_bgc_genes])
 				printlist = []
@@ -358,13 +356,13 @@ class GCF(Pan):
 			for bgc in bgc_hg_presence:
 				for hg in hg_counts:
 					dummy_hg = hg
-					heatmap_track_handle.write(
-						'\t'.join([bgc, hg, bgc_hg_presence[bgc][hg], str(hg_counts[hg])]) + '\n')
+					heatmap_track_handle.write('\t'.join([bgc, hg, bgc_hg_presence[bgc][hg], str(hg_counts[hg])]) + '\n')
 
 			for bgc in all_bgcs_in_tree:
-				if not bgc in bgcs_accounted:
-					gggenes_track_handle.write('\t'.join([bgc] + ['NA']*6) + '\n')
-					heatmap_track_handle.write('\t'.join([bgc, dummy_hg] + ['NA']*2) + '\n')
+				if not bgc in bgc_gene_counts.keys():
+					#print('\t'.join([bgc, dummy_hg, 'Absent', '1']))
+					gggenes_track_handle.write('\t'.join([bgc] + ['NA']*4 + ['Absent', '"#FFFFFF"']) + '\n')
+					heatmap_track_handle.write('\t'.join([bgc, dummy_hg, 'Absent', '1']) + '\n')
 
 			gggenes_track_handle.close()
 			heatmap_track_handle.close()
@@ -1235,10 +1233,10 @@ class GCF(Pan):
 
 				with open(snv_mining_outdir + f) as of:
 					for i, line in enumerate(of):
-						if i == 0: continue
 						line = line.strip()
 						ls = line.split('\t')
 						snv_count = ls[1]
+						if int(snv_count) < 3: continue
 						gsh, ref_pos, ref_al, alt_al = ls[0].split('_|_')
 						gene, sample, hg = gsh.split('|')
 
@@ -1280,19 +1278,19 @@ class GCF(Pan):
 							if ref_pos%3 == 1:
 								codon_position = 1
 								ref_codon = ref_al + gene_pos_to_allele[hg][gene][ref_pos+1] + gene_pos_to_allele[hg][gene][ref_pos+2]
-								alt_codon = ref_al + gene_pos_to_allele[hg][gene][ref_pos+1] + gene_pos_to_allele[hg][gene][ref_pos+2]
+								alt_codon = alt_al + gene_pos_to_allele[hg][gene][ref_pos+1] + gene_pos_to_allele[hg][gene][ref_pos+2]
 								ref_aa = str(Seq(ref_codon).translate())
 								alt_aa = str(Seq(alt_codon).translate())
 							elif ref_pos%3 == 2:
 								codon_position = 2
 								ref_codon = gene_pos_to_allele[hg][gene][ref_pos-1] + ref_al + gene_pos_to_allele[hg][gene][ref_pos+1]
-								alt_codon = gene_pos_to_allele[hg][gene][ref_pos-1] + ref_al + gene_pos_to_allele[hg][gene][ref_pos+1]
+								alt_codon = gene_pos_to_allele[hg][gene][ref_pos-1] + alt_al + gene_pos_to_allele[hg][gene][ref_pos+1]
 								ref_aa = str(Seq(ref_codon).translate())
 								alt_aa = str(Seq(alt_codon).translate())
-							elif cref_pos%3 == 0:
+							elif ref_pos%3 == 0:
 								codon_position = 3
 								ref_codon = gene_pos_to_allele[hg][gene][ref_pos-2] + gene_pos_to_allele[hg][gene][ref_pos-1] + ref_al
-								alt_codon = gene_pos_to_allele[hg][gene][ref_pos-2] + gene_pos_to_allele[hg][gene][ref_pos-1] + ref_al
+								alt_codon = gene_pos_to_allele[hg][gene][ref_pos-2] + gene_pos_to_allele[hg][gene][ref_pos-1] + alt_al
 								ref_aa = str(Seq(ref_codon).translate())
 								alt_aa = str(Seq(alt_codon).translate())
 							if ref_aa != alt_aa:
@@ -1326,7 +1324,9 @@ def snv_miner(input_args):
 		snvs_file = res_dir + sample + '.snvs'
 		snv_outf = open(snvs_file, 'w')
 		result_file = res_dir + sample + '.txt'
+		details_file = res_dir + sample + '.full.txt'
 		outf = open(result_file, 'w')
+		detf = open(details_file, 'w')
 		outf.write('\t'.join(['# hg', 'allele_representative', 'reads', 'reads_with_novelty', 'reads_uniquely_mapping',
 								'reads_uniquely_mapping_with_novelty']) + '\n')
 
@@ -1344,7 +1344,7 @@ def snv_miner(input_args):
 			read_ascores_per_allele = defaultdict(list)
 			read_genes_mapped = defaultdict(set)
 			read_genes_mapped_reps = defaultdict(set)
-			snv_counts = defaultdict(set)
+			snv_read_ascs = defaultdict(list)
 			hg_genes_covered = 0
 			rep_alignments = defaultdict(lambda: defaultdict(set))
 			with open(ref_fasta) as opff:
@@ -1399,6 +1399,7 @@ def snv_miner(input_args):
 
 						align_intersect = len(read1_ref_positions.intersection(read2_ref_positions))
 						min_align_length = min(len(read1_ref_positions), len(read2_ref_positions))
+						tot_align_length = len(read1_ref_positions.union(read2_ref_positions))
 						align_overlap_prop = align_intersect / min_align_length
 
 						min_read1_ref_pos = min(read1_ref_positions)
@@ -1460,10 +1461,11 @@ def snv_miner(input_args):
 								snv_id = str(rec.id) + '_|_' + str(ref_pos - offset) + '_|_' + ref_al + '_|_' + alt_al
 								snvs.add(snv_id)
 
-						if n_found or alignment_has_indel or total_mismatch_count > 5 or hq_mismatch_count > 2 or align_overlap_prop > 0.75 or min_align_length < 50: continue
+						#if n_found or alignment_has_indel or total_mismatch_count > 5 or hq_mismatch_count > 2 or align_overlap_prop > 0.75 or min_align_length < 50: continue
+						if align_overlap_prop > 0.75 or min_align_length < 50 or float(total_mismatch_count)/tot_align_length > 0.1 or float(hq_mismatch_count)/tot_align_length > 0.05: continue
 
 						for snv in snvs:
-							snv_counts[snv].add(read_name)
+							snv_read_ascs[snv].append(tuple([read_name, combined_ascore]))
 
 						read_genes_mapped[read_name].add(rec.id)
 						read_genes_mapped_reps[read_name].add(g_rep)
@@ -1471,47 +1473,35 @@ def snv_miner(input_args):
 						read_ascores_per_allele[read_name].append([g_rep.split('|')[0], g_rep.split('|')[1], combined_ascore, snvs, g]) #, read1_alignment.get_aligned_pairs(with_seq=True), read2_alignment.get_aligned_pairs(with_seq=True)])
 
 			#if hg_genes_covered / float(len(hg_genes)) < 0.80: continue
-
-			supported_snvs = set([])
+			supported_snvs = defaultdict(lambda: defaultdict(set))
 			allele_reads = defaultdict(set)
 			allele_reads_with_mismatch = defaultdict(set)
 			multi_partitioned_reads = set([])
-			for read in read_ascores_per_allele:
-				#g_rep_map_prop = float(len(read_genes_mapped_reps[read]))/float(len(hg_rep_genes.keys()))
-				#print(g_rep_map_prop)
-				#print(len(read_genes_mapped_reps[read]))
-				#print(float(len(read_genes_mapped[read]))/float(len(hg_gene_to_rep.keys())))
-				#print(len(read_genes_mapped[read]))
-				#print('-'*40)
-				#if len(read_genes_mapped[read]) < 5 or len(read_genes_mapped_reps[read]) < 2: continue
 
+			for read in read_ascores_per_allele:
 				top_score = -1000000
 				top_score_grep = None
 				score_sorted_alignments = sorted(read_ascores_per_allele[read], key=itemgetter(2), reverse=True)
 				for i, align in enumerate(score_sorted_alignments):
-
 					g_rep = align[0] + '|' + align[1] + '|' + hg
 					if i == 0: top_score = align[2]; top_score_grep = g_rep
-					if (i == 0 and align[2] == top_score) and (len(score_sorted_alignments) == 1 or align[2] > score_sorted_alignments[i + 1][2]):
-						for snv in align[3]:
-							if len(snv_counts[snv]) >= 5:
-								supported_snvs.add(snv)
 					if align[2] == top_score:
+						detf.write('\t'.join([str(x) for x in [read, align[2], hg, g_rep, align[-1], len(align[-2]) > 0]]) + '\n')
 						allele_reads[g_rep].add(read)
-						for snv in align[3]:
-							if len(snv_counts[snv]) >= 5:
-								allele_reads_with_mismatch[g_rep].add(read)
-								break
+						if len(align[3]) > 0:
+							for snv in align[3]:
+								supported_snvs[snv][read].add(align[2])
+							allele_reads_with_mismatch[g_rep].add(read)
+						if g_rep != top_score_grep and i > 0:
+							multi_partitioned_reads.add(read)
+					else:
+						break
 
-					if g_rep != top_score_grep and align[2] == top_score and i > 0:
-						multi_partitioned_reads.add(read)
-				#if flag:
-				#	print('-'*80)
-				#	print(read)
-				#	for i, align in enumerate(score_sorted_alignments):
-				#		print(align)
 			for snv in supported_snvs:
-				snv_outf.write(snv + '\t' + str(len(snv_counts[snv])) +'\n') # + '\t' + str(snv_counts[snv]) + '\n')
+				support_info = []
+				for read in supported_snvs[snv]:
+					support_info.append(read + '_|_' + str(max(supported_snvs[snv][read])))
+				snv_outf.write('\t'.join([snv, str(len(support_info))] + support_info) + '\n')
 
 			for al in allele_reads:
 				for r in allele_reads[al]:
@@ -1526,6 +1516,7 @@ def snv_miner(input_args):
 													   len(allele_reads[al].difference(multi_partitioned_reads)),
 													   len(allele_reads_with_mismatch[al].difference(multi_partitioned_reads))]]) + '\n')
 
+		detf.close()
 		snv_outf.close()
 		outf.close()
 		topaligns_handle.close()
