@@ -49,12 +49,14 @@ def create_parser():
 	Author: Rauf Salamzade
 	Affiliation: Kalan Lab, UW Madison, Department of Medical Microbiology and Immunology
 
-	This program takes in a list of representative BGCs belonging to a single GCF from samples which have been analyzed 
-	via OrthoFinder and also a more comprehensive lists of BGCs (genbanks + proteomes) from barebones AntiSMASH 
-	analysis on the comprehensive set of available genomes for the lineage/taxa of focus. The program builds profile 
-	HMMs for homolog groups identified by OrthoFinder from the representative BGCs, searches for their presence in 
-	the comprehensive set of BGCs (from draft genomes), and expands the OrthoFinder homolog vs. sample matrix to incorporate
-	new samples and append BGCs from the draft genomes into the list of BGCs belonging to the GCF in question. 
+	This program takes in a list of representative BGCs belonging to a single GCF (for instance those identified in 
+	high quality genomic assemblies) and then searches for new instances of the GCF in an expansion set of draft 
+	assemblies. 
+	
+	The program builds profile HMMs for homolog groups identified by OrthoFinder from the representative BGCs, 
+	searches for their presence in the comprehensive set of BGCs (from draft genomes), applys a classical HMM to 
+	identify neighborhoods of genes on draft assembly scaffolds which match the GCF profile, and performs conditional
+	checks to filter out false-positive findings.
 	""", formatter_class=argparse.RawTextHelpFormatter)
 
     parser.add_argument('-g', '--gcf_listing', help='BGC listings file for a gcf. Tab delimited: 1st column lists sample name while the 2nd column is the path to an AntiSMASH BGC in Genbank format.', required=True)
@@ -63,6 +65,11 @@ def create_parser():
     parser.add_argument('-l', '--initial_listing', type=str, help="Tab delimited text file for samples with three columns: (1) sample name (2) Prokka generated Genbank file (*.gbk), and (3) Prokka generated predicted-proteome file (*.faa). Please remove troublesome characters in the sample name.")
     parser.add_argument('-e', '--expansion_listing', type=str, help="Tab delimited text file for samples in the expansion set with three columns: (1) sample name (2) Prokka generated Genbank file (*.gbk), and (3) Prokka generated predicted-proteome file (*.faa). Please remove troublesome characters in the sample name.", required=True)
     parser.add_argument('-o', '--output_directory', help="Path to output directory.", required=True)
+    parser.add_argument('-ms', '--min_segment_size', type=float, help="The minimum number of homolog groups needed to report discrete segments of the GCF. Default is 5.", required=False, default=5)
+    parser.add_argument('-mcs', '--min_segment_core_size', type=float, help="The minimum number of core (to the known instances of the GCF) homololog groups needed to report discrete segments of the GCF. Default is 3.", required=False, default=3)
+    parser.add_argument('-sct', '--syntenic_correlation_threshold', type=float, help="The minimum syntenic correlation needed to at least one known GCF instance to report segment.", required=False, default=0.8)
+    parser.add_argument('-tg', '--transition_from_gcf_to_gcf', type=float, help="GCF to GCF state transition probability for HMM. Should be between 0.0 and 1.0. Default is 0.9.", required=False, default=0.9)
+    parser.add_argument('-tb', '--transition_from_bg_to_bg', type=float, help="Background to background state transition probability for HMM. Should be between 0.0 and 1.0. Default is 0.9.", required=False, default=0.9)
     parser.add_argument('-c', '--cores', type=int, help="The number of cores to use.", required=False, default=1)
     args = parser.parse_args()
 
@@ -105,6 +112,11 @@ def lsaBGC_Expansion():
 
     gcf_id = myargs.gcf_id
     cores = myargs.cores
+    min_segment_size = myargs.min_segment_size
+    min_segment_core_size = myargs.min_segment_core_size
+    syntenic_correlation_threshold = myargs.syntenic_correlation_threshold
+    transition_from_gcf_to_gcf = myargs.transition_from_gcf_to_gcf
+    transition_from_bg_to_bg = myargs.transition_from_bg_to_bg
 
     """
     START WORKFLOW
@@ -116,11 +128,16 @@ def lsaBGC_Expansion():
     # Step 0: Log input arguments and update reference and query FASTA files.
     logObject.info("Saving parameters for future provedance.")
     parameters_file = outdir + 'Parameter_Inputs.txt'
-    parameter_values = [gcf_listing_file, orthofinder_matrix_file, initial_listing_file, expansion_listing_file, outdir, gcf_id, cores]
+    parameter_values = [gcf_listing_file, orthofinder_matrix_file, initial_listing_file, expansion_listing_file, outdir,
+                        gcf_id, cores, min_segment_size, min_segment_core_size, syntenic_correlation_threshold,
+                        transition_from_gcf_to_gcf, transition_from_bg_to_bg]
     parameter_names = ["GCF Listing File", "OrthoFinder Orthogroups.csv File",
                        "Listing File of Prokka Annotation Files for Initial Set of Samples",
                        "Listing File of Prokka Annotation Files for Expansion/Additional Set of Samples",
-                       "Output Directory", "GCF Identifier", "Cores"]
+                       "Output Directory", "GCF Identifier", "Cores", "Minimum Size of Segments",
+                       "Minimum Core Size of Segments", "Syntenic Correlation Threshold",
+                       "HMM Transition Probability from GCF to GCF",
+                       "HMM Transition Probability from Background to Background"]
     util.logParametersToFile(parameters_file, parameter_names, parameter_values)
     logObject.info("Done saving parameters!")
 
@@ -157,7 +174,11 @@ def lsaBGC_Expansion():
 
     # Step 6: Determine whether samples' assemblies feature GCF of interest
     logObject.info("Searching for homolog group HMMs in proteins extracted from comprehensive list of BGCs.")
-    GCF_Object.identifyGCFInstances(outdir, expanded_sample_prokka_data, orthofinder_matrix_file)
+    GCF_Object.identifyGCFInstances(outdir, expanded_sample_prokka_data, orthofinder_matrix_file,
+                                    min_size=min_segment_size, min_core_size=min_segment_core_size,
+                                    gcf_to_gcf_transition_prob=transition_from_gcf_to_gcf,
+                                    background_to_background_transition_prob=transition_from_bg_to_bg,
+                                    syntenic_correlation_threshold=syntenic_correlation_threshold)
     logObject.info("Successfully found new instances of GCF in new sample set.")
 
     # Close logging object and exit

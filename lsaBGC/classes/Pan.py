@@ -91,7 +91,7 @@ class Pan:
 						self.logObject.error(traceback.format_exc())
 					raise RuntimeError("More than two columns exist at line %d in BGC specification/listing file. Exiting now ..." % (i + 1))
 				sample, gbk = line.split('\t')
-				sample = sample.replace('-', '_').replace(':', '_').replace('.', '_').replace('=', '_')
+				sample = util.cleanUpSampleName(sample)
 				try:
 					assert (util.is_genbank(gbk))
 					bgc_id = sample
@@ -408,15 +408,15 @@ class Pan:
 					sf_handle.write('\t'.join([str(x) for x in gcf_stats]) + '\n')
 					gcf_identifier += 1
 
-			singleton_bgcs = set([])
+			singleton_bgcs = []
 			for bgc in self.bgc_hgs:
 				if not bgc in clustered_bgcs:
-					singleton_bgcs.add(bgc)
+					singleton_bgcs.append(bgc)
 					if not run_parameter_tests:
 						products = {}
 						for prod in self.bgc_product[bgc]: products[prod] = 1.0 / len(self.bgc_product[bgc])
 						mean_og_count = len(self.bgc_hgs[bgc])
-						gcf_stats = ['GCF_' + str(gcf_identifier), 1, 1, 0, "NA", mean_og_count, 0, 0,  '; '.join([x[0] + ':' + str(x[1]) for x in products.items()]) ]
+						gcf_stats = ['GCF_' + str(gcf_identifier), 1, 1, 0, "NA", mean_og_count, 0, 0, 0, 0,  '; '.join([x[0] + ':' + str(x[1]) for x in products.items()]) ]
 						sfes_handle.write('\t'.join([str(x) for x in gcf_stats]) + '\n')
 						gcf_identifier += 1
 
@@ -739,7 +739,8 @@ class Pan:
 						sample, gbk = line.split('\t')
 					else:
 						sample, gbk = line.split('\t')[:-1]
-					sample = sample.replace('-', '_').replace(':', '_').replace('.', '_').replace('=', '_')
+					sample = util.cleanUpSampleName(sample)
+
 					try:
 						assert (util.is_genbank(gbk))
 						bgc_id = sample
@@ -965,6 +966,18 @@ class Pan:
 		p.map(util.multiProcess, hmmscan_cmds)
 		p.close()
 
+		hg_valid_length_range = {}
+		for hg in self.hg_genes:
+			gene_lengths = []
+			for g in self.hg_genes[hg]:
+				gstart = self.comp_gene_info[g]['start']
+				gend = self.comp_gene_info[g]['end']
+				gene_lengths.append(abs(gstart - gend))
+			median_gene_nucl_seq_lens = statistics.median(gene_lengths)
+			mad_gene_nucl_seq_lens = max(stats.median_absolute_deviation(gene_lengths), 25)
+			hg_valid_length_range[hg] = {'median_gene_length': median_gene_nucl_seq_lens,
+										 'gene_length_deviation': mad_gene_nucl_seq_lens}
+
 		print(self.hg_max_self_evalue)
 		for sample in expanded_sample_prokka_data:
 			result_file = search_res_dir + sample + '.txt'
@@ -977,6 +990,9 @@ class Pan:
 					ls = line.split()
 					hg = ls[0]
 					gene_id = ls[2]
+					gene_length = abs(self.gene_location[sample][gene_id]['start'] - self.gene_location[sample][gene_id]['end'])
+					is_boundary_gene = gene_id in self.boundary_genes[sample]
+					if (not is_boundary_gene) and (abs(gene_length - hg_valid_length_range[hg]['median_gene_length']) >= (1.5 * hg_valid_length_range[hg]['gene_length_deviation'])): continue
 					scaffold = self.gene_location[sample][gene_id]['scaffold']
 					eval = float(ls[4])
 					if eval <= self.hg_max_self_evalue[hg][0]:

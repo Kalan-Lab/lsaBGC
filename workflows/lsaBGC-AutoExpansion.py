@@ -53,11 +53,11 @@ RSCRIPT_FOR_TREESTRUCTURE = lsaBGC_main_directory + '/lsaBGC/Rscripts/createNJTr
 def create_parser():
 	""" Parse arguments """
 	parser = argparse.ArgumentParser(description="""
-	Program: lsaBGC-Automate.py
+	Program: lsaBGC-AutoExpansion.py
 	Author: Rauf Salamzade
 	Affiliation: Kalan Lab, UW Madison, Department of Medical Microbiology and Immunology
 
-	Program to run lsaBGC-Expansion on each GCF and then consolidate results.
+	Program to run lsaBGC-Expansion on each GCF, resolve conflicts across GCFs, and then consolidate result files.
 
 	""", formatter_class=argparse.RawTextHelpFormatter)
 
@@ -240,11 +240,11 @@ def lsaBGC_AutoExpansion():
 	all_samples = set([])
 	with open(initial_listing_file) as oilf:
 		for line in oilf:
-			all_samples.add(line.strip().split('\t')[0])
+			all_samples.add(util.cleanUpSampleName(line.strip().split('\t')[0]))
 			updated_listings_handle.write(line)
 	with open(expansion_listing_file) as oelf:
 		for line in oelf:
-			all_samples.add(line.strip().split('\t')[0])
+			all_samples.add(util.cleanUpSampleName(line.strip().split('\t')[0]))
 			updated_listings_handle.write(line)
 	updated_listings_handle.close()
 
@@ -276,7 +276,7 @@ def lsaBGC_AutoExpansion():
 			line = line.strip('\n')
 			ls = line.split('\t')
 			if i == 0:
-				original_samples = [x.replace(' ', '_').replace('|', '_').replace('"', '_').replace("'", '_').replace("=", "_").replace('-', '_') for x in ls[1:]]
+				original_samples = [util.cleanUpSampleName(x) for x in ls[1:]]
 				all_samples = all_samples.union(set(original_samples))
 			else:
 				hg = ls[0]

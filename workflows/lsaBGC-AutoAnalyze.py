@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-### Program: lsaBGC-Automate.py
+### Program: lsaBGC-AutoAnalyze.py
 ### Author: Rauf Salamzade
 ### Kalan Lab
 ### UW Madison, Department of Medical Microbiology and Immunology

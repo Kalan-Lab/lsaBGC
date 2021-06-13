@@ -32,7 +32,7 @@ def readInAnnotationFilesForExpandedSampleSet(expansion_listing_file, logObject)
 			for line in oalf:
 				line = line.strip()
 				sample, genbank, predicted_proteome = line.split('\t')
-				sample = sample.replace(' ', '_').replace('|', '_').replace('"', '_').replace("'", '_').replace("=", "_").replace('-', '_').replace('(', '').replace(')', '').replace('/', '').replace('\\', '')
+				sample = util.cleanUpSampleName(sample)
 				try:
 					assert (util.is_genbank(genbank))
 					assert (util.is_fasta(predicted_proteome))
@@ -63,7 +63,7 @@ def readInAssemblyListing(assembly_listing_file, logObject):
 			for line in oalf:
 				line = line.strip()
 				sample, assembly = line.split('\t')
-				sample = sample.replace(' ', '_').replace('|', '_').replace('"', '_').replace("'", '_').replace("=", "_").replace('-', '_').replace('(', '').replace(')', '').replace('/', '').replace('\\', '')
+				sample = util.cleanUpSampleName(sample)
 				try:
 					assert (util.is_fasta(assembly))
 					sample_assembly_paths[sample] = assembly
@@ -165,7 +165,7 @@ def runAntiSMASH(prokka_genbanks_dir, antismash_outdir, antismash_load_code, cor
 			sample_resdir = antismash_outdir + sample + '/'
 			antismash_cmd = [antismash_load_code, 'antismash', '--taxon', 'bacteria', '--genefinding-tool', 'prodigal',
 							 '--output-dir', sample_resdir, '--fullhmmer', '--asf', '--cb-general', '--cb-subclusters',
-							 '--cb-knownclusters', '--cf-create-clusters', '-c', str(asm_cores),
+							 '--cb-knownclusters', '-c', str(asm_cores),
 							 prokka_genbanks_dir + sample_gbk]
 			antismash_cmds.append(antismash_cmd + [logObject])
 			if dry_run_flag:

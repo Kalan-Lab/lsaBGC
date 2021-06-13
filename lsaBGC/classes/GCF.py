@@ -7,7 +7,7 @@ import random
 import subprocess
 import pysam
 import multiprocessing
-from scipy.stats import f_oneway, fisher_exact
+from scipy.stats import f_oneway, fisher_exact, pearsonr
 from ete3 import Tree
 from Bio import SeqIO
 from Bio.Seq import Seq
@@ -19,6 +19,7 @@ from lsaBGC import util
 from pingouin import welch_anova
 from pandas import DataFrame
 from pomegranate import *
+import math
 
 lsaBGC_main_directory = '/'.join(os.path.realpath(__file__).split('/')[:-3])
 RSCRIPT_FOR_BGSEE = lsaBGC_main_directory + '/lsaBGC/Rscripts/bgSee.R'
@@ -40,6 +41,7 @@ class GCF(Pan):
 		self.specific_core_homologs =set([])
 		self.scc_homologs = set([])
 		self.core_homologs = set([])
+		self.protocluster_core_homologs = set([])
 
 		# Sequence and alignment directories
 		self.nucl_seq_dir = None
@@ -66,17 +68,24 @@ class GCF(Pan):
 			initial_samples_with_at_least_one_gcf_hg = set([])
 			for hg in self.hg_genes:
 				for gene in self.hg_genes[hg]:
-					if len(gene.split('_')) == 3:
+					if len(gene.split('_')[0]) == 3:
+						gene_info = self.comp_gene_info[gene]
+						bgc_id = gene_info['bgc_name']
+						sample_id = self.bgc_sample[bgc_id]
 						initial_samples_with_at_least_one_gcf_hg.add(sample_id)
 
 			for hg in self.hg_genes:
 				sample_counts = defaultdict(int)
+				sample_with_hg_as_protocluster_core = 0
 				for gene in self.hg_genes[hg]:
-					if len(gene.split('_')) == 3:
+					if len(gene.split('_')[0]) == 3:
 						gene_info = self.comp_gene_info[gene]
 						bgc_id = gene_info['bgc_name']
 						sample_id = self.bgc_sample[bgc_id]
 						sample_counts[sample_id] += 1
+						if gene_info['core_overlap']:
+							sample_with_hg_as_protocluster_core += 1
+
 				samples_with_single_copy = set([s[0] for s in sample_counts.items() if s[1] == 1])
 				samples_with_any_copy = set([s[0] for s in sample_counts.items() if s[1] > 0])
 
@@ -85,6 +94,8 @@ class GCF(Pan):
 					self.scc_homologs.add(hg)
 				if len(samples_with_any_copy.symmetric_difference(initial_samples_with_at_least_one_gcf_hg)) == 0:
 					self.core_homologs.add(hg)
+				if len(samples_with_any_copy) > 0 and float(sample_with_hg_as_protocluster_core)/len(samples_with_any_copy) >= 0.5:
+					self.protocluster_core_homologs.add(hg)
 
 		except Exception as e:
 			if self.logObject:
@@ -294,6 +305,7 @@ class GCF(Pan):
 			hg_counts = defaultdict(int)
 			for i, item in enumerate(sorted(bgc_gene_counts.items(), key=itemgetter(1), reverse=True)):
 				bgc = item[0]
+				if not bgc in all_bgcs_in_tree: continue
 				curr_bgc_genes = self.bgc_genes[bgc]
 				last_gene_end = max([self.comp_gene_info[lt]['end'] for lt in curr_bgc_genes])
 				printlist = []
@@ -360,7 +372,6 @@ class GCF(Pan):
 
 			for bgc in all_bgcs_in_tree:
 				if not bgc in bgc_gene_counts.keys():
-					#print('\t'.join([bgc, dummy_hg, 'Absent', '1']))
 					gggenes_track_handle.write('\t'.join([bgc] + ['NA']*4 + ['Absent', '"#FFFFFF"']) + '\n')
 					heatmap_track_handle.write('\t'.join([bgc, dummy_hg, 'Absent', '1']) + '\n')
 
@@ -738,7 +749,9 @@ class GCF(Pan):
 					final_output_handle.write(line)
 		final_output_handle.close()
 
-	def identifyGCFInstances(self, outdir, sample_prokka_data, orthofinder_matrix_file, min_size=5, min_core_size=3):
+	def identifyGCFInstances(self, outdir, sample_prokka_data, orthofinder_matrix_file, min_size=5, min_core_size=3,
+							 gcf_to_gcf_transition_prob=0.9, background_to_background_transition_prob=0.9,
+							 syntenic_correlation_threshold=0.8):
 		"""
 		Function to search for instances of GCF in sample using HMM based approach based on homolog groups as characters,
 		"part of GCF" and "not part of GCF" as states - all trained on initial BGCs constituting GCF as identified by
@@ -793,6 +806,9 @@ class GCF(Pan):
 
 		print(gcf_distribution)
 		print(other_distribution)
+		print(self.core_homologs)
+		print(self.protocluster_core_homologs)
+		print(specific_hgs)
 		gcf_state = State(gcf_distribution, name='GCF')
 		other_state = State(other_distribution, name='Non GCF')
 
@@ -800,10 +816,10 @@ class GCF(Pan):
 		model.add_states(gcf_state, other_state)
 
 		# estimate transition probabilities
-		gcf_to_gcf = 0.9 #float(number_gcf_hgs - 1) / float(number_gcf_hgs)
-		gcf_to_other = 0.1 #1.0 - gcf_to_gcf
-		other_to_other = 0.9 #float(number_other_hgs - 1) / float(number_other_hgs)
-		other_to_gcf = 0.1 #1.0 - other_to_other
+		gcf_to_gcf = gcf_to_gcf_transition_prob #float(number_gcf_hgs - 1) / float(number_gcf_hgs)
+		gcf_to_other = 1.0 - gcf_to_gcf_transition_prob #1.0 - gcf_to_gcf
+		other_to_other = background_to_background_transition_prob #float(number_other_hgs - 1) / float(number_other_hgs)
+		other_to_gcf = 1.0 - background_to_background_transition_prob #1.0 - other_to_other
 
 		start_to_gcf = 0.5 # float(number_gcf_hgs)/float(number_gcf_hgs + number_other_hgs)
 		start_to_other = 0.5 #1.0 - start_to_gcf
@@ -853,7 +869,8 @@ class GCF(Pan):
 		sample_hg_proteins = defaultdict(lambda: defaultdict(set))
 		for sample in sample_hgs:
 			if len(sample_hgs[sample]) < 3: continue
-			#print(sample)
+			print(sample)
+
 			sample_gcf_predictions = []
 			for scaffold in self.scaffold_genes[sample]:
 				lts_with_start = []
@@ -873,8 +890,6 @@ class GCF(Pan):
 				hg_seq = numpy.array(list(hgs_ordered))
 				hmm_predictions = model.predict(hg_seq)
 
-				#print(hg_seq)
-				#print(hmm_predictions)
 				gcf_state_lts = []
 				gcf_state_hgs = []
 				for i, hg_state in enumerate(hmm_predictions):
@@ -884,12 +899,17 @@ class GCF(Pan):
 						gcf_state_lts.append(lt)
 						gcf_state_hgs.append(hg)
 					if hg_state == 1 or i == (len(hmm_predictions)-1):
+						print(gcf_state_lts)
 						if len(set(gcf_state_hgs).difference("other")) >= 3:
+							print(gcf_state_lts)
 							boundary_lt_featured = False
 							features_specific_hg = False
-							if len(self.boundary_genes[sample].intersection(set(gcf_state_lts))) > 0: boundary_lt_featured = True
+							features_protocoluster_hg = False
+							if len(self.protocluster_core_homologs.intersection(set(gcf_state_hgs).difference('other'))) > 0: features_protocoluster_hg = True
+							if len(self.boundary_genes[sample].intersection(set(gcf_state_lts).difference('other'))) > 0: boundary_lt_featured = True
 							if len(specific_hgs.intersection(set(gcf_state_hgs).difference('other'))) > 0: features_specific_hg = True
-							sample_gcf_predictions.append([gcf_state_lts, gcf_state_hgs, len(gcf_state_lts), len(set(gcf_state_hgs).difference("other")), len(set(gcf_state_hgs).difference("other").intersection(self.core_homologs)), scaffold, boundary_lt_featured, features_specific_hg])
+							sample_gcf_predictions.append([gcf_state_lts, gcf_state_hgs, len(gcf_state_lts), len(set(gcf_state_hgs).difference("other")), len(set(gcf_state_hgs).difference("other").intersection(self.core_homologs)), scaffold, boundary_lt_featured, features_specific_hg, features_protocoluster_hg])
+							print(sample_gcf_predictions[-1])
 						gcf_state_lts = []
 						gcf_state_hgs = []
 
@@ -902,12 +922,62 @@ class GCF(Pan):
 			cumulative_edge_hgs = set([])
 			visited_scaffolds_with_edge_gcf_segment = set([])
 			for gcf_segment in sorted_sample_gcf_predictions:
-				if (gcf_segment[3] >= min_size and gcf_segment[4] >= min_core_size) or (gcf_segment[-1]):
-					sample_gcf_predictions_filtered.append(gcf_segment)
-				elif gcf_segment[3] >= 3 and gcf_segment[-2] and not gcf_segment[5] in visited_scaffolds_with_edge_gcf_segment:
-					sample_edge_gcf_predictions_filtered.append(gcf_segment)
-					visited_scaffolds_with_edge_gcf_segment.add(gcf_segment[5])
-					cumulative_edge_hgs = cumulative_edge_hgs.union(set(gcf_segment[1]))
+				if (gcf_segment[3] >= min_size and gcf_segment[4] >= min_core_size) or (gcf_segment[-1]) or (gcf_segment[-2]) or (gcf_segment[3] >= 3 and gcf_segment[-3] and not gcf_segment[5] in visited_scaffolds_with_edge_gcf_segment):
+					# code to determine whether syntenically, the considered segment aligns with what is expected.
+					segment_hg_order = []
+					bgc_hg_orders = defaultdict(list)
+
+					copy_count_of_hgs_in_segment = defaultdict(int)
+					for hg in gcf_segment[1]:
+						copy_count_of_hgs_in_segment[hg] += 1
+
+					for gi, g in enumerate(gcf_segment[0]):
+						hg = gcf_segment[1][gi]
+						if copy_count_of_hgs_in_segment[hg] != 1: continue
+						gene_midpoint = (self.gene_location[sample][g]['start'] + self.gene_location[sample][g]['end'])/2.0
+						segment_hg_order.append(gene_midpoint)
+
+						for bgc in self.bgc_genes:
+							bg_matching = []
+							for bg in self.bgc_genes[bgc]:
+								if bg in self.gene_to_hg:
+									hg_of_bg = self.gene_to_hg[bg]
+									if hg_of_bg == hg: bg_matching.append(bg)
+							if len(bg_matching) == 1:
+								bgc_gene_midpoint = (self.comp_gene_info[bg_matching[0]]['start'] + self.comp_gene_info[bg_matching[0]]['end']) / 2.0
+								bgc_hg_orders[bgc].append(bgc_gene_midpoint)
+							else:
+								bgc_hg_orders[bgc].append(None)
+
+					best_corr = None
+					for bgc in self.bgc_genes:
+						try:
+							assert(len(segment_hg_order) == len(bgc_hg_orders[bgc]))
+
+							list1 = []
+							list2 = []
+							for iter, hgval1 in enumerate(segment_hg_order):
+								hgval2 = bgc_hg_orders[bgc][iter]
+								if hgval1 == None or hgval2 == None: continue
+								list1.append(hgval1)
+								list2.append(hgval2)
+
+							corr, pval = pearsonr(list1, list2)
+							corr = abs(corr)
+							print(corr)
+							if (best_corr and best_corr < corr) or (not best_corr):
+								best_corr = corr
+						except:
+							pass
+
+					if not best_corr or best_corr < syntenic_correlation_threshold: continue
+
+					if (gcf_segment[3] >= min_size and gcf_segment[4] >= min_core_size) or (gcf_segment[-1]) or (gcf_segment[-2]):
+						sample_gcf_predictions_filtered.append(gcf_segment)
+					elif gcf_segment[3] >= 3 and gcf_segment[-3] and not gcf_segment[5] in visited_scaffolds_with_edge_gcf_segment:
+						sample_edge_gcf_predictions_filtered.append(gcf_segment)
+						visited_scaffolds_with_edge_gcf_segment.add(gcf_segment[5])
+						cumulative_edge_hgs = cumulative_edge_hgs.union(set(gcf_segment[1]))
 
 			if len(sample_edge_gcf_predictions_filtered) >= 2:
 				print(sample_edge_gcf_predictions_filtered)
@@ -917,7 +987,7 @@ class GCF(Pan):
 			print(sample)
 			for gcf_state_lts in sample_gcf_predictions_filtered:
 				print(gcf_state_lts)
-				clean_sample_name = sample.replace('-', '_').replace(':', '_').replace('.', '_').replace('=', '_')
+				clean_sample_name = util.cleanUpSampleName(sample)
 				bgc_genbank_file = bgc_genbanks_dir + clean_sample_name + '_BGC-' + str(sample_bgc_ids[sample]) + '.gbk'
 				sample_bgc_ids[sample] += 1
 
@@ -949,7 +1019,7 @@ class GCF(Pan):
 				line = line.strip('\n')
 				ls = line.split('\t')
 				if i == 0:
-					original_samples = [x.replace(' ', '_').replace('|', '_').replace('"', '_').replace("'", '_').replace("=", "_").replace('-', '_') for x in ls[1:]]
+					original_samples = [util.cleanUpSampleName(x) for x in ls[1:]]
 					all_samples = all_samples.union(set(original_samples))
 				else:
 					hg = ls[0]
@@ -968,6 +1038,82 @@ class GCF(Pan):
 				printlist.append(', '.join(sample_hg_proteins[s][hg]))
 			expanded_orthofinder_matrix_handle.write('\t'.join(printlist) + '\n')
 		expanded_orthofinder_matrix_handle.close()
+
+	def extractGenesAndCluster(self, genes_representative_fasta, codon_alignments_file, bowtie2_db_prefix):
+		"""
+		Function to cluster gene sequences for each homolog group using codon alignments and then select representative
+		sequences which will be used to build a Bowtie2 reference database.
+
+		:param genes_with_flanks_fasta: Path to FASTA file which will harbor gene + flanks
+		:param cd_hit_clusters_fasta_file: Path to FASTA file which will be used to output coarse level clustering by
+											 CD-HIT
+		:param cd_hit_nr_fasta_file: Path to FASTA file which will be used to output granular level clustering by CD-HIT
+		:param bowtei2_db_prefix: Path to prefix of Bowtie2 refernece database/index to be used for aligning downstream
+															in the lsaBGC-DiscoVary workflow
+		"""
+
+		with open(codon_alignments_file) as ocaf:
+			for line in ocaf:
+				line = line.strip()
+				hg, cod_alignment_fasta = line.split('\t')
+				alleles_clustered = util.determineAllelesFromCodonAlignment(cod_alignment_fasta)
+				all_genes_in_codon_alignments = set([item.split('|')[-1] for alleles_clustered in t for item in alleles_clustered])
+				try:
+					assert(len(self.hg_genes[hg].symmetric_difference(all_genes_in_codon_alignments)) == 0)
+				except:
+					self.logObject.warning("Not all genes featured in codon alignment for homolog group %s, these will be excluded." % hg)
+
+
+				for allele_genes in alleles_clustered:
+
+					for ag1 in allele_genes:
+						for ag2 in allele_genes:
+
+
+		bowtie2_build = ['bowtie2-build', cd_hit_nr_fasta_file, bowtie2_db_prefix]
+		if self.logObject:
+			self.logObject.info('Running the following command: %s' % ' '.join(bowtie2_build))
+		try:
+			subprocess.call(' '.join(bowtie2_build), shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+							executable='/bin/bash')
+			if self.logObject:
+				self.logObject.info('Successfully ran: %s' % ' '.join(bowtie2_build))
+		except:
+			if self.logObject:
+				self.logObject.error('Had an issue running: %s' % ' '.join(bowtie2_build))
+			raise RuntimeError('Had an issue running: %s' % ' '.join(bowtie2_build))
+		if self.logObject:
+			self.logObject.info('Build Bowtie2 database/index for %s' % cd_hit_nr_fasta_file)
+
+		try:
+			cd_hit_clusters_cltr_file = cd_hit_clusters_fasta_file + '.clstr'
+			assert (os.path.isfile(cd_hit_clusters_cltr_file))
+
+			cluster = []
+			with open(cd_hit_clusters_cltr_file) as off:
+				for line in off:
+					line = line.strip()
+					ls = line.split()
+					if line.startswith('>'):
+						if len(cluster) > 0:
+							for g in cluster:
+								self.instance_to_haplotype[g] = rep
+						cluster = []
+						rep = None
+					else:
+						gene_id = ls[2][1:-3]
+						cluster.append(gene_id)
+						if line.endswith('*'): rep = gene_id
+			if len(cluster) > 0:
+				if len(cluster) > 0:
+					for g in cluster:
+						self.instance_to_haplotype[g] = rep
+
+		except Exception as e:
+			if self.logObject:
+				self.logObject.error("Unable to parse CD-HIT clustering of gene sequences (with flanks) to obtain representative sequence per cluster.")
+				self.logObject.error(traceback.format_exc())
+			raise RuntimeError(traceback.format_exc())
 
 	def extractGeneWithFlanksAndCluster(self, genes_with_flanks_fasta, cd_hit_clusters_fasta_file, cd_hit_nr_fasta_file, bowtie2_db_prefix):
 		"""

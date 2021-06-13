@@ -58,6 +58,7 @@ def create_parser():
     parser.add_argument('-g', '--gcf_listing', help='BGC specifications file. Tab delimited: 1st column contains path to AntiSMASH BGC Genbank and 2nd column contains sample name.', required=True)
     parser.add_argument('-p', '--paired_end_sequencing', help="Sequencing data specifications file. Tab delimited: 1st column contains metagenomic sample name, whereas 2nd and 3rd columns contain full paths to forward and reverse reads, respectively.", required=True)
     parser.add_argument('-i', '--gcf_id', help="GCF identifier.", required=False, default='GCF_X')
+    parser.add_argument('-r', '--reference_genome', help="Reference genome for lineage to prevent false positive alignment of reads.", required=True)
     parser.add_argument('-m', '--orthofinder_matrix', help="OrthoFinder matrix.", required=True)
     parser.add_argument('-o', '--output_directory', help="Prefix for output files.", required=True)
     parser.add_argument('-a', '--codon_alignments', help="File listing the codon alignments for each homolog group in the GCF. Can be found as part of PopGene output.", required=True)
@@ -138,13 +139,10 @@ def lsaBGC_DiscoVary():
     # Step 3: Create database of genes with surrounding flanks and, independently, cluster them into allele groups / haplotypes.
     logObject.info("Extracting and clustering GCF genes with their flanks.")
 
-    genes_with_flanks_fasta = outdir + 'GCF_Genes.fasta'
-    cd_hit_clusters_fasta_file = outdir + 'GCF_Genes_Clusters.fasta'
-    cd_hit_nr_fasta_file = outdir + 'GCF_Genes_NR.fasta'
-    bowtie2_db_prefix = outdir + 'GCF_Genes'
-
-    GCF_Object.extractGeneWithFlanksAndCluster(genes_with_flanks_fasta, cd_hit_clusters_fasta_file, cd_hit_nr_fasta_file, bowtie2_db_prefix)
-    logObject.info("Successfully extracted genes with flanks and clustered them into discrete haplotypes.")
+    genes_representative_fasta = outdir + 'GCF_Gene_Representatives.fasta'
+    bowtie2_db_prefix = outdir + 'GCF_Genes_Representatives'
+    GCF_Object.extractGenesAndCluster(genes_representative_fasta, codon_alignments_file, bowtie2_db_prefix)
+    logObject.info("Successfully extracted genes and clustered them into discrete alleles.")
 
     # Step 4: Align paired-end reads to database genes with surrounding flanks
     bowtie2_outdir = outdir + 'Bowtie2_Alignments/'

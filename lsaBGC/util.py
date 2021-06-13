@@ -33,9 +33,55 @@ def determineOutliersByGeneLength(gene_sequences):
 	for g in gene_sequences:
 		gene_nucl_seq = gene_sequences[g][0]
 		gene_nucl_seq_len = len(gene_nucl_seq)
-		if abs(gene_nucl_seq_len-median_gene_nucl_seq_lens) <= 2*mad_gene_nucl_seq_lens:
+		if abs(gene_nucl_seq_len-median_gene_nucl_seq_lens) <= mad_gene_nucl_seq_lens:
 			filtered_gene_sequences[g] = gene_sequences[g]
 	return filtered_gene_sequences
+
+def determineAllelesFromCodonAlignment(codon_alignment, matching_percentage_cutoff=0.99):
+	gene_sequences = {}
+	with open(codon_alignment) as oca:
+		for rec in SeqIO.parse(oca, 'fasta'):
+			gene_sequences[rec.id] = str(rec.seq).upper()
+
+	valid_alleles = set(['A', 'C', 'G', 'T'])
+	pairs = set([])
+	for i, g1 in enumerate(gene_sequences):
+		g1s = gene_sequences[g1]
+		for j, g2 in enumerate(gene_sequences):
+			if i < j: continue
+			g2s = gene_sequences[g2]
+			tot_comp_pos = 0
+			diff_pos = 0
+			for pos, g1a in enumerate(g1s):
+				g2a = g2s[pos]
+				if g1a in valid_alleles or g2a in valid_alleles:
+					tot_comp_pos += 1
+					if g1a != g2a: diff_pos += 1
+			matching_percentage = float(diff_pos)/float(tot_comp_pos)
+			if matching_percentage >= matching_percentage_cutoff:
+				pairs.append(sorted([g1, g2]))
+
+	"""	
+	Solution for single-linkage clustering taken from mimomu's repsonse in the stackoverflow page:
+	https://stackoverflow.com/questions/4842613/merge-lists-that-share-common-elements?lq=1
+	"""
+	L = pairs
+	LL = set(itertools.chain.from_iterable(L))
+	for each in LL:
+		components = [x for x in L if each in x]
+		for i in components:
+			L.remove(i)
+		L += [list(set(itertools.chain.from_iterable(components)))]
+
+	allele_clusters = defaultdict(set)
+	for i, allele_cluster in enumerate(L):
+		for gene in allele_cluster:
+			allele_clusters['Allele_Cluster_' + str(i+1)].add(gene)
+
+	return allele_cluster
+
+def cleanUpSampleName(original_name):
+	return original_name.replace(' ', '_').replace(':', '_').replace('|', '_').replace('"', '_').replace("'", '_').replace("=", "_").replace('-', '_').replace('(', '').replace(')', '').replace('/', '').replace('\\', '')
 
 def read_pair_generator(bam, region_string=None, start=None, stop=None):
 	"""
@@ -226,7 +272,7 @@ def createBGCGenbank(full_genbank_file, new_genbank_file, scaffold, start_coord,
 	except Exception as e:
 		raise RuntimeError(traceback.format_exc())
 
-def parseGenbankAndFindBoundaryGenes(sample_genbank, distance_to_scaffold_boundary=2000):
+def parseGenbankAndFindBoundaryGenes(sample_genbank, distance_to_scaffold_boundary=500):
 	"""
 	Function to parse Genbanks from Prokka and return a dictionary of genes per scaffold, gene to scaffold, and a
 	set of genes which lie on the boundary of scaffolds.
