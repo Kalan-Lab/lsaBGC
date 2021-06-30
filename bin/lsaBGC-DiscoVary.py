@@ -40,6 +40,7 @@ import sys
 from time import sleep
 import argparse
 from lsaBGC import util
+from lsaBGC import processing
 from lsaBGC.classes.GCF import GCF
 
 def create_parser():
@@ -58,7 +59,7 @@ def create_parser():
     parser.add_argument('-g', '--gcf_listing', help='BGC specifications file. Tab delimited: 1st column contains path to AntiSMASH BGC Genbank and 2nd column contains sample name.', required=True)
     parser.add_argument('-p', '--paired_end_sequencing', help="Sequencing data specifications file. Tab delimited: 1st column contains metagenomic sample name, whereas 2nd and 3rd columns contain full paths to forward and reverse reads, respectively.", required=True)
     parser.add_argument('-i', '--gcf_id', help="GCF identifier.", required=False, default='GCF_X')
-    parser.add_argument('-r', '--reference_genome', help="Reference genome for lineage to prevent false positive alignment of reads.", required=True)
+    parser.add_argument('-l', '--input_listing', type=str, help="Tab delimited text file for samples with three columns: (1) sample name (2) Prokka generated Genbank file (*.gbk), and (3) Prokka generated predicted-proteome file (*.faa). Please remove troublesome characters in the sample name.")
     parser.add_argument('-m', '--orthofinder_matrix', help="OrthoFinder matrix.", required=True)
     parser.add_argument('-o', '--output_directory', help="Prefix for output files.", required=True)
     parser.add_argument('-a', '--codon_alignments', help="File listing the codon alignments for each homolog group in the GCF. Can be found as part of PopGene output.", required=True)
@@ -79,6 +80,7 @@ def lsaBGC_DiscoVary():
     myargs = create_parser()
 
     gcf_listing_file = os.path.abspath(myargs.gcf_listing)
+    input_listing_file = os.path.abspath(myargs.input_listing)
     paired_end_sequencing_file = os.path.abspath(myargs.paired_end_sequencing)
     orthofinder_matrix_file = os.path.abspath(myargs.orthofinder_matrix)
     codon_alignments_file = os.path.abspath(myargs.codon_alignments)
@@ -88,6 +90,7 @@ def lsaBGC_DiscoVary():
     try:
         assert (os.path.isfile(orthofinder_matrix_file))
         assert (os.path.isfile(gcf_listing_file))
+        assert (os.path.isfile(input_listing_file))
         assert (os.path.isfile(paired_end_sequencing_file))
     except:
         raise RuntimeError('One or more of the input files provided, does not exist. Exiting now ...')
@@ -136,37 +139,45 @@ def lsaBGC_DiscoVary():
     GCF_Object.identifyKeyHomologGroups()
     logObject.info("Successfully parsed homolog matrix.")
 
-    # Step 3: Create database of genes with surrounding flanks and, independently, cluster them into allele groups / haplotypes.
-    logObject.info("Extracting and clustering GCF genes with their flanks.")
+    # Step 3: Process annotation files related to input sample sets
+    logObject.info("Parsing annotation file provided in expansion listing file for larger set of samples to incorporate into analysis.")
+    input_sample_prokka_data = processing.readInAnnotationFilesForExpandedSampleSet(input_listing_file, logObject)
+    logObject.info("Successfully parsed new sample annotation files.")
 
-    genes_representative_fasta = outdir + 'GCF_Gene_Representatives.fasta'
+    # Step 4: Build HMMs for homolog groups observed in representative BGCs for GCF
+    ### This function is originally intended for the expansion functionality in lsaBGC, but here we
+    ### use it to just get a better sense of how paralogous different genes in the GCF might be.
+    logObject.info("Building profile HMMs of homolog groups observed in representative BGCs for GCF.")
+    GCF_Object.constructHMMProfiles(outdir, input_sample_prokka_data, cores=cores)
+    logObject.info("HMM profiles constructed and concatenated successfully!")
+
+    # Step 5: Create database of genes with surrounding flanks and, independently, cluster them into allele groups / haplotypes.
+    logObject.info("Extracting and clustering GCF genes with their flanks.")
+    genes_representative_fasta = outdir + 'GCF_Genes_Representatives.fasta'
+    genes_fasta = outdir + 'GCF_Genes.fasta'
     bowtie2_db_prefix = outdir + 'GCF_Genes_Representatives'
-    GCF_Object.extractGenesAndCluster(genes_representative_fasta, codon_alignments_file, bowtie2_db_prefix)
+    GCF_Object.extractGenesAndCluster(genes_representative_fasta, genes_fasta, codon_alignments_file, bowtie2_db_prefix)
     logObject.info("Successfully extracted genes and clustered them into discrete alleles.")
 
-    # Step 4: Align paired-end reads to database genes with surrounding flanks
+    # Step 6: Align paired-end reads to database genes with surrounding flanks
     bowtie2_outdir = outdir + 'Bowtie2_Alignments/'
     if not os.path.isfile(bowtie2_outdir): os.system('mkdir %s' % bowtie2_outdir)
     logObject.info("Running Bowtie2 alignment of paired-end sequencing reads against database of GCF genes with surrounding flanking sequences.")
     util.runBowtie2Alignments(bowtie2_db_prefix, paired_end_sequencing_file, bowtie2_outdir, logObject, cores=cores)
     logObject.info("Bowtie2 alignments completed successfully!")
 
-    # Step 5: Determine haplotypes found in samples and identify supported novelty SNVs
+    # Step 7: Parse bowtie2 alignments found per sample and identify support for SNVs
     results_outdir = outdir + 'SNV_Miner_and_Allele_Typing_Results/'
     if not os.path.isdir(results_outdir): os.system('mkdir %s' % results_outdir)
     logObject.info("Beginning typing of homolog group alleles and mining of novel SNVs.")
-    GCF_Object.runSNVMining(paired_end_sequencing_file, cd_hit_nr_fasta_file, bowtie2_outdir, results_outdir, cores=cores)
+    GCF_Object.runSNVMining(paired_end_sequencing_file, genes_representative_fasta, codon_alignments_file, bowtie2_outdir, results_outdir, cores=cores)
     logObject.info("Successfully typed alleles and mined for novel SNVs.")
 
-    # Step 6: Construct summary matrices
+    # Step 8: Decide on GCF presence, determine consensus/haplotypes for homolog groups, and generate novelty report
+    # and create matrix of most closely resembling reference alleles
     logObject.info("Consolidating allele typing results into matrix formats.")
-    GCF_Object.createSummaryMatricesForMetaNovelty(paired_end_sequencing_file, results_outdir, outdir)
+    GCF_Object.phaseAndSummarize(paired_end_sequencing_file, codon_alignments_file, results_outdir, outdir)
     logObject.info("Successfully constructed matrices of allele typings.")
-
-    # Step 7: Create Novelty Report
-    logObject.info("Generating report of novel SNVs found across paire-end sequencing reads.")
-    GCF_Object.generateNoveltyReport(codon_alignments_file, results_outdir, outdir)
-    logObject.info("Successfully generated novelty SNV report.")
 
     # Close logging object and exit
     util.closeLoggerObject(logObject)

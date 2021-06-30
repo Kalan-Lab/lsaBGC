@@ -16,6 +16,7 @@ import copy
 import pysam
 from scipy import stats
 from ete3 import Tree
+import itertools
 
 def determineOutliersByGeneLength(gene_sequences):
 	filtered_gene_sequences = {}
@@ -39,26 +40,39 @@ def determineOutliersByGeneLength(gene_sequences):
 
 def determineAllelesFromCodonAlignment(codon_alignment, matching_percentage_cutoff=0.99):
 	gene_sequences = {}
+	allele_identifiers = {}
 	with open(codon_alignment) as oca:
-		for rec in SeqIO.parse(oca, 'fasta'):
+		for i, rec in enumerate(SeqIO.parse(oca, 'fasta')):
 			gene_sequences[rec.id] = str(rec.seq).upper()
+			allele_identifiers[rec.id] = i
 
 	valid_alleles = set(['A', 'C', 'G', 'T'])
-	pairs = set([])
+	pairs = []
+	pair_matching = defaultdict(lambda: defaultdict(float))
 	for i, g1 in enumerate(gene_sequences):
 		g1s = gene_sequences[g1]
 		for j, g2 in enumerate(gene_sequences):
 			if i < j: continue
 			g2s = gene_sequences[g2]
 			tot_comp_pos = 0
-			diff_pos = 0
+			g1_comp_pos = 0
+			g2_comp_pos = 0
+			match_pos = 0
 			for pos, g1a in enumerate(g1s):
 				g2a = g2s[pos]
 				if g1a in valid_alleles or g2a in valid_alleles:
 					tot_comp_pos += 1
-					if g1a != g2a: diff_pos += 1
-			matching_percentage = float(diff_pos)/float(tot_comp_pos)
-			if matching_percentage >= matching_percentage_cutoff:
+					if g1a == g2a:
+						match_pos += 1
+				if g1a in valid_alleles:
+					g1_comp_pos += 1
+				if g2a in valid_alleles:
+					g2_comp_pos += 1
+			general_matching_percentage = float(match_pos)/float(tot_comp_pos)
+			g1_matching_percentage = float(match_pos)/float(g1_comp_pos)
+			g2_matching_percentage = float(match_pos)/float(g2_comp_pos)
+			pair_matching[g1][g2] = general_matching_percentage
+			if general_matching_percentage >= matching_percentage_cutoff or g1_matching_percentage >= matching_percentage_cutoff or g2_matching_percentage >= matching_percentage_cutoff:
 				pairs.append(sorted([g1, g2]))
 
 	"""	
@@ -73,17 +87,25 @@ def determineAllelesFromCodonAlignment(codon_alignment, matching_percentage_cuto
 			L.remove(i)
 		L += [list(set(itertools.chain.from_iterable(components)))]
 
-	allele_clusters = defaultdict(set)
-	for i, allele_cluster in enumerate(L):
+	allele_cluster_min_id = {}
+	for allele_cluster in L:
+		gene_identifiers = set([])
 		for gene in allele_cluster:
+			gene_identifiers.add(allele_identifiers[gene])
+		min_gi = min(gene_identifiers)
+		allele_cluster_min_id[min_gi] = allele_cluster
+
+	allele_clusters = defaultdict(set)
+	for i, aci in enumerate(sorted(allele_cluster_min_id.keys())):
+		for gene in allele_cluster_min_id[aci]:
 			allele_clusters['Allele_Cluster_' + str(i+1)].add(gene)
 
-	return allele_cluster
+	return [allele_clusters, pair_matching]
 
 def cleanUpSampleName(original_name):
 	return original_name.replace(' ', '_').replace(':', '_').replace('|', '_').replace('"', '_').replace("'", '_').replace("=", "_").replace('-', '_').replace('(', '').replace(')', '').replace('/', '').replace('\\', '')
 
-def read_pair_generator(bam, region_string=None, start=None, stop=None):
+def read_pair_generator_defunct(bam, region_string=None, start=None, stop=None):
 	"""
     Function taken from: https://www.biostars.org/p/306041/
     Generate read pairs in a BAM file or within a region string.
@@ -105,6 +127,80 @@ def read_pair_generator(bam, region_string=None, start=None, stop=None):
 			else:
 				yield read_dict[qname][0], read
 			del read_dict[qname]
+
+def read_pair_generator(bam, region_string, reference_length, max_insert_size=500):
+	"""
+    Function adapted from: https://www.biostars.org/p/306041/
+    Generate read pairs in a BAM file or within a region string.
+    Reads are added to read_dict until a pair is found.
+    """
+
+	read_reverse_counts = defaultdict(int)
+	read_forward_counts = defaultdict(int)
+	for read in bam.fetch(region_string):
+		if read.is_supplementary: continue
+		qname = read.query_name
+		if read.is_reverse:
+			read_reverse_counts[qname] += 1
+		else:
+			read_forward_counts[qname] += 1
+
+	visited = set([])
+	read_dict = defaultdict(lambda: [None, None])
+	for read in bam.fetch(region_string):
+		if read.is_supplementary: continue
+		qname = read.query_name
+		if read_reverse_counts[qname] > 1 or read_forward_counts[qname] > 1: continue
+		if qname not in read_dict:
+			if read.is_read1:
+				read_dict[qname][0] = read
+			else:
+				read_dict[qname][1] = read
+		else:
+			# report proper pair paired-end reads, discard cases where both reads map to reference contig
+			# but in an improper fashion.
+			if read.is_proper_pair:
+				if read.is_read1:
+					yield read, read_dict[qname][1]
+				else:
+					yield read_dict[qname][0], read
+			visited.add(qname)
+			del read_dict[qname]
+
+	for read in bam.fetch(region_string):
+		qname = read.query_name
+		if qname in visited: continue
+		if read.is_supplementary or (not read.mate_is_unmapped): continue
+
+		first_real_alignment_pos = None
+		last_real_alignment_pos = None
+		indel_positions = set([])
+		match = 0
+		aligned = 0
+		for b in read.get_aligned_pairs(with_seq=True):
+			if b[0] != None and b[1] != None and b[2] != None:
+				if first_real_alignment_pos == None:
+					first_real_alignment_pos = b[0]
+				last_real_alignment_pos = b[0]
+				if b[2].isupper():
+					match += 1
+				aligned += 1
+			else:
+				indel_positions.add(b[0])
+		main_alignment_positions = set(range(first_real_alignment_pos, last_real_alignment_pos+1))
+		has_indel = len(main_alignment_positions.intersection(indel_positions)) > 0
+
+		matching_percentage = match/aligned
+		positionally_checks_out = False
+		if read.is_reverse:
+			min_position = min(main_alignment_positions)
+			positionally_checks_out = (min_position - max_insert_size) < 0
+		else:
+			max_position = max(main_alignment_positions)
+			positionally_checks_out = (max_position + max_insert_size) > reference_length
+
+		if (positionally_checks_out): # and (matching_percentage >= 0.95):
+			yield read_dict[qname][0], read_dict[qname][1]
 
 def getSpeciesRelationshipsFromPhylogeny(species_phylogeny, samples_in_gcf):
 	samples_in_phylogeny = set([])
@@ -167,16 +263,15 @@ def bowtie2_alignment(input_args):
 	sam_file = bowtie2_outdir + sample + '.sam'
 	bam_file = bowtie2_outdir + sample + '.bam'
 	bam_file_sorted = bowtie2_outdir + sample + '.sorted.bam'
-	bam_file_filtered = bowtie2_outdir + sample + '.filtered.bam'
-	bam_file_filtered_sorted = bowtie2_outdir + sample + '.filtered.sorted.bam'
+	#bam_file_filtered = bowtie2_outdir + sample + '.filtered.bam'
+	#am_file_filtered_sorted = bowtie2_outdir + sample + '.filtered.sorted.bam'
 
-	bowtie2_cmd = ['bowtie2', '--very-sensitive-local', '--no-mixed', '--no-discordant', '--no-unal', '-a', '-x',
-				   bowtie2_reference, '-1', frw_read, '-2', rev_read, '-S', sam_file, '-p', str(bowtie2_cores)]
+	bowtie2_cmd = ['bowtie2', '--very-sensitive-local', '--no-unal', '-a', '-x', bowtie2_reference, '-U', frw_read, ',',
+				   rev_read, '-S', sam_file, '-p', str(bowtie2_cores)]
+
 	samtools_view_cmd = ['samtools', 'view', '-h', '-Sb', sam_file, '>', bam_file]
 	samtools_sort_cmd = ['samtools', 'sort', '-@', str(bowtie2_cores), bam_file, '-o', bam_file_sorted]
 	samtools_index_cmd = ['samtools', 'index', bam_file_sorted]
-	samtools_sort_cmd_2 = ['samtools', 'sort', '-@', str(bowtie2_cores), bam_file_filtered, '-o', bam_file_filtered_sorted]
-	samtools_index_cmd_2 = ['samtools', 'index', bam_file_filtered_sorted]
 
 	try:
 		run_cmd(bowtie2_cmd, logObject)
@@ -184,6 +279,7 @@ def bowtie2_alignment(input_args):
 		run_cmd(samtools_sort_cmd, logObject)
 		run_cmd(samtools_index_cmd, logObject)
 
+		"""
 		bam_handle = pysam.AlignmentFile(bam_file_sorted, 'rb')
 		filt_bam_handle = pysam.AlignmentFile(bam_file_filtered, "wb", template=bam_handle)
 
@@ -196,9 +292,9 @@ def bowtie2_alignment(input_args):
 
 		run_cmd(samtools_sort_cmd_2, logObject)
 		run_cmd(samtools_index_cmd_2, logObject)
+		"""
 
-		os.system(
-			"rm -f %s %s %s %s %s" % (sam_file, bam_file, bam_file_sorted, bam_file_filtered, bam_file_sorted + '.bai'))
+		os.system("rm -f %s %s" % (sam_file, bam_file)) # bam_file_sorted, bam_file_filtered, bam_file_sorted + '.bai'))
 	except Exception as e:
 		if bowtie2_outdir != "" and sample != "":
 			os.system('rm -f %s/%s*' % (bowtie2_outdir, sample))

@@ -57,6 +57,7 @@ class Pan:
 		self.concatenated_profile_HMM = None
 		self.hg_max_self_evalue = defaultdict(lambda: 0.0)
 		self.lowerbound_hg_count = 100000
+		self.hg_differentiation_stats = {}
 
 		# HMMScan results - dictionary with keys as gene locus tag ids and values as
 		# list of lists: [homolog group, evalue, sample, scaffold]
@@ -806,11 +807,12 @@ class Pan:
 										   genbank and proteome files from Prokka based annotation
 		:param cores: The number of cores (will be used for parallelizing)
 		"""
-
-		prot_seq_dir = os.path.abspath(outdir + 'Protein_Sequences') + '/'
-		prot_alg_dir = os.path.abspath(outdir + 'Protein_Alignments') + '/'
-		prot_hmm_dir = os.path.abspath(outdir + 'Profile_HMMs') + '/'
-		search_ref_res_dir = os.path.abspath(outdir + 'HMMScan_Reflexive_Results') + '/'
+		outdir = os.path.abspath(outdir) + '/'
+		prot_seq_dir = outdir + 'Protein_Sequences/'
+		prot_alg_dir = outdir + 'Protein_Alignments/'
+		prot_hmm_dir = outdir + 'Profile_HMMs/'
+		search_ref_res_dir = outdir + 'HMMScan_Reflexive_Results/'
+		hg_differentiation_file = open(outdir + 'Homolog_Groups_Differentiation.txt', 'w')
 
 		if not os.path.isdir(prot_seq_dir): os.system('mkdir %s' % prot_seq_dir)
 		if not os.path.isdir(prot_alg_dir): os.system('mkdir %s' % prot_alg_dir)
@@ -919,18 +921,17 @@ class Pan:
 					eval_threshold = max([math.pow(10.0, ((wth_log10 + bfh_log10)/2.0)), math.pow(10.0, (bfh_log10 + -5))])
 					#eval_threshold = math.pow(10.0, ((wth_log10 + bfh_log10)/2.0))
 
-				print(hg)
-				print(sorted(true_hits))
-				print(sorted(false_hits))
-				print(eval_threshold)
-				print(able_to_differentiate)
-				self.hg_max_self_evalue[hg] = [eval_threshold, able_to_differentiate]
 
+				hg_differentiation_file.write('\t'.join([hg, str(worst_true_hit), str(best_false_hit), str(able_to_differentiate)]) + '\n')
+				self.hg_differentiation_stats[hg] = {'worst_true_hit': worst_true_hit, 'best_false_hit': best_false_hit,
+													 'able_to_differentiate': able_to_differentiate}
+				self.hg_max_self_evalue[hg] = [eval_threshold, able_to_differentiate]
 		except:
 			if self.logObject:
 				self.logObject.error("Issues with running hmmpress on profile HMMs.")
 				self.logObject.error(traceback.format_exc())
 			raise RuntimeError(traceback.format_exc())
+		hg_differentiation_file.close()
 
 	def runHMMScan(self, outdir, expanded_sample_prokka_data, cores=1):
 		"""
@@ -990,6 +991,9 @@ class Pan:
 					ls = line.split()
 					hg = ls[0]
 					gene_id = ls[2]
+
+					# TODO : allow for observed gene length range of hits
+
 					gene_length = abs(self.gene_location[sample][gene_id]['start'] - self.gene_location[sample][gene_id]['end'])
 					is_boundary_gene = gene_id in self.boundary_genes[sample]
 					if (not is_boundary_gene) and (abs(gene_length - hg_valid_length_range[hg]['median_gene_length']) >= (1.5 * hg_valid_length_range[hg]['gene_length_deviation'])): continue
