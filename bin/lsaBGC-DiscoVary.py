@@ -163,21 +163,29 @@ def lsaBGC_DiscoVary():
     bowtie2_outdir = outdir + 'Bowtie2_Alignments/'
     if not os.path.isfile(bowtie2_outdir): os.system('mkdir %s' % bowtie2_outdir)
     logObject.info("Running Bowtie2 alignment of paired-end sequencing reads against database of GCF genes with surrounding flanking sequences.")
-    util.runBowtie2Alignments(bowtie2_db_prefix, paired_end_sequencing_file, bowtie2_outdir, logObject, cores=cores)
+    #util.runBowtie2Alignments(bowtie2_db_prefix, paired_end_sequencing_file, bowtie2_outdir, logObject, cores=cores)
     logObject.info("Bowtie2 alignments completed successfully!")
 
     # Step 7: Parse bowtie2 alignments found per sample and identify support for SNVs
     results_outdir = outdir + 'SNV_Miner_and_Allele_Typing_Results/'
     if not os.path.isdir(results_outdir): os.system('mkdir %s' % results_outdir)
     logObject.info("Beginning typing of homolog group alleles and mining of novel SNVs.")
-    GCF_Object.runSNVMining(paired_end_sequencing_file, genes_representative_fasta, codon_alignments_file, bowtie2_outdir, results_outdir, cores=cores)
+    #GCF_Object.runSNVMining(paired_end_sequencing_file, genes_representative_fasta, codon_alignments_file, bowtie2_outdir, results_outdir, cores=cores)
     logObject.info("Successfully typed alleles and mined for novel SNVs.")
 
     # Step 8: Decide on GCF presence, determine consensus/haplotypes for homolog groups, and generate novelty report
     # and create matrix of most closely resembling reference alleles
-    logObject.info("Consolidating allele typing results into matrix formats.")
-    GCF_Object.phaseAndSummarize(paired_end_sequencing_file, codon_alignments_file, results_outdir, outdir)
+    phased_alleles_outdir = outdir + 'Phased_Homolog_Group_Sequences/'
+    if not os.path.isdir(phased_alleles_outdir): os.system('mkdir %s' % phased_alleles_outdir)
+    logObject.info("Phasing or determining consensus allele and reporting of novel SNVs.")
+    GCF_Object.phaseAndSummarize(paired_end_sequencing_file, codon_alignments_file, results_outdir, phased_alleles_outdir, outdir)
     logObject.info("Successfully constructed matrices of allele typings.")
+
+    # Step 9: Filter low coverage gene instances and construct gene-phylogenies
+
+
+    # Step 10: Determine similarity in BGC content between pairs of samples.
+    
 
     # Close logging object and exit
     util.closeLoggerObject(logObject)
