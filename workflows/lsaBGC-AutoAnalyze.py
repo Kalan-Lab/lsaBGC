@@ -228,10 +228,15 @@ def lsaBGC_AutoAnalyze():
 		input_listing_file = update_input_listing_file
 		gcf_listing_dir = update_gcf_listing_dir
 
+	all_samples = set([])
+	with open(input_listing_file) as oilf:
+		for line in oilf:
+			all_samples.add(line.split('\t')[0])
+
 	population_listing_file = None
 	if population_analysis:
 		population_listing_file = outdir + 'Populations_Defined.txt'
-		populations_on_nj_tree_pdf = outdir + 'Populations_on_NJ_Tree.pdf'
+		populations_on_nj_tree_pdf = outdir + 'Populations_on_Lineage_Tree.pdf'
 		# create neighbor-joining tree
 
 		if lineage_phylogeny_from_mash:
@@ -278,7 +283,7 @@ def lsaBGC_AutoAnalyze():
 
 		# 2. Run lsaBGC-PopGene.py
 		gcf_pop_outdir = pop_outdir + gcf_id + '/'
-		if not os.path.isdir(gcf_pop_outdir):
+		if True:# not os.path.isdir(gcf_pop_outdir):
 			os.system('mkdir %s' % gcf_pop_outdir)
 			cmd = ['lsaBGC-PopGene.py', '-g', gcf_listing_file, '-m', orthofinder_matrix_file, '-o', gcf_pop_outdir,
 				   '-i', gcf_id, '-c', str(cores)]
@@ -316,11 +321,17 @@ def lsaBGC_AutoAnalyze():
 					logObject.warning("lsaBGC-DiscoVary.py was unsuccessful for GCF %s" % gcf_id)
 					sys.stderr.write("Warning: lsaBGC-DiscoVary.py was unsuccessful for GCF %s\n" % gcf_id)
 
+	combined_orthoresults_unrefined_file = outdir + 'GCF_Ortholog_Group_Information.txt'
+	combined_consensus_similarity_file = outdir + 'GCF_Ortholog_Group_Consensus_Sequence_Similarity.txt'
+
+	combined_consensus_similarity_handle = open(combined_consensus_similarity_file, 'w')
 	combined_orthoresults_refined_handle = open(outdir + 'GCF_Ortholog_Group_Information_MAD_Refined.txt', 'w')
 	combined_orthoresults_pop_refined_handle = open(outdir + 'Population_GCF_Ortholog_Group_Information_MAD_Refined.txt', 'w')
-	combined_orthoresults_unrefined_handle = open(outdir + 'GCF_Ortholog_Group_Information.txt', 'w')
+	combined_orthoresults_unrefined_handle = open(combined_orthoresults_unrefined_file, 'w')
 	combined_orthoresults_pop_unrefined_handle = open(outdir + 'Population_GCF_Ortholog_Group_Information.txt', 'w')
 	combined_divergence_results_handle = open(outdir + 'GCF_Divergences.txt', 'w')
+
+	combined_consensus_similarity_handle.write('\t'.join(['GCF', 'Homolog_Group', 'Sample', 'Difference_to_Consensus_Sequence']) + '\n')
 	for i, g in enumerate(os.listdir(gcf_listing_dir)):
 		gcf_id = g.split('.txt')[0]
 		gcf_pop_outdir = pop_outdir + gcf_id + '/'
@@ -350,9 +361,27 @@ def lsaBGC_AutoAnalyze():
 		writeToOpenHandle(gcf_pop_results_unrefined, combined_orthoresults_unrefined_handle, include_header)
 		writeToOpenHandle(gcf_div_results, combined_divergence_results_handle, include_header)
 
+		gcf_pop_stats_outdir = gcf_pop_outdir + 'Codon_PopGen_Analyses/'
+		for f in os.listdir(gcf_pop_stats_outdir):
+			if f.endswith("_sim_to_consensus.txt"):
+				samps_accounted = set([])
+				hg = None
+				with open(gcf_pop_stats_outdir + f) as ogpso:
+					for line in ogpso:
+						line = line.strip()
+						hg, samp, diff = line.split('\t')
+						samps_accounted.add(samp)
+						combined_consensus_similarity_handle.write(gcf + '\t' + hg + '\t' + samp + '\t' + str(diff) + '\n')
+				for samp in all_samples:
+					if not samp in samps_accounted:
+						combined_consensus_similarity_handle.write(gcf + '\t' + hg + '\t' + samp + '\t' + str(1.0) + '\n')
+
+	combined_consensus_similarity_handle.close()
 	combined_orthoresults_refined_handle.close()
 	combined_orthoresults_unrefined_handle.close()
 	combined_divergence_results_handle.close()
+	combined_orthoresults_pop_unrefined_handle.close()
+	combined_orthoresults_pop_refined_handle.close()
 
 	# Close logging object and exit
 	util.closeLoggerObject(logObject)

@@ -470,8 +470,8 @@ class GCF(Pan):
 					gene_sequences = util.determineOutliersByGeneLength(gene_sequences, self.logObject)
 				inputs.append([hg, gene_sequences, nucl_seq_dir, prot_seq_dir, prot_alg_dir, codo_alg_dir, self.logObject])
 
-			p = multiprocessing.Pool(cores)
-			p.map(create_codon_msas, inputs)
+			#p = multiprocessing.Pool(cores)
+			#p.map(create_codon_msas, inputs)
 
 			if not filter_outliers:
 				self.nucl_seq_dir = nucl_seq_dir
@@ -796,7 +796,7 @@ class GCF(Pan):
 		final_output_handle = open(final_output_file, 'w')
 		header = ['gcf_id', 'homolog_group', 'annotation', 'hg_order_index', 'hg_median_copy_count', 'median_gene_length',
 					'is_core_to_bgc', 'num_of_hg_instances', 'samples_with_hg', 'proportion_of_samples_with_hg', 'Tajimas_D', 'core_sites',
-					'variable_sites', 'core_aa', 'variable_aa', 'all_domains']
+					'variable_sites', 'core_aa', 'variable_aa', 'nR/nS' 'all_domains']
 		if population:
 			header = ['population'] + header
 		elif population_analysis_on:
@@ -2669,7 +2669,8 @@ def popgen_analysis_of_hg(inputs):
 		hg_info = [population]
 	hg_info += [gcf_id, hg, '; '.join(products), hg_order_scores[hg], hg_prop_multi_copy[hg],
 				median_gene_length, is_core, len(seqs), len(samples), prop_samples_with_hg, tajimas_d,
-				len(conserved_sites), len(variable_sites), len(conserved_aa), len(variable_aa), '; '.join(all_domains)]
+				len(conserved_sites), len(variable_sites), len(conserved_aa), len(variable_aa),
+				float(len(variable_aa)+1)/float(len(variable_sites)+1), '; '.join(all_domains)]
 
 	if sample_population and not population:
 		input_anova_data_seqsim = []
@@ -2681,16 +2682,20 @@ def popgen_analysis_of_hg(inputs):
 
 		pops_with_hg = set([])
 		pop_count_with_hg = defaultdict(int)
+
+		hg_consim_handle = open(popgen_dir + hg + '_sim_to_consensus.txt', 'w')
 		for s in sample_differences_to_consensus:
 			min_diff_to_consensus = 1e100
 			for g in sample_differences_to_consensus[s]:
 				if min_diff_to_consensus > sample_differences_to_consensus[s][g]:
 					min_diff_to_consensus = sample_differences_to_consensus[s][g]
+			hg_consim_handle.write(hg + '\t' + s + '\t' + str(min_diff_to_consensus/float(len(seqs[0]))) + '\n')
 			if min_diff_to_consensus < 1e100:
 				pop_count_with_hg[sample_population[s]] += 1
 				data_row = [s, sample_population[s], float(min_diff_to_consensus)]
 				input_anova_data_seqsim.append(data_row)
 				pops_with_hg.add(sample_population[s])
+		hg_consim_handle.close()
 
 		anova_pval_seqsim = "NA"
 		if len(pops_with_hg) >= 2:
