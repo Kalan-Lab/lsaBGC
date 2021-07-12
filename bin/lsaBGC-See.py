@@ -60,6 +60,7 @@ def create_parser():
     parser.add_argument('-i', '--gcf_id', help="GCF identifier.", required=False, default='GCF_X')
     parser.add_argument('-s', '--species_phylogeny', help="The species phylogeny in Newick format.", required=False, default=None)
     parser.add_argument('-c', '--cores', type=int, help="Number of cores to use for MCL step.", required=False, default=1)
+    parser.add_argument('-k', '--sample_set', help="Sample set to keep in analysis. Should be file with one sample id per line.", required=False)
     parser.add_argument('-p', '--create_gcf_phylogeny', action='store_true', help="Create phylogeny from sequences of homolog groups in GCF.", required=False, default=False)
     parser.add_argument('-f', '--only_scc', action='store_true', help="Use only single-copy-core homolog groups for constructing GCF phylogeny.", required=False, default=False)
     args = parser.parse_args()
@@ -96,6 +97,7 @@ def lsaBGC_See():
     PARSE OPTIONAL INPUTS
     """
 
+    sample_set_file = myargs.sample_set
     gcf_id = myargs.gcf_id
     species_phylogeny = myargs.species_phylogeny
     cores = myargs.cores
@@ -109,29 +111,33 @@ def lsaBGC_See():
     log_file = outdir + 'Progress.log'
     logObject = util.createLoggerObject(log_file)
 
-    # Step 0: Log input arguments and update reference and query FASTA files.
+    # Log input arguments and update reference and query FASTA files.
     logObject.info("Saving parameters for future provedance.")
     parameters_file = outdir + 'Parameter_Inputs.txt'
-    parameter_values = [gcf_listing_file, orthofinder_matrix_file, outdir, gcf_id, species_phylogeny, cores,
+    parameter_values = [gcf_listing_file, orthofinder_matrix_file, outdir, gcf_id, species_phylogeny, cores, sample_set_file,
                         create_gcf_phylogeny, only_scc]
     parameter_names = ["GCF Listing File", "OrthoFinder Orthogroups.csv File", "Output Directory", "GCF Identifier",
-                       "Species Phylogeny Newick File", "Cores", "Create GCF Phylogeny?", "Use only SCC Homolog Groups for Creating GCF Phylogeny?"]
+                       "Species Phylogeny Newick File", "Sample Retention Set", "Cores", "Create GCF Phylogeny?",
+                       "Use only SCC Homolog Groups for Creating GCF Phylogeny?"]
     util.logParametersToFile(parameters_file, parameter_names, parameter_values)
     logObject.info("Done saving parameters!")
 
     # Create GCF object
     GCF_Object = GCF(gcf_listing_file, gcf_id=gcf_id, logObject=logObject)
 
+    # Step 0: (Optional) Parse sample set retention specifications file, if provided by the user.
+    sample_retention_set = util.getSampleRetentionSet(sample_set_file)
+
     # Step 1: Process GCF listings file
     logObject.info("Processing BGC Genbanks from GCF listing file.")
-    GCF_Object.readInBGCGenbanks(comprehensive_parsing=True)
+    GCF_Object.readInBGCGenbanks(comprehensive_parsing=True, prune_set=sample_retention_set)
     logObject.info("Successfully parsed BGC Genbanks and associated with unique IDs.")
 
     # Step 2: If species phylogeny was provided, edit it to feature duplicate leaves for isolates which have multiple
     # BGCs in the GCF.
     if species_phylogeny:
         logObject.info("Altering species phylogeny to reflect multiple BGCs per sample/isolate.")
-        GCF_Object.modifyPhylogenyForSamplesWithMultipleBGCs(species_phylogeny, outdir + 'species_phylogeny.edited.nwk')
+        GCF_Object.modifyPhylogenyForSamplesWithMultipleBGCs(species_phylogeny, outdir + 'species_phylogeny.edited.nwk', prune_set=sample_retention_set)
         logObject.info("Successfully edited species phylogeny.")
 
     # Step 3: Parse OrthoFinder Homolog vs Sample Matrix and associate each homolog group with a color
@@ -162,7 +168,7 @@ def lsaBGC_See():
         # sites with high rates of missing data.
         logObject.info("Creating phylogeny using FastTree2 after creating concatenated BGC alignment and processing to remove sites with high rates of missing data!")
         GCF_Object.constructGCFPhylogeny(outdir + 'BGC_SCCs_Concatenated.fasta', outdir + 'BGC_SCCs_Concatenated.nwk', only_scc=only_scc)
-        GCF_Object.modifyPhylogenyForSamplesWithMultipleBGCs(outdir + 'BGC_SCCs_Concatenated.nwk', outdir + 'BGC_SCCs_Concatenated.edited.nwk')
+        GCF_Object.modifyPhylogenyForSamplesWithMultipleBGCs(outdir + 'BGC_SCCs_Concatenated.nwk', outdir + 'BGC_SCCs_Concatenated.edited.nwk', prune_set=sample_retention_set)
         if not os.path.isfile(outdir + "BGC_Visualization.iTol.txt"):
             GCF_Object.createItolBGCSeeTrack(outdir + 'BGCs_Visualization.iTol.txt')
         GCF_Object.visualizeGCFViaR(outdir + 'BGCs_Visualization.gggenes.txt',

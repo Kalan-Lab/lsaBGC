@@ -57,7 +57,9 @@ def create_parser():
     parser.add_argument('-g', '--gcf_listing', help='BGC specifications file. Tab delimited: 1st column contains path to AntiSMASH BGC Genbank and 2nd column contains sample name.', required=True)
     parser.add_argument('-l', '--input_listing', help="Sequencing data specifications file. Tab delimited: 1st column contains metagenomic sample name, whereas 2nd and 3rd columns contain full paths to forward and reverse reads, respectively.", required=True)
     parser.add_argument('-i', '--gcf_id', help="GCF identifier.", required=False, default='GCF_X')
+    parser.add_argument('-a', '--codon_alignments', help="File listing the codon alignments for each homolog group in the GCF. Can be found as part of PopGene output.", required=True)
     parser.add_argument('-o', '--output_directory', help="Prefix for output files.", required=True)
+    parser.add_argument('-k', '--sample_set', help="Sample set to keep in analysis. Should be file with one sample id per line.", required=False)
     parser.add_argument('-c', '--cores', type=int, help="The number of cores to use.", required=False, default=1)
     parser.add_argument('-s', '--sketch_size', type=int, help="The sketch size, number of kmers to use in fingerprinting", required=False, default=10000)
 
@@ -77,12 +79,15 @@ def lsaBGC_Divergence():
 
     gcf_listing_file = os.path.abspath(myargs.gcf_listing)
     input_listing_file = os.path.abspath(myargs.input_listing)
+    codon_alignments_file = os.path.abspath(myargs.codon_alignments)
     outdir = os.path.abspath(myargs.output_directory) + '/'
 
     ### vet input files quickly
     try:
         assert (os.path.isfile(input_listing_file))
         assert (os.path.isfile(gcf_listing_file))
+        assert (os.path.isfile(codon_alignments_file))
+
     except:
         raise RuntimeError('One or more of the input files provided, does not exist. Exiting now ...')
 
@@ -96,6 +101,7 @@ def lsaBGC_Divergence():
     PARSE OPTIONAL INPUTS
     """
 
+    sample_set_file = myargs.sample_set
     gcf_id = myargs.gcf_id
     cores = myargs.cores
     sketch_size = myargs.sketch_size
@@ -108,19 +114,21 @@ def lsaBGC_Divergence():
     log_file = outdir + 'Progress.log'
     logObject = util.createLoggerObject(log_file)
 
-    # Step 0: Log input arguments and update reference and query FASTA files.
+    # Log input arguments and update reference and query FASTA files.
     logObject.info("Saving parameters for future provedance.")
     parameters_file = outdir + 'Parameter_Inputs.txt'
-    parameter_values = [gcf_listing_file, input_listing_file, outdir, sketch_size, gcf_id, cores]
+    parameter_values = [gcf_listing_file, input_listing_file, outdir, sketch_size, gcf_id, sample_set_file, cores]
     parameter_names = ["GCF Listing File", "Input Listing File of Prokka Annotation Files for All Samples",
                        "Output Directory", "MASH Sketch Size",
-                       "GCF Identifier", "Cores"]
+                       "GCF Identifier", "Retention Sample Set", "Cores"]
     util.logParametersToFile(parameters_file, parameter_names, parameter_values)
     logObject.info("Done saving parameters!")
 
-
     # Create GCF object
     GCF_Object = GCF(gcf_listing_file, gcf_id=gcf_id, logObject=logObject)
+
+    # Step 0: (Optional) Parse sample set retention specifications file, if provided by the user.
+    sample_retention_set = util.getSampleRetentionSet(sample_set_file)
 
     # Step 1: Extract Genbank Sequences into FASTA
     logObject.info("Converting BGC Genbanks from GCF listing file into FASTA per sample.")
@@ -131,9 +139,10 @@ def lsaBGC_Divergence():
     logObject.info("Successfully performed conversion and partitioning by sample.")
 
     # Step 2: Run MASH Analysis Between BGCs in GCF
-    logObject.info("Running MASH Analysis Between BGCs in GCF.")
-    bgc_pairwise_differences = util.calculateMashPairwiseDifferences(gcf_fasta_listing_file, outdir, 'gcf', sketch_size, cores, logObject)
-    logObject.info("Ran MASH Analysis Between BGCs in GCF.")
+    logObject.info("Determining similarities in BGC content and sequence space between pairs of samples.")
+    #bgc_pairwise_differences = util.calculateMashPairwiseDifferences(gcf_fasta_listing_file, outdir, 'gcf', sketch_size, cores, logObject)
+    bgc_pairwise_similarities = util.determineBGCSequenceSimilarityFromCodonAlignments(codon_alignments_file)
+    logObject.info("Finished determining BGC specific similarity between pairs of samples.")
 
     # Step 3: Run MASH Analysis Between Genomic Assemblies
     # Extract Genbank Sequences into FASTA
@@ -151,26 +160,28 @@ def lsaBGC_Divergence():
 
     # Step 5: Calculate and report Beta-RD statistic for all pairs of samples/isolates
     logObject.info("Beginning generation of report.")
-    samples_bgc = set(bgc_pairwise_differences.keys())
+    samples_bgc = set(bgc_pairwise_similarities.keys())
     samples_gw = set(gw_pairwise_differences.keys())
     samples_intersect = samples_gw.intersection(samples_bgc)
     try:
         final_report = outdir + 'Relative_Divergence_Report.txt'
         final_report_handle = open(final_report, 'w')
-        final_report_handle.write('gcf_id\tsample_1\tsample_2\tbeta_rd\n')
+        final_report_handle.write('gcf_id\tsample_1\tsample_2\tbeta_rd\tgw_seq_sim\tgcf_seq_sim\tgcf_content_sim\n')
         for i, s1 in enumerate(samples_intersect):
             for j, s2 in enumerate(samples_intersect):
-                if i < j:
-                    gcf_dist = bgc_pairwise_differences[s1][s2]
-                    gcf_sim = 1.0 - gcf_dist
-                    gw_dist = gw_pairwise_differences[s1][s2]
-                    gw_sim = 1.0 - gw_dist
+                if sample_retention_set and (not s1 in sample_retention_set or not s2 in sample_retention_set): continue
+                if i >= j: continue
+                gcf_seq_sim = bgc_pairwise_similarities[s1][s2][0]
+                gcf_con_sim = bgc_pairwise_similarities[s1][s2][1]
+                #gcf_sim = 1.0 - gcf_dist
+                gw_dist = gw_pairwise_differences[s1][s2]
+                gw_seq_sim = 1.0 - gw_dist
 
-                    if gw_sim != 0.0:
-                        beta_rd = gcf_sim/gw_sim
-                        final_report_handle.write('%s\t%s\t%s\t%f\n' % (gcf_id, s1, s2, beta_rd))
-                    else:
-                        logObject.warning('Samples %s and %s had an estimated ANI of 0.0 and thus not reported!' % (s1, s2))
+                if gw_seq_sim != 0.0:
+                    beta_rd = gcf_seq_sim/gw_seq_sim
+                    final_report_handle.write('%s\t%s\t%s\t%f\t%f\t%f\t%f\n' % (gcf_id, s1, s2, beta_rd, gw_seq_sim, gcf_seq_sim, gcf_con_sim))
+                else:
+                    logObject.warning('Samples %s and %s had an estimated ANI of 0.0 and are thus not reported!' % (s1, s2))
         final_report_handle.close()
         logObject.info("Successfully computed Beta-RD statistic between pairs of samples to measure BGC similarity relative to Genome-Wide similarity.")
     except:

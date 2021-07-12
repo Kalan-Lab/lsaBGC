@@ -25,6 +25,8 @@ lsaBGC_main_directory = '/'.join(os.path.realpath(__file__).split('/')[:-3])
 RSCRIPT_FOR_BGSEE = lsaBGC_main_directory + '/lsaBGC/Rscripts/bgSee.R'
 RSCRIPT_FOR_CLUSTER_ASSESSMENT_PLOTTING = lsaBGC_main_directory + '/lsaBGC/Rscripts/generatePopGenePlots.R'
 RSCRIPT_FOR_TAJIMA = lsaBGC_main_directory + '/lsaBGC/Rscripts/calculateTajimasD.R'
+RSCRIPT_FOR_GENERATE = lsaBGC_main_directory + '/lsaBGC/Rscripts/GeneRatePhylogeny.R'
+RSCRIPT_FOR_PCA = lsaBGC_main_directory + '/lsaBGC/Rscripts/ClusterVisualOfSamples.R'
 
 class GCF(Pan):
 	def __init__(self, bgc_genbanks_listing, gcf_id='GCF_X', logObject=None, lineage_name='Unnamed lineage'):
@@ -103,7 +105,7 @@ class GCF(Pan):
 				self.logObject.error(traceback.format_exc())
 			raise RuntimeError(traceback.format_exc())
 
-	def modifyPhylogenyForSamplesWithMultipleBGCs(self, input_phylogeny, result_phylogeny):
+	def modifyPhylogenyForSamplesWithMultipleBGCs(self, input_phylogeny, result_phylogeny, prune_set=None):
 		"""
 		Function which takes in an input phylogeny and produces a replicate resulting phylogeny with samples/leafs which
 		have multiple BGC instances for a GCF expanded.
@@ -114,6 +116,9 @@ class GCF(Pan):
 		try:
 			number_of_added_leaves = 0
 			t = Tree(input_phylogeny)
+			if prune_set != None:
+				t.prune(prune_set)
+
 			for node in t.traverse('postorder'):
 				if node.name in self.sample_bgcs and len(self.sample_bgcs[node.name]) > 1:
 					og_node_name = node.name
@@ -436,10 +441,12 @@ class GCF(Pan):
 		all_samples = set(self.bgc_sample.values())
 		try:
 			inputs = []
+			print(self.hg_genes)
 			for hg in self.hg_genes:
 				# if len(self.hg_genes[hg]) < 2: continue
 				sample_counts = defaultdict(int)
 				gene_sequences = {}
+				print(hg)
 				for gene in self.hg_genes[hg]:
 					gene_info = self.comp_gene_info[gene]
 					bgc_id = gene_info['bgc_name']
@@ -458,9 +465,9 @@ class GCF(Pan):
 				elif only_scc and self.logObject:
 					self.logObject.info('Homolog group %s detected as SCC across samples (not individual BGCs).' % hg)
 				# check that hg is present in the original instances of GCF
-				if len([x for x in gene_sequences.keys() if len(x.split('|')[1].split('_')[0]) == 3]) == 0: continue
+				#if len([x for x in gene_sequences.keys() if len(x.split('|')[1].split('_')[0]) == 3]) == 0: continue
 				if filter_outliers:
-					gene_sequences = util.determineOutliersByGeneLength(gene_sequences)
+					gene_sequences = util.determineOutliersByGeneLength(gene_sequences, self.logObject)
 				inputs.append([hg, gene_sequences, nucl_seq_dir, prot_seq_dir, prot_alg_dir, codo_alg_dir, self.logObject])
 
 			p = multiprocessing.Pool(cores)
@@ -638,6 +645,9 @@ class GCF(Pan):
 		Function to determine an "ordering" score for homolog groups in GCF. The order score is relative to each GCF,
 		even a homolog group has a large or small order score indicates it is on the edges (beginning will be chosen
 		arbitrarily).
+
+		To determine this, a Markov chain esque approach is used, whereby gene order is determined by where in the chain
+		a homolog group is best positioned.
 		"""
 		try:
 			ref_hg_directions = {}
@@ -645,6 +655,9 @@ class GCF(Pan):
 			for bgc in self.bgc_genes:
 					bgc_gene_counts[bgc] = len(self.bgc_genes[bgc])
 
+
+			following_hgs = defaultdict(lambda: defaultdict(int))
+			all_hgs = set(['start', 'end'])
 			for i, item in enumerate(sorted(bgc_gene_counts.items(), key=itemgetter(1), reverse=True)):
 				bgc = item[0]
 				curr_bgc_genes = self.bgc_genes[bgc]
@@ -678,16 +691,80 @@ class GCF(Pan):
 					# reverse ordering
 					if flip_support > keep_support:
 						reverse_flag = True
+				hgs = []
 				for c in sorted(hg_starts.items(), key=itemgetter(1), reverse=reverse_flag):
-						self.hg_order_scores[c[0]] += c[1]
+					hgs.append(c[0])
 
+				for j, hg in enumerate(hgs):
+					all_hgs.add(hg)
+					if j == 0:
+						hg_previ = "start"
+						following_hgs[hg_previ][hg] += 1
+
+					try:
+						hg_after = hgs[j+1]
+						following_hgs[hg][hg_after] += 1
+					except:
+						hg_after = 'end'
+						following_hgs[hg][hg_after] += 1
+
+			hg_best_score = defaultdict(int)
+			for hg in all_hgs:
+				for fhg in following_hgs[hg]:
+					if following_hgs[hg][fhg] > hg_best_score[fhg]:
+						hg_best_score[fhg] = following_hgs[hg][fhg]
+			# iterative approach to get homolog group orders
+			curr_hg = 'start'
+			visited_hgs = set([curr_hg])
+			ordered_hgs_list = [curr_hg]
+			print(following_hgs)
+			while curr_hg != 'end':
+				next_hg = None
+				for fhg in sorted(following_hgs[curr_hg].items(), key=itemgetter(1), reverse=True):
+					#print(fhg)
+					#print(hg_best_score[fhg[0]])
+					if fhg[1] == hg_best_score[fhg[0]] and not fhg[0] in visited_hgs:
+						next_hg = fhg[0]
+						break
+				#print(ordered_hgs_list)
+				if next_hg == None:
+					for fhg in sorted(following_hgs[curr_hg].items(), key=itemgetter(1), reverse=True):
+						if not fhg[0] in visited_hgs:
+							next_hg = fhg[0]
+							break
+				if next_hg == None:
+					next_hg = 'end'
+				ordered_hgs_list.append(next_hg)
+				visited_hgs.add(next_hg)
+				curr_hg = next_hg
+			while len(all_hgs.difference(visited_hgs)) > 0:
+				for i, curr_hg in enumerate(ordered_hgs_list):
+					next_hg = None
+					for fhg in sorted(following_hgs[curr_hg].items(), key=itemgetter(1), reverse=True):
+						if fhg[1] == hg_best_score[fhg[0]] and not fhg[0] in visited_hgs:
+							next_hg = fhg[0]
+							break
+
+					#print('Second loop:\t' + '\t'.join(ordered_hgs_list))
+					if next_hg != None:
+						ordered_hgs_list.insert(i+1, next_hg)
+						visited_hgs.add(next_hg)
+						break
+
+			i = 1
+			for hg in ordered_hgs_list:
+				if not hg in set(['start', 'end']):
+					self.hg_order_scores[hg] = i
+					i+=1
+
+			print(self.hg_order_scores)
 		except Exception as e:
 			if self.logObject:
 				self.logObject.error("Issues in attempting to calculate order score for each homolog group.")
 				self.logObject.error(traceback.format_exc())
 			raise RuntimeError(traceback.format_exc())
 
-	def runPopulationGeneticsAnalysis(self, outdir, cores=1, population=None, filter_outliers=False):
+	def runPopulationGeneticsAnalysis(self, outdir, cores=1, population=None, filter_outliers=False, population_analysis_on=False):
 		"""
 		Wrapper function which serves to parallelize population genetics analysis.
 
@@ -718,12 +795,12 @@ class GCF(Pan):
 
 		final_output_handle = open(final_output_file, 'w')
 		header = ['gcf_id', 'homolog_group', 'annotation', 'hg_order_index', 'hg_median_copy_count', 'median_gene_length',
-					'is_core_to_bgc', 'bgcs_with_hg', 'samples_with_hg', 'proportion_of_samples_with_hg', 'Tajimas_D', 'core_codons',
-					'total_variable_codons', 'nonsynonymous_codons', 'synonymous_codons', 'dn_ds', 'all_domains']
+					'is_core_to_bgc', 'num_of_hg_instances', 'samples_with_hg', 'proportion_of_samples_with_hg', 'Tajimas_D', 'core_sites',
+					'variable_sites', 'core_aa', 'variable_aa', 'all_domains']
 		if population:
 			header = ['population'] + header
-		if self.bgc_population != None:
-			header += ['populations_with_hg', 'population_proportion_of_members_with_hg', 'one_way_ANOVA_pvalues_sequence_similarity', 'one_way_ANOVA_pvalues_presence_absence']
+		elif population_analysis_on:
+			header += ['populations_with_hg', 'population_proportion_of_members_with_hg', 'one_way_ANOVA_pvalues_presence_absence', 'one_way_ANOVA_pvalues_sequence_similarity']
 		final_output_handle.write('\t'.join(header) + '\n')
 
 		inputs = []
@@ -1261,6 +1338,217 @@ class GCF(Pan):
 				self.logObject.error(traceback.format_exc())
 			raise RuntimeError(traceback.format_exc())
 
+	def calculatePairwiseDifferences(self, paired_end_sequencing_file, snv_mining_outdir, outdir):
+		try:
+			sample_profiles = defaultdict(lambda: defaultdict(list))
+			sample_depths = defaultdict(lambda: defaultdict(float))
+			with open(paired_end_sequencing_file) as opesf:
+				for line in opesf:
+					line = line.strip()
+					pe_sample = line.strip().split('\t')[0]
+					result_file = snv_mining_outdir + pe_sample + '.filt.txt'
+					if not os.path.isfile(result_file): continue
+
+					with open(result_file) as orf:
+						for i, l in enumerate(orf):
+							if i == 0: continue
+							l = l.strip().split(',')
+							hg, pos = l[:2]
+							base_counts = [int(x) for x in l[2:]]
+							tot_count = sum(base_counts)
+							if tot_count > 0:
+								base_freqs = [float(b)/float(tot_count) for b in base_counts]
+							else:
+								base_freqs = [0.0]*4
+							sample_profiles[pe_sample][hg + '_|_' + pos] = base_freqs
+							sample_depths[pe_sample][hg + '_|_' + pos] = tot_count
+
+			pairwise_distance_file = outdir + 'sample_pairwise_differences.txt'
+			sample_information_file = outdir + 'sample_information.txt'
+			pairwise_distance_handle = open(pairwise_distance_file, 'w')
+			sample_information_handle = open(sample_information_file, 'w')
+
+			pairwise_distance_handle.write('\t'.join(['pair_id', 'sample1', 'sample2', 'pw_distance', 'total_intersect_positions']) + '\n')
+			sample_information_handle.write('\t'.join(['sample_id', 'sample_depth']) + '\n')
+
+			for si1, s1 in enumerate(sample_profiles):
+				s1_hps = set(sample_profiles[s1].keys())
+				s1_depth = sum(sample_depths[s1].values())/float(len(sample_depths[s1].keys()))
+				if s1_depth < 10.0: continue
+				sample_information_handle.write('\t'.join([s1, str(s1_depth)]) + '\n')
+				for si2, s2 in enumerate(sample_profiles):
+					if si1 >= si2: continue
+					s2_depth = sum(sample_depths[s2].values()) / float(len(sample_depths[s2].keys()))
+					if s2_depth < 10.0: continue
+					s2_hps = set(sample_profiles[s2].keys())
+					total_intersect_positions = 0
+					stat_pos = 0.0
+					for hp in s1_hps.intersection(s2_hps):
+						for bi, s1b in enumerate(sample_profiles[s1][hp]):
+							s2b = sample_profiles[s2][hp][bi]
+							stat_pos += abs(s1b - s2b)
+						total_intersect_positions += 1
+					distance_stat = 1.0
+					if total_intersect_positions > 0:
+						distance_stat = float(stat_pos)/float(total_intersect_positions)
+					else:
+						print(s1 + '\t' + s2)
+
+					pair_id = s1 + ' vs. ' + s2
+					pairwise_distance_handle.write('\t'.join([str(x) for x in [pair_id, s1, s2, distance_stat, total_intersect_positions]]) + '\n')
+			pairwise_distance_handle.close()
+			sample_information_handle.close()
+
+			# use Rscript to plot phylogeny and showcase how new sequences identified ("Query") relate to known ones
+			# ("Database")
+			cluster_pdf_file = outdir + 'PCA_Visualization.pdf'
+			plot_cmd = ['Rscript', RSCRIPT_FOR_PCA, pairwise_distance_file, sample_information_file, cluster_pdf_file]
+			if self.logObject:
+				self.logObject.info('Running Rscript with the following command: %s' % ' '.join(plot_cmd))
+			try:
+				subprocess.call(' '.join(plot_cmd), shell=True, stdout=subprocess.DEVNULL,
+								stderr=subprocess.DEVNULL,
+								executable='/bin/bash')
+				if self.logObject:
+					self.logObject.info('Successfully ran: %s' % ' '.join(plot_cmd))
+			except Exception as e:
+				if self.logObject:
+					self.logObject.error('Had an issue running: %s' % ' '.join(plot_cmd))
+					self.logObject.error(traceback.format_exc())
+				raise RuntimeError('Had an issue running: %s' % ' '.join(plot_cmd))
+
+		except Exception as e:
+			if self.logObject:
+				self.logObject.error(traceback.format_exc())
+			raise RuntimeError(traceback.format_exc())
+
+	def generateGenePhylogenies(self, codon_alignments_file, phased_alleles_outdir, comp_hg_phylo_outdir, ambiguity_filter=0.1, sequence_filter=0.25, min_number_of_sites=10):
+		try:
+			codon_alignment_paths = {}
+			with open(codon_alignments_file) as ocaf:
+				for line in ocaf:
+					line = line.strip()
+					ls = line.split('\t')
+					codon_alignment_paths[ls[0]] = ls[1]
+
+			for f in os.listdir(phased_alleles_outdir):
+				if not f.endswith('.fasta'): continue
+				hg = f.split('.fasta')[0]
+
+				seqs = []
+				ids = []
+				types = []
+				with open(codon_alignment_paths[hg]) as of:
+					for rec in SeqIO.parse(of, 'fasta'):
+						ids.append(rec.id)
+						seqs.append(list(str(rec.seq).upper()))
+						types.append('Database')
+				cod_alg_len = len(seqs[0])
+				ambiguous_positions_in_og_alginment = set([])
+				for i, pos_bases in enumerate(zip(*seqs)):
+					pos = i+1
+					if pos <= 50 or pos >= (cod_alg_len-50):
+						ambiguous_positions_in_og_alginment.add(pos)
+						continue
+					pos_bases = list(pos_bases)
+					tot_seq_count = len(pos_bases)
+					gap_seq_count = len([a for a in pos_bases if a == '-'])
+					amb_prop = float(gap_seq_count)/float(tot_seq_count)
+					if amb_prop >= ambiguity_filter:
+						for p in range(pos - 50, pos + 51):
+							ambiguous_positions_in_og_alginment.add(p)
+
+				with open(phased_alleles_outdir + f) as of:
+					for rec in SeqIO.parse(of, 'fasta'):
+						seqlist = list(str(rec.seq).upper())
+						gap_count = 0
+						tot_count = 0
+						for i, bp in enumerate(seqlist):
+							pos = i+1
+							if not pos in ambiguous_positions_in_og_alginment:
+								tot_count += 1
+								if bp == '-':
+									gap_count += 1
+						amb_prop = float(gap_count)/float(tot_count)
+						if amb_prop < sequence_filter:
+							ids.append(rec.id)
+							seqs.append(seqlist)
+							types.append('Query')
+
+				ambiguous_positions_to_filter = set([])
+				for i, pos_bases in enumerate(zip(*seqs)):
+					pos = i+1
+					pos_bases = list(pos_bases)
+					tot_seq_count = len(pos_bases)
+					gap_seq_count = len([a for a in pos_bases if a == '-'])
+					amb_prop = float(gap_seq_count)/float(tot_seq_count)
+					if amb_prop >= ambiguity_filter:
+						ambiguous_positions_to_filter.add(pos)
+
+				gene_alignment_with_refs_filtered_file = comp_hg_phylo_outdir + hg + '.fasta'
+				gene_phylogeny_with_refs_filtered_file = comp_hg_phylo_outdir + hg + '.tre'
+				gene_phylogeny_track_file = comp_hg_phylo_outdir + hg + '.txt'
+				gene_phylogeny_pdf_file = comp_hg_phylo_outdir + hg + '.pdf'
+
+				gene_alignment_with_refs_filtered_handle = open(gene_alignment_with_refs_filtered_file, 'w')
+				gene_phylogeny_track_handle = open(gene_phylogeny_track_file, 'w')
+				gene_phylogeny_track_handle.write('name\ttype\n')
+
+				too_few_sites_flag = False
+				for i, seq in enumerate(seqs):
+					id = ids[i]
+					seq_filt = ''.join([a for j, a in enumerate(seq) if not (j+1) in ambiguous_positions_to_filter])
+					if len(seq_filt) < min_number_of_sites:
+						too_few_sites_flag = True
+						break
+					gene_alignment_with_refs_filtered_handle.write('>' + id + '\n' + str(seq_filt) + '\n')
+					gene_phylogeny_track_handle.write(id + '\t' + types[i] + '\n')
+
+				gene_alignment_with_refs_filtered_handle.close()
+				gene_phylogeny_track_handle.close()
+				if too_few_sites_flag:
+					os.system('rm -f %s %s' % (gene_alignment_with_refs_filtered_file, gene_phylogeny_track_file))
+					continue
+
+				# use FastTree2 to construct gene-specific phylogeny
+				fasttree_cmd = ['fasttree', '-nt', gene_alignment_with_refs_filtered_file, '>',
+								gene_phylogeny_with_refs_filtered_file]
+				if self.logObject:
+					self.logObject.info('Running FastTree2 with the following command: %s' % ' '.join(fasttree_cmd))
+				try:
+					subprocess.call(' '.join(fasttree_cmd), shell=True, stdout=subprocess.DEVNULL,
+									stderr=subprocess.DEVNULL,
+									executable='/bin/bash')
+					if self.logObject:
+						self.logObject.info('Successfully ran: %s' % ' '.join(fasttree_cmd))
+				except Exception as e:
+					if self.logObject:
+						self.logObject.error('Had an issue running: %s' % ' '.join(fasttree_cmd))
+						self.logObject.error(traceback.format_exc())
+					raise RuntimeError('Had an issue running: %s' % ' '.join(fasttree_cmd))
+
+				# use Rscript to plot phylogeny and showcase how new sequences identified ("Query") relate to known ones
+				# ("Database")
+				plot_cmd = ['Rscript', RSCRIPT_FOR_GENERATE, gene_phylogeny_with_refs_filtered_file, gene_phylogeny_track_file, gene_phylogeny_pdf_file]
+				if self.logObject:
+					self.logObject.info('Running Rscript with the following command: %s' % ' '.join(plot_cmd))
+				try:
+					subprocess.call(' '.join(plot_cmd), shell=True, stdout=subprocess.DEVNULL,
+									stderr=subprocess.DEVNULL,
+									executable='/bin/bash')
+					if self.logObject:
+						self.logObject.info('Successfully ran: %s' % ' '.join(plot_cmd))
+				except Exception as e:
+					if self.logObject:
+						self.logObject.error('Had an issue running: %s' % ' '.join(plot_cmd))
+						self.logObject.error(traceback.format_exc())
+					raise RuntimeError('Had an issue running: %s' % ' '.join(plot_cmd))
+
+		except Exception as e:
+			if self.logObject:
+				self.logObject.error(traceback.format_exc())
+			raise RuntimeError(traceback.format_exc())
+
 	def phaseAndSummarize(self, paired_end_sequencing_file, codon_alignment_file, snv_mining_outdir, phased_alleles_outdir, outdir, min_hetero_prop=0.05, min_allele_depth = 5, allow_phasing=True, metagenomic=True):
 		try:
 			novelty_report_file = outdir + 'Novelty_Report.txt'
@@ -1411,6 +1699,8 @@ class GCF(Pan):
 							outlier_homolog_groups.add(hg)
 
 					present_homolog_groups = present_homolog_groups.difference(outlier_homolog_groups)
+
+					if len(present_homolog_groups) < 5: continue
 					if len(present_homolog_groups.intersection(self.core_homologs))/float(len(self.core_homologs)) < 0.7 and len(present_homolog_groups.intersection(specific_homolog_groups)) == 0: continue
 
 					hetero_sites = 0
@@ -1438,7 +1728,7 @@ class GCF(Pan):
 							if pos in hg_hetero_sites[hg]:
 								hetero_sites += 1
 
-					filt_result_file = snv_mining_outdir + pe_sample + '.filt.out'
+					filt_result_file = snv_mining_outdir + pe_sample + '.filt.txt'
 					filt_result_handle = open(filt_result_file, 'w')
 					pos_allele_support = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
 					with open(result_file) as orf:
@@ -2169,7 +2459,9 @@ def popgen_analysis_of_hg(inputs):
 	if len(seqs) == 0: return
 
 	is_core = False
-	if float(core_counts['core']) / sum(core_counts.values()) >= 0.8: is_core = True
+	if (sum(core_counts.values()) > 0.0):
+		if (float(core_counts['core']) / sum(core_counts.values()) >= 0.8):
+			is_core = True
 
 	median_gene_length = statistics.median(gene_lengths)
 
@@ -2178,10 +2470,12 @@ def popgen_analysis_of_hg(inputs):
 	position_plot_handle.write('\t'.join(['pos', 'num_seqs', 'num_alleles', 'num_gaps', 'maj_allele_freq']) + '\n')
 
 	sample_differences_to_consensus = defaultdict(lambda: defaultdict(int))
+	sum_maj_allele_freq = 0.0
 	for i, ls in enumerate(zip(*seqs)):
 		al_counts = defaultdict(int)
 		for al in ls:
-			if al != '-': al_counts[al] += 1
+			#if al != '-': al_counts[al] += 1
+			al_counts[al] += 1
 		if sum(al_counts.values()) == 0: continue
 		maj_allele_count = max(al_counts.values())
 		tot_count = sum(al_counts.values())
@@ -2189,7 +2483,8 @@ def popgen_analysis_of_hg(inputs):
 		num_alleles = len(al_counts.keys())
 		num_gaps = num_seqs - tot_count
 		maj_allele_freq = float(maj_allele_count) / tot_count
-		maj_allele = [a[0] for a in al_counts.items() if a[0] != '-' and maj_allele_count == a[1]][0]
+		maj_alleles = set([a[0] for a in al_counts.items() if maj_allele_count == a[1]])
+		maj_allele = sorted(list(maj_alleles))[0]
 		for j, al in enumerate(ls):
 			sid = samples_ordered[j]
 			gid = genes_ordered[j]
@@ -2198,10 +2493,11 @@ def popgen_analysis_of_hg(inputs):
 			else:
 				sample_differences_to_consensus[sid][gid] += 0
 		position_plot_handle.write('\t'.join([str(x) for x in [i + 1, num_seqs, num_alleles, num_gaps, maj_allele_freq]]) + '\n')
-		if maj_allele_freq <= 0.90:
-			variable_sites.add(i)
-		else:
-			conserved_sites.add(i)
+		if not (maj_allele == '-' and maj_allele_freq >= 0.90):
+			if maj_allele_freq >= 0.90:
+				conserved_sites.add(i)
+			else:
+				variable_sites.add(i)
 	position_plot_handle.close()
 
 	differential_domains = set([])
@@ -2251,13 +2547,18 @@ def popgen_analysis_of_hg(inputs):
 	popgen_plot_handle.write('\t'.join(['pos', 'type']) + '\n')
 	total_core_codons = 0
 	total_variable_codons = 0
+	total_gap_codons = 0
 	nonsynonymous_sites = 0
 	synonymous_sites = 0
+	conserved_aa = set([])
+	variable_aa = set([])
 	for cod_index in range(0, num_codons):
 		first_bp = (cod_index + 1) * 3
 		aa_count = defaultdict(int)
+		aa_count_with_gap = defaultdict(int)
 		aa_codons = defaultdict(set)
 		cod_count = defaultdict(int)
+
 		core = True
 		cods = set([])
 		for bgc in bgc_codons:
@@ -2265,9 +2566,11 @@ def popgen_analysis_of_hg(inputs):
 			cods.add(cod)
 			if '-' in cod or 'N' in cod:
 				core = False
+				aa_count_with_gap['-'] += 1
 			else:
 				cod_obj = Seq(cod)
 				aa_count[str(cod_obj.translate())] += 1
+				aa_count_with_gap[str(cod_obj.translate())] += 1
 				cod_count[cod] += 1
 				aa_codons[str(cod_obj.translate())].add(cod)
 
@@ -2278,6 +2581,18 @@ def popgen_analysis_of_hg(inputs):
 			for cod in aa_codons[r]:
 				if cod_count[cod] >= 2: supported_cods += 1
 			if supported_cods >= 2: residues_with_multicodons += 1
+
+		print(cods)
+		major_residue_count = max(aa_count_with_gap.values())
+		major_residue_freq = float(major_residue_count) / float(sum(aa_count_with_gap.values()))
+		major_residue_alleles = set([a[0] for a in aa_count_with_gap.items() if major_residue_count == a[1]])
+		major_residue_allele = sorted(list(major_residue_alleles))[0]
+
+		if not (major_residue_allele == '-' and major_residue_freq >= 0.90):
+			if major_residue_freq >= 0.90:
+				conserved_aa.add(cod_index)
+			else:
+				variable_aa.add(cod_index)
 
 		if len(cod_count) == 0: continue
 		maj_allele_count = max(cod_count.values())
@@ -2353,8 +2668,8 @@ def popgen_analysis_of_hg(inputs):
 	if population:
 		hg_info = [population]
 	hg_info += [gcf_id, hg, '; '.join(products), hg_order_scores[hg], hg_prop_multi_copy[hg],
-				median_gene_length, is_core, len(seqs), len(samples), prop_samples_with_hg, tajimas_d, total_core_codons,
-				total_variable_codons, nonsynonymous_sites, synonymous_sites, dn_ds, '; '.join(all_domains)]
+				median_gene_length, is_core, len(seqs), len(samples), prop_samples_with_hg, tajimas_d,
+				len(conserved_sites), len(variable_sites), len(conserved_aa), len(variable_aa), '; '.join(all_domains)]
 
 	if sample_population and not population:
 		input_anova_data_seqsim = []

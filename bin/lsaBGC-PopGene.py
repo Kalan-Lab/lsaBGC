@@ -57,6 +57,7 @@ def create_parser():
     parser.add_argument('-m', '--orthofinder_matrix', help="OrthoFinder matrix.", required=True)
     parser.add_argument('-i', '--gcf_id', help="GCF identifier.", required=False, default='GCF_X')
     parser.add_argument('-o', '--output_directory', help="Path to output directory.", required=True)
+    parser.add_argument('-k', '--sample_set', help="Sample set to keep in analysis. Should be file with one sample id per line.", required=False)
     parser.add_argument('-p', '--population_classification', help='Popualation classifications for each sample. Tab delemited: 1st column lists sample name while the 2nd column is an identifier for the population the sample belongs to.', required=False, default=None)
     parser.add_argument('-c', '--cores', type=int, help="The number of cores to use.", required=False, default=1)
     args = parser.parse_args()
@@ -94,6 +95,7 @@ def lsaBGC_PopGene():
     PARSE OPTIONAL INPUTS
     """
 
+    sample_set_file = myargs.sample_set
     gcf_id = myargs.gcf_id
     cores = myargs.cores
     population_classification_file = myargs.population_classification
@@ -105,21 +107,24 @@ def lsaBGC_PopGene():
     log_file = outdir + 'Progress.log'
     logObject = util.createLoggerObject(log_file)
 
-    # Step 0: Log input arguments and update reference and query FASTA files.
+    # Log input arguments and update reference and query FASTA files.
     logObject.info("Saving parameters for future provedance.")
     parameters_file = outdir + 'Parameter_Inputs.txt'
-    parameter_values = [gcf_listing_file, orthofinder_matrix_file, outdir, gcf_id, population_classification_file, cores]
+    parameter_values = [gcf_listing_file, orthofinder_matrix_file, outdir, gcf_id, population_classification_file, sample_set_file, cores]
     parameter_names = ["GCF Listing File", "OrthoFinder Orthogroups.csv File", "Output Directory", "GCF Identifier",
-                       "Populations Specification/Listing File", "Cores"]
+                       "Populations Specification/Listing File", "Sample Retention Set", "Cores"]
     util.logParametersToFile(parameters_file, parameter_names, parameter_values)
     logObject.info("Done saving parameters!")
 
     # Create GCF object
     GCF_Object = GCF(gcf_listing_file, gcf_id=gcf_id, logObject=logObject)
 
+    # Step 0: (Optional) Parse sample set retention specifications file, if provided by the user.
+    sample_retention_set = util.getSampleRetentionSet(sample_set_file)
+
     # Step 1: Process GCF listings file
     logObject.info("Processing BGC Genbanks from GCF listing file.")
-    GCF_Object.readInBGCGenbanks(comprehensive_parsing=True)
+    GCF_Object.readInBGCGenbanks(comprehensive_parsing=True, prune_set=sample_retention_set)
     logObject.info("Successfully parsed BGC Genbanks and associated with unique IDs.")
 
     # Step 2: Parse OrthoFinder Homolog vs Sample Matrix
@@ -132,10 +137,10 @@ def lsaBGC_PopGene():
     # Step 3: Calculate homolog order index (which can be used to roughly predict order of homologs within BGCs)
     GCF_Object.determineHgOrderIndex()
 
-    # Step 4: (Optional) Parse population specifications file, if provided by user
+    # Step 4: (Optional) Parse population and sample inclusion specifications file, if provided by user.
     if population_classification_file:
         logObject.info("User provided information on populations, parsing this information.")
-        GCF_Object.readInPopulationsSpecification(population_classification_file)
+        GCF_Object.readInPopulationsSpecification(population_classification_file, prune_set=sample_retention_set)
 
     # Step 5: Create codon alignments if not provided a directory with them (e.g. one produced by lsaBGC-See.py)
     logObject.info("User requested construction of phylogeny from SCCs in BGC! Beginning phylogeny construction.")
@@ -147,12 +152,14 @@ def lsaBGC_PopGene():
     # Step 6: Analyze codon alignments and parse population genetics and conservation stats
     logObject.info("Beginning population genetics analyses of each codon alignment.")
     populations = [None]
+    population_analysis_on = False
     if population_classification_file:
         populations = populations + list(sorted(set(GCF_Object.sample_population.values())))
+        population_analysis_on = True
     for pop in populations:
         print(pop)
-        GCF_Object.runPopulationGeneticsAnalysis(outdir, cores=cores, population=pop, filter_outliers=False)
-        GCF_Object.runPopulationGeneticsAnalysis(outdir, cores=cores, population=pop, filter_outliers=True)
+        GCF_Object.runPopulationGeneticsAnalysis(outdir, cores=cores, population=pop, filter_outliers=False, population_analysis_on=population_analysis_on)
+        GCF_Object.runPopulationGeneticsAnalysis(outdir, cores=cores, population=pop, filter_outliers=True, population_analysis_on=population_analysis_on)
     logObject.info("Successfully ran population genetics and evolutionary analyses of each codon alignment.")
 
     # Close logging object and exit

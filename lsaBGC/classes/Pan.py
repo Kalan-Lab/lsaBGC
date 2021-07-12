@@ -74,7 +74,7 @@ class Pan:
 		self.pair_relations_txt_file = None
 		self.bgc_to_gcf_map_file = None
 
-	def readInBGCGenbanks(self, comprehensive_parsing=True):
+	def readInBGCGenbanks(self, comprehensive_parsing=True, prune_set=None):
 		"""
 		Function to parse file listing location of BGC Genbanks.
 
@@ -92,8 +92,10 @@ class Pan:
 						self.logObject.error(traceback.format_exc())
 					raise RuntimeError("More than two columns exist at line %d in BGC specification/listing file. Exiting now ..." % (i + 1))
 				sample, gbk = line.split('\t')
+				if prune_set != None and not sample in prune_set: continue
 				sample = util.cleanUpSampleName(sample)
 				try:
+					if prune_set != None and not sample in prune_set: continue
 					assert (util.is_genbank(gbk))
 					bgc_id = sample
 					if sample_index[sample] > 0:
@@ -774,7 +776,7 @@ class Pan:
 				self.logObject.error(traceback.format_exc())
 			raise RuntimeError(traceback.format_exc())
 
-	def readInPopulationsSpecification(self, pop_specs_file):
+	def readInPopulationsSpecification(self, pop_specs_file, prune_set=None):
 		"""
 		Read in population specifications per sample and assign population to each BGC.
 
@@ -786,8 +788,8 @@ class Pan:
 			with open(pop_specs_file) as opsf:
 				for line in opsf:
 					line = line.strip()
-					sample, cluster = line.split('\t')
-					population = cluster
+					sample, population = line.split('\t')
+					if prune_set != None and not sample in prune_set: continue
 					self.sample_population[sample] = population
 					for bgc in self.sample_bgcs[sample]:
 						self.bgc_population[bgc] = population
@@ -836,9 +838,9 @@ class Pan:
 			sample_hg_counts = [len(sample_hgs[x]) for x in sample_hgs]
 			self.lowerbound_hg_count = math.floor(min(sample_hg_counts))
 
-			#p = multiprocessing.Pool(cores)
-			#p.map(create_hmm_profiles, inputs)
-			#p.close()
+			p = multiprocessing.Pool(cores)
+			p.map(create_hmm_profiles, inputs)
+			p.close()
 
 			if self.logObject:
 				self.logObject.info(
@@ -873,9 +875,9 @@ class Pan:
 					self.logObject.error(traceback.format_exc())
 				raise RuntimeError('Had an issue running: %s' % ' '.join(hmmpress_cmd))
 
-			#p = multiprocessing.Pool(cores)
-			#p.map(util.multiProcess, hmmscan_cmds)
-			#p.close()
+			p = multiprocessing.Pool(cores)
+			p.map(util.multiProcess, hmmscan_cmds)
+			p.close()
 
 			best_hits = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
 			for sample in initial_sample_prokka_data:
@@ -963,9 +965,9 @@ class Pan:
 						   sample_proteome, self.logObject]
 			hmmscan_cmds.append(hmmscan_cmd)
 
-		#p = multiprocessing.Pool(cores)
-		#p.map(util.multiProcess, hmmscan_cmds)
-		#p.close()
+		p = multiprocessing.Pool(cores)
+		p.map(util.multiProcess, hmmscan_cmds)
+		p.close()
 
 		hg_valid_length_range = {}
 		for hg in self.hg_genes:
@@ -974,15 +976,34 @@ class Pan:
 				gstart = self.comp_gene_info[g]['start']
 				gend = self.comp_gene_info[g]['end']
 				gene_lengths.append(abs(gstart - gend))
+			min_gene_nucl_seq_len = min(gene_lengths)
+			max_gene_nucl_seq_len = max(gene_lengths)
 			median_gene_nucl_seq_lens = statistics.median(gene_lengths)
 			mad_gene_nucl_seq_lens = max(stats.median_absolute_deviation(gene_lengths), 25)
-			hg_valid_length_range[hg] = {'median_gene_length': median_gene_nucl_seq_lens,
+			hg_valid_length_range[hg] = {'min_gene_length': min_gene_nucl_seq_len,
+										 'max_gene_length': max_gene_nucl_seq_len,
+										 'median_gene_length': median_gene_nucl_seq_lens,
 										 'gene_length_deviation': mad_gene_nucl_seq_lens}
 
 		print(self.hg_max_self_evalue)
 		for sample in expanded_sample_prokka_data:
 			result_file = search_res_dir + sample + '.txt'
 			assert (os.path.isfile(result_file))
+
+			best_hit_per_gene = defaultdict(lambda: [set([]), 100000.0])
+			with open(result_file) as orf:
+				for line in orf:
+					if line.startswith("#"): continue
+					line = line.strip()
+					ls = line.split()
+					hg = ls[0]
+					gene_id = ls[2]
+					eval = float(ls[4])
+					if eval < best_hit_per_gene[gene_id][1]:
+						best_hit_per_gene[gene_id][1] = eval
+						best_hit_per_gene[gene_id][0] = set([hg])
+					elif eval == best_hit_per_gene[gene_id][1]:
+						best_hit_per_gene[gene_id][0].add(hg)
 
 			with open(result_file) as orf:
 				for line in orf:
@@ -991,12 +1012,10 @@ class Pan:
 					ls = line.split()
 					hg = ls[0]
 					gene_id = ls[2]
-
-					# TODO : allow for observed gene length range of hits
-
 					gene_length = abs(self.gene_location[sample][gene_id]['start'] - self.gene_location[sample][gene_id]['end'])
 					is_boundary_gene = gene_id in self.boundary_genes[sample]
-					if (not is_boundary_gene) and (abs(gene_length - hg_valid_length_range[hg]['median_gene_length']) >= (1.5 * hg_valid_length_range[hg]['gene_length_deviation'])): continue
+					if not hg in best_hit_per_gene[gene_id][0]: continue
+					if (not is_boundary_gene) and (not gene_length <= hg_valid_length_range[hg]['max_gene_length'] and gene_length >= hg_valid_length_range[hg]['min_gene_length']) and (abs(gene_length - hg_valid_length_range[hg]['median_gene_length']) >= (1.5 * hg_valid_length_range[hg]['gene_length_deviation'])): continue
 					scaffold = self.gene_location[sample][gene_id]['scaffold']
 					eval = float(ls[4])
 					if eval <= self.hg_max_self_evalue[hg][0]:

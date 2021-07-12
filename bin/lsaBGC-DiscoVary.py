@@ -92,6 +92,7 @@ def lsaBGC_DiscoVary():
         assert (os.path.isfile(gcf_listing_file))
         assert (os.path.isfile(input_listing_file))
         assert (os.path.isfile(paired_end_sequencing_file))
+        assert (os.path.isfile(codon_alignments_file))
     except:
         raise RuntimeError('One or more of the input files provided, does not exist. Exiting now ...')
 
@@ -115,7 +116,7 @@ def lsaBGC_DiscoVary():
     log_file = outdir + 'Progress.log'
     logObject = util.createLoggerObject(log_file)
 
-    # Step 0: Log input arguments and update reference and query FASTA files.
+    # Log input arguments and update reference and query FASTA files.
     logObject.info("Saving parameters for future provedance.")
     parameters_file = outdir + 'Parameter_Inputs.txt'
     parameter_values = [gcf_listing_file, orthofinder_matrix_file, paired_end_sequencing_file, outdir, gcf_id, cores]
@@ -140,7 +141,7 @@ def lsaBGC_DiscoVary():
     logObject.info("Successfully parsed homolog matrix.")
 
     # Step 3: Process annotation files related to input sample sets
-    logObject.info("Parsing annotation file provided in expansion listing file for larger set of samples to incorporate into analysis.")
+    logObject.info("Parsing annotation files provided for set of samples to incorporate into analysis.")
     input_sample_prokka_data = processing.readInAnnotationFilesForExpandedSampleSet(input_listing_file, logObject)
     logObject.info("Successfully parsed new sample annotation files.")
 
@@ -163,14 +164,14 @@ def lsaBGC_DiscoVary():
     bowtie2_outdir = outdir + 'Bowtie2_Alignments/'
     if not os.path.isfile(bowtie2_outdir): os.system('mkdir %s' % bowtie2_outdir)
     logObject.info("Running Bowtie2 alignment of paired-end sequencing reads against database of GCF genes with surrounding flanking sequences.")
-    #util.runBowtie2Alignments(bowtie2_db_prefix, paired_end_sequencing_file, bowtie2_outdir, logObject, cores=cores)
+    util.runBowtie2Alignments(bowtie2_db_prefix, paired_end_sequencing_file, bowtie2_outdir, logObject, cores=cores)
     logObject.info("Bowtie2 alignments completed successfully!")
 
     # Step 7: Parse bowtie2 alignments found per sample and identify support for SNVs
     results_outdir = outdir + 'SNV_Miner_and_Allele_Typing_Results/'
     if not os.path.isdir(results_outdir): os.system('mkdir %s' % results_outdir)
     logObject.info("Beginning typing of homolog group alleles and mining of novel SNVs.")
-    #GCF_Object.runSNVMining(paired_end_sequencing_file, genes_representative_fasta, codon_alignments_file, bowtie2_outdir, results_outdir, cores=cores)
+    GCF_Object.runSNVMining(paired_end_sequencing_file, genes_representative_fasta, codon_alignments_file, bowtie2_outdir, results_outdir, cores=cores)
     logObject.info("Successfully typed alleles and mined for novel SNVs.")
 
     # Step 8: Decide on GCF presence, determine consensus/haplotypes for homolog groups, and generate novelty report
@@ -182,10 +183,16 @@ def lsaBGC_DiscoVary():
     logObject.info("Successfully constructed matrices of allele typings.")
 
     # Step 9: Filter low coverage gene instances and construct gene-phylogenies
-
+    comp_hg_phylo_outdir = outdir + 'Comprehensive_Homolog_Group_Phylogenies/'
+    if not os.path.isdir(comp_hg_phylo_outdir): os.system('mkdir %s' % comp_hg_phylo_outdir)
+    logObject.info("Filtering low coverage gene instances and construct gene-phylogenies.")
+    GCF_Object.generateGenePhylogenies(codon_alignments_file, phased_alleles_outdir, comp_hg_phylo_outdir)
+    logObject.info("Successfully generated gene-specific phylogenies.")
 
     # Step 10: Determine similarity in BGC content between pairs of samples.
-    
+    logObject.info("Determining pairwise differences in BGC content between samples.")
+    GCF_Object.calculatePairwiseDifferences(paired_end_sequencing_file, results_outdir, outdir)
+    logObject.info("Successfully calculated pairwise differences between samples.")
 
     # Close logging object and exit
     util.closeLoggerObject(logObject)

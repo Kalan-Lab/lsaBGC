@@ -18,25 +18,100 @@ from scipy import stats
 from ete3 import Tree
 import itertools
 
-def determineOutliersByGeneLength(gene_sequences):
+def getSampleRetentionSet(sample_retention_file):
+	sample_retention_set = None
+	if sample_retention_file:
+		sample_retention_set = set([])
+		with open(sample_retention_file) as osrf:
+			for line in osrf:
+				line = line.strip()
+				sample_retention_set.add(line)
+
+	return sample_retention_set
+
+def determineOutliersByGeneLength(gene_sequences, logObject):
 	filtered_gene_sequences = {}
-	og_gene_nucl_seq_lens = []
-	for g in gene_sequences:
-		sample, gene = g.split('|')
-		if len(gene.split('_')[0]) == 3:
+	try:
+		og_gene_nucl_seq_lens = []
+		for g in gene_sequences:
+			sample, gene = g.split('|')
+			if len(gene.split('_')[0]) == 3:
+				gene_nucl_seq = gene_sequences[g][0]
+				gene_nucl_seq_len = len(gene_nucl_seq)
+				og_gene_nucl_seq_lens.append(gene_nucl_seq_len)
+
+		median_gene_nucl_seq_lens = statistics.median(og_gene_nucl_seq_lens)
+		mad_gene_nucl_seq_lens = max(stats.median_absolute_deviation(og_gene_nucl_seq_lens), 25)
+
+		for g in gene_sequences:
 			gene_nucl_seq = gene_sequences[g][0]
 			gene_nucl_seq_len = len(gene_nucl_seq)
-			og_gene_nucl_seq_lens.append(gene_nucl_seq_len)
-
-	median_gene_nucl_seq_lens = statistics.median(og_gene_nucl_seq_lens)
-	mad_gene_nucl_seq_lens = max(stats.median_absolute_deviation(og_gene_nucl_seq_lens), 25)
-
-	for g in gene_sequences:
-		gene_nucl_seq = gene_sequences[g][0]
-		gene_nucl_seq_len = len(gene_nucl_seq)
-		if abs(gene_nucl_seq_len-median_gene_nucl_seq_lens) <= mad_gene_nucl_seq_lens:
-			filtered_gene_sequences[g] = gene_sequences[g]
+			if abs(gene_nucl_seq_len-median_gene_nucl_seq_lens) <= mad_gene_nucl_seq_lens:
+				filtered_gene_sequences[g] = gene_sequences[g]
+	except:
+		logObject.warning("Unable to filter gene sequences to remove outliers, possibly because there are too few sequences.")
+		filtered_gene_sequences = gene_sequences
 	return filtered_gene_sequences
+
+
+def determineBGCSequenceSimilarityFromCodonAlignments(codon_alignments_file):
+	valid_alleles = set(['A', 'C', 'G', 'T'])
+	pair_seq_matching = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: 0.0)))
+	sample_hgs = defaultdict(set)
+	with open(codon_alignments_file) as ocaf:
+		for line in ocaf:
+			line = line.strip()
+			hg, codon_alignment = line.split('\t')
+			gene_sequences = {}
+			allele_identifiers = {}
+			with open(codon_alignment) as oca:
+				for i, rec in enumerate(SeqIO.parse(oca, 'fasta')):
+					gene_sequences[rec.id] = str(rec.seq).upper()
+					allele_identifiers[rec.id] = i
+					sample = rec.id.split('|')[0]
+					sample_hgs[sample].add(hg)
+
+			for i, g1 in enumerate(gene_sequences):
+				s1 = g1.split('|')[0]
+				g1s = gene_sequences[g1]
+				for j, g2 in enumerate(gene_sequences):
+					if i >= j: continue
+					s2 = g2.split('|')[0]
+					if s1 == s2: continue
+					g2s = gene_sequences[g2]
+					tot_comp_pos = 0
+					g1_comp_pos = 0
+					g2_comp_pos = 0
+					match_pos = 0
+					for pos, g1a in enumerate(g1s):
+						g2a = g2s[pos]
+						if g1a in valid_alleles or g2a in valid_alleles:
+							tot_comp_pos += 1
+							if g1a == g2a:
+								match_pos += 1
+						if g1a in valid_alleles:
+							g1_comp_pos += 1
+						if g2a in valid_alleles:
+							g2_comp_pos += 1
+					general_matching_percentage = float(match_pos)/float(tot_comp_pos)
+
+					if pair_seq_matching[s1][s2][hg] < general_matching_percentage and pair_seq_matching[s2][s1][hg] < general_matching_percentage:
+						pair_seq_matching[s1][s2][hg] = general_matching_percentage
+						pair_seq_matching[s2][s1][hg] = general_matching_percentage
+
+	bgc_pairwise_similarities = defaultdict(lambda: defaultdict(lambda: ["NA", "NA"]))
+	for i, s1 in enumerate(sorted(sample_hgs)):
+		for j, s2 in enumerate(sorted(sample_hgs)):
+			if i >= j: continue
+			common_hgs =  sample_hgs[s1].intersection(sample_hgs[s2])
+			total_hgs = sample_hgs[s1].union(sample_hgs[s2])
+			sum_pair_seq_matching = 0.0
+			for hg in common_hgs:
+				sum_pair_seq_matching += pair_seq_matching[s1][s2][hg]
+			bgc_pairwise_similarities[s1][s2] = [sum_pair_seq_matching / float(len(common_hgs)), float(len(common_hgs))/float(len(total_hgs))]
+			bgc_pairwise_similarities[s2][s1] = [sum_pair_seq_matching / float(len(common_hgs)), float(len(common_hgs))/float(len(total_hgs))]
+
+	return bgc_pairwise_similarities
 
 def determineAllelesFromCodonAlignment(codon_alignment, matching_percentage_cutoff=0.99):
 	gene_sequences = {}
@@ -52,7 +127,7 @@ def determineAllelesFromCodonAlignment(codon_alignment, matching_percentage_cuto
 	for i, g1 in enumerate(gene_sequences):
 		g1s = gene_sequences[g1]
 		for j, g2 in enumerate(gene_sequences):
-			if i < j: continue
+			if i >= j: continue
 			g2s = gene_sequences[g2]
 			tot_comp_pos = 0
 			g1_comp_pos = 0
@@ -414,7 +489,7 @@ def parseGenbankAndFindBoundaryGenes(sample_genbank, distance_to_scaffold_bounda
 
 	return([gene_location, scaffold_genes, boundary_genes, gene_id_to_order, gene_order_to_id])
 
-def calculateMashPairwiseDifferences(fasta_listing_file, outdir, name, sketch_size, cores, logObject):
+def calculateMashPairwiseDifferences(fasta_listing_file, outdir, name, sketch_size, cores, logObject, prune_set=None):
 	"""
 	Calculate MASH pairwise distances (estimated ANI) between FASTA files.
 
@@ -433,6 +508,7 @@ def calculateMashPairwiseDifferences(fasta_listing_file, outdir, name, sketch_si
 			for line in oflf:
 				line = line.strip()
 				ls = line.split('\t')
+				if prune_set != None and not ls[0] in prune_set: continue
 				fastas.append(ls[1])
 				fasta_to_name[ls[1]] = ls[0]
 	except:
