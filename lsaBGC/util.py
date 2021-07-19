@@ -18,6 +18,21 @@ from scipy import stats
 from ete3 import Tree
 import itertools
 
+def writeRefinedProteomes(s, sample_bgcs, refined_proteomes_outdir, logObject):
+	try:
+		refined_proteome_handle = open(refined_proteomes_outdir + s + '.faa', 'w')
+		for bgc in sample_bgcs:
+			with open(bgc) as obgc:
+				for rec in SeqIO.parse(obgc, 'genbank'):
+					for feature in rec.features:
+						if feature.type == "CDS":
+							lt = feature.qualifiers.get('locus_tag')[0]
+							prot_seq = feature.qualifiers.get('translation')[0]
+							refined_proteome_handle.write('>' + lt + '\n' + str(prot_seq) + '\n')
+		refined_proteome_handle.close()
+	except:
+		logObject.warning("Had issues writing sample %s's BGC-specific proteome file. Will be ignored in OrthoFinder analysis.")
+
 def getSampleRetentionSet(sample_retention_file):
 	sample_retention_set = None
 	if sample_retention_file:
@@ -108,12 +123,16 @@ def determineBGCSequenceSimilarityFromCodonAlignments(codon_alignments_file):
 			sum_pair_seq_matching = 0.0
 			for hg in common_hgs:
 				sum_pair_seq_matching += pair_seq_matching[s1][s2][hg]
-			bgc_pairwise_similarities[s1][s2] = [sum_pair_seq_matching / float(len(common_hgs)), float(len(common_hgs))/float(len(total_hgs))]
-			bgc_pairwise_similarities[s2][s1] = [sum_pair_seq_matching / float(len(common_hgs)), float(len(common_hgs))/float(len(total_hgs))]
+			if len(common_hgs) > 0:
+				bgc_pairwise_similarities[s1][s2] = [sum_pair_seq_matching / float(len(common_hgs)), float(len(common_hgs))/float(len(total_hgs))]
+				bgc_pairwise_similarities[s2][s1] = [sum_pair_seq_matching / float(len(common_hgs)), float(len(common_hgs))/float(len(total_hgs))]
+			else:
+				bgc_pairwise_similarities[s1][s2] = ["NA", 0.0]
+				bgc_pairwise_similarities[s2][s1] = ["NA", 0.0]
 
 	return bgc_pairwise_similarities
 
-def determineAllelesFromCodonAlignment(codon_alignment, matching_percentage_cutoff=0.99):
+def determineAllelesFromCodonAlignment(codon_alignment, max_mismatch=10, matching_percentage_cutoff=0.99):
 	gene_sequences = {}
 	allele_identifiers = {}
 	with open(codon_alignment) as oca:
@@ -133,8 +152,12 @@ def determineAllelesFromCodonAlignment(codon_alignment, matching_percentage_cuto
 			g1_comp_pos = 0
 			g2_comp_pos = 0
 			match_pos = 0
+			mismatch_pos = 0
 			for pos, g1a in enumerate(g1s):
 				g2a = g2s[pos]
+				if g1a in valid_alleles and g2a in valid_alleles:
+					if g1a != g2a:
+						mismatch_pos += 1
 				if g1a in valid_alleles or g2a in valid_alleles:
 					tot_comp_pos += 1
 					if g1a == g2a:
@@ -148,7 +171,8 @@ def determineAllelesFromCodonAlignment(codon_alignment, matching_percentage_cuto
 			g2_matching_percentage = float(match_pos)/float(g2_comp_pos)
 			pair_matching[g1][g2] = general_matching_percentage
 			if general_matching_percentage >= matching_percentage_cutoff or g1_matching_percentage >= matching_percentage_cutoff or g2_matching_percentage >= matching_percentage_cutoff:
-				pairs.append(sorted([g1, g2]))
+				if mismatch_pos <= max_mismatch:
+					pairs.append(sorted([g1, g2]))
 
 	"""	
 	Solution for single-linkage clustering taken from mimomu's repsonse in the stackoverflow page:

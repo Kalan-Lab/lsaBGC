@@ -908,8 +908,12 @@ class Pan:
 				for sample in best_hits[hg]:
 					true_hits += best_hits[hg][sample][True]
 					false_hits += best_hits[hg][sample][False]
-				worst_true_hit = max(true_hits)
-				best_false_hit = min(false_hits)
+				worst_true_hit = 10000.0
+				best_false_hit = 10000.0
+				if len(true_hits) > 0:
+					worst_true_hit = max(true_hits)
+				if len(false_hits) > 0:
+					best_false_hit = min(false_hits)
 				able_to_differentiate = False
 				eval_threshold = 1e-10
 				if best_false_hit > worst_true_hit:
@@ -921,9 +925,6 @@ class Pan:
 					wth_log10 = math.log(worst_true_hit, 10)
 					bfh_log10 = math.log(best_false_hit, 10)
 					eval_threshold = max([math.pow(10.0, ((wth_log10 + bfh_log10)/2.0)), math.pow(10.0, (bfh_log10 + -5))])
-					#eval_threshold = math.pow(10.0, ((wth_log10 + bfh_log10)/2.0))
-
-
 				hg_differentiation_file.write('\t'.join([hg, str(worst_true_hit), str(best_false_hit), str(able_to_differentiate)]) + '\n')
 				self.hg_differentiation_stats[hg] = {'worst_true_hit': worst_true_hit, 'best_false_hit': best_false_hit,
 													 'able_to_differentiate': able_to_differentiate}
@@ -1015,7 +1016,9 @@ class Pan:
 					gene_length = abs(self.gene_location[sample][gene_id]['start'] - self.gene_location[sample][gene_id]['end'])
 					is_boundary_gene = gene_id in self.boundary_genes[sample]
 					if not hg in best_hit_per_gene[gene_id][0]: continue
-					if (not is_boundary_gene) and (not gene_length <= hg_valid_length_range[hg]['max_gene_length'] and gene_length >= hg_valid_length_range[hg]['min_gene_length']) and (abs(gene_length - hg_valid_length_range[hg]['median_gene_length']) >= (1.5 * hg_valid_length_range[hg]['gene_length_deviation'])): continue
+					if (not is_boundary_gene) and \
+							(not (gene_length <= hg_valid_length_range[hg]['max_gene_length'] and gene_length >= hg_valid_length_range[hg]['min_gene_length'])) and \
+							(abs(gene_length - hg_valid_length_range[hg]['median_gene_length']) >= (2 * hg_valid_length_range[hg]['gene_length_deviation'])): continue
 					scaffold = self.gene_location[sample][gene_id]['scaffold']
 					eval = float(ls[4])
 					if eval <= self.hg_max_self_evalue[hg][0]:

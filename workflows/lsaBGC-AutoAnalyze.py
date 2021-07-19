@@ -38,6 +38,7 @@
 import os
 import sys
 from time import sleep
+from operator import itemgetter
 import argparse
 from ete3 import Tree
 from lsaBGC.classes.Pan import Pan
@@ -47,6 +48,8 @@ lsaBGC_main_directory = '/'.join(os.path.realpath(__file__).split('/')[:-2])
 RSCRIPT_FOR_NJTREECONSTRUCTION = lsaBGC_main_directory + '/lsaBGC/Rscripts/createNJTree.R'
 RSCRIPT_FOR_DEFINECLADES_FROM_PHYLO = lsaBGC_main_directory + '/lsaBGC/Rscripts/defineCladesFromPhylo.R'
 RSCRIPT_FOR_DEFINECLADES_FROM_MASH = lsaBGC_main_directory + '/lsaBGC/Rscripts/defineCladesFromMASH.R'
+RSCRIPT_FOR_BIGPICTUREHEATMAP = lsaBGC_main_directory + '/lsaBGC/Rscripts/plotBigPictureHeatmap.R'
+RSCRIPT_FOR_GCFGENEPLOTS = lsaBGC_main_directory + '/lsaBGC/Rscripts/gcfGenePlots.R'
 
 def create_parser():
 	""" Parse arguments """
@@ -247,9 +250,9 @@ def lsaBGC_AutoAnalyze():
 			util.run_cmd(cmd, logObject)
 		except Exception as e:
 			logObject.error(
-				"Had issues with creating neighbor joining tree and defining populations using treestructure.")
+				"Had issues with creating neighbor joining tree and defining populations using cutreeDynamic.")
 			raise RuntimeError(
-				"Had issues with creating neighbor joining tree and defining populations using treestructure.")
+				"Had issues with creating neighbor joining tree and defining populations using cutreeDynamic.")
 
 	see_outdir = outdir + 'See/'
 	pop_outdir = outdir + 'PopGene/'
@@ -283,7 +286,7 @@ def lsaBGC_AutoAnalyze():
 
 		# 2. Run lsaBGC-PopGene.py
 		gcf_pop_outdir = pop_outdir + gcf_id + '/'
-		if True:# not os.path.isdir(gcf_pop_outdir):
+		if not os.path.isdir(gcf_pop_outdir):
 			os.system('mkdir %s' % gcf_pop_outdir)
 			cmd = ['lsaBGC-PopGene.py', '-g', gcf_listing_file, '-m', orthofinder_matrix_file, '-o', gcf_pop_outdir,
 				   '-i', gcf_id, '-c', str(cores)]
@@ -310,7 +313,7 @@ def lsaBGC_AutoAnalyze():
 		# 4. Run lsaBGC-DiscoVary.py
 		if discovary_analysis_id and discovary_input_listing:
 			gcf_dis_outdir = dis_outdir + gcf_id + '/'
-			if not os.path.isdir(gcf_dis_outdir):
+			if True: #not os.path.isdir(gcf_dis_outdir):
 				os.system('mkdir %s' % gcf_dis_outdir)
 				cmd = ['lsaBGC-DiscoVary.py', '-g', gcf_listing_file, '-m', orthofinder_matrix_file, '-o',
 					   gcf_dis_outdir, '-i', gcf_id, '-c', str(cores), '-p', discovary_input_listing, '-a',
@@ -321,17 +324,18 @@ def lsaBGC_AutoAnalyze():
 					logObject.warning("lsaBGC-DiscoVary.py was unsuccessful for GCF %s" % gcf_id)
 					sys.stderr.write("Warning: lsaBGC-DiscoVary.py was unsuccessful for GCF %s\n" % gcf_id)
 
-	combined_orthoresults_unrefined_file = outdir + 'GCF_Ortholog_Group_Information.txt'
+	combined_gene_plotting_input_file = outdir + 'GCF_Gene_Plotting_Input.txt'
 	combined_consensus_similarity_file = outdir + 'GCF_Ortholog_Group_Consensus_Sequence_Similarity.txt'
 
+	combined_gene_plotting_input_handle = open(combined_gene_plotting_input_file, 'w')
 	combined_consensus_similarity_handle = open(combined_consensus_similarity_file, 'w')
 	combined_orthoresults_refined_handle = open(outdir + 'GCF_Ortholog_Group_Information_MAD_Refined.txt', 'w')
 	combined_orthoresults_pop_refined_handle = open(outdir + 'Population_GCF_Ortholog_Group_Information_MAD_Refined.txt', 'w')
-	combined_orthoresults_unrefined_handle = open(combined_orthoresults_unrefined_file, 'w')
+	combined_orthoresults_unrefined_handle = open(outdir + 'GCF_Ortholog_Group_Information.txt', 'w')
 	combined_orthoresults_pop_unrefined_handle = open(outdir + 'Population_GCF_Ortholog_Group_Information.txt', 'w')
 	combined_divergence_results_handle = open(outdir + 'GCF_Divergences.txt', 'w')
 
-	combined_consensus_similarity_handle.write('\t'.join(['GCF', 'Homolog_Group', 'Sample', 'Difference_to_Consensus_Sequence']) + '\n')
+	combined_consensus_similarity_handle.write('\t'.join(['GCF', 'GCF_Order', 'Homolog_Group', 'Homolog_Group_Order', 'label', 'Difference_to_Consensus_Sequence']) + '\n')
 	for i, g in enumerate(os.listdir(gcf_listing_dir)):
 		gcf_id = g.split('.txt')[0]
 		gcf_pop_outdir = pop_outdir + gcf_id + '/'
@@ -357,9 +361,34 @@ def lsaBGC_AutoAnalyze():
 
 		include_header = False
 		if i == 0: include_header = True
-		writeToOpenHandle(gcf_pop_results_refined, combined_orthoresults_refined_handle, include_header)
 		writeToOpenHandle(gcf_pop_results_unrefined, combined_orthoresults_unrefined_handle, include_header)
+		writeToOpenHandle(gcf_pop_results_refined, combined_orthoresults_refined_handle, include_header)
 		writeToOpenHandle(gcf_div_results, combined_divergence_results_handle, include_header)
+
+		data = []
+		with open(gcf_pop_results_unrefined) as ogpru:
+			for j, line in enumerate(ogpru):
+				line = line.strip()
+				ls = line.split('\t')
+				if j == 0 and not include_header: continue
+				elif j == 0 and include_header:
+					combined_gene_plotting_input_handle.write('\t'.join(ls[:2] + ls[3:6] + ['gene_start', 'gene_stop'] + ls[6:-5] + ls[-4:]) + '\n')
+				else:
+					data.append([int(ls[3]), ls])
+
+		previous_end = 1
+		for tupls in sorted(data, key=itemgetter(0)):
+			ls = tupls[1]
+			combined_gene_plotting_input_handle.write('\t'.join(ls[:2] + ls[3:6] + [str(previous_end), str(previous_end + int(float(ls[6])))] + ls[6:-5] + ls[-4:]) + '\n')
+			previous_end = previous_end + int(float(ls[6])) + 1
+
+		hg_ordering = {}
+		with open(gcf_pop_results_unrefined) as ogpru:
+			for i, line in enumerate(ogpru):
+				if i == 0: continue
+				line = line.strip()
+				ls = line.split('\t')
+				hg_ordering[ls[1]] = ls[3]
 
 		gcf_pop_stats_outdir = gcf_pop_outdir + 'Codon_PopGen_Analyses/'
 		for f in os.listdir(gcf_pop_stats_outdir):
@@ -371,17 +400,39 @@ def lsaBGC_AutoAnalyze():
 						line = line.strip()
 						hg, samp, diff = line.split('\t')
 						samps_accounted.add(samp)
-						combined_consensus_similarity_handle.write(gcf + '\t' + hg + '\t' + samp + '\t' + str(diff) + '\n')
+						combined_consensus_similarity_handle.write(gcf_id + '\t' + gcf_id.split('_')[1] + '\t' + hg + '\t' + hg_ordering[hg] + '\t' + samp + '\t' + str(diff) + '\n')
 				for samp in all_samples:
 					if not samp in samps_accounted:
-						combined_consensus_similarity_handle.write(gcf + '\t' + hg + '\t' + samp + '\t' + str(1.0) + '\n')
+						combined_consensus_similarity_handle.write(gcf_id + '\t' + gcf_id.split('_')[1] + '\t' + hg + '\t' + hg_ordering[hg] + '\t' + samp + '\t' + str(1.0) + '\n')
 
+	combined_gene_plotting_input_handle.close()
 	combined_consensus_similarity_handle.close()
 	combined_orthoresults_refined_handle.close()
 	combined_orthoresults_unrefined_handle.close()
 	combined_divergence_results_handle.close()
 	combined_orthoresults_pop_unrefined_handle.close()
 	combined_orthoresults_pop_refined_handle.close()
+	
+	# Create Final R plots:
+
+	# create big-picture heatmap of presence/sequence-similarity to consensus sequence of homolog groups from each gcf
+	big_picture_heatmap_pdf_file = outdir + 'Consensus_Sequence_Similarity_of_Homolog_Groups.pdf'
+	cmd = ['Rscript', RSCRIPT_FOR_BIGPICTUREHEATMAP, lineage_phylogeny_file, combined_consensus_similarity_file,
+		   population_listing_file, big_picture_heatmap_pdf_file]
+	try:
+		util.run_cmd(cmd, logObject)
+	except Exception as e:
+		logObject.error("Had issues with creating big picture heatmap.")
+		raise RuntimeError("Had issues with creating big picture heatmap.")
+
+	# create big-picture heatmap of presence/sequence-similarity to consensus sequence of homolog groups from each gcf
+	gcf_gene_views_pdf_file = outdir + 'GCF_Conservation_and_PopStats_Views.pdf'
+	cmd = ['Rscript', RSCRIPT_FOR_GCFGENEPLOTS, combined_gene_plotting_input_file, gcf_gene_views_pdf_file]
+	try:
+		util.run_cmd(cmd, logObject)
+	except Exception as e:
+		logObject.error("Had issues with creating GCF gene conservation and population stats views.")
+		raise RuntimeError("Had issues with creating GCF gene conservation and population stats views.")
 
 	# Close logging object and exit
 	util.closeLoggerObject(logObject)

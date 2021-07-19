@@ -152,13 +152,19 @@ def lsaBGC_AutoExpansion():
 				original_gcfs.add(line.split('\t')[1])
 
 		# Run lsaBGC-Expansion.py for GCF
+		### TODO add options to auto-expansion
 		gcf_exp_outdir = exp_outdir + gcf_id + '/'
-		cmd = ['lsaBGC-Expansion.py', '-g', gcf_listing_file, '-m', orthofinder_matrix_file, '-l',
-			   initial_listing_file, '-e', expansion_listing_file, '-o', gcf_exp_outdir, '-i', gcf_id,
-			   '-c', str(cores)]
+		if not os.path.isdir(gcf_exp_outdir):
+			cmd = ['lsaBGC-Expansion.py', '-g', gcf_listing_file, '-m', orthofinder_matrix_file, '-l',
+				   initial_listing_file, '-e', expansion_listing_file, '-o', gcf_exp_outdir, '-i', gcf_id,
+			   	   '-c', str(cores)]
+			try:
+				util.run_cmd(cmd, logObject, stderr=sys.stderr, stdout=sys.stdout)
+			except:
+				logObject.warning("lsaBGC-Expansion.py was unsuccessful, skipping over GCF %s" % gcf_id)
+				sys.stderr.write("lsaBGC-Expansion.py was unsuccessful, skipping over GCF %s\n" % gcf_id)
+				continue
 		try:
-			util.run_cmd(cmd, logObject, stderr=sys.stderr, stdout=sys.stdout)
-
 			updated_gcf_listing_file = gcf_exp_outdir + 'GCF_Expanded.txt'
 			gcf_hmm_evalues_file = gcf_exp_outdir + 'GCF_NewInstances_HMMEvalues.txt'
 
@@ -177,8 +183,8 @@ def lsaBGC_AutoExpansion():
 					bgc_lt_to_hg[bgc_gbk_path][lt] = hg
 
 		except Exception as e:
-			logObject.warning("lsaBGC-Expansion.py was unsuccessful, skipping over GCF %s" % gcf_id)
-			sys.stderr.write("lsaBGC-Expansion.py was unsuccessful, skipping over GCF %s\n" % gcf_id)
+			logObject.warning("Key output files from lsaBGC-Expansion.py appear to be missing, skipping over GCF %s" % gcf_id)
+			sys.stderr.write("Key output files lsaBGC-Expansion.py appear to be missing, skipping over GCF %s\n" % gcf_id)
 			continue
 
 	updated_gcf_listing_dir = outdir + 'Updated_GCF_Listings/'

@@ -71,6 +71,7 @@ def create_parser():
 						required=False, default=False)
 	parser.add_argument('-q', '--fast_annotation', action='store_true', help="Skip basic/standard annotation in Prokka.", required=False, default=False)
 	parser.add_argument('-p', '--only_run_prokka', action='store_true', help="Only run Prokka for gene annotation and Genbank creation. Skip the rest.", required=False, default=False)
+	parser.add_argument('-f', '--refined_orthofinder', action='store_true', help="Only run OrthoFinder on proteins from antiSMASH proteomes only. This has implications downstream on being able to identify multi-copy genes across the genome.", required=False, default=False)
 	args = parser.parse_args()
 	return args
 
@@ -112,6 +113,7 @@ def lsaBGC_Process():
 	dry_run_flag = myargs.dry_run
 	fast_annotation_flag = myargs.fast_annotation
 	only_run_prokka = myargs.only_run_prokka
+	refined_orthofinder = myargs.refined_orthofinder
 
 	orthofinder_env_path = None
 	orthofinder_load_code = None
@@ -141,9 +143,9 @@ def lsaBGC_Process():
 	logObject.info("Saving parameters for future provenance.")
 	parameters_file = outdir + 'Parameter_Inputs.txt'
 	parameter_values = [assembly_listing_file, outdir, cores, dry_run_flag, fast_annotation_flag, prokka_env_path,
-						antiSMASH_env_path, orthofinder_env_path, only_run_prokka]
+						antiSMASH_env_path, orthofinder_env_path, only_run_prokka, refined_orthofinder]
 	parameter_names = ["Assembly Listing File", "Output Directory", "Cores", "Dry Run Flagged", "Fast Prokka Annotation Requested?",
-					    "Prokka Env Path", "AntiSMASH Env Path", "OrthoFinder Env Path", "Only Prokka Annotations to be Run?"]
+					    "Prokka Env Path", "AntiSMASH Env Path", "OrthoFinder Env Path", "Only Prokka Annotations to be Run?", "Run OrthoFinder with Only BGC Proteins?"]
 	util.logParametersToFile(parameters_file, parameter_names, parameter_values)
 	logObject.info("Done saving parameters!")
 
@@ -195,11 +197,9 @@ def lsaBGC_Process():
 								dry_run_flag=dry_run_flag)
 		logObject.info("Successfully ran/set-up AntiSMASH.")
 
-		# Step 4: Run OrthoFinder for de novo ortholog construction
-		orthofinder_outdir = outdir + 'OrthoFinder_Results/'
-		logObject.info("Running/setting-up OrthoFinder!")
-		processing.runOrthoFinder(prokka_proteomes_dir, orthofinder_outdir, orthofinder_load_code, cores, logObject, dry_run_flag=dry_run_flag)
-		logObject.info("Successfully ran/set-up OrthoFinder.")
+		refined_proteomes_outdir = outdir + 'AntiSMASH_Sample_Proteomes/'
+		if refined_orthofinder:
+			os.system('mkdir %s' % refined_proteomes_outdir)
 
 		# Write resulting list of BGC Genbanks (to be used as input for lsaBGC-Cluster)
 		antismash_bgc_listing_file = outdir + 'All_AntiSMASH_BGCs.txt'
@@ -207,13 +207,27 @@ def lsaBGC_Process():
 		for s in os.listdir(antismash_outdir):
 			sample_antismash_outdir = antismash_outdir + s + '/'
 			if not os.path.isdir(sample_antismash_outdir): continue
+			sample_bgcs = set([])
 			for f in os.listdir(sample_antismash_outdir):
 				if '.region' in f and f.endswith('.gbk'):
 					bgc_genbank = sample_antismash_outdir + f
+					sample_bgcs.add(bgc_genbank)
 					antismash_bgc_listing_handle.write(s + '\t' + bgc_genbank + '\n')
 				else:
 					os.system('rm -f %s' % sample_antismash_outdir + f)
+			if refined_orthofinder:
+				util.writeRefinedProteomes(s, sample_bgcs, refined_proteomes_outdir, logObject)
 		antismash_bgc_listing_handle.close()
+
+
+		# Step 4: Run OrthoFinder for de novo ortholog construction
+		orthofinder_outdir = outdir + 'OrthoFinder_Results/'
+		logObject.info("Running/setting-up OrthoFinder!")
+		if not refined_orthofinder:
+			processing.runOrthoFinder(prokka_proteomes_dir, orthofinder_outdir, orthofinder_load_code, cores, logObject, dry_run_flag=dry_run_flag)
+		else:
+			processing.runOrthoFinder(refined_proteomes_outdir, orthofinder_outdir, orthofinder_load_code, cores, logObject, dry_run_flag=dry_run_flag)
+		logObject.info("Successfully ran/set-up OrthoFinder.")
 
 		# Move select result files from OrthoFinder to main directory to make more easy to access/find
 		orthofinder_homolog_matrix = orthofinder_outdir + 'Orthogroups.csv'

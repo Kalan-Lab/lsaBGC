@@ -157,7 +157,6 @@ def lsaBGC_PopGene():
         populations = populations + list(sorted(set(GCF_Object.sample_population.values())))
         population_analysis_on = True
     for pop in populations:
-        print(pop)
         GCF_Object.runPopulationGeneticsAnalysis(outdir, cores=cores, population=pop, filter_outliers=False, population_analysis_on=population_analysis_on)
         GCF_Object.runPopulationGeneticsAnalysis(outdir, cores=cores, population=pop, filter_outliers=True, population_analysis_on=population_analysis_on)
     logObject.info("Successfully ran population genetics and evolutionary analyses of each codon alignment.")

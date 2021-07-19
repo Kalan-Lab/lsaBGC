@@ -470,8 +470,8 @@ class GCF(Pan):
 					gene_sequences = util.determineOutliersByGeneLength(gene_sequences, self.logObject)
 				inputs.append([hg, gene_sequences, nucl_seq_dir, prot_seq_dir, prot_alg_dir, codo_alg_dir, self.logObject])
 
-			#p = multiprocessing.Pool(cores)
-			#p.map(create_codon_msas, inputs)
+			p = multiprocessing.Pool(cores)
+			p.map(create_codon_msas, inputs)
 
 			if not filter_outliers:
 				self.nucl_seq_dir = nucl_seq_dir
@@ -658,6 +658,8 @@ class GCF(Pan):
 
 			following_hgs = defaultdict(lambda: defaultdict(int))
 			all_hgs = set(['start', 'end'])
+			direction_forward_support = defaultdict(int)
+			direction_reverse_support = defaultdict(int)
 			for i, item in enumerate(sorted(bgc_gene_counts.items(), key=itemgetter(1), reverse=True)):
 				bgc = item[0]
 				curr_bgc_genes = self.bgc_genes[bgc]
@@ -673,6 +675,8 @@ class GCF(Pan):
 						hg_directions[hg] = ginfo['direction']
 						hg_lengths[hg].append(gend - gstart)
 						hg_starts[hg] = ginfo['start']
+						if ginfo['direction'] == '+': direction_forward_support[hg] += 1
+						elif ginfo['direction'] == '-': direction_reverse_support[hg] += 1
 
 				reverse_flag = False
 				if i == 0:
@@ -754,7 +758,9 @@ class GCF(Pan):
 			i = 1
 			for hg in ordered_hgs_list:
 				if not hg in set(['start', 'end']):
-					self.hg_order_scores[hg] = i
+					consensus_direction = '0'
+					if direction_forward_support[hg] >= direction_reverse_support[hg]: consensus_direction = '1'
+					self.hg_order_scores[hg] = [i, consensus_direction]
 					i+=1
 
 			print(self.hg_order_scores)
@@ -794,13 +800,17 @@ class GCF(Pan):
 		if not os.path.isdir(plots_dir): os.system('mkdir %s' % plots_dir)
 
 		final_output_handle = open(final_output_file, 'w')
-		header = ['gcf_id', 'homolog_group', 'annotation', 'hg_order_index', 'hg_median_copy_count', 'median_gene_length',
-					'is_core_to_bgc', 'num_of_hg_instances', 'samples_with_hg', 'proportion_of_samples_with_hg', 'Tajimas_D', 'core_sites',
-					'variable_sites', 'core_aa', 'variable_aa', 'nR/nS' 'all_domains']
+		header = ['gcf_id', 'homolog_group', 'annotation', 'hg_order_index', 'hg_consensus_direction',
+				  'hg_median_copy_count', 'median_gene_length', 'is_core_to_bgc', 'num_of_hg_instances',
+				  'samples_with_hg', 'proportion_of_samples_with_hg', 'Tajimas_D', 'proportion_variable_sites',
+				  'dn_ds', 'all_domains']
 		if population:
 			header = ['population'] + header
 		elif population_analysis_on:
-			header += ['populations_with_hg', 'population_proportion_of_members_with_hg', 'one_way_ANOVA_pvalues_presence_absence', 'one_way_ANOVA_pvalues_sequence_similarity']
+			header[:-1] += ['populations_with_hg', 'most_significant_Fisher_exact_pvalues_presence_absence',
+							'one_way_ANOVA_pvalues_sequence_similarity', 'most_significant_MK_ratio_log10',
+							'all_fixation_indices_between_populations', 'population_pn_ps_ratios',
+							'population_proportion_of_members_with_hg'] + [header[-1]]
 		final_output_handle.write('\t'.join(header) + '\n')
 
 		inputs = []
@@ -1606,7 +1616,7 @@ class GCF(Pan):
 							seq_count += 1
 
 					for pos, seqs_with_al in msa_pos_non_ambiguous_counts.items():
-						if seqs_with_al/float(seq_count) >= 0.8:
+						if seqs_with_al/float(seq_count) >= 0.8: # TODO consdier changing to > 0.9
 							gene_core_positions[hg].add(pos)
 
 					cod_algn_len = max(msa_positions)
@@ -1630,6 +1640,7 @@ class GCF(Pan):
 					hg_median_depths = {}
 					hg_first_position_of_stop_codon = defaultdict(lambda: None)
 
+					if not os.path.isfile(result_file): continue
 					hg_hetero_sites = defaultdict(set)
 					with open(result_file) as orf:
 						for i, line in enumerate(orf):
@@ -1932,11 +1943,10 @@ class GCF(Pan):
 									first_stop_codon = 3*(cod_i+1)
 									break
 							if first_stop_codon is not None:
-								seq = seq[:first_stop_codon] + ['-']*len(seq[first_stop_codon:])
+								seq = seq[:first_stop_codon] + ''.join(['-']*len(seq[first_stop_codon:]))
 								print(hg + '\t' + pe_sample)
 							bgc_fasta_handle.write('>' + pe_sample + '_|_' + str(hi+1) + '\n' + seq + '\n')
 						bgc_fasta_handle.close()
-
 
 					with open(snv_file) as of:
 						for i, line in enumerate(of):
@@ -2095,10 +2105,10 @@ def snv_miner_single(input_args):
 								indel_positions.add(b[1])
 
 						main_alignment_positions = set(range(first_real_alignment_pos, last_real_alignment_pos + 1))
-						read_has_indel = len(main_alignment_positions.intersection(indel_positions)) > 0
+						sum_indel_len = len(main_alignment_positions.intersection(indel_positions))
 						matching_percentage = float(len(matches))/float(len(main_alignment_positions))
 
-						read_ascores_per_allele[read_name].append([g, read_ascore, matching_percentage, len(main_alignment_positions), read_has_indel, read_alignment])
+						read_ascores_per_allele[read_name].append([g, read_ascore, matching_percentage, len(main_alignment_positions), sum_indel_len, read_alignment])
 
 			accounted_reads = set([])
 			hg_align_pos_alleles = defaultdict(lambda: defaultdict(set))
@@ -2108,7 +2118,7 @@ def snv_miner_single(input_args):
 				score_sorted_alignments = sorted(read_ascores_per_allele[read], key=itemgetter(1), reverse=True)
 				for i, align in enumerate(score_sorted_alignments):
 					if i == 0: top_score = align[1]
-					if align[1] == top_score and ((align[2] >= 0.99 and align[3] >= 60) or (align[2] >= 0.9 and align[3] >= 100)):# and align[4] == False:
+					if align[1] == top_score and ((align[2] >= 0.99 and align[3] >= 60) or (align[2] >= 0.9 and align[3] >= 100)) and align[4] <= 5:
 						read_alignment = align[-1]
 						topaligns_handle.write(read_alignment)
 
@@ -2132,8 +2142,11 @@ def snv_miner_single(input_args):
 								det_outf.write('\t'.join([str(x) for x in [sample, hg, align[0], ref_pos, cod_pos, ref_al, alt_al, read, align[1], align[2], align[3], align[4]]]) + '\n')
 								if b[2].islower():
 									assert (alt_al != ref_al)
-									snv_id = str(read_alignment.reference_name) + '_|_' + str(ref_pos) + '_|_' + ref_al + '_|_' + alt_al
-									supported_snvs[snv_id][read].add(align[1])
+									# because reads with at most 5 indel positions allowed above, a base might appear in the consensus/phased haplotypes
+									# that differs from known reference alleles, but not be called as an SNV
+									if align[4] == 0:
+										snv_id = str(read_alignment.reference_name) + '_|_' + str(ref_pos) + '_|_' + ref_al + '_|_' + alt_al
+										supported_snvs[snv_id][read].add(align[1])
 
 			for pos in range(1, codon_alignment_lengths[hg]+1):
 				printlist = [hg, str(pos)]
@@ -2408,12 +2421,10 @@ def popgen_analysis_of_hg(inputs):
 	gcf_id, hg, codon_alignment_fasta, popgen_dir, plots_dir, comp_gene_info, hg_genes, bgc_sample, hg_prop_multi_copy, hg_order_scores, sample_population, population, logObject = inputs
 	domain_plot_file = plots_dir + hg + '_domain.txt'
 	position_plot_file = plots_dir + hg + '_position.txt'
-	popgen_plot_file = plots_dir + hg + '_popgen.txt'
 	plot_pdf_file = plots_dir + hg + '.pdf'
 
 	domain_plot_handle = open(domain_plot_file, 'w')
 	position_plot_handle = open(position_plot_file, 'w')
-	popgen_plot_handle = open(popgen_plot_file, 'w')
 
 	seqs = []
 	samples_ordered = []
@@ -2441,7 +2452,7 @@ def popgen_analysis_of_hg(inputs):
 			updated_codon_alignment_handle.write('>' + rec.description + '\n' + str(rec.seq) + '\n')
 			products.add(comp_gene_info[gene_id]['product'])
 			real_pos = 1
-			seqs.append(list(str(rec.seq)))
+			seqs.append(list(str(rec.seq).upper().replace('N', '-')))
 			codons = [str(rec.seq)[i:i + 3] for i in range(0, len(str(rec.seq)), 3)]
 			num_codons = len(codons)
 			bgc_codons[rec.id] = codons
@@ -2470,19 +2481,29 @@ def popgen_analysis_of_hg(inputs):
 	position_plot_handle.write('\t'.join(['pos', 'num_seqs', 'num_alleles', 'num_gaps', 'maj_allele_freq']) + '\n')
 
 	sample_differences_to_consensus = defaultdict(lambda: defaultdict(int))
-	sum_maj_allele_freq = 0.0
 	for i, ls in enumerate(zip(*seqs)):
 		al_counts = defaultdict(int)
 		for al in ls:
-			#if al != '-': al_counts[al] += 1
 			al_counts[al] += 1
-		if sum(al_counts.values()) == 0: continue
-		maj_allele_count = max(al_counts.values())
+		maj_allele_count = 0
+		if not (len(al_counts) == 1 and '-' in al_counts):
+			maj_allele_count = max([al_counts[al] for al in al_counts if al != '-'])
 		tot_count = sum(al_counts.values())
-		num_seqs = len(ls)
 		num_alleles = len(al_counts.keys())
-		num_gaps = num_seqs - tot_count
-		maj_allele_freq = float(maj_allele_count) / tot_count
+		num_gaps = al_counts['-']
+		if num_gaps > 0:
+			num_alleles -= 1
+		gap_allele_freq = float(num_gaps) / tot_count
+		maj_allele_freq = 0.0
+		if float(tot_count-num_gaps) > 0.0:
+			maj_allele_freq = float(maj_allele_count) / float(tot_count-num_gaps)
+		position_plot_handle.write('\t'.join([str(x) for x in [i + 1, tot_count, num_alleles, num_gaps, maj_allele_freq]]) + '\n')
+		if gap_allele_freq < 0.10:
+			if maj_allele_freq >= 0.98:
+				conserved_sites.add(i)
+			else:
+				variable_sites.add(i)
+		maj_allele_count = max(al_counts.values())
 		maj_alleles = set([a[0] for a in al_counts.items() if maj_allele_count == a[1]])
 		maj_allele = sorted(list(maj_alleles))[0]
 		for j, al in enumerate(ls):
@@ -2492,15 +2513,8 @@ def popgen_analysis_of_hg(inputs):
 				sample_differences_to_consensus[sid][gid] += 1
 			else:
 				sample_differences_to_consensus[sid][gid] += 0
-		position_plot_handle.write('\t'.join([str(x) for x in [i + 1, num_seqs, num_alleles, num_gaps, maj_allele_freq]]) + '\n')
-		if not (maj_allele == '-' and maj_allele_freq >= 0.90):
-			if maj_allele_freq >= 0.90:
-				conserved_sites.add(i)
-			else:
-				variable_sites.add(i)
 	position_plot_handle.close()
 
-	differential_domains = set([])
 	domain_positions_msa = defaultdict(set)
 	domain_min_position_msa = defaultdict(lambda: 1e8)
 	all_domains = set([])
@@ -2544,81 +2558,54 @@ def popgen_analysis_of_hg(inputs):
 			domain_plot_handle.write('\t'.join([str(x) for x in [dom[0], i, min_pos, max_pos]]) + '\n')
 	domain_plot_handle.close()
 
-	popgen_plot_handle.write('\t'.join(['pos', 'type']) + '\n')
-	total_core_codons = 0
-	total_variable_codons = 0
-	total_gap_codons = 0
-	nonsynonymous_sites = 0
-	synonymous_sites = 0
-	conserved_aa = set([])
-	variable_aa = set([])
+	nonsynonymous_sites = 0.0
+	synonymous_sites = 0.0
 	for cod_index in range(0, num_codons):
 		first_bp = (cod_index + 1) * 3
 		aa_count = defaultdict(int)
-		aa_count_with_gap = defaultdict(int)
 		aa_codons = defaultdict(set)
 		cod_count = defaultdict(int)
-
-		core = True
+		cod_to_aa = {}
 		cods = set([])
 		for bgc in bgc_codons:
-			cod = bgc_codons[bgc][cod_index]
-			cods.add(cod)
+			cod = bgc_codons[bgc][cod_index].replace('N', '-')
+			aa = None
 			if '-' in cod or 'N' in cod:
-				core = False
-				aa_count_with_gap['-'] += 1
+				aa = '-'
 			else:
 				cod_obj = Seq(cod)
-				aa_count[str(cod_obj.translate())] += 1
-				aa_count_with_gap[str(cod_obj.translate())] += 1
-				cod_count[cod] += 1
-				aa_codons[str(cod_obj.translate())].add(cod)
+				aa = str(cod_obj.translate())
+			cods.add(cod)
+			cod_count[cod] += 1
+			aa_count[aa] += 1
+			cod_to_aa[cod] = aa
+			aa_codons[aa].add(cod)
 
-		residues = len([r for r in aa_count if aa_count[r] >= 2])
-		residues_with_multicodons = 0
-		for r in aa_codons:
-			supported_cods = 0
-			for cod in aa_codons[r]:
-				if cod_count[cod] >= 2: supported_cods += 1
-			if supported_cods >= 2: residues_with_multicodons += 1
-
-		print(cods)
-		major_residue_count = max(aa_count_with_gap.values())
-		major_residue_freq = float(major_residue_count) / float(sum(aa_count_with_gap.values()))
-		major_residue_alleles = set([a[0] for a in aa_count_with_gap.items() if major_residue_count == a[1]])
-		major_residue_allele = sorted(list(major_residue_alleles))[0]
-
-		if not (major_residue_allele == '-' and major_residue_freq >= 0.90):
-			if major_residue_freq >= 0.90:
-				conserved_aa.add(cod_index)
-			else:
-				variable_aa.add(cod_index)
-
-		if len(cod_count) == 0: continue
-		maj_allele_count = max(cod_count.values())
-		tot_valid_codons = sum(cod_count.values())
-
-		maj_allele_freq = float(maj_allele_count) / tot_valid_codons
-
-		nonsyn_flag = False;
-		syn_flag = False
-		if maj_allele_freq <= 0.9:
-			total_variable_codons += 1
-			if len(cod_count.keys()) > 1:
-				if residues >= 2: nonsynonymous_sites += 1; nonsyn_flag = True
-				if residues_with_multicodons >= 1: synonymous_sites += 1; syn_flag = True
-
-		if core and not nonsyn_flag and not syn_flag: total_core_codons += 1
-		if (nonsyn_flag and not syn_flag) or (not nonsyn_flag and syn_flag):
-			type = 'S'
-			if nonsyn_flag: type = 'NS'
-			popgen_plot_handle.write('\t'.join([str(x) for x in [first_bp, type]]) + '\n')
-	popgen_plot_handle.close()
-	dn_ds = "NA"
-	if synonymous_sites > 0: dn_ds = float(nonsynonymous_sites) / synonymous_sites
+		major_codon_count = max(cod_count.values())
+		major_codon_freq = float(major_codon_count) / float(sum(cod_count.values()))
+		gap_residue_freq = float(aa_count['-'])/float(sum(aa_count.values()))
+		if major_codon_freq < 0.9 and gap_residue_freq < 0.1:
+			cod_n = 0
+			cod_s = 0
+			for c1i, cod1 in enumerate(cod_count.items()):
+				for c2i, cod2 in enumerate(cod_count.items()):
+					if c1i >= c2i: continue
+					# singleton codons ignored in case of assembly error
+					if cod1[0] == cod2[0]: continue
+					if cod1[1]/float(sum(cod_count.values())  - aa_count['-']) < 0.1 or cod2[1]/float(sum(cod_count.values()) - aa_count['-']) < 0.1:
+						continue
+					aa1 = cod_to_aa[cod1[0]]
+					aa2 = cod_to_aa[cod2[0]]
+					if aa1 == '-' or aa2 == '-': continue
+					if aa1 == aa2:
+						cod_s += 1
+					else:
+						cod_n += 1
+			if (cod_n + cod_s) > 0:
+				nonsynonymous_sites += float(cod_n)/float(cod_n+cod_s)
+				synonymous_sites += float(cod_s)/float(cod_n+cod_s)
 
 	rscript_plot_cmd = ["Rscript", RSCRIPT_FOR_CLUSTER_ASSESSMENT_PLOTTING, domain_plot_file, position_plot_file,
-						popgen_plot_file,
 						plot_pdf_file]
 	if logObject:
 		logObject.info('Running R-based plotting with the following command: %s' % ' '.join(rscript_plot_cmd))
@@ -2658,7 +2645,7 @@ def popgen_analysis_of_hg(inputs):
 			for i, line in enumerate(otrf):
 				if i == 4:
 					try:
-						tajimas_d = float(line.strip())
+						tajimas_d = round(float(line.strip()), 2)
 					except:
 						pass
 
@@ -2667,10 +2654,32 @@ def popgen_analysis_of_hg(inputs):
 	hg_info = []
 	if population:
 		hg_info = [population]
-	hg_info += [gcf_id, hg, '; '.join(products), hg_order_scores[hg], hg_prop_multi_copy[hg],
-				median_gene_length, is_core, len(seqs), len(samples), prop_samples_with_hg, tajimas_d,
-				len(conserved_sites), len(variable_sites), len(conserved_aa), len(variable_aa),
-				float(len(variable_aa)+1)/float(len(variable_sites)+1), '; '.join(all_domains)]
+
+	dnds = "NA"
+	if synonymous_sites > 0.0:
+		dnds = str(round(nonsynonymous_sites / synonymous_sites, 2)) + ' [' + str(nonsynonymous_sites) + '/' + str(synonymous_sites) + ']'
+	elif nonsynonymous_sites > 0.0:
+		dnds = "Infinite [%d NS codons]" % nonsynonymous_sites
+	else:
+		dnds = 'Conserved'
+	prop_conserved = "NA"
+	if len(conserved_sites) > 0:
+		prop_conserved = round(float(len(variable_sites))/float(len(conserved_sites) + len(variable_sites)), 2)
+	else:
+		prop_conserved = "No conserved or variable sites!"
+	hg_info += [gcf_id, hg, '; '.join(products), hg_order_scores[hg][0], hg_order_scores[hg][1], hg_prop_multi_copy[hg],
+				median_gene_length, is_core, len(seqs), len(samples), round(prop_samples_with_hg,2), tajimas_d,
+				prop_conserved, dnds]
+
+	hg_consim_handle = open(popgen_dir + hg + '_sim_to_consensus.txt', 'w')
+	for s in sample_differences_to_consensus:
+		min_diff_to_consensus = 1e100
+		for g in sample_differences_to_consensus[s]:
+			if min_diff_to_consensus > sample_differences_to_consensus[s][g]:
+				min_diff_to_consensus = sample_differences_to_consensus[s][g]
+		if min_diff_to_consensus < 1e100:
+			hg_consim_handle.write(hg + '\t' + s + '\t' + str(min_diff_to_consensus / float(len(seqs[0]))) + '\n')
+	hg_consim_handle.close()
 
 	if sample_population and not population:
 		input_anova_data_seqsim = []
@@ -2683,19 +2692,16 @@ def popgen_analysis_of_hg(inputs):
 		pops_with_hg = set([])
 		pop_count_with_hg = defaultdict(int)
 
-		hg_consim_handle = open(popgen_dir + hg + '_sim_to_consensus.txt', 'w')
 		for s in sample_differences_to_consensus:
 			min_diff_to_consensus = 1e100
 			for g in sample_differences_to_consensus[s]:
 				if min_diff_to_consensus > sample_differences_to_consensus[s][g]:
 					min_diff_to_consensus = sample_differences_to_consensus[s][g]
-			hg_consim_handle.write(hg + '\t' + s + '\t' + str(min_diff_to_consensus/float(len(seqs[0]))) + '\n')
 			if min_diff_to_consensus < 1e100:
 				pop_count_with_hg[sample_population[s]] += 1
 				data_row = [s, sample_population[s], float(min_diff_to_consensus)]
 				input_anova_data_seqsim.append(data_row)
 				pops_with_hg.add(sample_population[s])
-		hg_consim_handle.close()
 
 		anova_pval_seqsim = "NA"
 		if len(pops_with_hg) >= 2:
@@ -2714,10 +2720,108 @@ def popgen_analysis_of_hg(inputs):
 		fisher_pval = "NA"
 		if len(fishers_pvals) > 0: fisher_pval = min(fishers_pvals)
 
-		hg_population_info = [len(pops_with_hg), '|'.join([str(x[0]) + '=' + str(float(x[1])/population_counts[x[0]]) for x in pop_count_with_hg.items()]),
-								 fisher_pval, str(anova_pval_seqsim).replace('nan', 'NA')]
+		cod_to_aa = {}
+		population_site_info = defaultdict(lambda: defaultdict(list))
+		for pop in pop_count_with_hg:
+			if pop_count_with_hg[pop] < 10: continue
+			for cod_index in range(0, num_codons):
+				first_bp = (cod_index + 1) * 3
+				aa_count = defaultdict(int)
+				aa_codons = defaultdict(set)
+				cod_count = defaultdict(int)
+				cods = set([])
+				for bgc in bgc_codons:
+					if sample_population[bgc.split('|')[0]] != pop: continue
+					cod = bgc_codons[bgc][cod_index].replace('N', '-')
+					aa = None
+					if '-' in cod or 'N' in cod:
+						aa = '-'
+					else:
+						cod_obj = Seq(cod)
+						aa = str(cod_obj.translate())
+					cods.add(cod)
+					cod_count[cod] += 1
+					aa_count[aa] += 1
+					cod_to_aa[cod] = aa
+					aa_codons[aa].add(cod)
+
+				major_codon_count = max(cod_count.values())
+				major_codons = [c for c in cod_count if cod_count[c] == major_codon_count]
+				major_codon = 'NA'
+				if len(major_codons) == 1:
+					major_codon = major_codons[0]
+				major_codon_count = max(cod_count.values())
+				major_codon_freq = float(major_codon_count) / float(sum(cod_count.values()))
+				gap_residue_freq = float(aa_count['-']) / float(sum(aa_count.values()))
+				if major_codon_freq < 0.9 and gap_residue_freq < 0.1:
+					cod_n = 0
+					cod_s = 0
+					for c1i, cod1 in enumerate(cod_count.items()):
+						for c2i, cod2 in enumerate(cod_count.items()):
+							if c1i >= c2i: continue
+							# singleton codons ignored in case of assembly error
+							if cod1[0] == cod2[0]: continue
+							if cod1[1] / float(sum(cod_count.values()) - aa_count['-']) < 0.1 or cod2[1] / float(
+									sum(cod_count.values()) - aa_count['-']) < 0.1:
+								continue
+							aa1 = cod_to_aa[cod1[0]]
+							aa2 = cod_to_aa[cod2[0]]
+							if aa1 == '-' or aa2 == '-': continue
+							if aa1 == aa2:
+								cod_s += 1
+							else:
+								cod_n += 1
+					if (cod_n + cod_s) > 0:
+						population_site_info[pop][cod_index] = ['variable', cod_n, cod_s, major_codon]
+					else:
+						population_site_info[pop][cod_index] = ['amb', None, None, major_codon]
+				elif (major_codon_freq + gap_residue_freq) == 1.0 and gap_residue_freq < 0.1:
+					population_site_info[pop][cod_index] = ['fixed', None, None, major_codon]
+				else:
+					population_site_info[pop][cod_index] = ['amb', None, None, major_codon]
+
+		all_pn_ps = []
+		all_fixation_indices = []
+		most_significant_fi_log10 = 0.0
+		if len(population_site_info) >= 2:
+			for pop1 in population_site_info:
+				p1n = 0.0
+				p1s = 0.0
+				for pop2 in population_site_info:
+					dn = 0
+					ds = 0
+					pn = 0.0
+					ps = 0.0
+					for ci in population_site_info[pop1]:
+						pop1_type, pop1_n, pop1_s, pop1_mc = population_site_info[pop1][ci]
+						pop2_type, pop2_n, pop2_s, pop2_mc = population_site_info[pop2][ci]
+						if pop1_type == 'fixed' and pop2_type == 'fixed' and pop1_mc != pop2_mc:
+							if cod_to_aa[pop1_mc] == cod_to_aa[pop2_mc]:
+								ds += 1
+							else:
+								dn += 1
+						if pop1_type == 'variable':
+							pn += float(pop1_n)/(pop1_n + pop1_s)
+							ps += float(pop1_s)/(pop1_n + pop1_s)
+					p1n = pn
+					p1s = ps
+
+					if ps > 0 and ds > 0:
+						pn_ps = pn/float(ps)
+						dn_ds = dn/float(ds)
+						if pn_ps > 0:
+							fixation_index = dn_ds / pn_ps
+							fi_log10 = math.log(fixation_index + 1e-5, 10)
+							if abs(fi_log10) > most_significant_fi_log10:
+								most_significant_fi_log10 = abs(fi_log10)
+						all_fixation_indices.append(pop1 + '-vs.-' + pop2 + ': ' + str(round(dn_ds, 2)) + '/' + str(round(pn_ps,2)))
+				all_pn_ps.append(pop1 + ': ' + str(round(p1n, 2)) + '/' + str(round(p1s, 2)))
+
+		hg_population_info = [len(pops_with_hg), fisher_pval, str(anova_pval_seqsim).replace('nan', 'NA'),
+							  most_significant_fi_log10, ', '.join(all_fixation_indices), ', '.join(all_pn_ps), '|'.join([str(x[0]) + '=' + str(float(x[1])/population_counts[x[0]]) for x in pop_count_with_hg.items()])]
 		hg_info += hg_population_info
 
+	hg_info += ['; '.join(all_domains)]
 	hg_stats_handle = open(popgen_dir + hg + '_stats.txt', 'w')
 	hg_stats_handle.write('\t'.join([str(x) for x in hg_info]) + '\n')
 	hg_stats_handle.close()
