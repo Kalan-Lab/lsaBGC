@@ -467,7 +467,7 @@ def createBGCGenbank(full_genbank_file, new_genbank_file, scaffold, start_coord,
 	except Exception as e:
 		raise RuntimeError(traceback.format_exc())
 
-def parseGenbankAndFindBoundaryGenes(sample_genbank, distance_to_scaffold_boundary=500):
+def parseGenbankAndFindBoundaryGenes(inputs):
 	"""
 	Function to parse Genbanks from Prokka and return a dictionary of genes per scaffold, gene to scaffold, and a
 	set of genes which lie on the boundary of scaffolds.
@@ -480,12 +480,14 @@ def parseGenbankAndFindBoundaryGenes(sample_genbank, distance_to_scaffold_bounda
 	:return boundary_genes: Set of gene locus tag ids which are found within proximity to scaffold edges.
 	"""
 
+	distance_to_scaffold_boundary = 500
 	gene_location = {}
 	scaffold_genes = defaultdict(set)
 	boundary_genes = set([])
 	gene_id_to_order = defaultdict(dict)
 	gene_order_to_id = defaultdict(dict)
 
+	sample, sample_genbank, sample_gbk_info = inputs
 	with open(sample_genbank) as osg:
 		for rec in SeqIO.parse(osg, 'genbank'):
 			scaffold = rec.id
@@ -511,7 +513,7 @@ def parseGenbankAndFindBoundaryGenes(sample_genbank, distance_to_scaffold_bounda
 				gene_id_to_order[scaffold][g[0]] = i
 				gene_order_to_id[scaffold][i] = g[0]
 
-	return([gene_location, scaffold_genes, boundary_genes, gene_id_to_order, gene_order_to_id])
+	sample_gbk_info[sample] = [gene_location, scaffold_genes, boundary_genes, gene_id_to_order, gene_order_to_id]
 
 def calculateMashPairwiseDifferences(fasta_listing_file, outdir, name, sketch_size, cores, logObject, prune_set=None):
 	"""

@@ -55,6 +55,9 @@ class Pan:
 		self.pairwise_syntenic_relations = None
 		# Concatenated HMMER3 HMM profiles database of homolog groups in GCF
 		self.concatenated_profile_HMM = None
+		# Consensus sequence in fasta format of concatentated profile HMM file
+		self.consensus_sequence_HMM = None
+		self.consensus_sequence_HMM_db = None
 		self.hg_max_self_evalue = defaultdict(lambda: 0.0)
 		self.lowerbound_hg_count = 100000
 		self.hg_differentiation_stats = {}
@@ -800,7 +803,7 @@ class Pan:
 				self.logObject.error(traceback.format_exc())
 			raise RuntimeError(traceback.format_exc())
 
-	def constructHMMProfiles(self, outdir, initial_sample_prokka_data, cores=1):
+	def constructHMMProfiles(self, outdir, initial_sample_prokka_data, cores=1, quick_mode=False):
 		"""
 		Wrapper function to construct Hmmer3 HMMs for each of the homolog groups.
 
@@ -813,7 +816,7 @@ class Pan:
 		prot_seq_dir = outdir + 'Protein_Sequences/'
 		prot_alg_dir = outdir + 'Protein_Alignments/'
 		prot_hmm_dir = outdir + 'Profile_HMMs/'
-		search_ref_res_dir = outdir + 'HMMScan_Reflexive_Results/'
+		search_ref_res_dir = outdir + 'Reflexive_Alignment_Results/'
 		hg_differentiation_file = open(outdir + 'Homolog_Groups_Differentiation.txt', 'w')
 
 		if not os.path.isdir(prot_seq_dir): os.system('mkdir %s' % prot_seq_dir)
@@ -843,41 +846,92 @@ class Pan:
 			p.close()
 
 			if self.logObject:
-				self.logObject.info(
-					"Successfully created profile HMMs for each homolog group. Now beginning concatenation into single file.")
+				self.logObject.info("Successfully created profile HMMs for each homolog group. Now beginning concatenation into single file.")
+
 			self.concatenated_profile_HMM = outdir + 'All_GCF_Homologs.hmm'
 			os.system('rm -f %s %s.h3*' % (self.concatenated_profile_HMM, self.concatenated_profile_HMM))
 
 			for f in os.listdir(prot_hmm_dir):
 				os.system('cat %s >> %s' % (prot_hmm_dir + f, self.concatenated_profile_HMM))
 
-			hmmscan_cmds = []
-			for sample in initial_sample_prokka_data:
-				sample_proteome = initial_sample_prokka_data[sample]['predicted_proteome']
-				result_file = search_ref_res_dir + sample + '.txt'
-				hmmscan_cmd = ['hmmscan', '--max', '--cpu', '1', '--tblout', result_file, self.concatenated_profile_HMM,
-							   sample_proteome, self.logObject]
-				hmmscan_cmds.append(hmmscan_cmd)
+			if quick_mode:
+				self.consensus_sequence_HMM = outdir + 'All_GCF_Homologs_ConsensusSequences.fasta'
+				self.consensus_sequence_HMM_db = outdir + 'All_GCF_Homologs_ConsensusSequences'
 
-			hmmpress_cmd = ['hmmpress', self.concatenated_profile_HMM]
-			if self.logObject:
-				self.logObject.info(
-					'Running hmmpress on concatenated profiles with the following command: %s' % ' '.join(hmmpress_cmd))
-			try:
-				subprocess.call(' '.join(hmmpress_cmd), shell=True, stdout=subprocess.DEVNULL,
-								stderr=subprocess.DEVNULL,
-								executable='/bin/bash')
+				hmmemit_cmd = ['hmmemit', '-o', self.consensus_sequence_HMM, '-c', self.concatenated_profile_HMM]
 				if self.logObject:
-					self.logObject.info('Successfully ran: %s' % ' '.join(hmmpress_cmd))
-			except:
-				if self.logObject:
-					self.logObject.error('Had an issue running: %s' % ' '.join(hmmpress_cmd))
-					self.logObject.error(traceback.format_exc())
-				raise RuntimeError('Had an issue running: %s' % ' '.join(hmmpress_cmd))
+					self.logObject.info(
+						'Running hmmemit on concatenated profiles HMM to get consensus sequences with the following command: %s' % ' '.join(hmmemit_cmd))
+				try:
+					subprocess.call(' '.join(hmmemit_cmd), shell=True, stdout=subprocess.DEVNULL,
+									stderr=subprocess.DEVNULL,
+									executable='/bin/bash')
+					if self.logObject:
+						self.logObject.info('Successfully ran: %s' % ' '.join(hmmemit_cmd))
+				except:
+					if self.logObject:
+						self.logObject.error('Had an issue running: %s' % ' '.join(hmmemit_cmd))
+						self.logObject.error(traceback.format_exc())
+					raise RuntimeError('Had an issue running: %s' % ' '.join(hmmemit_cmd))
 
-			p = multiprocessing.Pool(cores)
-			p.map(util.multiProcess, hmmscan_cmds)
-			p.close()
+				makedb_cmd = ['diamond', 'makedb', '--in', self.consensus_sequence_HMM, '-d', self.consensus_sequence_HMM_db]
+				if self.logObject:
+					self.logObject.info(
+						'Running Diamond makedb on concatenated profiles with the following command: %s' % ' '.join(makedb_cmd))
+				try:
+					subprocess.call(' '.join(makedb_cmd), shell=True, stdout=subprocess.DEVNULL,
+									stderr=subprocess.DEVNULL,
+									executable='/bin/bash')
+					if self.logObject:
+						self.logObject.info('Successfully ran: %s' % ' '.join(makedb_cmd))
+				except:
+					if self.logObject:
+						self.logObject.error('Had an issue running: %s' % ' '.join(makedb_cmd))
+						self.logObject.error(traceback.format_exc())
+					raise RuntimeError('Had an issue running: %s' % ' '.join(makedb_cmd))
+
+				diamond_cmds = []
+				for sample in initial_sample_prokka_data:
+					sample_proteome = initial_sample_prokka_data[sample]['predicted_proteome']
+					result_file = search_ref_res_dir + sample + '.txt'
+					diamond_cmd = ['diamond', 'blastp', '--threads', '1',  '--sensitive', '--db',
+								   self.consensus_sequence_HMM_db, '--query', sample_proteome, '--outfmt', '6', '--out',
+								   result_file, self.logObject]
+					diamond_cmds.append(diamond_cmd)
+
+				p = multiprocessing.Pool(cores)
+				p.map(util.multiProcess, diamond_cmds)
+				p.close()
+
+			else:
+				hmmpress_cmd = ['hmmpress', self.concatenated_profile_HMM]
+				if self.logObject:
+					self.logObject.info(
+						'Running hmmpress on concatenated profiles with the following command: %s' % ' '.join(hmmpress_cmd))
+				try:
+					subprocess.call(' '.join(hmmpress_cmd), shell=True, stdout=subprocess.DEVNULL,
+									stderr=subprocess.DEVNULL,
+									executable='/bin/bash')
+					if self.logObject:
+						self.logObject.info('Successfully ran: %s' % ' '.join(hmmpress_cmd))
+				except:
+					if self.logObject:
+						self.logObject.error('Had an issue running: %s' % ' '.join(hmmpress_cmd))
+						self.logObject.error(traceback.format_exc())
+					raise RuntimeError('Had an issue running: %s' % ' '.join(hmmpress_cmd))
+
+
+				hmmscan_cmds = []
+				for sample in initial_sample_prokka_data:
+					sample_proteome = initial_sample_prokka_data[sample]['predicted_proteome']
+					result_file = search_ref_res_dir + sample + '.txt'
+					hmmscan_cmd = ['hmmscan', '--max', '--cpu', '1', '--tblout', result_file, self.concatenated_profile_HMM,
+								   sample_proteome, self.logObject]
+					hmmscan_cmds.append(hmmscan_cmd)
+
+				p = multiprocessing.Pool(cores)
+				p.map(util.multiProcess, hmmscan_cmds)
+				p.close()
 
 			best_hits = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
 			for sample in initial_sample_prokka_data:
@@ -885,15 +939,26 @@ class Pan:
 				assert (os.path.isfile(result_file))
 
 				hits_per_gene = defaultdict(list)
-				with open(result_file) as orf:
-					for line in orf:
-						if line.startswith("#"): continue
-						line = line.strip()
-						ls = line.split()
-						hg = ls[0]
-						gene_id = ls[2]
-						eval = float(ls[4])
-						hits_per_gene[gene_id].append([hg, eval])
+				if quick_mode:
+					with open(result_file) as orf:
+						for line in orf:
+							if line.startswith("#"): continue
+							line = line.strip()
+							ls = line.split()
+							hg = ls[1].split('-consensus')[0]
+							gene_id = ls[0]
+							eval = float(ls[10])
+							hits_per_gene[gene_id].append([hg, eval])
+				else:
+					with open(result_file) as orf:
+						for line in orf:
+							if line.startswith("#"): continue
+							line = line.strip()
+							ls = line.split()
+							hg = ls[0]
+							gene_id = ls[2]
+							eval = float(ls[4])
+							hits_per_gene[gene_id].append([hg, eval])
 
 				for gene_id in hits_per_gene:
 					for i, hit in enumerate(sorted(hits_per_gene[gene_id], key=itemgetter(1))):
@@ -916,6 +981,7 @@ class Pan:
 					best_false_hit = min(false_hits)
 				able_to_differentiate = False
 				eval_threshold = 1e-10
+				#if quick_mode: eval_threshold = 1e-5
 				if best_false_hit > worst_true_hit:
 					able_to_differentiate = True
 					if worst_true_hit == 0.0:
@@ -936,7 +1002,7 @@ class Pan:
 			raise RuntimeError(traceback.format_exc())
 		hg_differentiation_file.close()
 
-	def runHMMScan(self, outdir, expanded_sample_prokka_data, cores=1):
+	def runHMMScan(self, outdir, expanded_sample_prokka_data, cores=1, quick_mode=False):
 		"""
 		Function to run hmmscan and process results as well as read in Genbanks for expanded list of samples.
 
@@ -945,29 +1011,44 @@ class Pan:
 											genbank and proteome files from Prokka based annotation
 		:param cores: The number of cores (will be used for parallelizing)
 		"""
-		search_res_dir = os.path.abspath(outdir + 'HMMScan_Results') + '/'
+		search_res_dir = os.path.abspath(outdir + 'Alignment_Results') + '/'
 		if not os.path.isdir(search_res_dir): os.system('mkdir %s' % search_res_dir)
 
-		hmmscan_cmds = []
+		with multiprocessing.Manager() as manager:
+			sample_gbk_info = manager.dict()
+			genbanks = []
+			for sample in expanded_sample_prokka_data:
+				sample_genbank = expanded_sample_prokka_data[sample]['genbank']
+				genbanks.append([sample, sample_genbank, sample_gbk_info])
+
+			with manager.Pool(cores) as pool:
+				pool.map(util.parseGenbankAndFindBoundaryGenes, genbanks)
+
+			for sample in sample_gbk_info:
+				gene_to_scaff, scaff_genes, bound_genes, gito, goti = sample_gbk_info[sample]
+				self.boundary_genes[sample] = bound_genes
+				self.scaffold_genes[sample] = scaff_genes
+				self.gene_location[sample] = gene_to_scaff
+				self.gene_id_to_order[sample] = gito
+				self.gene_order_to_id[sample] = goti
+
+
+		alignment_cmds = []
 		for sample in expanded_sample_prokka_data:
-			sample_genbank = expanded_sample_prokka_data[sample]['genbank']
 			sample_proteome = expanded_sample_prokka_data[sample]['predicted_proteome']
-
-			gene_to_scaff, scaff_genes, bound_genes, gito, goti = util.parseGenbankAndFindBoundaryGenes(sample_genbank)
-
-			self.boundary_genes[sample] = bound_genes
-			self.scaffold_genes[sample] = scaff_genes
-			self.gene_location[sample] = gene_to_scaff
-			self.gene_id_to_order[sample] = gito
-			self.gene_order_to_id[sample] = goti
-
 			result_file = search_res_dir + sample + '.txt'
-			hmmscan_cmd = ['hmmscan', '--max', '--cpu', '1', '--tblout', result_file, self.concatenated_profile_HMM,
-						   sample_proteome, self.logObject]
-			hmmscan_cmds.append(hmmscan_cmd)
+			if quick_mode:
+				diamond_cmd = ['diamond', 'blastp', '--threads', '1', '--sensitive', '--db',
+							   self.consensus_sequence_HMM_db, '--query', sample_proteome, '--outfmt', '6', '--out',
+							   result_file, self.logObject]
+				alignment_cmds.append(diamond_cmd)
+			else:
+				hmmscan_cmd = ['hmmscan', '--max', '--cpu', '1', '--tblout', result_file, self.concatenated_profile_HMM,
+							   sample_proteome, self.logObject]
+				alignment_cmds.append(hmmscan_cmd)
 
 		p = multiprocessing.Pool(cores)
-		p.map(util.multiProcess, hmmscan_cmds)
+		p.map(util.multiProcess, alignment_cmds)
 		p.close()
 
 		hg_valid_length_range = {}
@@ -986,7 +1067,6 @@ class Pan:
 										 'median_gene_length': median_gene_nucl_seq_lens,
 										 'gene_length_deviation': mad_gene_nucl_seq_lens}
 
-		print(self.hg_max_self_evalue)
 		for sample in expanded_sample_prokka_data:
 			result_file = search_res_dir + sample + '.txt'
 			assert (os.path.isfile(result_file))
@@ -994,35 +1074,59 @@ class Pan:
 			best_hit_per_gene = defaultdict(lambda: [set([]), 100000.0])
 			with open(result_file) as orf:
 				for line in orf:
-					if line.startswith("#"): continue
 					line = line.strip()
 					ls = line.split()
-					hg = ls[0]
-					gene_id = ls[2]
-					eval = float(ls[4])
-					if eval < best_hit_per_gene[gene_id][1]:
-						best_hit_per_gene[gene_id][1] = eval
-						best_hit_per_gene[gene_id][0] = set([hg])
-					elif eval == best_hit_per_gene[gene_id][1]:
-						best_hit_per_gene[gene_id][0].add(hg)
+					if quick_mode:
+						hg = ls[1].split('-consensus')[0]
+						gene_id = ls[0]
+						eval = float(ls[10])
+						if eval < best_hit_per_gene[gene_id][1]:
+							best_hit_per_gene[gene_id][1] = eval
+							best_hit_per_gene[gene_id][0] = set([hg])
+						elif eval == best_hit_per_gene[gene_id][1]:
+							best_hit_per_gene[gene_id][0].add(hg)
+					else:
+						if line.startswith("#"): continue
+						hg = ls[0]
+						gene_id = ls[2]
+						eval = float(ls[4])
+						if eval < best_hit_per_gene[gene_id][1]:
+							best_hit_per_gene[gene_id][1] = eval
+							best_hit_per_gene[gene_id][0] = set([hg])
+						elif eval == best_hit_per_gene[gene_id][1]:
+							best_hit_per_gene[gene_id][0].add(hg)
 
 			with open(result_file) as orf:
 				for line in orf:
-					if line.startswith("#"): continue
 					line = line.strip()
 					ls = line.split()
-					hg = ls[0]
-					gene_id = ls[2]
-					gene_length = abs(self.gene_location[sample][gene_id]['start'] - self.gene_location[sample][gene_id]['end'])
-					is_boundary_gene = gene_id in self.boundary_genes[sample]
-					if not hg in best_hit_per_gene[gene_id][0]: continue
-					if (not is_boundary_gene) and \
-							(not (gene_length <= hg_valid_length_range[hg]['max_gene_length'] and gene_length >= hg_valid_length_range[hg]['min_gene_length'])) and \
-							(abs(gene_length - hg_valid_length_range[hg]['median_gene_length']) >= (2 * hg_valid_length_range[hg]['gene_length_deviation'])): continue
-					scaffold = self.gene_location[sample][gene_id]['scaffold']
-					eval = float(ls[4])
-					if eval <= self.hg_max_self_evalue[hg][0]:
-						self.hmmscan_results[gene_id].append([hg, eval, sample, scaffold])
+					if quick_mode:
+						hg = ls[1].split('-consensus')[0]
+						gene_id = ls[0]
+						gene_length = abs(self.gene_location[sample][gene_id]['start'] - self.gene_location[sample][gene_id]['end'])
+						is_boundary_gene = gene_id in self.boundary_genes[sample]
+						if not hg in best_hit_per_gene[gene_id][0]: continue
+						if (not is_boundary_gene) and \
+								(not (gene_length <= hg_valid_length_range[hg]['max_gene_length'] and gene_length >= hg_valid_length_range[hg]['min_gene_length'])) and \
+								(abs(gene_length - hg_valid_length_range[hg]['median_gene_length']) >= (2 * hg_valid_length_range[hg]['gene_length_deviation'])): continue
+						scaffold = self.gene_location[sample][gene_id]['scaffold']
+						eval = float(ls[10])
+						if eval <= self.hg_max_self_evalue[hg][0]:
+							self.hmmscan_results[gene_id].append([hg, eval, sample, scaffold])
+					else:
+						if line.startswith("#"): continue
+						hg = ls[0]
+						gene_id = ls[2]
+						gene_length = abs(self.gene_location[sample][gene_id]['start'] - self.gene_location[sample][gene_id]['end'])
+						is_boundary_gene = gene_id in self.boundary_genes[sample]
+						if not hg in best_hit_per_gene[gene_id][0]: continue
+						if (not is_boundary_gene) and \
+								(not (gene_length <= hg_valid_length_range[hg]['max_gene_length'] and gene_length >= hg_valid_length_range[hg]['min_gene_length'])) and \
+								(abs(gene_length - hg_valid_length_range[hg]['median_gene_length']) >= (2 * hg_valid_length_range[hg]['gene_length_deviation'])): continue
+						scaffold = self.gene_location[sample][gene_id]['scaffold']
+						eval = float(ls[4])
+						if eval <= self.hg_max_self_evalue[hg][0]:
+							self.hmmscan_results[gene_id].append([hg, eval, sample, scaffold])
 
 def create_hmm_profiles(inputs):
 	"""

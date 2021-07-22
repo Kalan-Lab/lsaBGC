@@ -1,3 +1,4 @@
+import copy
 import os
 import sys
 import logging
@@ -880,7 +881,7 @@ class GCF(Pan):
 					gcf_hg_probabilities[hg] = 0.99
 
 					if self.hg_max_self_evalue[hg][1] == False:
-						other_hg_probabilities[hg] = min(1.0 - (gcf_genes/float(total_genes)), 0.2)
+						other_hg_probabilities[hg] = min(1.0 - (gcf_genes / float(total_genes)), 0.2)
 						gcf_hg_probabilities[hg] = 1.0 - other_hg_probabilities[hg]
 				else:
 					number_other_hgs += 1
@@ -891,11 +892,6 @@ class GCF(Pan):
 		gcf_distribution = DiscreteDistribution(dict(gcf_hg_probabilities))
 		other_distribution = DiscreteDistribution(dict(other_hg_probabilities))
 
-		print(gcf_distribution)
-		print(other_distribution)
-		print(self.core_homologs)
-		print(self.protocluster_core_homologs)
-		print(specific_hgs)
 		gcf_state = State(gcf_distribution, name='GCF')
 		other_state = State(other_distribution, name='Non GCF')
 
@@ -903,15 +899,15 @@ class GCF(Pan):
 		model.add_states(gcf_state, other_state)
 
 		# estimate transition probabilities
-		gcf_to_gcf = gcf_to_gcf_transition_prob #float(number_gcf_hgs - 1) / float(number_gcf_hgs)
-		gcf_to_other = 1.0 - gcf_to_gcf_transition_prob #1.0 - gcf_to_gcf
-		other_to_other = background_to_background_transition_prob #float(number_other_hgs - 1) / float(number_other_hgs)
-		other_to_gcf = 1.0 - background_to_background_transition_prob #1.0 - other_to_other
+		gcf_to_gcf = gcf_to_gcf_transition_prob  # float(number_gcf_hgs - 1) / float(number_gcf_hgs)
+		gcf_to_other = 1.0 - gcf_to_gcf_transition_prob  # 1.0 - gcf_to_gcf
+		other_to_other = background_to_background_transition_prob  # float(number_other_hgs - 1) / float(number_other_hgs)
+		other_to_gcf = 1.0 - background_to_background_transition_prob  # 1.0 - other_to_other
 
-		start_to_gcf = 0.5 # float(number_gcf_hgs)/float(number_gcf_hgs + number_other_hgs)
-		start_to_other = 0.5 #1.0 - start_to_gcf
-		gcf_to_end = 0.5 # float(number_gcf_hgs)/float(number_gcf_hgs + number_other_hgs)
-		other_to_end = 0.5 # 1.0 - gcf_to_end
+		start_to_gcf = 0.5  # float(number_gcf_hgs)/float(number_gcf_hgs + number_other_hgs)
+		start_to_other = 0.5  # 1.0 - start_to_gcf
+		gcf_to_end = 0.5  # float(number_gcf_hgs)/float(number_gcf_hgs + number_other_hgs)
+		other_to_end = 0.5  # 1.0 - gcf_to_end
 
 		model.add_transition(model.start, gcf_state, start_to_gcf)
 		model.add_transition(model.start, other_state, start_to_other)
@@ -956,7 +952,6 @@ class GCF(Pan):
 		sample_hg_proteins = defaultdict(lambda: defaultdict(set))
 		for sample in sample_hgs:
 			if len(sample_hgs[sample]) < 3: continue
-			print(sample)
 
 			sample_gcf_predictions = []
 			for scaffold in self.scaffold_genes[sample]:
@@ -985,18 +980,22 @@ class GCF(Pan):
 					if hg_state == 0:
 						gcf_state_lts.append(lt)
 						gcf_state_hgs.append(hg)
-					if hg_state == 1 or i == (len(hmm_predictions)-1):
-						print(gcf_state_lts)
+					if hg_state == 1 or i == (len(hmm_predictions) - 1):
 						if len(set(gcf_state_hgs).difference("other")) >= 3:
-							print(gcf_state_lts)
 							boundary_lt_featured = False
 							features_specific_hg = False
 							features_protocoluster_hg = False
-							if len(self.protocluster_core_homologs.intersection(set(gcf_state_hgs).difference('other'))) > 0: features_protocoluster_hg = True
-							if len(self.boundary_genes[sample].intersection(set(gcf_state_lts).difference('other'))) > 0: boundary_lt_featured = True
-							if len(specific_hgs.intersection(set(gcf_state_hgs).difference('other'))) > 0: features_specific_hg = True
-							sample_gcf_predictions.append([gcf_state_lts, gcf_state_hgs, len(gcf_state_lts), len(set(gcf_state_hgs).difference("other")), len(set(gcf_state_hgs).difference("other").intersection(self.core_homologs)), scaffold, boundary_lt_featured, features_specific_hg, features_protocoluster_hg])
-							print(sample_gcf_predictions[-1])
+							if len(self.protocluster_core_homologs.intersection(
+								set(gcf_state_hgs).difference('other'))) > 0: features_protocoluster_hg = True
+							if len(self.boundary_genes[sample].intersection(
+								set(gcf_state_lts).difference('other'))) > 0: boundary_lt_featured = True
+							if len(specific_hgs.intersection(
+								set(gcf_state_hgs).difference('other'))) > 0: features_specific_hg = True
+							sample_gcf_predictions.append([gcf_state_lts, gcf_state_hgs, len(gcf_state_lts),
+														   len(set(gcf_state_hgs).difference("other")),
+														   len(set(gcf_state_hgs).difference("other").intersection(
+															   self.core_homologs)), scaffold, boundary_lt_featured,
+														   features_specific_hg, features_protocoluster_hg])
 						gcf_state_lts = []
 						gcf_state_hgs = []
 
@@ -1009,7 +1008,9 @@ class GCF(Pan):
 			cumulative_edge_hgs = set([])
 			visited_scaffolds_with_edge_gcf_segment = set([])
 			for gcf_segment in sorted_sample_gcf_predictions:
-				if (gcf_segment[3] >= min_size and gcf_segment[4] >= min_core_size) or (gcf_segment[-1]) or (gcf_segment[-2]) or (gcf_segment[3] >= 3 and gcf_segment[-3] and not gcf_segment[5] in visited_scaffolds_with_edge_gcf_segment):
+				if (gcf_segment[3] >= min_size and gcf_segment[4] >= min_core_size) or (gcf_segment[-1]) or (
+				gcf_segment[-2]) or (gcf_segment[3] >= 3 and gcf_segment[-3] and not gcf_segment[
+																						 5] in visited_scaffolds_with_edge_gcf_segment):
 					# code to determine whether syntenically, the considered segment aligns with what is expected.
 					segment_hg_order = []
 					bgc_hg_orders = defaultdict(list)
@@ -1021,7 +1022,8 @@ class GCF(Pan):
 					for gi, g in enumerate(gcf_segment[0]):
 						hg = gcf_segment[1][gi]
 						if copy_count_of_hgs_in_segment[hg] != 1: continue
-						gene_midpoint = (self.gene_location[sample][g]['start'] + self.gene_location[sample][g]['end'])/2.0
+						gene_midpoint = (self.gene_location[sample][g]['start'] + self.gene_location[sample][g][
+							'end']) / 2.0
 						segment_hg_order.append(gene_midpoint)
 
 						for bgc in self.bgc_genes:
@@ -1031,7 +1033,8 @@ class GCF(Pan):
 									hg_of_bg = self.gene_to_hg[bg]
 									if hg_of_bg == hg: bg_matching.append(bg)
 							if len(bg_matching) == 1:
-								bgc_gene_midpoint = (self.comp_gene_info[bg_matching[0]]['start'] + self.comp_gene_info[bg_matching[0]]['end']) / 2.0
+								bgc_gene_midpoint = (self.comp_gene_info[bg_matching[0]]['start'] +
+													 self.comp_gene_info[bg_matching[0]]['end']) / 2.0
 								bgc_hg_orders[bgc].append(bgc_gene_midpoint)
 							else:
 								bgc_hg_orders[bgc].append(None)
@@ -1039,7 +1042,7 @@ class GCF(Pan):
 					best_corr = None
 					for bgc in self.bgc_genes:
 						try:
-							assert(len(segment_hg_order) == len(bgc_hg_orders[bgc]))
+							assert (len(segment_hg_order) == len(bgc_hg_orders[bgc]))
 
 							list1 = []
 							list2 = []
@@ -1051,7 +1054,6 @@ class GCF(Pan):
 
 							corr, pval = pearsonr(list1, list2)
 							corr = abs(corr)
-							print(corr)
 							if (best_corr and best_corr < corr) or (not best_corr):
 								best_corr = corr
 						except:
@@ -1059,21 +1061,21 @@ class GCF(Pan):
 
 					if not best_corr or best_corr < syntenic_correlation_threshold: continue
 
-					if (gcf_segment[3] >= min_size and gcf_segment[4] >= min_core_size) or (gcf_segment[-1]) or (gcf_segment[-2]):
+					if (gcf_segment[3] >= min_size and gcf_segment[4] >= min_core_size) or (gcf_segment[-1]) or (
+					gcf_segment[-2]):
 						sample_gcf_predictions_filtered.append(gcf_segment)
-					elif gcf_segment[3] >= 3 and gcf_segment[-3] and not gcf_segment[5] in visited_scaffolds_with_edge_gcf_segment:
+					elif gcf_segment[3] >= 3 and gcf_segment[-3] and not gcf_segment[
+																			 5] in visited_scaffolds_with_edge_gcf_segment:
 						sample_edge_gcf_predictions_filtered.append(gcf_segment)
 						visited_scaffolds_with_edge_gcf_segment.add(gcf_segment[5])
 						cumulative_edge_hgs = cumulative_edge_hgs.union(set(gcf_segment[1]))
 
 			if len(sample_edge_gcf_predictions_filtered) >= 2:
-				print(sample_edge_gcf_predictions_filtered)
-				if len(cumulative_edge_hgs) >= min_size and len(cumulative_edge_hgs.intersection(self.core_homologs)) >= min_core_size:
+				if len(cumulative_edge_hgs) >= min_size and len(
+						cumulative_edge_hgs.intersection(self.core_homologs)) >= min_core_size:
 					sample_gcf_predictions_filtered += sample_edge_gcf_predictions_filtered
 
-			print(sample)
 			for gcf_state_lts in sample_gcf_predictions_filtered:
-				print(gcf_state_lts)
 				clean_sample_name = util.cleanUpSampleName(sample)
 				bgc_genbank_file = bgc_genbanks_dir + clean_sample_name + '_BGC-' + str(sample_bgc_ids[sample]) + '.gbk'
 				sample_bgc_ids[sample] += 1
@@ -1081,7 +1083,8 @@ class GCF(Pan):
 				min_bgc_pos = min([self.gene_location[sample][g]['start'] for g in gcf_state_lts[0]])
 				max_bgc_pos = max([self.gene_location[sample][g]['end'] for g in gcf_state_lts[0]])
 
-				util.createBGCGenbank(sample_prokka_data[sample]['genbank'], bgc_genbank_file, gcf_state_lts[5], min_bgc_pos, max_bgc_pos)
+				util.createBGCGenbank(sample_prokka_data[sample]['genbank'], bgc_genbank_file, gcf_state_lts[5],
+									  min_bgc_pos, max_bgc_pos)
 				expanded_gcf_list_handle.write('\t'.join([clean_sample_name, bgc_genbank_file]) + '\n')
 
 				for i, lt in enumerate(gcf_state_lts[0]):
@@ -1112,7 +1115,8 @@ class GCF(Pan):
 					hg = ls[0]
 					all_hgs.add(hg)
 					for j, prot in enumerate(ls[1:]):
-						sample_hg_proteins[original_samples[j]][hg] = sample_hg_proteins[original_samples[j]][hg].union(set(prot.split(', ')))
+						sample_hg_proteins[original_samples[j]][hg] = sample_hg_proteins[original_samples[j]][hg].union(
+							set(prot.split(', ')))
 
 		expanded_orthofinder_matrix_file = outdir + 'Orthogroups.expanded.csv'
 		expanded_orthofinder_matrix_handle = open(expanded_orthofinder_matrix_file, 'w')

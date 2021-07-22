@@ -62,7 +62,7 @@ def create_parser():
     parser.add_argument('-g', '--gcf_listing', help='BGC listings file for a gcf. Tab delimited: 1st column lists sample name while the 2nd column is the path to an AntiSMASH BGC in Genbank format.', required=True)
     parser.add_argument('-m', '--orthofinder_matrix', help="OrthoFinder matrix.", required=True)
     parser.add_argument('-i', '--gcf_id', help="GCF identifier.", required=False, default='GCF_X')
-    parser.add_argument('-l', '--initial_listing', type=str, help="Tab delimited text file for samples with three columns: (1) sample name (2) Prokka generated Genbank file (*.gbk), and (3) Prokka generated predicted-proteome file (*.faa). Please remove troublesome characters in the sample name.")
+    parser.add_argument('-l', '--initial_listing', type=str, help="Tab delimited text file for samples with three columns: (1) sample name (2) Prokka generated Genbank file (*.gbk), and (3) Prokka generated predicted-proteome file (*.faa). Please remove troublesome characters in the sample name.", required=True)
     parser.add_argument('-e', '--expansion_listing', type=str, help="Tab delimited text file for samples in the expansion set with three columns: (1) sample name (2) Prokka generated Genbank file (*.gbk), and (3) Prokka generated predicted-proteome file (*.faa). Please remove troublesome characters in the sample name.", required=True)
     parser.add_argument('-o', '--output_directory', help="Path to output directory.", required=True)
     parser.add_argument('-ms', '--min_segment_size', type=float, help="The minimum number of homolog groups needed to report discrete segments of the GCF. Default is 5.", required=False, default=5)
@@ -71,6 +71,7 @@ def create_parser():
     parser.add_argument('-tg', '--transition_from_gcf_to_gcf', type=float, help="GCF to GCF state transition probability for HMM. Should be between 0.0 and 1.0. Default is 0.9.", required=False, default=0.9)
     parser.add_argument('-tb', '--transition_from_bg_to_bg', type=float, help="Background to background state transition probability for HMM. Should be between 0.0 and 1.0. Default is 0.9.", required=False, default=0.9)
     parser.add_argument('-c', '--cores', type=int, help="The number of cores to use.", required=False, default=1)
+    parser.add_argument('-q', '--quick_mode', action='store_true', help="Run in quick-mode. Instead of running HMMScan for each homolog group, a consensus sequence is emitted and Diamond is used for searching instead. Method inspired by Melnyk et al. 2019", required=False, default=False)
     args = parser.parse_args()
 
     return args
@@ -117,6 +118,7 @@ def lsaBGC_Expansion():
     syntenic_correlation_threshold = myargs.syntenic_correlation_threshold
     transition_from_gcf_to_gcf = myargs.transition_from_gcf_to_gcf
     transition_from_bg_to_bg = myargs.transition_from_bg_to_bg
+    quick_mode = myargs.quick_mode
 
     """
     START WORKFLOW
@@ -130,14 +132,14 @@ def lsaBGC_Expansion():
     parameters_file = outdir + 'Parameter_Inputs.txt'
     parameter_values = [gcf_listing_file, orthofinder_matrix_file, initial_listing_file, expansion_listing_file, outdir,
                         gcf_id, cores, min_segment_size, min_segment_core_size, syntenic_correlation_threshold,
-                        transition_from_gcf_to_gcf, transition_from_bg_to_bg]
+                        transition_from_gcf_to_gcf, transition_from_bg_to_bg, quick_mode]
     parameter_names = ["GCF Listing File", "OrthoFinder Orthogroups.csv File",
                        "Listing File of Prokka Annotation Files for Initial Set of Samples",
                        "Listing File of Prokka Annotation Files for Expansion/Additional Set of Samples",
                        "Output Directory", "GCF Identifier", "Cores", "Minimum Size of Segments",
                        "Minimum Core Size of Segments", "Syntenic Correlation Threshold",
                        "HMM Transition Probability from GCF to GCF",
-                       "HMM Transition Probability from Background to Background"]
+                       "HMM Transition Probability from Background to Background", "Run Expansion in Quick Mode?"]
     util.logParametersToFile(parameters_file, parameter_names, parameter_values)
     logObject.info("Done saving parameters!")
 
@@ -164,12 +166,12 @@ def lsaBGC_Expansion():
 
     # Step 4: Build HMMs for homolog groups observed in representative BGCs for GCF
     logObject.info("Building profile HMMs of homolog groups observed in representative BGCs for GCF.")
-    GCF_Object.constructHMMProfiles(outdir, initial_sample_prokka_data, cores=cores)
+    GCF_Object.constructHMMProfiles(outdir, initial_sample_prokka_data, cores=cores, quick_mode=quick_mode)
     logObject.info("HMM profiles constructed and concatenated successfully!")
 
     # Step 5: Search HMM profiles in proteomes from comprehensive set of BGCs
     logObject.info("Searching for homolog group HMMs in proteins extracted from comprehensive list of BGCs.")
-    GCF_Object.runHMMScan(outdir, expanded_sample_prokka_data, cores=cores)
+    GCF_Object.runHMMScan(outdir, expanded_sample_prokka_data, cores=cores, quick_mode=quick_mode)
     logObject.info("Successfully found new instances of GCF in new sample set.")
 
     # Step 6: Determine whether samples' assemblies feature GCF of interest

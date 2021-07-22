@@ -63,10 +63,11 @@ def create_parser():
 
 	parser.add_argument('-g', '--gcf_listing_dir', help='Directory with GCF listing files.', required=True)
 	parser.add_argument('-m', '--orthofinder_matrix', help="OrthoFinder homolog group by sample matrix.", required=True)
-	parser.add_argument('-l', '--initial_listing', type=str, help="Tab delimited text file for samples with three columns: (1) sample name (2) Prokka generated Genbank file (*.gbk), and (3) Prokka generated predicted-proteome file (*.faa). Please remove troublesome characters in the sample name.")
+	parser.add_argument('-l', '--initial_listing', type=str, help="Tab delimited text file for samples with three columns: (1) sample name (2) Prokka generated Genbank file (*.gbk), and (3) Prokka generated predicted-proteome file (*.faa). Please remove troublesome characters in the sample name.", required=True)
 	parser.add_argument('-e', '--expansion_listing', help="Path to tab delimited file listing: (1) sample name (2) path to Prokka Genbank and (3) path to Prokka predicted proteome. This file is produced by lsaBGC-AutoProcess.py.", required=True)
 	parser.add_argument('-o', '--output_directory', help="Parent output/workspace directory.", required=True)
 	parser.add_argument('-c', '--cores', type=int, help="Total number of cores to use.", required=False, default=1)
+	parser.add_argument('-q', '--quick_mode', action='store_true', help='Whether to run lsaBGC-Expansion in quick mode?', required=False, default=False)
 
 	args = parser.parse_args()
 	return args
@@ -104,6 +105,7 @@ def lsaBGC_AutoExpansion():
 	"""
 
 	cores = myargs.cores
+	quick_mode = myargs.quick_mode
 
 	"""
 	START WORKFLOW
@@ -117,10 +119,10 @@ def lsaBGC_AutoExpansion():
 	logObject.info("Saving parameters for easier determination of results' provenance in the future.")
 	parameters_file = outdir + 'Parameter_Inputs.txt'
 	parameter_values = [gcf_listing_dir, initial_listing_file, original_orthofinder_matrix_file,
-						expansion_listing_file, outdir, cores]
+						expansion_listing_file, outdir, cores, quick_mode]
 	parameter_names = ["GCF Listings Directory", "Listing File of Prokka Annotation Files for Initial Set of Samples",
 					   "Listing File of Prokka Annotation Files for Expansion/Additional Set of Samples",
-					   "OrthoFinder Homolog Matrix", "Output Directory", "Cores"]
+					   "OrthoFinder Homolog Matrix", "Output Directory", "Cores", "Run in Quick Mode?"]
 	util.logParametersToFile(parameters_file, parameter_names, parameter_values)
 	logObject.info("Done saving parameters!")
 
@@ -148,6 +150,8 @@ def lsaBGC_AutoExpansion():
 				curr_bgc_lts = set(BGC_Object.gene_information.keys())
 				for lt in curr_bgc_lts:
 					bgc_lt_evals[sample][gcf_id][bgc_gbk_path][lt] = -300
+					if quick_mode:
+						bgc_lt_evals[sample][gcf_id][bgc_gbk_path][lt] = -500
 					bgc_lts[sample][gcf_id][bgc_gbk_path].add(lt)
 				original_gcfs.add(line.split('\t')[1])
 
@@ -158,6 +162,8 @@ def lsaBGC_AutoExpansion():
 			cmd = ['lsaBGC-Expansion.py', '-g', gcf_listing_file, '-m', orthofinder_matrix_file, '-l',
 				   initial_listing_file, '-e', expansion_listing_file, '-o', gcf_exp_outdir, '-i', gcf_id,
 			   	   '-c', str(cores)]
+			if quick_mode:
+				cmd += ['-q']
 			try:
 				util.run_cmd(cmd, logObject, stderr=sys.stderr, stdout=sys.stdout)
 			except:
@@ -179,6 +185,8 @@ def lsaBGC_AutoExpansion():
 					bgc_gbk_path, sample, lt, hg, eval = line.split('\t')
 					eval = float(eval)
 					bgc_lt_evals[sample][gcf_id][bgc_gbk_path][lt] = max(math.log(eval+1e-300, 10), -300)
+					if quick_mode:
+						bgc_lt_evals[sample][gcf_id][bgc_gbk_path][lt] = max(math.log(eval + 1e-500, 10), -500)
 					bgc_lts[sample][gcf_id][bgc_gbk_path].add(lt)
 					bgc_lt_to_hg[bgc_gbk_path][lt] = hg
 
@@ -190,6 +198,7 @@ def lsaBGC_AutoExpansion():
 	updated_gcf_listing_dir = outdir + 'Updated_GCF_Listings/'
 	if not os.path.isdir(updated_gcf_listing_dir): os.system('mkdir %s' % updated_gcf_listing_dir)
 
+	bgcs_to_discard = set([])
 	# refine and filter overlapping BGCs across GCF expansions
 	for sample in bgc_lts:
 		for i, gcf1 in enumerate(bgc_lts[sample]):
@@ -200,8 +209,8 @@ def lsaBGC_AutoExpansion():
 					for bgc2 in bgc_lts[sample][gcf2]:
 						bgc2_lts = bgc_lts[sample][gcf2][bgc2]
 						if len(bgc1_lts.intersection(bgc2_lts)) > 0 and float(len(bgc1_lts.intersection(bgc2_lts)))/float(len(bgc1_lts)) >= 0.5 and float(len(bgc1_lts.intersection(bgc2_lts)))/float(len(bgc2_lts)) >= 0.5:
-							bgc1_score = 0
-							bgc2_score = 0
+							bgc1_score = 0.0
+							bgc2_score = 0.0
 							for lt in bgc1_lts:
 								bgc1_score += bgc_lt_evals[sample][gcf1][bgc1][lt]
 							for lt in bgc2_lts:
@@ -209,6 +218,7 @@ def lsaBGC_AutoExpansion():
 							try:
 								assert(bgc1_score != bgc2_score)
 							except Exception as e:
+								print(bgc1 + '\t' + bgc2)
 								logObject.error("Overlapping BGCs exist with equivalent scores for different GCFs. This should not be possible. Exiting now...")
 								logObject.error(traceback.format_exc())
 								raise RuntimeException("Overlapping BGCs exist with equivalent scores for different GCFs. This should not be possible. Exiting now...")
@@ -230,6 +240,9 @@ def lsaBGC_AutoExpansion():
 								bgc_to_remove = bgc1
 
 							logObject.info("Overlap found between BGCs %s (%s) and %s (%s), will be removing %s (%s)" % (bgc1, gcf1, bgc2, gcf2, bgc_to_remove, gcf_to_edit))
+
+							bgcs_to_discard.add(bgc_to_remove)
+							"""
 							gcf_expansion_listing_file = gcf_expansion_results[gcf_to_edit]
 							all_lines = []
 							with open(gcf_expansion_listing_file) as ogelf:
@@ -239,7 +252,7 @@ def lsaBGC_AutoExpansion():
 								if line.strip().split('\t')[1] != bgc_to_remove:
 									rewrite_handle.write(line)
 							rewrite_handle.close()
-
+							"""
 	# create updated general listings file
 	updated_listings_file = outdir + 'Sample_Annotation_Files.txt'
 	updated_listings_handle = open(updated_listings_file, 'w')
@@ -262,9 +275,10 @@ def lsaBGC_AutoExpansion():
 		final_expanded_gcf_listing_handle = open(final_expanded_gcf_listing_file, 'w')
 		with open(expanded_gcf_listing_file) as oeglf:
 			for line in oeglf:
-				final_expanded_gcf_listing_handle.write(line)
 				line = line.strip()
 				sample, bgc_gbk_path = line.split('\t')
+				if bgc_gbk_path in bgcs_to_discard: continue
+				final_expanded_gcf_listing_handle.write(line + '\n')
 				if bgc_gbk_path in original_gcfs: continue
 				BGC_Object = BGC(bgc_gbk_path, bgc_gbk_path)
 				BGC_Object.parseGenbanks(comprehensive_parsing=False)
