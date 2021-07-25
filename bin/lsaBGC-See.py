@@ -144,7 +144,7 @@ def lsaBGC_See():
     logObject.info("Starting to parse OrthoFinder homolog vs sample information.")
     gene_to_hg, hg_genes, hg_median_copy_count, hg_prop_multi_copy = util.parseOrthoFinderMatrix(orthofinder_matrix_file, GCF_Object.pan_genes)
     GCF_Object.inputHomologyInformation(gene_to_hg, hg_genes, hg_median_copy_count, hg_prop_multi_copy)
-    GCF_Object.assignColorsToHGs(GCF_Object.gene_to_hg, GCF_Object.bgc_genes)
+    GCF_Object.assignColorsToHGs(GCF_Object.gene_to_hg, GCF_Object.bgc_genes, outdir)
     logObject.info("Successfully parsed homolog matrix.")
 
     # Step 4: Create iTol and gggenes (R) tracks for visualizing BGCs of GCF across a phylogeny.

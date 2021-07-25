@@ -37,8 +37,10 @@
 
 import os
 import sys
+import traceback
 from time import sleep
 import argparse
+from collections import defaultdict
 from lsaBGC import util
 from lsaBGC.classes.GCF import GCF
 from lsaBGC.classes.Pan import Pan
@@ -62,6 +64,8 @@ def create_parser():
     parser.add_argument('-k', '--sample_set', help="Sample set to keep in analysis. Should be file with one sample id per line.", required=False)
     parser.add_argument('-c', '--cores', type=int, help="The number of cores to use.", required=False, default=1)
     parser.add_argument('-s', '--sketch_size', type=int, help="The sketch size, number of kmers to use in fingerprinting", required=False, default=10000)
+    parser.add_argument('-pr', '--precomputed_mash_result', help="Path to precomputed MASH dist output.", required=False)
+    parser.add_argument('-pi', '--precomputed_mash_input', help="Path FASTA listing used to compute MASH dist output.", required=False)
 
     args = parser.parse_args()
 
@@ -105,6 +109,8 @@ def lsaBGC_Divergence():
     gcf_id = myargs.gcf_id
     cores = myargs.cores
     sketch_size = myargs.sketch_size
+    precomputed_mash_result_file = myargs.precomputed_mash_result
+    precomputed_mash_input_file = myargs.precomputed_mash_input
 
     """
     START WORKFLOW
@@ -117,10 +123,12 @@ def lsaBGC_Divergence():
     # Log input arguments and update reference and query FASTA files.
     logObject.info("Saving parameters for future provedance.")
     parameters_file = outdir + 'Parameter_Inputs.txt'
-    parameter_values = [gcf_listing_file, input_listing_file, outdir, sketch_size, gcf_id, sample_set_file, cores]
+    parameter_values = [gcf_listing_file, input_listing_file, outdir, sketch_size, gcf_id, sample_set_file,
+                        precomputed_mash_result_file, precomputed_mash_input_file, cores]
     parameter_names = ["GCF Listing File", "Input Listing File of Prokka Annotation Files for All Samples",
                        "Output Directory", "MASH Sketch Size",
-                       "GCF Identifier", "Retention Sample Set", "Cores"]
+                       "GCF Identifier", "Retention Sample Set", "Precomputed MASH dist Results File",
+                       "Precomputed MASH Input File", "Cores"]
     util.logParametersToFile(parameters_file, parameter_names, parameter_values)
     logObject.info("Done saving parameters!")
 
@@ -130,35 +138,62 @@ def lsaBGC_Divergence():
     # Step 0: (Optional) Parse sample set retention specifications file, if provided by the user.
     sample_retention_set = util.getSampleRetentionSet(sample_set_file)
 
-    # Step 1: Extract Genbank Sequences into FASTA
-    logObject.info("Converting BGC Genbanks from GCF listing file into FASTA per sample.")
-    gcf_fasta_listing_file = outdir + 'GCF_Listings.fasta'
-    gcf_fasta_dir = outdir + 'Sample_GCF_FASTAs/'
-    if not os.path.isdir(gcf_fasta_dir): os.system('mkdir %s' % gcf_fasta_dir)
-    GCF_Object.convertGenbanksIntoFastas(gcf_fasta_dir, gcf_fasta_listing_file)
-    logObject.info("Successfully performed conversion and partitioning by sample.")
+    # Step 1: Extract Genbank Sequences into FASTA and Run MASH Analysis Between Genomic Assemblies
+    gw_pairwise_differences = None
+    if not os.path.isfile(precomputed_mash_result_file) or not os.path.isfile(precomputed_mash_input_file):
+        logObject.info("Converting BGC Genbanks from GCF listing file into FASTA per sample.")
+        gcf_fasta_listing_file = outdir + 'GCF_Listings.fasta'
+        gcf_fasta_dir = outdir + 'Sample_GCF_FASTAs/'
+        if not os.path.isdir(gcf_fasta_dir): os.system('mkdir %s' % gcf_fasta_dir)
+        GCF_Object.convertGenbanksIntoFastas(gcf_fasta_dir, gcf_fasta_listing_file)
+        logObject.info("Successfully performed conversion and partitioning by sample.")
+
+        # Extract Genbank Sequences into FASTA
+        Pan_Object = Pan(input_listing_file, logObject=logObject)
+        logObject.info("Converting Genbanks from Expansion listing file into FASTA per sample.")
+        gw_fasta_dir = outdir + 'Sample_Expansion_FASTAs/'
+        if not os.path.isdir(gw_fasta_dir): os.system('mkdir %s' % gw_fasta_dir)
+        gw_fasta_listing_file = outdir + 'Genome_FASTA_Listings.txt'
+        Pan_Object.convertGenbanksIntoFastas(gw_fasta_dir, gw_fasta_listing_file)
+        logObject.info("Successfully performed conversions.")
+
+        logObject.info("Running MASH Analysis Between Genomes.")
+        gw_pairwise_differences = util.calculateMashPairwiseDifferences(gw_fasta_listing_file, outdir, 'genome_wide', sketch_size, cores, logObject)
+        logObject.info("Ran MASH Analysis Between Genomes.")
+    else:
+        fasta_to_name = {}
+        gw_pairwise_differences = defaultdict(lambda: defaultdict(float))
+        try:
+            with open(precomputed_mash_input_file) as oflf:
+                for line in oflf:
+                    line = line.strip()
+                    ls = line.split('\t')
+                    fasta_to_name[ls[1]] = ls[0]
+        except:
+            error_message = "Had issues reading the FASTA listing file %s" % precomputed_mash_input_file
+            logObject.error(error_message)
+            raise RuntimeError(error_message)
+        try:
+            with open(precomputed_mash_result_file) as of:
+                for line in of:
+                    line = line.strip()
+                    ls = line.split('\t')
+                    f1, f2, dist = ls[:3]
+                    dist = float(dist)
+                    n1 = fasta_to_name[f1]
+                    n2 = fasta_to_name[f2]
+                    gw_pairwise_differences[n1][n2] = dist
+        except Exception as e:
+            error_message = 'Had issues reading the output of MASH dist analysis in file: %s' % precomputed_mash_result_file
+            logObject.error(error_message)
+            raise RuntimeError(error_message)
 
     # Step 2: Run MASH Analysis Between BGCs in GCF
     logObject.info("Determining similarities in BGC content and sequence space between pairs of samples.")
-    #bgc_pairwise_differences = util.calculateMashPairwiseDifferences(gcf_fasta_listing_file, outdir, 'gcf', sketch_size, cores, logObject)
     bgc_pairwise_similarities = util.determineBGCSequenceSimilarityFromCodonAlignments(codon_alignments_file)
     logObject.info("Finished determining BGC specific similarity between pairs of samples.")
 
-    # Step 3: Run MASH Analysis Between Genomic Assemblies
-    # Extract Genbank Sequences into FASTA
-    Pan_Object = Pan(input_listing_file, logObject=logObject)
-    logObject.info("Converting Genbanks from Expansion listing file into FASTA per sample.")
-    gw_fasta_dir = outdir + 'Sample_Expansion_FASTAs/'
-    if not os.path.isdir(gw_fasta_dir): os.system('mkdir %s' % gw_fasta_dir)
-    gw_fasta_listing_file = outdir + 'Genome_FASTA_Listings.txt'
-    Pan_Object.convertGenbanksIntoFastas(gw_fasta_dir, gw_fasta_listing_file)
-    logObject.info("Successfully performed conversions.")
-
-    logObject.info("Running MASH Analysis Between Genomes.")
-    gw_pairwise_differences = util.calculateMashPairwiseDifferences(gw_fasta_listing_file, outdir, 'genome_wide', sketch_size, cores, logObject)
-    logObject.info("Ran MASH Analysis Between Genomes.")
-
-    # Step 5: Calculate and report Beta-RD statistic for all pairs of samples/isolates
+    # Step 3: Calculate and report Beta-RD statistic for all pairs of samples/isolates
     logObject.info("Beginning generation of report.")
     samples_bgc = set(bgc_pairwise_similarities.keys())
     samples_gw = set(gw_pairwise_differences.keys())
@@ -178,15 +213,19 @@ def lsaBGC_Divergence():
                 gw_seq_sim = 1.0 - gw_dist
 
                 if gw_seq_sim != 0.0:
-                    beta_rd = gcf_seq_sim/gw_seq_sim
-                    final_report_handle.write('%s\t%s\t%s\t%f\t%f\t%f\t%f\n' % (gcf_id, s1, s2, beta_rd, gw_seq_sim, gcf_seq_sim, gcf_con_sim))
+                    if gcf_seq_sim != 'NA':
+                        beta_rd = gcf_seq_sim/gw_seq_sim
+                        final_report_handle.write('%s\t%s\t%s\t%f\t%f\t%f\t%f\n' % (gcf_id, s1, s2, beta_rd, gw_seq_sim, gcf_seq_sim, gcf_con_sim))
+                    else:
+                        logObject.warning('Samples %s and %s had no genes/positions in common and are thus not reported!' % (s1, s2))
                 else:
                     logObject.warning('Samples %s and %s had an estimated ANI of 0.0 and are thus not reported!' % (s1, s2))
         final_report_handle.close()
         logObject.info("Successfully computed Beta-RD statistic between pairs of samples to measure BGC similarity relative to Genome-Wide similarity.")
-    except:
+    except Exception as e:
         error_message = "Had issues attempting to calculate Beta-RD stat between pairs of samples to measure BGC similarity relative to Genome-Wide similarity."
         logObject.error(error_message)
+        logObject.error(traceback.format_exc())
         raise RuntimeError(error_message)
 
     # Close logging object and exit

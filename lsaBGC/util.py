@@ -542,8 +542,13 @@ def calculateMashPairwiseDifferences(fasta_listing_file, outdir, name, sketch_si
 		logObject.error(error_message)
 		raise RuntimeError(error_message)
 
+	mash_input_file = outdir + 'MASH_Input.txt'
+	mash_input_handle = open(mash_input_file, 'w')
+	mash_input_handle.write('\n'.join(fastas))
+	mash_input_handle.close()
+
 	# create mash database (using mash sketch)
-	mash_sketch_cmd = ['mash', 'sketch', '-p', str(cores), '-s', str(sketch_size), '-o', mash_db] + fastas
+	mash_sketch_cmd = ['mash', 'sketch', '-p', str(cores), '-s', str(sketch_size), '-o', mash_db, '-l', mash_input_file]
 	logObject.info('Running mash sketch with the following command: %s' % ' '.join(mash_sketch_cmd))
 	try:
 		subprocess.call(' '.join(mash_sketch_cmd), shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
@@ -587,7 +592,7 @@ def calculateMashPairwiseDifferences(fasta_listing_file, outdir, name, sketch_si
 				n2 = fasta_to_name[f2]
 				pairwise_distances[n1][n2] = dist
 	except:
-		error_message = 'Had issues reading the output of MASH dist anlaysis in: %s' % outdir + name + '.out'
+		error_message = 'Had issues reading the output of MASH dist anlaysis in: %s.out' % outdir + name
 		logObject.error(error_message)
 		raise RuntimeError(error_message)
 	return pairwise_distances

@@ -14,15 +14,15 @@
 # modification, are permitted provided that the following conditions are met:
 #
 # 1. Redistributions of source code must retain the above copyright notice, this
-#    list of conditions and the following disclaimer.
+#	 list of conditions and the following disclaimer.
 #
 # 2. Redistributions in binary form must reproduce the above copyright notice,
-#    this list of conditions and the following disclaimer in the documentation
-#    and/or other materials provided with the distribution.
+#	 this list of conditions and the following disclaimer in the documentation
+#	 and/or other materials provided with the distribution.
 #
 # 3. Neither the name of the copyright holder nor the names of its
-#    contributors may be used to endorse or promote products derived from
-#    this software without specific prior written permission.
+#	 contributors may be used to endorse or promote products derived from
+#	 this software without specific prior written permission.
 #
 # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 # AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -40,6 +40,7 @@ import sys
 from time import sleep
 from operator import itemgetter
 import argparse
+from collections import defaultdict
 from ete3 import Tree
 from lsaBGC.classes.Pan import Pan
 from lsaBGC import util
@@ -68,7 +69,7 @@ def create_parser():
 	parser.add_argument('-m', '--orthofinder_matrix', help="OrthoFinder homolog group by sample matrix.", required=True)
 	parser.add_argument('-k', '--sample_set', help="Sample set to keep in analysis. Should be file with one sample id per line.", required=False)
 	parser.add_argument('-s', '--lineage_phylogeny', help="Path to species phylogeny. If not provided a MASH based neighborjoining tree will be constructed and used.", default=None, required=False)
-	parser.add_argument('-p', '--population_analysis',  action='store_true', help="Whether to construct species phylogeny and use it to determine populations.", default=False, required=False)
+	parser.add_argument('-p', '--population_analysis',	action='store_true', help="Whether to construct species phylogeny and use it to determine populations.", default=False, required=False)
 	parser.add_argument('-d', '--deep_split_value', type=int, help='If population analysis specified, what is the stringency to be used in population delineation, 1 indicates most course clustering, 4 indicates most granular clustering', required=False, default=3)
 	parser.add_argument('-i', '--discovary_analysis_id', help="Identifier for novelty SNV mining analysis. Not providing this parameter will avoid running lsaBGC-DiscoVary step.", required=False, default=None)
 	parser.add_argument('-n', '--discovary_input_listing', help="Path to tab delimited file listing: (1) sample name (2) path to forward reads and (3) path to reverse reads.", required=False, default=None)
@@ -303,7 +304,8 @@ def lsaBGC_AutoAnalyze():
 		if not os.path.isdir(gcf_div_outdir):
 			os.system('mkdir %s' % gcf_div_outdir)
 			cmd = ['lsaBGC-Divergence.py', '-g', gcf_listing_file, '-l', input_listing_file, '-o', gcf_div_outdir,
-				   '-i', gcf_id, '-a',	gcf_pop_outdir + 'Codon_Alignments_Listings.txt', '-c', str(cores)]
+				   '-i', gcf_id, '-a',	gcf_pop_outdir + 'Codon_Alignments_Listings.txt', '-c', str(cores),
+				   '-pi', gw_fasta_listing_file, '-pr', outdir + 'genome_wide.out']
 			try:
 				util.run_cmd(cmd, logObject)
 			except Exception as e:
@@ -361,9 +363,9 @@ def lsaBGC_AutoAnalyze():
 
 		include_header = False
 		if i == 0: include_header = True
-		writeToOpenHandle(gcf_pop_results_unrefined, combined_orthoresults_unrefined_handle, include_header)
-		writeToOpenHandle(gcf_pop_results_refined, combined_orthoresults_refined_handle, include_header)
-		writeToOpenHandle(gcf_div_results, combined_divergence_results_handle, include_header)
+		if os.path.isfile(gcf_pop_results_unrefined): writeToOpenHandle(gcf_pop_results_unrefined, combined_orthoresults_unrefined_handle, include_header)
+		if os.path.isfile(gcf_pop_results_refined): writeToOpenHandle(gcf_pop_results_refined, combined_orthoresults_refined_handle, include_header)
+		if os.path.isfile(gcf_div_results): writeToOpenHandle(gcf_div_results, combined_divergence_results_handle, include_header)
 
 		data = []
 		with open(gcf_pop_results_unrefined) as ogpru:
@@ -373,7 +375,7 @@ def lsaBGC_AutoAnalyze():
 				if j == 0 and not include_header: continue
 				elif j == 0 and include_header:
 					combined_gene_plotting_input_handle.write('\t'.join(ls[:2] + ls[3:6] + ['gene_start', 'gene_stop'] + ls[6:-5] + ls[-4:]) + '\n')
-				else:
+				elif ls[3] != 'NA':
 					data.append([int(ls[3]), ls])
 
 		previous_end = 1
@@ -382,7 +384,7 @@ def lsaBGC_AutoAnalyze():
 			combined_gene_plotting_input_handle.write('\t'.join(ls[:2] + ls[3:6] + [str(previous_end), str(previous_end + int(float(ls[6])))] + ls[6:-5] + ls[-4:]) + '\n')
 			previous_end = previous_end + int(float(ls[6])) + 1
 
-		hg_ordering = {}
+		hg_ordering = defaultdict(lambda: 'NA')
 		with open(gcf_pop_results_unrefined) as ogpru:
 			for i, line in enumerate(ogpru):
 				if i == 0: continue

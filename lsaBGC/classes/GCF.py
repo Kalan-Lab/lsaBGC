@@ -21,8 +21,11 @@ from pingouin import welch_anova
 from pandas import DataFrame
 from pomegranate import *
 import math
+import warnings
+warnings.filterwarnings("ignore")
 
 lsaBGC_main_directory = '/'.join(os.path.realpath(__file__).split('/')[:-3])
+RSCRIPT_FOR_COLORBREW = lsaBGC_main_directory + '/lsaBGC/Rscripts/brewColors.R'
 RSCRIPT_FOR_BGSEE = lsaBGC_main_directory + '/lsaBGC/Rscripts/bgSee.R'
 RSCRIPT_FOR_CLUSTER_ASSESSMENT_PLOTTING = lsaBGC_main_directory + '/lsaBGC/Rscripts/generatePopGenePlots.R'
 RSCRIPT_FOR_TAJIMA = lsaBGC_main_directory + '/lsaBGC/Rscripts/calculateTajimasD.R'
@@ -40,7 +43,7 @@ class GCF(Pan):
 
 		# General variables
 		self.hg_to_color = None
-		self.hg_order_scores = defaultdict(int)
+		self.hg_order_scores = defaultdict(lambda: ['NA', 'NA'])
 		self.specific_core_homologs =set([])
 		self.scc_homologs = set([])
 		self.core_homologs = set([])
@@ -143,7 +146,7 @@ class GCF(Pan):
 				self.logObject.error(traceback.format_exc())
 			raise RuntimeError(traceback.format_exc())
 
-	def assignColorsToHGs(self, gene_to_hg, bgc_genes):
+	def assignColorsToHGs(self, gene_to_hg, bgc_genes, outdir):
 		"""
 		Simple function to associate each homolog group with a color for consistent coloring.
 
@@ -163,11 +166,29 @@ class GCF(Pan):
 			if hg_bgc_counts[c] > 1:
 				hgs.add(c)
 
+		len_hgs = len(hgs)
+		color_listing_file = outdir + 'colors_for_hgs.txt'
+
+		rscript_brew_color = ["Rscript", RSCRIPT_FOR_COLORBREW, str(len_hgs), color_listing_file]
+		if self.logObject:
+			self.logObject.info('Running R-based plotting with the following command: %s' % ' '.join(rscript_brew_color))
+		try:
+			subprocess.call(' '.join(rscript_brew_color), shell=True, stdout=subprocess.DEVNULL,
+							stderr=subprocess.DEVNULL,
+							executable='/bin/bash')
+			assert(os.path.isfile(color_listing_file) and os.path.getsize(color_listing_file) > 0)
+			if self.logObject:
+				self.logObject.info('Successfully ran: %s' % ' '.join(rscript_brew_color))
+
+		except Exception as e:
+			if self.logObject:
+				self.logObject.error('Had an issue running: %s' % ' '.join(rscript_brew_color))
+				self.logObject.error(traceback.format_exc())
+			raise RuntimeError(traceback.format_exc())
+
 		# read in list of colors
-		dir_path = '/'.join(os.path.dirname(os.path.realpath(__file__)).split('/')[:-1]) + '/'
-		colors_file = dir_path + 'other/colors_200.txt'
 		colors = []
-		with open(colors_file) as ocf:
+		with open(color_listing_file) as ocf:
 			colors = [x.strip() for x in ocf.readlines()]
 		random.shuffle(colors)
 
@@ -439,6 +460,11 @@ class GCF(Pan):
 		if not os.path.isdir(prot_alg_dir): os.system('mkdir %s' % prot_alg_dir)
 		if not os.path.isdir(codo_alg_dir): os.system('mkdir %s' % codo_alg_dir)
 
+		pool_size = 1
+		if cores > 10:
+			pool_size = math.floor(cores / 10)
+			cores = 10
+
 		all_samples = set(self.bgc_sample.values())
 		try:
 			inputs = []
@@ -469,9 +495,9 @@ class GCF(Pan):
 				#if len([x for x in gene_sequences.keys() if len(x.split('|')[1].split('_')[0]) == 3]) == 0: continue
 				if filter_outliers:
 					gene_sequences = util.determineOutliersByGeneLength(gene_sequences, self.logObject)
-				inputs.append([hg, gene_sequences, nucl_seq_dir, prot_seq_dir, prot_alg_dir, codo_alg_dir, self.logObject])
+				inputs.append([hg, gene_sequences, nucl_seq_dir, prot_seq_dir, prot_alg_dir, codo_alg_dir, cores, self.logObject])
 
-			p = multiprocessing.Pool(cores)
+			p = multiprocessing.Pool(pool_size)
 			p.map(create_codon_msas, inputs)
 
 			if not filter_outliers:
@@ -714,10 +740,13 @@ class GCF(Pan):
 						following_hgs[hg][hg_after] += 1
 
 			hg_best_score = defaultdict(int)
+			hg_all_scores = defaultdict(set)
 			for hg in all_hgs:
 				for fhg in following_hgs[hg]:
 					if following_hgs[hg][fhg] > hg_best_score[fhg]:
 						hg_best_score[fhg] = following_hgs[hg][fhg]
+					hg_all_scores[fhg].add(following_hgs[hg][fhg])
+
 			# iterative approach to get homolog group orders
 			curr_hg = 'start'
 			visited_hgs = set([curr_hg])
@@ -742,6 +771,8 @@ class GCF(Pan):
 				ordered_hgs_list.append(next_hg)
 				visited_hgs.add(next_hg)
 				curr_hg = next_hg
+
+			previous_ordered_hgs_list = ordered_hgs_list
 			while len(all_hgs.difference(visited_hgs)) > 0:
 				for i, curr_hg in enumerate(ordered_hgs_list):
 					next_hg = None
@@ -750,11 +781,20 @@ class GCF(Pan):
 							next_hg = fhg[0]
 							break
 
-					#print('Second loop:\t' + '\t'.join(ordered_hgs_list))
+					print('Second loop:\t' + '\t'.join(ordered_hgs_list))
 					if next_hg != None:
 						ordered_hgs_list.insert(i+1, next_hg)
 						visited_hgs.add(next_hg)
 						break
+
+				if previous_ordered_hgs_list == ordered_hgs_list:
+					for hg in all_hgs.difference(visited_hgs):
+						for hgs in sorted(hg_all_scores[hg], reverse=True):
+							if hgs != hg_best_score[hg]:
+								hg_best_score[hg] = hgs
+								break
+
+				previous_ordered_hgs_list = ordered_hgs_list
 
 			i = 1
 			for hg in ordered_hgs_list:
@@ -764,7 +804,7 @@ class GCF(Pan):
 					self.hg_order_scores[hg] = [i, consensus_direction]
 					i+=1
 
-			print(self.hg_order_scores)
+
 		except Exception as e:
 			if self.logObject:
 				self.logObject.error("Issues in attempting to calculate order score for each homolog group.")
@@ -822,7 +862,7 @@ class GCF(Pan):
 			hg = f.split('.msa.fna')[0]
 			codon_alignment_fasta = input_codon_dir + f
 			inputs.append([self.gcf_id, hg, codon_alignment_fasta, popgen_dir, plots_dir, self.comp_gene_info, self.hg_genes,
-							 self.bgc_sample, self.hg_prop_multi_copy, self.hg_order_scores, dict(self.sample_population),
+							 self.bgc_sample, self.hg_prop_multi_copy, dict(self.hg_order_scores), dict(self.sample_population),
 							 population, self.logObject])
 
 		p = multiprocessing.Pool(cores)
@@ -904,10 +944,10 @@ class GCF(Pan):
 		other_to_other = background_to_background_transition_prob  # float(number_other_hgs - 1) / float(number_other_hgs)
 		other_to_gcf = 1.0 - background_to_background_transition_prob  # 1.0 - other_to_other
 
-		start_to_gcf = 0.5  # float(number_gcf_hgs)/float(number_gcf_hgs + number_other_hgs)
+		start_to_gcf = 0.5	# float(number_gcf_hgs)/float(number_gcf_hgs + number_other_hgs)
 		start_to_other = 0.5  # 1.0 - start_to_gcf
 		gcf_to_end = 0.5  # float(number_gcf_hgs)/float(number_gcf_hgs + number_other_hgs)
-		other_to_end = 0.5  # 1.0 - gcf_to_end
+		other_to_end = 0.5	# 1.0 - gcf_to_end
 
 		model.add_transition(model.start, gcf_state, start_to_gcf)
 		model.add_transition(model.start, other_state, start_to_other)
@@ -1137,7 +1177,7 @@ class GCF(Pan):
 
 		:param genes_representative_fasta: Path to FASTA file which will harbor gene + flanks
 		:param codon_alignments_file: File listing paths to codon alignments (2nd column) for each homolog group (1st
-		                              column).
+									  column).
 		:param bowtei2_db_prefix: Path to prefix of Bowtie2 refernece database/index to be used for aligning downstream
 															in the lsaBGC-DiscoVary workflow
 		"""
@@ -2671,7 +2711,10 @@ def popgen_analysis_of_hg(inputs):
 		prop_conserved = round(float(len(variable_sites))/float(len(conserved_sites) + len(variable_sites)), 2)
 	else:
 		prop_conserved = "No conserved or variable sites!"
-	hg_info += [gcf_id, hg, '; '.join(products), hg_order_scores[hg][0], hg_order_scores[hg][1], hg_prop_multi_copy[hg],
+	hg_ord = 'NA'; hg_dir = 'NA'
+	if hg in hg_order_scores:
+	    hg_ord, hg_dir = hg_order_scores[hg] 
+	hg_info += [gcf_id, hg, '; '.join(products), hg_ord, hg_dir, hg_prop_multi_copy[hg],
 				median_gene_length, is_core, len(seqs), len(samples), round(prop_samples_with_hg,2), tajimas_d,
 				prop_conserved, dnds]
 
@@ -2836,7 +2879,7 @@ def create_codon_msas(inputs):
 	of codon alignments for each homolog group of interest in the GCF.
 	:param inputs: list of inputs passed in by GCF.constructCodonAlignments().
 	"""
-	hg, gene_sequences, nucl_seq_dir, prot_seq_dir, prot_alg_dir, codo_alg_dir, logObject = inputs
+	hg, gene_sequences, nucl_seq_dir, prot_seq_dir, prot_alg_dir, codo_alg_dir, cores, logObject = inputs
 
 	hg_nucl_fasta = nucl_seq_dir + '/' + hg + '.fna'
 	hg_prot_fasta = prot_seq_dir + '/' + hg + '.faa'
@@ -2851,7 +2894,7 @@ def create_codon_msas(inputs):
 	hg_nucl_handle.close()
 	hg_prot_handle.close()
 
-	mafft_cmd = ['mafft', '--maxiterate', '1000', '--localpair', hg_prot_fasta, '>', hg_prot_msa]
+	mafft_cmd = ['mafft', '--thread', str(cores), '--maxiterate', '1000', '--localpair', hg_prot_fasta, '>', hg_prot_msa]
 	pal2nal_cmd = ['pal2nal.pl', hg_prot_msa, hg_nucl_fasta, '-output', 'fasta', '>', hg_codo_msa]
 
 	if logObject:

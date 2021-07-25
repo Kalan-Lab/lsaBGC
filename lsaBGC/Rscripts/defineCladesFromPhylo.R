@@ -23,8 +23,9 @@ mid.njt <- force.ultrametric(mid.njt, method=c("nnls"))
 mid.njt <-multi2di(mid.njt)
 
 hc <- as.hclust(mid.njt)
-distM <- cophenetic(midpoint.root(tree))
-clusters <- cutreeDynamic(hc, distM=distM, minClusterSize=1, deepSplit=as.numeric(deep_split_value), method="hybrid")
+distM <- cophenetic(tree)
+clusters <- cutreeDynamic(hc, distM=distM, minClusterSize=1, deepSplit=as.numeric(deep_split_value), method="hybrid", cutHeight=0.6)
+
 hc.labels <- mid.njt$tip.label
 results <- cbind(hc.labels, clusters)
 write.table(results, file=txt_output_file, col.names=F, row.names=F, quote=F, sep='\t')

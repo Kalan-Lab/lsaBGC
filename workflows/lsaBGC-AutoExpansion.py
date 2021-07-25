@@ -43,6 +43,7 @@ from lsaBGC.classes.GCF import GCF
 from lsaBGC.classes.Pan import Pan
 from lsaBGC.classes.BGC import BGC
 from lsaBGC import util
+from decimal import Decimal
 import math
 from collections import defaultdict
 import traceback
@@ -184,13 +185,16 @@ def lsaBGC_AutoExpansion():
 					line = line.strip()
 					bgc_gbk_path, sample, lt, hg, eval = line.split('\t')
 					eval = float(eval)
-					bgc_lt_evals[sample][gcf_id][bgc_gbk_path][lt] = max(math.log(eval+1e-300, 10), -300)
+					d = Decimal(eval + 1e-300)
+					bgc_lt_evals[sample][gcf_id][bgc_gbk_path][lt] = float(max([d.log10(), -300]))
 					if quick_mode:
-						bgc_lt_evals[sample][gcf_id][bgc_gbk_path][lt] = max(math.log(eval + 1e-500, 10), -500)
+						d = Decimal(eval + 1e-500)
+						bgc_lt_evals[sample][gcf_id][bgc_gbk_path][lt] = float(max([d.log10(), -500]))
 					bgc_lts[sample][gcf_id][bgc_gbk_path].add(lt)
 					bgc_lt_to_hg[bgc_gbk_path][lt] = hg
 
 		except Exception as e:
+			raise RuntimeException(traceback.format_exc())
 			logObject.warning("Key output files from lsaBGC-Expansion.py appear to be missing, skipping over GCF %s" % gcf_id)
 			sys.stderr.write("Key output files lsaBGC-Expansion.py appear to be missing, skipping over GCF %s\n" % gcf_id)
 			continue
@@ -218,41 +222,33 @@ def lsaBGC_AutoExpansion():
 							try:
 								assert(bgc1_score != bgc2_score)
 							except Exception as e:
-								print(bgc1 + '\t' + bgc2)
-								logObject.error("Overlapping BGCs exist with equivalent scores for different GCFs. This should not be possible. Exiting now...")
-								logObject.error(traceback.format_exc())
-								raise RuntimeException("Overlapping BGCs exist with equivalent scores for different GCFs. This should not be possible. Exiting now...")
+								logObject.warning("Overlapping BGCs exist with equivalent scores for different GCFs. This should not be possible. Both instances will be discarded.")
+								logObject.warning(traceback.format_exc())
 
-							gcf_to_edit = None
-							bgc_to_remove = None
-
-							if bgc1 in original_gcfs and not bgc2 in original_gcfs:
-								gcf_to_edit = gcf2
-								bgc_to_remove = bgc2
+							address = None
+							if bgc1 in original_gcfs and bgc2 in original_gcfs:
+								address = "neither removed"
+								pass
+							elif bgc1 in original_gcfs and not bgc2 in original_gcfs:
+								address = bgc2 + ' removed'
+								bgcs_to_discard.add(bgc2)
 							elif bgc2 in original_gcfs and not bgc1 in original_gcfs:
-								gcf_to_edit = gcf1
-								bgc_to_remove = bgc1
+								address = bgc1 + ' removed'
+								bgcs_to_discard.add(bgc1)
 							elif bgc1_score < bgc2_score:
-								gcf_to_edit = gcf2
-								bgc_to_remove = bgc2
+								address = bgc2 + ' removed'
+								bgcs_to_discard.add(bgc2)
+							elif bgc2_score < bgc1_score:
+								address = bgc1 + ' removed'
+								bgcs_to_discard.add(bgc1)
 							else:
-								gcf_to_edit = gcf1
-								bgc_to_remove = bgc1
+								address = 'both removed'
+								bgcs_to_discard.add(bgc1)
+								bgcs_to_discard.add(bgc2)
 
-							logObject.info("Overlap found between BGCs %s (%s) and %s (%s), will be removing %s (%s)" % (bgc1, gcf1, bgc2, gcf2, bgc_to_remove, gcf_to_edit))
+							logObject.info("Overlap found between BGCs %s (%s) and %s (%s), %s." % (bgc1, gcf1, bgc2, gcf2, address))
 
-							bgcs_to_discard.add(bgc_to_remove)
-							"""
-							gcf_expansion_listing_file = gcf_expansion_results[gcf_to_edit]
-							all_lines = []
-							with open(gcf_expansion_listing_file) as ogelf:
-								for line in ogelf: all_lines.append(line)
-							rewrite_handle = open(gcf_expansion_listing_file, 'w')
-							for line in all_lines:
-								if line.strip().split('\t')[1] != bgc_to_remove:
-									rewrite_handle.write(line)
-							rewrite_handle.close()
-							"""
+
 	# create updated general listings file
 	updated_listings_file = outdir + 'Sample_Annotation_Files.txt'
 	updated_listings_handle = open(updated_listings_file, 'w')
@@ -283,6 +279,7 @@ def lsaBGC_AutoExpansion():
 				BGC_Object = BGC(bgc_gbk_path, bgc_gbk_path)
 				BGC_Object.parseGenbanks(comprehensive_parsing=False)
 				curr_bgc_lts = set(BGC_Object.gene_information.keys())
+				sample = util.cleanUpSampleName(sample)
 				for lt in curr_bgc_lts:
 					if lt in bgc_lt_to_hg[bgc_gbk_path]:
 						hg = bgc_lt_to_hg[bgc_gbk_path][lt]
