@@ -2089,6 +2089,8 @@ class GCF(Pan):
 def generate_snv_read_support_fastq(input_args):
 	pe_sample, pe_sample_reads, all_snv_supporting_reads, snv_mining_outdir, logObject = input_args
 	try:
+		ks = ['name', 'sequence', 'optional', 'quality']
+
 		snv_support_fastq_file = snv_mining_outdir + pe_sample + '.snv_support.fastq'
 		snv_support_fastq_handle = open(snv_support_fastq_file, 'w')
 		visited = set([])
@@ -2098,10 +2100,14 @@ def generate_snv_read_support_fastq(input_args):
 			else:
 				fastq_handle = open(read_file)
 
-			for rec in SeqIO.parse(fastq_handle, 'fastq'):
-				if rec.id in all_snv_supporting_reads:
-					visited.add(rec.id)
-					snv_support_fastq_handle.write(rec.format('fastq'))
+			for line in fastq_handle:
+				lines.append(line.rstrip())
+				if len(lines) == 4:
+					if lines[0][1:] in all_snv_supporting_reads:
+						visited.add(lines[0][1:])
+						snv_support_fastq_handle.write('\n'.join(lines) + '\n')
+					lines = []
+
 			fastq_handle.close()
 		for r in all_snv_supporting_reads:
 			if not r in visited:
@@ -2767,7 +2773,7 @@ def popgen_analysis_of_hg(inputs):
 		prop_conserved = "No conserved or variable sites!"
 	hg_ord = 'NA'; hg_dir = 'NA'
 	if hg in hg_order_scores:
-	    hg_ord, hg_dir = hg_order_scores[hg] 
+		hg_ord, hg_dir = hg_order_scores[hg]
 	hg_info += [gcf_id, hg, '; '.join(products), hg_ord, hg_dir, hg_prop_multi_copy[hg],
 				median_gene_length, is_core, len(seqs), len(samples), round(prop_samples_with_hg,2), tajimas_d,
 				prop_conserved, dnds]
