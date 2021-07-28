@@ -2072,7 +2072,7 @@ class GCF(Pan):
 																		ts_or_tv, ref_al, sample, gene, ref_pos,
 																		ref_codon, ref_aa, snv_support_count, snv_support_reads]]) + '\n')
 									all_snv_supporting_reads = all_snv_supporting_reads.union(set(snv_support_reads.split(',')))
-					snv_read_fastq_inputs.append([pe_sample, pe_sample_reads, all_snv_supporting_reads, snv_mining_outdir])
+					snv_read_fastq_inputs.append([pe_sample, pe_sample_reads, all_snv_supporting_reads, snv_mining_outdir, self.logObject])
 
 			p = multiprocessing.Pool(cores)
 			p.map(generate_snv_read_support_fastq, snv_read_fastq_inputs)
@@ -2087,12 +2087,11 @@ class GCF(Pan):
 			raise RuntimeError(traceback.format_exc())
 
 def generate_snv_read_support_fastq(input_args):
-	pe_sample, pe_sample_reads, all_snv_supporting_reads, snv_mining_outdir = input_args
+	pe_sample, pe_sample_reads, all_snv_supporting_reads, snv_mining_outdir, logObject = input_args
 	try:
 		snv_support_fastq_file = snv_mining_outdir + pe_sample + '.snv_support.fastq'
 		snv_support_fastq_handle = open(snv_support_fastq_file, 'w')
 		for read_file in pe_sample_reads:
-
 			if read_file.endswith('.gz'):
 				fastq_handle = gzip.open(read_file, 'rt')
 			else:
@@ -2106,9 +2105,9 @@ def generate_snv_read_support_fastq(input_args):
 		snv_support_fastq_handle.close()
 		os.system('gzip %s' % snv_support_fastq_file)
 	except Exception as e:
-		if self.logObject:
-			self.logObject.error('Difficulties writing supporting reads for SNVs to FASTQ file.')
-			self.logObject.error(traceback.format_exc())
+		if logObject:
+			logObject.error('Difficulties writing supporting reads for SNVs to FASTQ file.')
+			logObject.error(traceback.format_exc())
 		raise RuntimeError(traceback.format_exc())
 
 def snv_miner_single(input_args):
