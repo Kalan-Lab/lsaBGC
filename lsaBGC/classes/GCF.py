@@ -1336,7 +1336,7 @@ class GCF(Pan):
 				self.logObject.error(traceback.format_exc())
 			raise RuntimeError(traceback.format_exc())
 
-	def runSNVMining(self, paired_end_sequencing_file, bowtie2_ref_fasta, codon_alignment_file, bowtie2_alignment_dir, results_dir, cores=1):
+	def runSNVMining(self, paired_end_sequencing_file, bowtie2_ref_fasta, codon_alignment_file, bowtie2_alignment_dir, results_dir, debug_mode=False, cores=1):
 		"""
 		Wrapper function for mining for novel SNVs across genes of GCF.
 
@@ -1377,11 +1377,11 @@ class GCF(Pan):
 			with open(paired_end_sequencing_file) as opesf:
 				for line in opesf:
 					line = line.strip()
-					sample, frw_read, rev_read = line.split('\t')
+					sample = line.split('\t')[0]
 					process_args.append([sample, bowtie2_alignment_dir + sample + '.sorted.bam',
 										 bowtie2_ref_fasta, self.instance_to_haplotype, results_dir, self.hg_genes,
 										 self.comp_gene_info, dict(gene_pos_to_msa_pos), dict(gene_pos_to_allele),
-										 dict(codon_alignment_lengths), self.logObject])
+										 dict(codon_alignment_lengths), debug_mode, self.logObject])
 
 			p = multiprocessing.Pool(cores)
 			p.map(snv_miner_single, process_args)
@@ -1611,10 +1611,18 @@ class GCF(Pan):
 			no_handle = open(novelty_report_file, 'w')
 			hpr_handle = open(homolog_presence_report_file, 'w')
 			sbc_handle = open(sample_bgc_coverage_file, 'w')
+
 			no_handle.write('\t'.join(['gcf_id', 'sample', 'homolog_group', 'position_along_msa', 'alternate_allele',
 									   'codon_position', 'alternate_codon', 'alternate_aa', 'dn_or_ds', 'ts_or_tv',
 									   'reference_allele', 'reference_sample', 'reference_gene', 'reference_position',
 									   'ref_codon', 'ref_aa', 'snv_support']) + '\n')
+
+			hpr_handle.write('\t'.join(['sample', 'homolog_group', 'outlier_in_coverage',
+										'homolog_group_is_differentiable_from_paralogs',
+										'homolog_group_proportion_initial_samples_with_multi_copy',
+										'product_has_MGE_related_term', 'homolog_group_trimmed_median_depth',
+										'homolog_group_early_truncation_stop_codon_position', 'difficult_to_resolve_positions']) + '\n')
+
 			mges = set(['transp', 'integrase'])
 			purine_alleles = set(['A', 'G'])
 			specific_homolog_groups = set([])
@@ -1660,7 +1668,7 @@ class GCF(Pan):
 							seq_count += 1
 
 					for pos, seqs_with_al in msa_pos_non_ambiguous_counts.items():
-						if seqs_with_al/float(seq_count) >= 0.8: # TODO consdier changing to > 0.9
+						if seqs_with_al/float(seq_count) >= 0.9:
 							gene_core_positions[hg].add(pos)
 
 					cod_algn_len = max(msa_positions)
@@ -1676,12 +1684,13 @@ class GCF(Pan):
 			with open(paired_end_sequencing_file) as ossf:
 				for line in ossf:
 					pe_sample = line.strip().split('\t')[0]
+					pe_sample_reads = line.strip().split('\t')[1:]
 					result_file = snv_mining_outdir + pe_sample + '.txt'
 					snv_file = snv_mining_outdir + pe_sample + '.snvs'
 					homolog_group_positions = defaultdict(list)
 					homolog_group_depths = defaultdict(list)
 					previous_positions = []
-					hg_median_depths = {}
+					hg_median_depths = defaultdict(float)
 					hg_first_position_of_stop_codon = defaultdict(lambda: None)
 
 					if not os.path.isfile(result_file): continue
@@ -1724,7 +1733,6 @@ class GCF(Pan):
 							homolog_group_positions[homolog_group].append(position)
 
 					present_homolog_groups = set([])
-					mid_depths_all_present_hgs = []
 					for hg in homolog_group_depths:
 						hg_depths = homolog_group_depths[hg]
 						hg_positions = homolog_group_positions[hg]
@@ -1737,11 +1745,12 @@ class GCF(Pan):
 
 						if float(core_positions_covered)/len(gene_core_positions[hg]) >= 0.9:
 							present_homolog_groups.add(hg)
-
-							hg10per = int(np.percentile(list(range(0, len(hg_depths) + 1)), 10))
-							hg_depths_trimmed = hg_depths[hg10per:-hg10per]
-							hg_trimmed_depth_median = statistics.median(hg_depths_trimmed)
-							hg_median_depths[hg] = hg_trimmed_depth_median
+							filtered_hg_depths = []
+							for pos in range(1, len(hg_depths)+1):
+								if pos in gene_ignore_positions[hg]: continue
+								filtered_hg_depths.append(hg_depths[pos-1])
+							hg_filtered_depth_median = statistics.median(filtered_hg_depths)
+							hg_median_depths[hg] = hg_filtered_depth_median
 
 					if len(hg_median_depths) < 5: continue
 					median_of_medians = statistics.median(list(hg_median_depths.values()))
@@ -1753,35 +1762,41 @@ class GCF(Pan):
 						if hg_median > (median_of_medians + (2*mad_of_medians)) or hg_median < (median_of_medians - (2*mad_of_medians)):
 							outlier_homolog_groups.add(hg)
 
-					present_homolog_groups = present_homolog_groups.difference(outlier_homolog_groups)
-
-					if len(present_homolog_groups) < 5: continue
-					if len(present_homolog_groups.intersection(self.core_homologs))/float(len(self.core_homologs)) < 0.7 and len(present_homolog_groups.intersection(specific_homolog_groups)) == 0: continue
-
+					depths_at_all_refined_present_hgs = []
 					hetero_sites = 0
 					total_sites = 0
 					mge_hgs = set([])
-					for hg in present_homolog_groups:
-						hg_depths = homolog_group_depths[hg]
-						hg10per = int(np.percentile(list(range(0, len(hg_depths) + 1)), 10))
-						hg_depths_trimmed = hg_depths[hg10per:-hg10per]
-						mid_depths_all_present_hgs += hg_depths_trimmed
+					refined_present_homolog_groups = set([])
+					report_lines = []
+					for hg in self.hg_genes:
 						product_has_mge_term = False
 						for gene in self.hg_genes[hg]:
 							for word in mges:
 								if word in self.comp_gene_info[gene]['product'].lower():
 									product_has_mge_term = True
-						hpr_handle.write('\t'.join([str(x) for x in [pe_sample, hg, (hg in specific_homolog_groups),
+						hpr_handle.write('\t'.join([str(x) for x in [pe_sample, hg, (hg in outlier_homolog_groups),
+																	 (hg in specific_homolog_groups),
 																	 self.hg_prop_multi_copy[hg], product_has_mge_term,
-																	 statistics.median(hg_depths_trimmed),
+																	 hg_median_depths[hg],
 																	 hg_first_position_of_stop_codon[hg],
 																	 ','.join([str(x) for x in sorted(gene_ignore_positions[hg])])]]) + '\n')
+
 						if product_has_mge_term: mge_hgs.add(hg)
-						for pos in range(1, len(hg_depths)+1):
-							if pos in gene_ignore_positions[hg]: continue
-							total_sites += 1
-							if pos in hg_hetero_sites[hg]:
-								hetero_sites += 1
+						if not product_has_mge_term and not hg in outlier_homolog_groups:
+							refined_present_homolog_groups.add(hg)
+							hg_depths = homolog_group_depths[hg]
+							for pos in range(1, len(hg_depths)+1):
+								if pos in gene_ignore_positions[hg]: continue
+								depths_at_all_refined_present_hgs.append(hg_depths[pos-1])
+								if self.hg_prop_multi_copy[hg] < 0.05:
+									total_sites += 1
+									if pos in hg_hetero_sites[hg]:
+										hetero_sites += 1
+
+					if len(refined_present_homolog_groups) < 5: continue
+					if len(refined_present_homolog_groups.intersection(self.core_homologs))/float(len(self.core_homologs.difference(mge_hgs))) < 0.7 and len(refined_present_homolog_groups.intersection(specific_homolog_groups)) == 0: continue
+
+					hpr_handle.write('\n'.join(report_lines) + '\n')
 
 					filt_result_file = snv_mining_outdir + pe_sample + '.filt.txt'
 					filt_result_handle = open(filt_result_file, 'w')
@@ -1793,8 +1808,7 @@ class GCF(Pan):
 								filt_result_handle.write(line + '\n')
 							else:
 								hg = line.split(',')[0]
-								if not hg in present_homolog_groups: continue
-								if self.hg_prop_multi_copy[hg] >= 0.05 or hg in mge_hgs: continue
+								if not hg in refined_present_homolog_groups or self.hg_prop_multi_copy[hg] >= 0.05: continue
 								pos, a, c, g, t = [int(x) for x in line.split(',')[1:]]
 								pos_allele_support[hg][pos]['A'] = a
 								pos_allele_support[hg][pos]['C'] = c
@@ -1804,8 +1818,8 @@ class GCF(Pan):
 								filt_result_handle.write(line + '\n')
 					filt_result_handle.close()
 
-					trimmed_depth_median = statistics.median(mid_depths_all_present_hgs)
-					trimmed_depth_mad = median_absolute_deviation(mid_depths_all_present_hgs)
+					trimmed_depth_median = statistics.median(depths_at_all_refined_present_hgs)
+					trimmed_depth_mad = median_absolute_deviation(depths_at_all_refined_present_hgs)
 					sbc_handle.write(pe_sample + '\t' + str(trimmed_depth_median) + '\t' + str(trimmed_depth_mad) + '\n')
 
 					# Check if phasing needed
@@ -1992,24 +2006,25 @@ class GCF(Pan):
 							bgc_fasta_handle.write('>' + pe_sample + '_|_' + str(hi+1) + '\n' + seq + '\n')
 						bgc_fasta_handle.close()
 
+					all_snv_supporting_reads = set([])
 					with open(snv_file) as of:
 						for i, line in enumerate(of):
 							line = line.strip()
 							ls = line.split('\t')
-							snv_count = ls[1]
-							gsh, ref_pos, ref_al, alt_al = ls[0].split('_|_')
+							snv_id, snv_support_count, snv_support_reads = ls[:2]
+
+							gsh, ref_pos, ref_al, alt_al = snv_id.split('_|_')
 							hg, allele_cluster, sample, gene = gsh.split('|')
 
 							ref_pos = int(ref_pos)
 
 							# check whether to regard this SNV as potentially legit
-							if not hg in present_homolog_groups: continue
-							if self.hg_prop_multi_copy[hg] >= 0.05 or hg in mge_hgs: continue
+							if not hg in refined_present_homolog_groups or self.hg_prop_multi_copy[hg] >= 0.05: continue
 							if not ref_pos in gene_pos_to_msa_pos[hg][gene]: continue
 							msa_pos = gene_pos_to_msa_pos[hg][gene][ref_pos]
 							msa_pos_als = msa_pos_alleles[hg][msa_pos]
 							if hg_first_position_of_stop_codon[hg] != None and msa_pos >= hg_first_position_of_stop_codon[hg]: continue
-							if int(snv_count) >= min_allele_depth and int(homolog_group_depths[hg][msa_pos-1]) <= (trimmed_depth_median+(2*trimmed_depth_mad)) and int(homolog_group_depths[hg][msa_pos-1]) >= trimmed_depth_median-(3*trimmed_depth_mad):
+							if int(snv_support_count) >= min_allele_depth and int(homolog_group_depths[hg][msa_pos-1]) <= (trimmed_depth_median+(2*trimmed_depth_mad)) and int(homolog_group_depths[hg][msa_pos-1]) >= trimmed_depth_median-(3*trimmed_depth_mad):
 								assert (ref_al in msa_pos_alleles[hg][msa_pos] and ref_al == gene_pos_to_allele[hg][gene][ref_pos])
 								if not alt_al in msa_pos_als and not msa_pos in gene_ignore_positions[hg]:
 									#if not alt_al in msa_pos_als and not msa_pos in gene_edgy_positions[hg] and msa_pos_ambiguous_freqs[hg][msa_pos] <= 0.1:
@@ -2053,8 +2068,30 @@ class GCF(Pan):
 									no_handle.write('\t'.join([str(x) for x in [self.gcf_id, pe_sample, hg, msa_pos, alt_al,
 																		codon_position, alt_codon, alt_aa, dn_or_ds,
 																		ts_or_tv, ref_al, sample, gene, ref_pos,
-																		ref_codon, ref_aa, snv_count]]) + '\n')
+																		ref_codon, ref_aa, snv_support_count, snv_support_reads]]) + '\n')
+									all_snv_supporting_reads = all_snv_supporting_reads.union(set(snv_support_reads.split(',')))
 
+					try:
+						snv_support_fastq_file = snv_mining_outdir + pe_sample + '.snv_support.fastq.gz'
+						snv_support_fastq_handle = gzip.open(snv_support_fastq_file, 'w')
+						for read_file in pe_sample_reads:
+
+							if read_file.endswith('.gz'):
+								fastq_handle = gzip.open(read_file)
+							else:
+								fastq_handle = open(read_file)
+
+							for rec in SeqIO.parse(fastq_handle, 'fastq-illumina'):
+								if rec.id in all_snv_supporting_reads:
+									snv_support_fastq_handle.write(rec.format('fastq'))
+
+							fastq_handle.close()
+						snv_support_fastq_handle.close()
+					except Exception as e:
+						if self.logObject:
+							self.logObject.error('Difficulties writing supporting reads for SNVs to FASTQ file.')
+							self.logObject.error(traceback.format_exc())
+						raise RuntimeError(traceback.format_exc())
 
 			no_handle.close()
 			hpr_handle.close()
@@ -2069,7 +2106,7 @@ def snv_miner_single(input_args):
 	Function to mine for novel SNVs and identify alleles of homolog groups for GCF present in paired-end sequencing
 	dataset.
 	"""
-	sample, bam_alignment, ref_fasta, hg_gene_to_rep, res_dir, bgc_hg_genes, comp_gene_info, gene_pos_to_msa_pos, gene_pos_to_allele, codon_alignment_lengths, logObject = input_args
+	sample, bam_alignment, ref_fasta, hg_gene_to_rep, res_dir, bgc_hg_genes, comp_gene_info, gene_pos_to_msa_pos, gene_pos_to_allele, codon_alignment_lengths, debug_mode, logObject = input_args
 	try:
 		hg_rep_genes = defaultdict(set)
 		for g, r in hg_gene_to_rep.items():
@@ -2081,7 +2118,9 @@ def snv_miner_single(input_args):
 		details_file = res_dir + sample + '.full.txt'
 		snv_outf = open(snvs_file, 'w')
 		res_outf = open(result_file, 'w')
-		det_outf = open(details_file, 'w')
+		det_outf = None
+		if debug_mode:
+			det_outf = open(details_file, 'w')
 
 		res_outf.write('Contig,Position,Sample-A,Sample-C,Sample-G,Sample-T\n')
 
@@ -2183,7 +2222,8 @@ def snv_miner_single(input_args):
 								cod_pos = gene_pos_to_msa_pos[hg][align[0]][ref_pos]
 								hg_align_pos_alleles[cod_pos][alt_al].add(read)
 								accounted_reads.add(read)
-								det_outf.write('\t'.join([str(x) for x in [sample, hg, align[0], ref_pos, cod_pos, ref_al, alt_al, read, align[1], align[2], align[3], align[4]]]) + '\n')
+								if debug_mode:
+									det_outf.write('\t'.join([str(x) for x in [sample, hg, align[0], ref_pos, cod_pos, ref_al, alt_al, read, align[1], align[2], align[3], align[4]]]) + '\n')
 								if b[2].islower():
 									assert (alt_al != ref_al)
 									# because reads with at most 5 indel positions allowed above, a base might appear in the consensus/phased haplotypes
@@ -2201,14 +2241,15 @@ def snv_miner_single(input_args):
 			for snv in supported_snvs:
 				support_info = []
 				for read in supported_snvs[snv]:
-					support_info.append(read + '_|_' + str(max(supported_snvs[snv][read])))
-				snv_outf.write('\t'.join([snv, str(len(support_info))] + support_info) + '\n')
+					support_info.append(read) # + '_|_' + str(max(supported_snvs[snv][read])))
+				snv_outf.write('\t'.join([snv, str(len(support_info)), ', '.join(support_info)]) + '\n')
 
-			print('\t'.join([hg, str(len(total_reads)), str(len(accounted_reads))]))
+			#print('\t'.join([hg, str(len(total_reads)), str(len(accounted_reads))]))
 
 		snv_outf.close()
 		res_outf.close()
-		det_outf.close()
+		if debug_mode:
+			det_outf.close()
 		topaligns_handle.close()
 		bam_handle.close()
 
@@ -2222,7 +2263,7 @@ def snv_miner_single(input_args):
 		raise RuntimeError(traceback.format_exc())
 
 
-def paired_snv_miner(input_args):
+def snv_miner_paired(input_args):
 	"""
 	Function to mine for novel SNVs and identify alleles of homolog groups for GCF present in paired-end sequencing
 	dataset.

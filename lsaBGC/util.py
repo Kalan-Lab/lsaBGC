@@ -342,8 +342,9 @@ def runBowtie2Alignments(bowtie2_reference, paired_end_sequencing_file, bowtie2_
 		with open(paired_end_sequencing_file) as opesf:
 			for line in opesf:
 				line = line.strip()
-				sample, frw_read, rev_read = line.split('\t')
-				bowtie2_inputs.append([sample, frw_read, rev_read, bowtie2_reference, bowtie2_outdir, bowtie2_cores, logObject])
+				sample = line.split('\t')[0]
+				reads = line.split('\t')[1:]
+				bowtie2_inputs.append([sample, reads, bowtie2_reference, bowtie2_outdir, bowtie2_cores, logObject])
 		p = multiprocessing.Pool(bowtie2_pool_size)
 		p.map(bowtie2_alignment, bowtie2_inputs)
 		p.close()
@@ -357,7 +358,7 @@ def bowtie2_alignment(input_args):
 	Function to perform Bowtie2 alignment of paired-end reads to a database/reference and post-processing of alignment
 	file with samtools (e.g. convert to BAM format, sort BAM file, and index it).
 	"""
-	sample, frw_read, rev_read, bowtie2_reference, bowtie2_outdir, bowtie2_cores, logObject = input_args
+	sample, reads, bowtie2_reference, bowtie2_outdir, bowtie2_cores, logObject = input_args
 
 	sam_file = bowtie2_outdir + sample + '.sam'
 	bam_file = bowtie2_outdir + sample + '.bam'
@@ -365,8 +366,8 @@ def bowtie2_alignment(input_args):
 	#bam_file_filtered = bowtie2_outdir + sample + '.filtered.bam'
 	#am_file_filtered_sorted = bowtie2_outdir + sample + '.filtered.sorted.bam'
 
-	bowtie2_cmd = ['bowtie2', '--very-sensitive-local', '--no-unal', '-a', '-x', bowtie2_reference, '-U', frw_read, ',',
-				   rev_read, '-S', sam_file, '-p', str(bowtie2_cores)]
+	bowtie2_cmd = ['bowtie2', '--very-sensitive-local', '--no-unal', '-a', '-x', bowtie2_reference, '-U',
+				   ','.join(reads), '-S', sam_file, '-p', str(bowtie2_cores)]
 
 	samtools_view_cmd = ['samtools', 'view', '-h', '-Sb', sam_file, '>', bam_file]
 	samtools_sort_cmd = ['samtools', 'sort', '-@', str(bowtie2_cores), bam_file, '-o', bam_file_sorted]
