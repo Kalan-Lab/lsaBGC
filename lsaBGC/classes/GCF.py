@@ -1604,7 +1604,7 @@ class GCF(Pan):
 				self.logObject.error(traceback.format_exc())
 			raise RuntimeError(traceback.format_exc())
 
-	def phaseAndSummarize(self, paired_end_sequencing_file, codon_alignment_file, snv_mining_outdir, phased_alleles_outdir, outdir, min_hetero_prop=0.05, min_allele_depth = 5, allow_phasing=True, metagenomic=True):
+	def phaseAndSummarize(self, paired_end_sequencing_file, codon_alignment_file, snv_mining_outdir, phased_alleles_outdir, outdir, min_hetero_prop=0.05, min_allele_depth = 5, allow_phasing=True, metagenomic=True, cores=1):
 		try:
 			novelty_report_file = outdir + 'Novelty_Report.txt'
 			homolog_presence_report_file = outdir + 'Sample_Homolog_Group_Presence.txt'
@@ -1612,7 +1612,6 @@ class GCF(Pan):
 			no_handle = open(novelty_report_file, 'w')
 			hpr_handle = open(homolog_presence_report_file, 'w')
 			sbc_handle = open(sample_bgc_coverage_file, 'w')
-
 			no_handle.write('\t'.join(['gcf_id', 'sample', 'homolog_group', 'position_along_msa', 'alternate_allele',
 									   'codon_position', 'alternate_codon', 'alternate_aa', 'dn_or_ds', 'ts_or_tv',
 									   'reference_allele', 'reference_sample', 'reference_gene', 'reference_position',
@@ -1631,6 +1630,7 @@ class GCF(Pan):
 				if self.hg_differentiation_stats[hg]['able_to_differentiate']:
 					specific_homolog_groups.add(hg)
 
+			snv_read_fastq_inputs = []
 			gene_ignore_positions = defaultdict(set)
 			gene_core_positions = defaultdict(set)
 			gene_pos_to_msa_pos = defaultdict(lambda: defaultdict(dict))
@@ -1796,14 +1796,6 @@ class GCF(Pan):
 										hetero_sites += 1
 
 					if len(refined_present_homolog_groups) < 5: continue
-
-					print(pe_sample)
-					print(len(refined_present_homolog_groups.intersection(self.core_homologs))/float(len(self.core_homologs.difference(mge_hgs))))
-					print(self.core_homologs)
-					print(refined_present_homolog_groups.intersection(self.core_homologs))
-					print((self.core_homologs.difference(mge_hgs)))
-					print(refined_present_homolog_groups.intersection(specific_homolog_groups))
-					print('-'*100)
 					if len(refined_present_homolog_groups.intersection(self.core_homologs))/float(len(self.core_homologs.difference(mge_hgs))) < 0.7 and len(refined_present_homolog_groups.intersection(specific_homolog_groups)) == 0: continue
 
 					hpr_handle.write('\n'.join(report_lines) + '\n')
@@ -2080,31 +2072,12 @@ class GCF(Pan):
 																		ts_or_tv, ref_al, sample, gene, ref_pos,
 																		ref_codon, ref_aa, snv_support_count, snv_support_reads]]) + '\n')
 									all_snv_supporting_reads = all_snv_supporting_reads.union(set(snv_support_reads.split(',')))
+					snv_read_fastq_inputs.append([pe_sample, pe_sample_reads, all_snv_supporting_reads, snv_mining_outdir])
 
-					"""
-					try:
-						snv_support_fastq_file = snv_mining_outdir + pe_sample + '.snv_support.fastq'
-						snv_support_fastq_handle = open(snv_support_fastq_file, 'w')
-						for read_file in pe_sample_reads:
+			p = multiprocessing.Pool(cores)
+			p.map(generate_snv_read_support_fastq, snv_read_fastq_inputs)
+			p.close()
 
-							if read_file.endswith('.gz'):
-								fastq_handle = gzip.open(read_file, 'rt')
-							else:
-								fastq_handle = open(read_file)
-
-							for rec in SeqIO.parse(fastq_handle, 'fastq'):
-								if rec.id in all_snv_supporting_reads:
-									snv_support_fastq_handle.write(rec.format('fastq'))
-
-							fastq_handle.close()
-						snv_support_fastq_handle.close()
-						os.system('gzip %s' % snv_support_fastq_file)
-					except Exception as e:
-						if self.logObject:
-							self.logObject.error('Difficulties writing supporting reads for SNVs to FASTQ file.')
-							self.logObject.error(traceback.format_exc())
-						raise RuntimeError(traceback.format_exc())
-					"""
 			no_handle.close()
 			hpr_handle.close()
 		except Exception as e:
@@ -2112,6 +2085,31 @@ class GCF(Pan):
 				self.logObject.error("Issues with generating matrices showcasing allele presence across samples.")
 				self.logObject.error(traceback.format_exc())
 			raise RuntimeError(traceback.format_exc())
+
+def generate_snv_read_support_fastq(input_args):
+	pe_sample, pe_sample_reads, all_snv_supporting_reads, snv_mining_outdir = input_args
+	try:
+		snv_support_fastq_file = snv_mining_outdir + pe_sample + '.snv_support.fastq'
+		snv_support_fastq_handle = open(snv_support_fastq_file, 'w')
+		for read_file in pe_sample_reads:
+
+			if read_file.endswith('.gz'):
+				fastq_handle = gzip.open(read_file, 'rt')
+			else:
+				fastq_handle = open(read_file)
+
+			for rec in SeqIO.parse(fastq_handle, 'fastq'):
+				if rec.id in all_snv_supporting_reads:
+					snv_support_fastq_handle.write(rec.format('fastq'))
+
+			fastq_handle.close()
+		snv_support_fastq_handle.close()
+		os.system('gzip %s' % snv_support_fastq_file)
+	except Exception as e:
+		if self.logObject:
+			self.logObject.error('Difficulties writing supporting reads for SNVs to FASTQ file.')
+			self.logObject.error(traceback.format_exc())
+		raise RuntimeError(traceback.format_exc())
 
 def snv_miner_single(input_args):
 	"""

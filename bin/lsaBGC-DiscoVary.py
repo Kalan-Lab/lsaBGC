@@ -179,7 +179,7 @@ def lsaBGC_DiscoVary():
     phased_alleles_outdir = outdir + 'Phased_Homolog_Group_Sequences/'
     if not os.path.isdir(phased_alleles_outdir): os.system('mkdir %s' % phased_alleles_outdir)
     logObject.info("Phasing or determining consensus allele and reporting of novel SNVs.")
-    GCF_Object.phaseAndSummarize(paired_end_sequencing_file, codon_alignments_file, results_outdir, phased_alleles_outdir, outdir)
+    GCF_Object.phaseAndSummarize(paired_end_sequencing_file, codon_alignments_file, results_outdir, phased_alleles_outdir, outdir, cores=cores)
     logObject.info("Successfully constructed matrices of allele typings.")
 
     # Step 9: Filter low coverage gene instances and construct gene-phylogenies
