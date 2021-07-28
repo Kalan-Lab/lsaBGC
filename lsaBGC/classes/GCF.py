@@ -2004,7 +2004,7 @@ class GCF(Pan):
 						bgc_fasta_handle = open(bgc_fasta_file, 'a+')
 						for hi in haplotype_sequences[hg]:
 							seq = haplotype_sequences[hg][hi]
-							codons = [str(rec.seq)[i:i + 3] for i in range(0, len(str(seq)), 3)]
+							codons = [str(seq)[i:i + 3] for i in range(0, len(str(seq)), 3)]
 							first_stop_codon = None
 							for cod_i, cod in enumerate(codons):
 								if cod in set(['TAG', 'TGA', 'TAA']):
@@ -2081,6 +2081,7 @@ class GCF(Pan):
 																		ref_codon, ref_aa, snv_support_count, snv_support_reads]]) + '\n')
 									all_snv_supporting_reads = all_snv_supporting_reads.union(set(snv_support_reads.split(',')))
 
+					"""
 					try:
 						snv_support_fastq_file = snv_mining_outdir + pe_sample + '.snv_support.fastq'
 						snv_support_fastq_handle = open(snv_support_fastq_file, 'w')
@@ -2103,7 +2104,7 @@ class GCF(Pan):
 							self.logObject.error('Difficulties writing supporting reads for SNVs to FASTQ file.')
 							self.logObject.error(traceback.format_exc())
 						raise RuntimeError(traceback.format_exc())
-
+					"""
 			no_handle.close()
 			hpr_handle.close()
 		except Exception as e:
