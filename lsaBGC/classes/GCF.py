@@ -2100,6 +2100,7 @@ def generate_snv_read_support_fastq(input_args):
 			else:
 				fastq_handle = open(read_file)
 
+			lines = []
 			for line in fastq_handle:
 				lines.append(line.rstrip())
 				if len(lines) == 4:
