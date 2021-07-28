@@ -24,7 +24,7 @@ mid.njt <-multi2di(mid.njt)
 
 hc <- as.hclust(mid.njt)
 distM <- cophenetic(tree)
-clusters <- cutreeDynamic(hc, distM=distM, minClusterSize=1, deepSplit=as.numeric(deep_split_value), method="hybrid", cutHeight=0.6)
+clusters <- cutreeDynamic(hc, distM=distM, minClusterSize=1, deepSplit=as.numeric(deep_split_value), method="hybrid")#, cutHeight=0.6)
 
 hc.labels <- mid.njt$tip.label
 results <- cbind(hc.labels, clusters)

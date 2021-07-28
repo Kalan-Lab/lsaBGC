@@ -7,6 +7,7 @@ import statistics
 import random
 import subprocess
 import pysam
+import gzip
 import multiprocessing
 from scipy.stats import f_oneway, fisher_exact, pearsonr, median_absolute_deviation
 from ete3 import Tree
@@ -1782,13 +1783,13 @@ class GCF(Pan):
 																	 ','.join([str(x) for x in sorted(gene_ignore_positions[hg])])]]) + '\n')
 
 						if product_has_mge_term: mge_hgs.add(hg)
-						if not product_has_mge_term and not hg in outlier_homolog_groups:
+						if not product_has_mge_term and not hg in outlier_homolog_groups and not hg_median_depths[hg] == 0.0:
 							refined_present_homolog_groups.add(hg)
 							hg_depths = homolog_group_depths[hg]
 							for pos in range(1, len(hg_depths)+1):
 								if pos in gene_ignore_positions[hg]: continue
-								depths_at_all_refined_present_hgs.append(hg_depths[pos-1])
 								if self.hg_prop_multi_copy[hg] < 0.05:
+									depths_at_all_refined_present_hgs.append(hg_depths[pos-1])
 									total_sites += 1
 									if pos in hg_hetero_sites[hg]:
 										hetero_sites += 1
@@ -1796,7 +1797,7 @@ class GCF(Pan):
 					if len(refined_present_homolog_groups) < 5: continue
 					if len(refined_present_homolog_groups.intersection(self.core_homologs))/float(len(self.core_homologs.difference(mge_hgs))) < 0.7 and len(refined_present_homolog_groups.intersection(specific_homolog_groups)) == 0: continue
 
-					hpr_handle.write('\n'.join(report_lines) + '\n')
+					hpr_handle.write('\n'.join(report_lines))
 
 					filt_result_file = snv_mining_outdir + pe_sample + '.filt.txt'
 					filt_result_handle = open(filt_result_file, 'w')
@@ -1845,7 +1846,7 @@ class GCF(Pan):
 							self.logObject.info(
 								'Running Desman variant filtering with the following command: %s' % ' '.join(desman_variant_filter_cmd))
 						try:
-							#subprocess.call(' '.join(desman_variant_filter_cmd), shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, executable='/bin/bash')
+							subprocess.call(' '.join(desman_variant_filter_cmd), shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, executable='/bin/bash')
 							self.logObject.info('Successfully ran: %s' % ' '.join(desman_variant_filter_cmd))
 						except Exception as e:
 							if self.logObject:
@@ -1866,7 +1867,7 @@ class GCF(Pan):
 									self.logObject.info(
 										'Running Desman for strain inference with the following command: %s' % ' '.join(desmand_inferstrains_cmd))
 								try:
-									#subprocess.call(' '.join(desmand_inferstrains_cmd), shell=True, stdout=sys.stderr, stderr=sys.stderr, executable='/bin/bash')
+									subprocess.call(' '.join(desmand_inferstrains_cmd), shell=True, stdout=sys.stderr, stderr=sys.stderr, executable='/bin/bash')
 									self.logObject.info('Successfully ran: %s' % ' '.join(desmand_inferstrains_cmd))
 								except Exception as e:
 									if self.logObject:
@@ -1882,7 +1883,7 @@ class GCF(Pan):
 								'Assessing Desman runs for strain inference with the following command: %s' % ' '.join(
 									desman_resolvehap_cmd))
 						try:
-							#subprocess.call(' '.join(desman_resolvehap_cmd), shell=True, stdout=sys.stderr, stderr=sys.stderr, executable='/bin/bash')
+							subprocess.call(' '.join(desman_resolvehap_cmd), shell=True, stdout=sys.stderr, stderr=sys.stderr, executable='/bin/bash')
 							self.logObject.info('Successfully ran: %s' % ' '.join(desman_resolvehap_cmd))
 						except Exception as e:
 							if self.logObject:
@@ -2011,7 +2012,7 @@ class GCF(Pan):
 						for i, line in enumerate(of):
 							line = line.strip()
 							ls = line.split('\t')
-							snv_id, snv_support_count, snv_support_reads = ls[:2]
+							snv_id, snv_support_count, snv_support_reads = ls
 
 							gsh, ref_pos, ref_al, alt_al = snv_id.split('_|_')
 							hg, allele_cluster, sample, gene = gsh.split('|')
@@ -2072,21 +2073,22 @@ class GCF(Pan):
 									all_snv_supporting_reads = all_snv_supporting_reads.union(set(snv_support_reads.split(',')))
 
 					try:
-						snv_support_fastq_file = snv_mining_outdir + pe_sample + '.snv_support.fastq.gz'
-						snv_support_fastq_handle = gzip.open(snv_support_fastq_file, 'w')
+						snv_support_fastq_file = snv_mining_outdir + pe_sample + '.snv_support.fastq'
+						snv_support_fastq_handle = open(snv_support_fastq_file, 'w')
 						for read_file in pe_sample_reads:
 
 							if read_file.endswith('.gz'):
-								fastq_handle = gzip.open(read_file)
+								fastq_handle = gzip.open(read_file, 'rt')
 							else:
 								fastq_handle = open(read_file)
 
-							for rec in SeqIO.parse(fastq_handle, 'fastq-illumina'):
+							for rec in SeqIO.parse(fastq_handle, 'fastq'):
 								if rec.id in all_snv_supporting_reads:
 									snv_support_fastq_handle.write(rec.format('fastq'))
 
 							fastq_handle.close()
 						snv_support_fastq_handle.close()
+						os.system('gzip %s' % snv_support_fastq_file)
 					except Exception as e:
 						if self.logObject:
 							self.logObject.error('Difficulties writing supporting reads for SNVs to FASTQ file.')

@@ -171,7 +171,7 @@ def lsaBGC_DiscoVary():
     results_outdir = outdir + 'Alignment_Parsing/'
     if not os.path.isdir(results_outdir): os.system('mkdir %s' % results_outdir)
     logObject.info("Beginning typing of homolog group alleles and mining of novel SNVs.")
-    #GCF_Object.runSNVMining(paired_end_sequencing_file, genes_representative_fasta, codon_alignments_file, bowtie2_outdir, results_outdir, cores=cores)
+    GCF_Object.runSNVMining(paired_end_sequencing_file, genes_representative_fasta, codon_alignments_file, bowtie2_outdir, results_outdir, cores=cores)
     logObject.info("Successfully typed alleles and mined for novel SNVs.")
 
     # Step 8: Decide on GCF presence, determine consensus/haplotypes for homolog groups, and generate novelty report
