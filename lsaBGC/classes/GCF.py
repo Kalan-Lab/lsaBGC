@@ -2071,7 +2071,7 @@ class GCF(Pan):
 																		codon_position, alt_codon, alt_aa, dn_or_ds,
 																		ts_or_tv, ref_al, sample, gene, ref_pos,
 																		ref_codon, ref_aa, snv_support_count, snv_support_reads]]) + '\n')
-									all_snv_supporting_reads = all_snv_supporting_reads.union(set(snv_support_reads.split(',')))
+									all_snv_supporting_reads = all_snv_supporting_reads.union(set(snv_support_reads.split(', ')))
 					snv_read_fastq_inputs.append([pe_sample, pe_sample_reads, all_snv_supporting_reads, snv_mining_outdir, self.logObject])
 
 			p = multiprocessing.Pool(cores)
@@ -2089,8 +2089,6 @@ class GCF(Pan):
 def generate_snv_read_support_fastq(input_args):
 	pe_sample, pe_sample_reads, all_snv_supporting_reads, snv_mining_outdir, logObject = input_args
 	try:
-		ks = ['name', 'sequence', 'optional', 'quality']
-
 		snv_support_fastq_file = snv_mining_outdir + pe_sample + '.snv_support.fastq'
 		snv_support_fastq_handle = open(snv_support_fastq_file, 'w')
 		visited = set([])
