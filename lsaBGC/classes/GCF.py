@@ -2091,6 +2091,7 @@ def generate_snv_read_support_fastq(input_args):
 	try:
 		snv_support_fastq_file = snv_mining_outdir + pe_sample + '.snv_support.fastq'
 		snv_support_fastq_handle = open(snv_support_fastq_file, 'w')
+		visited = set([])
 		for read_file in pe_sample_reads:
 			if read_file.endswith('.gz'):
 				fastq_handle = gzip.open(read_file, 'rt')
@@ -2099,9 +2100,12 @@ def generate_snv_read_support_fastq(input_args):
 
 			for rec in SeqIO.parse(fastq_handle, 'fastq'):
 				if rec.id in all_snv_supporting_reads:
+					visited.add(rec.id)
 					snv_support_fastq_handle.write(rec.format('fastq'))
-
 			fastq_handle.close()
+		for r in all_snv_supporting_reads:
+			if not r in visited:
+				print(pe_sample + '\t' + r)
 		snv_support_fastq_handle.close()
 		os.system('gzip %s' % snv_support_fastq_file)
 	except Exception as e:
