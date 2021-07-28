@@ -1796,6 +1796,14 @@ class GCF(Pan):
 										hetero_sites += 1
 
 					if len(refined_present_homolog_groups) < 5: continue
+
+					print(pe_sample)
+					print(len(refined_present_homolog_groups.intersection(self.core_homologs))/float(len(self.core_homologs.difference(mge_hgs))))
+					print(self.core_homologs)
+					print(refined_present_homolog_groups.intersection(self.core_homologs))
+					print((self.core_homologs.difference(mge_hgs)))
+					print(refined_present_homolog_groups.intersection(specific_homolog_groups))
+					print('-'*100)
 					if len(refined_present_homolog_groups.intersection(self.core_homologs))/float(len(self.core_homologs.difference(mge_hgs))) < 0.7 and len(refined_present_homolog_groups.intersection(specific_homolog_groups)) == 0: continue
 
 					hpr_handle.write('\n'.join(report_lines) + '\n')
