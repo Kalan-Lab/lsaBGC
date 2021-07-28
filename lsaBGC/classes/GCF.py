@@ -1775,20 +1775,21 @@ class GCF(Pan):
 							for word in mges:
 								if word in self.comp_gene_info[gene]['product'].lower():
 									product_has_mge_term = True
-						hpr_handle.write('\t'.join([str(x) for x in [pe_sample, hg, (hg in outlier_homolog_groups),
+						report_lines.append('\t'.join([str(x) for x in [pe_sample, hg, (hg in outlier_homolog_groups),
 																	 (hg in specific_homolog_groups),
 																	 self.hg_prop_multi_copy[hg], product_has_mge_term,
 																	 hg_median_depths[hg],
 																	 hg_first_position_of_stop_codon[hg],
-																	 ','.join([str(x) for x in sorted(gene_ignore_positions[hg])])]]) + '\n')
+																	 ','.join([str(x) for x in sorted(gene_ignore_positions[hg])])]]))
 
 						if product_has_mge_term: mge_hgs.add(hg)
-						if not product_has_mge_term and not hg in outlier_homolog_groups and not hg_median_depths[hg] == 0.0:
+						if not product_has_mge_term and not hg in outlier_homolog_groups and hg_median_depths[hg] > 0.0:
 							refined_present_homolog_groups.add(hg)
-							hg_depths = homolog_group_depths[hg]
-							for pos in range(1, len(hg_depths)+1):
-								if pos in gene_ignore_positions[hg]: continue
-								if self.hg_prop_multi_copy[hg] < 0.05:
+							if self.hg_prop_multi_copy[hg] < 0.05:
+								hg_depths = homolog_group_depths[hg]
+
+								for pos in range(1, len(hg_depths)+1):
+									if pos in gene_ignore_positions[hg]: continue
 									depths_at_all_refined_present_hgs.append(hg_depths[pos-1])
 									total_sites += 1
 									if pos in hg_hetero_sites[hg]:
@@ -1797,7 +1798,7 @@ class GCF(Pan):
 					if len(refined_present_homolog_groups) < 5: continue
 					if len(refined_present_homolog_groups.intersection(self.core_homologs))/float(len(self.core_homologs.difference(mge_hgs))) < 0.7 and len(refined_present_homolog_groups.intersection(specific_homolog_groups)) == 0: continue
 
-					hpr_handle.write('\n'.join(report_lines))
+					hpr_handle.write('\n'.join(report_lines) + '\n')
 
 					filt_result_file = snv_mining_outdir + pe_sample + '.filt.txt'
 					filt_result_handle = open(filt_result_file, 'w')
