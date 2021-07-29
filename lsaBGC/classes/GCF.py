@@ -1723,7 +1723,7 @@ class GCF(Pan):
 
 
 def phase_and_id_snvs(input_args):
-	pe_sample, pe_sample_reads, snv_mining_outdir, phased_alleles_outdir, gene_ignore_positions, gene_core_positions, gene_pos_to_msa_pos, gene_pos_to_allele, msa_pos_alleles, msa_pos_ambiguous_freqs, min_hetero_prop, min_allele_depth, allow_phasing, metagenomic, specific_homolog_groups, core_homolog_groups, hg_genes, comp_gene_info, hg_prop_multi_copy, gcf_id, logObject = input_args
+	pe_sample, pe_sample_reads, snv_mining_outdir, phased_alleles_outdir, gene_ignore_positions, gene_core_positions, gene_pos_to_msa_pos, gene_pos_to_allele, msa_pos_alleles, msa_pos_ambiguous_freqs, min_hetero_prop, min_allele_depth, allow_phasing, metagenomic, specific_homolog_groups, core_homologs, hg_genes, comp_gene_info, hg_prop_multi_copy, gcf_id, logObject = input_args
 	try:
 		result_file = snv_mining_outdir + pe_sample + '.txt'
 		snv_file = snv_mining_outdir + pe_sample + '.snvs'
