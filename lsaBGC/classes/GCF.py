@@ -1700,7 +1700,7 @@ class GCF(Pan):
 			with open(paired_end_sequencing_file) as ossf:
 				for line in ossf:
 					pe_sample = line.strip().split('\t')[0]
-					pes_novelty_report_file = snv_mining_outdir + pe_sample + '.novelty_snvs_report.txt'
+					pes_novelty_report_file = snv_mining_outdir + pe_sample + '.novel_snvs_report.txt'
 					pes_group_coverage_file = snv_mining_outdir + pe_sample + '.homolog_group_coverage.txt'
 
 					with open(pes_novelty_report_file) as opnrf:
@@ -1732,7 +1732,7 @@ def phase_and_id_snvs(input_args):
 		previous_positions = []
 
 		novelty_report_file = snv_mining_outdir + pe_sample + '.novel_snvs_report.txt'
-		homolog_presence_report_file = snv_mining_outdir + '.homolog_group_coverage.txt'
+		homolog_presence_report_file = snv_mining_outdir + pe_sample + '.homolog_group_coverage.txt'
 		no_handle = open(novelty_report_file, 'w')
 		hpr_handle = open(homolog_presence_report_file, 'w')
 		no_handle.write('\t'.join(['gcf_id', 'sample', 'homolog_group', 'position_along_msa', 'alternate_allele',

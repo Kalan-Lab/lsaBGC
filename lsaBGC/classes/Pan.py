@@ -841,9 +841,9 @@ class Pan:
 			sample_hg_counts = [len(sample_hgs[x]) for x in sample_hgs]
 			self.lowerbound_hg_count = math.floor(min(sample_hg_counts))
 
-			#p = multiprocessing.Pool(cores)
-			#p.map(create_hmm_profiles, inputs)
-			#p.close()
+			p = multiprocessing.Pool(cores)
+			p.map(create_hmm_profiles, inputs)
+			p.close()
 
 			if self.logObject:
 				self.logObject.info("Successfully created profile HMMs for each homolog group. Now beginning concatenation into single file.")
@@ -929,9 +929,9 @@ class Pan:
 								   sample_proteome, self.logObject]
 					hmmscan_cmds.append(hmmscan_cmd)
 
-				#p = multiprocessing.Pool(cores)
-				#p.map(util.multiProcess, hmmscan_cmds)
-				#p.close()
+				p = multiprocessing.Pool(cores)
+				p.map(util.multiProcess, hmmscan_cmds)
+				p.close()
 
 			best_hits = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
 			for sample in initial_sample_prokka_data:
@@ -1047,9 +1047,9 @@ class Pan:
 							   sample_proteome, self.logObject]
 				alignment_cmds.append(hmmscan_cmd)
 
-		#p = multiprocessing.Pool(cores)
-		#p.map(util.multiProcess, alignment_cmds)
-		#p.close()
+		p = multiprocessing.Pool(cores)
+		p.map(util.multiProcess, alignment_cmds)
+		p.close()
 
 		hg_valid_length_range = {}
 		for hg in self.hg_genes:
