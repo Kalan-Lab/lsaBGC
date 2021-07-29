@@ -1679,9 +1679,8 @@ class GCF(Pan):
 											dict(self.hg_prop_multi_copy), self.gcf_id, self.logObject])
 
 			p = multiprocessing.Pool(cores)
-			p.map(phase_and_id_snvs, inputs)
+			p.map(phase_and_id_snvs, parallel_inputs)
 			p.close()
-
 
 			novelty_report_file = outdir + 'Potentially_Novel_SNVSs.txt'
 			homolog_presence_report_file = outdir + 'Sample_Homolog_Group_Coverage.txt'
