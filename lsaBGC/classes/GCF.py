@@ -1805,8 +1805,9 @@ def phase_and_id_snvs(input_args):
 				for pos in range(1, len(hg_depths)+1):
 					if pos in gene_ignore_positions[hg]: continue
 					filtered_hg_depths.append(hg_depths[pos-1])
-				hg_filtered_depth_median = statistics.median(filtered_hg_depths)
-				hg_median_depths[hg] = hg_filtered_depth_median
+				if len(filtered_hg_depths) > 10:
+					hg_filtered_depth_median = statistics.median(filtered_hg_depths)
+					hg_median_depths[hg] = hg_filtered_depth_median
 
 		if len(hg_median_depths) < 5:
 			no_handle.close()
