@@ -65,6 +65,7 @@ class Pan:
 		# HMMScan results - dictionary with keys as gene locus tag ids and values as
 		# list of lists: [homolog group, evalue, sample, scaffold]
 		self.hmmscan_results = defaultdict(list)
+		self.hmmscan_results_lenient = {}
 		self.boundary_genes = defaultdict(set)
 		self.scaffold_genes = defaultdict(lambda: defaultdict(set))
 		self.gene_location = defaultdict(dict)
@@ -981,13 +982,16 @@ class Pan:
 					best_false_hit = min(false_hits)
 				able_to_differentiate = False
 				eval_threshold = 1e-10
-				#if quick_mode: eval_threshold = 1e-5
 				if best_false_hit > worst_true_hit:
 					able_to_differentiate = True
 					if worst_true_hit == 0.0:
 						worst_true_hit = 1e-300
+						if quick_mode:
+							worst_true_hit = 1e-500
 					if best_false_hit == 0.0:
 						best_false_hit = 1e-300
+						if quick_mode:
+							best_false_hit = 1e-500
 					wth_log10 = math.log(worst_true_hit, 10)
 					bfh_log10 = math.log(best_false_hit, 10)
 					eval_threshold = max([math.pow(10.0, ((wth_log10 + bfh_log10)/2.0)), math.pow(10.0, (bfh_log10 + -5))])
@@ -1106,11 +1110,13 @@ class Pan:
 						gene_length = abs(self.gene_location[sample][gene_id]['start'] - self.gene_location[sample][gene_id]['end'])
 						is_boundary_gene = gene_id in self.boundary_genes[sample]
 						if not hg in best_hit_per_gene[gene_id][0]: continue
+						scaffold = self.gene_location[sample][gene_id]['scaffold']
+						eval = float(ls[10])
+						if eval < 1e-30:
+							self.hmmscan_results_lenient[gene_id] = hg
 						if (not is_boundary_gene) and \
 								(not (gene_length <= hg_valid_length_range[hg]['max_gene_length'] and gene_length >= hg_valid_length_range[hg]['min_gene_length'])) and \
 								(abs(gene_length - hg_valid_length_range[hg]['median_gene_length']) >= (2 * hg_valid_length_range[hg]['gene_length_deviation'])): continue
-						scaffold = self.gene_location[sample][gene_id]['scaffold']
-						eval = float(ls[10])
 						if eval <= self.hg_max_self_evalue[hg][0]:
 							self.hmmscan_results[gene_id].append([hg, eval, sample, scaffold])
 					else:
@@ -1120,13 +1126,16 @@ class Pan:
 						gene_length = abs(self.gene_location[sample][gene_id]['start'] - self.gene_location[sample][gene_id]['end'])
 						is_boundary_gene = gene_id in self.boundary_genes[sample]
 						if not hg in best_hit_per_gene[gene_id][0]: continue
+						scaffold = self.gene_location[sample][gene_id]['scaffold']
+						eval = float(ls[4])
+						if eval < 1e-30:
+							self.hmmscan_results_lenient[gene_id] = hg
 						if (not is_boundary_gene) and \
 								(not (gene_length <= hg_valid_length_range[hg]['max_gene_length'] and gene_length >= hg_valid_length_range[hg]['min_gene_length'])) and \
 								(abs(gene_length - hg_valid_length_range[hg]['median_gene_length']) >= (2 * hg_valid_length_range[hg]['gene_length_deviation'])): continue
-						scaffold = self.gene_location[sample][gene_id]['scaffold']
-						eval = float(ls[4])
 						if eval <= self.hg_max_self_evalue[hg][0]:
 							self.hmmscan_results[gene_id].append([hg, eval, sample, scaffold])
+
 
 def create_hmm_profiles(inputs):
 	"""

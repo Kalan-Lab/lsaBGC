@@ -1053,8 +1053,7 @@ class GCF(Pan):
 			visited_scaffolds_with_edge_gcf_segment = set([])
 			for gcf_segment in sorted_sample_gcf_predictions:
 				if (gcf_segment[3] >= min_size and gcf_segment[4] >= min_core_size) or (gcf_segment[-1]) or (
-				gcf_segment[-2]) or (gcf_segment[3] >= 3 and gcf_segment[-3] and not gcf_segment[
-																						 5] in visited_scaffolds_with_edge_gcf_segment):
+				gcf_segment[-2]) or (gcf_segment[3] >= 3 and gcf_segment[-3] and not gcf_segment[5] in visited_scaffolds_with_edge_gcf_segment):
 					# code to determine whether syntenically, the considered segment aligns with what is expected.
 					segment_hg_order = []
 					bgc_hg_orders = defaultdict(list)
@@ -1115,29 +1114,52 @@ class GCF(Pan):
 						cumulative_edge_hgs = cumulative_edge_hgs.union(set(gcf_segment[1]))
 
 			if len(sample_edge_gcf_predictions_filtered) >= 2:
-				if len(cumulative_edge_hgs) >= min_size and len(
-						cumulative_edge_hgs.intersection(self.core_homologs)) >= min_core_size:
+				if len(cumulative_edge_hgs) >= min_size and len(cumulative_edge_hgs.intersection(self.core_homologs)) >= min_core_size:
 					sample_gcf_predictions_filtered += sample_edge_gcf_predictions_filtered
 
-			for gcf_state_lts in sample_gcf_predictions_filtered:
+			for gcf_segment in sample_gcf_predictions_filtered:
 				clean_sample_name = util.cleanUpSampleName(sample)
 				bgc_genbank_file = bgc_genbanks_dir + clean_sample_name + '_BGC-' + str(sample_bgc_ids[sample]) + '.gbk'
 				sample_bgc_ids[sample] += 1
 
-				min_bgc_pos = min([self.gene_location[sample][g]['start'] for g in gcf_state_lts[0]])
-				max_bgc_pos = max([self.gene_location[sample][g]['end'] for g in gcf_state_lts[0]])
+				gcf_segment_scaff = gcf_segment[5]
+				# check if you can expand and name more hgs
+				for i, lt in enumerate(gcf_segment[0]):
+					hg = gcf_segment[1][i]
+					if hg == 'other' and lt in self.hmmscan_results_lenient.keys():
+						gcf_segment[1][i] = self.hmmscan_results_lenient[lt]
 
-				util.createBGCGenbank(sample_prokka_data[sample]['genbank'], bgc_genbank_file, gcf_state_lts[5],
+				min_bgc_order = min([self.gene_id_to_order[sample][gcf_segment_scaff][g] for g in gcf_segment[0]])
+				max_bgc_order = min([self.gene_id_to_order[sample][gcf_segment_scaff][g] for g in gcf_segment[0]])
+
+				for oi in range(min_bgc_order-5, min_bgc_order):
+					if oi in self.gene_order_to_id[sample][gcf_segment_scaff].keys():
+						lt = self.gene_order_to_id[sample][gcf_segment_scaff][oi]
+						if lt in self.hmmscan_results_lenient.keys():
+							gcf_segment[0].append(lt)
+							gcf_segment[1].append(hmmscan_results_lenient[lt])
+
+				for oi in range(max_bgc_order+1, max_bgc_order+6):
+					if oi in self.gene_order_to_id[sample][gcf_segment_scaff].keys():
+						lt = self.gene_order_to_id[sample][gcf_segment_scaff][oi]
+						if lt in self.hmmscan_results_lenient.keys():
+							gcf_segment[0].append(lt)
+							gcf_segment[1].append(hmmscan_results_lenient[lt])
+
+				min_bgc_pos = min([self.gene_location[sample][g]['start'] for g in gcf_segment[0]])
+				max_bgc_pos = max([self.gene_location[sample][g]['end'] for g in gcf_segment[0]])
+
+				util.createBGCGenbank(sample_prokka_data[sample]['genbank'], bgc_genbank_file, gcf_segment_scaff,
 									  min_bgc_pos, max_bgc_pos)
 				expanded_gcf_list_handle.write('\t'.join([clean_sample_name, bgc_genbank_file]) + '\n')
 
-				for i, lt in enumerate(gcf_state_lts[0]):
-					hg = gcf_state_lts[1][i]
+				for i, lt in enumerate(gcf_segment[0]):
+					hg = gcf_segment[1][i]
 					evalue = 10.0
 					if lt in sample_lt_to_evalue[sample]: evalue = sample_lt_to_evalue[sample][lt]
 					bgc_hmm_evalues_handle.write('\t'.join([bgc_genbank_file, sample, lt, hg, str(evalue)]) + '\n')
 
-				for lt in gcf_state_lts[0]:
+				for lt in gcf_segment[0]:
 					if lt in sample_protein_to_hg[sample].keys():
 						hg = sample_protein_to_hg[sample][lt]
 						sample_hg_proteins[clean_sample_name][hg].add(lt)
