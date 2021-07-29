@@ -25,6 +25,9 @@ import math
 import warnings
 warnings.filterwarnings("ignore")
 
+mges = set(['transp', 'integrase'])
+purine_alleles = set(['A', 'G'])
+
 lsaBGC_main_directory = '/'.join(os.path.realpath(__file__).split('/')[:-3])
 RSCRIPT_FOR_COLORBREW = lsaBGC_main_directory + '/lsaBGC/Rscripts/brewColors.R'
 RSCRIPT_FOR_BGSEE = lsaBGC_main_directory + '/lsaBGC/Rscripts/bgSee.R'
@@ -1456,7 +1459,7 @@ class GCF(Pan):
 
 			# use Rscript to plot phylogeny and showcase how new sequences identified ("Query") relate to known ones
 			# ("Database")
-			cluster_pdf_file = outdir + 'PCA_Visualization.pdf'
+			cluster_pdf_file = outdir + 'MDS_Visualization.pdf'
 			plot_cmd = ['Rscript', RSCRIPT_FOR_PCA, pairwise_distance_file, sample_information_file, cluster_pdf_file]
 			if self.logObject:
 				self.logObject.info('Running Rscript with the following command: %s' % ' '.join(plot_cmd))
@@ -1606,31 +1609,11 @@ class GCF(Pan):
 
 	def phaseAndSummarize(self, paired_end_sequencing_file, codon_alignment_file, snv_mining_outdir, phased_alleles_outdir, outdir, min_hetero_prop=0.05, min_allele_depth = 5, allow_phasing=True, metagenomic=True, cores=1):
 		try:
-			novelty_report_file = outdir + 'Novelty_Report.txt'
-			homolog_presence_report_file = outdir + 'Sample_Homolog_Group_Presence.txt'
-			sample_bgc_coverage_file = outdir + 'Sample_BGC_Overall_Depth.txt'
-			no_handle = open(novelty_report_file, 'w')
-			hpr_handle = open(homolog_presence_report_file, 'w')
-			sbc_handle = open(sample_bgc_coverage_file, 'w')
-			no_handle.write('\t'.join(['gcf_id', 'sample', 'homolog_group', 'position_along_msa', 'alternate_allele',
-									   'codon_position', 'alternate_codon', 'alternate_aa', 'dn_or_ds', 'ts_or_tv',
-									   'reference_allele', 'reference_sample', 'reference_gene', 'reference_position',
-									   'ref_codon', 'ref_aa', 'snv_support']) + '\n')
-
-			hpr_handle.write('\t'.join(['sample', 'homolog_group', 'outlier_in_coverage',
-										'homolog_group_is_differentiable_from_paralogs',
-										'homolog_group_proportion_initial_samples_with_multi_copy',
-										'product_has_MGE_related_term', 'homolog_group_trimmed_median_depth',
-										'homolog_group_early_truncation_stop_codon_position', 'difficult_to_resolve_positions']) + '\n')
-
-			mges = set(['transp', 'integrase'])
-			purine_alleles = set(['A', 'G'])
 			specific_homolog_groups = set([])
 			for hg in self.hg_differentiation_stats:
 				if self.hg_differentiation_stats[hg]['able_to_differentiate']:
 					specific_homolog_groups.add(hg)
 
-			snv_read_fastq_inputs = []
 			gene_ignore_positions = defaultdict(set)
 			gene_core_positions = defaultdict(set)
 			gene_pos_to_msa_pos = defaultdict(lambda: defaultdict(dict))
@@ -1682,413 +1665,464 @@ class GCF(Pan):
 							for p in range(pos - 50, pos + 51):
 								gene_ignore_positions[hg].add(p)
 
+			parallel_inputs = []
 			with open(paired_end_sequencing_file) as ossf:
 				for line in ossf:
 					pe_sample = line.strip().split('\t')[0]
 					pe_sample_reads = line.strip().split('\t')[1:]
-					result_file = snv_mining_outdir + pe_sample + '.txt'
-					snv_file = snv_mining_outdir + pe_sample + '.snvs'
-					homolog_group_positions = defaultdict(list)
-					homolog_group_depths = defaultdict(list)
-					previous_positions = []
-					hg_median_depths = defaultdict(float)
-					hg_first_position_of_stop_codon = defaultdict(lambda: None)
-
-					if not os.path.isfile(result_file): continue
-					hg_hetero_sites = defaultdict(set)
-					with open(result_file) as orf:
-						for i, line in enumerate(orf):
-							if i == 0: continue
-							line = line.strip()
-							homolog_group = line.split(',')[0]
-							position, a, c, g, t = [int(x) for x in line.split(',')[1:]]
-							total_depth = sum([a,c,g,t])
-
-							adequate_coverage_alleles = []
-							if a >= min_allele_depth:
-								adequate_coverage_alleles.append('A')
-							if c >= min_allele_depth:
-								adequate_coverage_alleles.append('C')
-							if g >= min_allele_depth:
-								adequate_coverage_alleles.append('G')
-							if t >= min_allele_depth:
-								adequate_coverage_alleles.append('T')
-
-							if len(adequate_coverage_alleles) > 1:
-								hg_hetero_sites[homolog_group].add(position)
-
-							if position % 3 == 0:
-								if len(previous_positions) == 2:
-									for al1 in previous_positions[0]:
-										for al2 in previous_positions[1]:
-											for al3 in adequate_coverage_alleles:
-												codon = al1 + al2 + al3
-												if codon in set(['TAG', 'TGA', 'TAA']):
-													if not homolog_group in hg_first_position_of_stop_codon:
-														hg_first_position_of_stop_codon[homolog_group] = position-2
-								previous_positions = []
-							else:
-								previous_positions.append(adequate_coverage_alleles)
-
-							homolog_group_depths[homolog_group].append(total_depth)
-							homolog_group_positions[homolog_group].append(position)
-
-					present_homolog_groups = set([])
-					for hg in homolog_group_depths:
-						hg_depths = homolog_group_depths[hg]
-						hg_positions = homolog_group_positions[hg]
-
-						core_positions_covered = 0
-						for i, pos in enumerate(hg_positions):
-							dp = hg_depths[i]
-							if pos in gene_core_positions[hg] and dp >= 1:
-								core_positions_covered += 1
-
-						if float(core_positions_covered)/len(gene_core_positions[hg]) >= 0.9:
-							present_homolog_groups.add(hg)
-							filtered_hg_depths = []
-							for pos in range(1, len(hg_depths)+1):
-								if pos in gene_ignore_positions[hg]: continue
-								filtered_hg_depths.append(hg_depths[pos-1])
-							hg_filtered_depth_median = statistics.median(filtered_hg_depths)
-							hg_median_depths[hg] = hg_filtered_depth_median
-
-					if len(hg_median_depths) < 5: continue
-					median_of_medians = statistics.median(list(hg_median_depths.values()))
-					mad_of_medians = median_absolute_deviation(list(hg_median_depths.values()))
-
-					outlier_homolog_groups = set([])
-					for hg in present_homolog_groups:
-						hg_median = hg_median_depths[hg]
-						if hg_median > (median_of_medians + (2*mad_of_medians)) or hg_median < (median_of_medians - (2*mad_of_medians)):
-							outlier_homolog_groups.add(hg)
-
-					depths_at_all_refined_present_hgs = []
-					hetero_sites = 0
-					total_sites = 0
-					mge_hgs = set([])
-					refined_present_homolog_groups = set([])
-					report_lines = []
-					for hg in self.hg_genes:
-						product_has_mge_term = False
-						for gene in self.hg_genes[hg]:
-							for word in mges:
-								if word in self.comp_gene_info[gene]['product'].lower():
-									product_has_mge_term = True
-						report_lines.append('\t'.join([str(x) for x in [pe_sample, hg, (hg in outlier_homolog_groups),
-																	 (hg in specific_homolog_groups),
-																	 self.hg_prop_multi_copy[hg], product_has_mge_term,
-																	 hg_median_depths[hg],
-																	 hg_first_position_of_stop_codon[hg],
-																	 ','.join([str(x) for x in sorted(gene_ignore_positions[hg])])]]))
-
-						if product_has_mge_term: mge_hgs.add(hg)
-						if not product_has_mge_term and not hg in outlier_homolog_groups and hg_median_depths[hg] > 0.0:
-							refined_present_homolog_groups.add(hg)
-							if self.hg_prop_multi_copy[hg] < 0.05:
-								hg_depths = homolog_group_depths[hg]
-
-								for pos in range(1, len(hg_depths)+1):
-									if pos in gene_ignore_positions[hg]: continue
-									depths_at_all_refined_present_hgs.append(hg_depths[pos-1])
-									total_sites += 1
-									if pos in hg_hetero_sites[hg]:
-										hetero_sites += 1
-
-					if len(refined_present_homolog_groups) < 5: continue
-					if len(refined_present_homolog_groups.intersection(self.core_homologs))/float(len(self.core_homologs.difference(mge_hgs))) < 0.7 and len(refined_present_homolog_groups.intersection(specific_homolog_groups)) == 0: continue
-
-					hpr_handle.write('\n'.join(report_lines) + '\n')
-
-					filt_result_file = snv_mining_outdir + pe_sample + '.filt.txt'
-					filt_result_handle = open(filt_result_file, 'w')
-					pos_allele_support = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
-					with open(result_file) as orf:
-						for linenum, line in enumerate(orf):
-							line = line.strip()
-							if linenum == 0:
-								filt_result_handle.write(line + '\n')
-							else:
-								hg = line.split(',')[0]
-								if not hg in refined_present_homolog_groups or self.hg_prop_multi_copy[hg] >= 0.05: continue
-								pos, a, c, g, t = [int(x) for x in line.split(',')[1:]]
-								pos_allele_support[hg][pos]['A'] = a
-								pos_allele_support[hg][pos]['C'] = c
-								pos_allele_support[hg][pos]['G'] = g
-								pos_allele_support[hg][pos]['T'] = t
-								pos_allele_support[hg][pos]['TOTAL'] = sum([a,c,g,t])
-								filt_result_handle.write(line + '\n')
-					filt_result_handle.close()
-
-					trimmed_depth_median = statistics.median(depths_at_all_refined_present_hgs)
-					trimmed_depth_mad = median_absolute_deviation(depths_at_all_refined_present_hgs)
-					sbc_handle.write(pe_sample + '\t' + str(trimmed_depth_median) + '\t' + str(trimmed_depth_mad) + '\n')
-
-					# Check if phasing needed
-					homolog_variable_positions = defaultdict(set)
-					haplotype_allele_at_position = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: None)))
-					number_of_haplotypes = 0
-					if float(hetero_sites)/total_sites >= min_hetero_prop and allow_phasing and metagenomic:
-						# perform phasing using desman
-						cwd = os.getcwd()
-
-						desman_general_dir = snv_mining_outdir + pe_sample + '_Desman_Dir/'
-						desman_variants_dir = desman_general_dir + 'Variants/'
-						desman_inferstrains_dir = desman_general_dir + 'InferStrains/'
-
-						if not os.path.isdir(desman_general_dir): os.system('mkdir %s' % desman_general_dir)
-						if not os.path.isdir(desman_variants_dir): os.system('mkdir %s' % desman_variants_dir)
-						if not os.path.isdir(desman_inferstrains_dir): os.system('mkdir %s' % desman_inferstrains_dir)
-
-						desman_variant_filter_cmd = ['cd', desman_variants_dir, ';', 'Variant_Filter.py', filt_result_file,
-													 ';', 'cd', cwd]
-
-						if self.logObject:
-							self.logObject.info(
-								'Running Desman variant filtering with the following command: %s' % ' '.join(desman_variant_filter_cmd))
-						try:
-							subprocess.call(' '.join(desman_variant_filter_cmd), shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, executable='/bin/bash')
-							self.logObject.info('Successfully ran: %s' % ' '.join(desman_variant_filter_cmd))
-						except Exception as e:
-							if self.logObject:
-								self.logObject.error('Had an issue running: %s' % ' '.join(desman_variant_filter_cmd))
-								self.logObject.error(traceback.format_exc())
-							raise RuntimeError('Had an issue running: %s' % ' '.join(desman_variant_filter_cmd))
-
-						for g in [2, 3, 4, 5, 6, 7, 8]:
-							for r in [0, 1, 2, 3, 4]:
-								desmand_inferstrains_cmd = ['cd', desman_inferstrains_dir, ';', 'desman', '-e',
-															desman_variants_dir + 'outputtran_df.csv', '-o',
-															'ClusterEC_' + str(g) + '_' + str(r), '-r', '1000', '-i',
-															'100', '-g', str(g), '-s', str(r),
-															desman_variants_dir + 'outputsel_var.csv', '>',
-															desman_inferstrains_dir + 'ClusterEC_' + str(g) + '_' + str(r) + '.out']
-
-								if self.logObject:
-									self.logObject.info(
-										'Running Desman for strain inference with the following command: %s' % ' '.join(desmand_inferstrains_cmd))
-								try:
-									subprocess.call(' '.join(desmand_inferstrains_cmd), shell=True, stdout=sys.stderr, stderr=sys.stderr, executable='/bin/bash')
-									self.logObject.info('Successfully ran: %s' % ' '.join(desmand_inferstrains_cmd))
-								except Exception as e:
-									if self.logObject:
-										self.logObject.error(
-											'Had an issue running: %s' % ' '.join(desmand_inferstrains_cmd))
-										self.logObject.error(traceback.format_exc())
-									raise RuntimeError('Had an issue running: %s' % ' '.join(desmand_inferstrains_cmd))
-
-						desman_resolvehap_cmd = ['cd', desman_inferstrains_dir, ';', 'resolvenhap.py', 'ClusterEC', '>',
-												 desman_general_dir + 'Best_Parameter_Combo.txt']
-						if self.logObject:
-							self.logObject.info(
-								'Assessing Desman runs for strain inference with the following command: %s' % ' '.join(
-									desman_resolvehap_cmd))
-						try:
-							subprocess.call(' '.join(desman_resolvehap_cmd), shell=True, stdout=sys.stderr, stderr=sys.stderr, executable='/bin/bash')
-							self.logObject.info('Successfully ran: %s' % ' '.join(desman_resolvehap_cmd))
-						except Exception as e:
-							if self.logObject:
-								self.logObject.error(
-									'Had an issue running: %s' % ' '.join(desman_resolvehap_cmd))
-								self.logObject.error(traceback.format_exc())
-							raise RuntimeError('Had an issue running: %s' % ' '.join(desman_resolvehap_cmd))
-
-						haps, conf_haps, seed, avg_error = [None]*4
-						with open(desman_general_dir + 'Best_Parameter_Combo.txt') as obpc:
-							for line in obpc:
-								line = line.strip()
-								haps, conf_haps, seed, avg_error, _ = line.split(',')
-
-						haplotype_spec_file = desman_inferstrains_dir + 'ClusterEC_' + str(haps) + '_' + str(seed) + '/Filtered_Tau_star.csv'
-						with open(haplotype_spec_file) as obhpf:
-							for linenum, line in enumerate(obhpf):
-								if linenum == 0: continue
-								line = line.strip()
-								ls = line.split(',')
-								hg, position = ls[:2]
-								position = int(position)
-								homolog_variable_positions[hg].add(position)
-
-								ambiguity_region_flag = False
-								if position in gene_ignore_positions[hg]: ambiguity_region_flag = True
-								known_msa_alleles_at_position = msa_pos_alleles[hg][position]
-
-								haplotype_calls = ls[2:]
-
-								total_depth = pos_allele_support[hg][position]['TOTAL']
-								depth_above_expectation = False
-								depth_below_expectation = False
-								if total_depth > (trimmed_depth_median + (2 * trimmed_depth_mad)):
-									depth_above_expectation = True
-								if total_depth < (trimmed_depth_median - (3 * trimmed_depth_mad)):
-									depth_below_expectation = True
-
-								for i, allele_call in enumerate(haplotype_calls):
-									haplotype_num = math.floor(i/4)
-									if haplotype_num > number_of_haplotypes: number_of_haplotypes = haplotype_num
-									if allele_call == '1':
-										if (i+1) % 4 == 0:
-											allele_base = 'T'
-										elif (i+1) % 3 == 0:
-											allele_base = 'G'
-										elif (i+1) % 2 == 0:
-											allele_base = 'C'
-										else:
-											allele_base = 'A'
-
-										allele_depth = pos_allele_support[hg][position][allele_base]
-
-										if allele_depth >= min_allele_depth and not depth_below_expectation and \
-												not depth_above_expectation and not ambiguity_region_flag and \
-												haplotype_allele_at_position[hg][position] == None:
-											haplotype_allele_at_position[hg][haplotype_num][position] = allele_base
-										else:
-											haplotype_allele_at_position[hg][haplotype_num][position] = '-'
-
-					haplotype_sequences = defaultdict(lambda: defaultdict(lambda: ""))
-					with open(filt_result_file) as ofrf:
-						for linenum, line in enumerate(ofrf):
-							if linenum == 0: continue
-							line = line.strip()
-							ls = line.split(',')
-							hg, position = ls[:2]
-							position = int(position)
-
-							ambiguity_region_flag = False
-							if position in gene_ignore_positions[hg]: ambiguity_region_flag = True
-							known_msa_alleles_at_position = msa_pos_alleles[hg][position]
-
-							haplotype_calls = [int(x) for x in ls[2:]]
-
-							total_depth = pos_allele_support[hg][position]['TOTAL']
-							depth_above_expectation = False
-							depth_below_expectation = False
-							if total_depth > (trimmed_depth_median + (2 * trimmed_depth_mad)):
-								depth_above_expectation = True
-							if total_depth < (trimmed_depth_median - (3 * trimmed_depth_mad)):
-								depth_below_expectation = True
-
-							max_allele_depth = max(haplotype_calls)
-
-							tie_exists = len([x for x in haplotype_calls if x == max_allele_depth]) > 1
-
-							for i, allele_depth in enumerate(haplotype_calls):
-								if allele_depth == max_allele_depth:
-									if i == 0: allele_base = 'A'
-									elif i == 1: allele_base = 'C'
-									elif i == 2: allele_base = 'G'
-									elif i == 3: allele_base = 'T'
-
-									allele_call = '-'
-									if allele_depth >= min_allele_depth and not depth_below_expectation and not depth_above_expectation and \
-											not ambiguity_region_flag and not tie_exists:
-										allele_call = allele_base
-
-									for hi in range(0, number_of_haplotypes+1):
-										if position in homolog_variable_positions[hg]:
-											haplotype_sequences[hg][hi] += haplotype_allele_at_position[hg][hi][position]
-										else:
-											haplotype_sequences[hg][hi] += allele_call
-									break
-
-					for hg in haplotype_sequences:
-						bgc_fasta_file = phased_alleles_outdir + hg + '.fasta'
-						bgc_fasta_handle = open(bgc_fasta_file, 'a+')
-						for hi in haplotype_sequences[hg]:
-							seq = haplotype_sequences[hg][hi]
-							codons = [str(seq)[i:i + 3] for i in range(0, len(str(seq)), 3)]
-							first_stop_codon = None
-							for cod_i, cod in enumerate(codons):
-								if cod in set(['TAG', 'TGA', 'TAA']):
-									first_stop_codon = 3*(cod_i+1)
-									break
-							if first_stop_codon is not None:
-								seq = seq[:first_stop_codon] + ''.join(['-']*len(seq[first_stop_codon:]))
-								print(hg + '\t' + pe_sample)
-							bgc_fasta_handle.write('>' + pe_sample + '_|_' + str(hi+1) + '\n' + seq + '\n')
-						bgc_fasta_handle.close()
-
-					all_snv_supporting_reads = set([])
-					with open(snv_file) as of:
-						for i, line in enumerate(of):
-							line = line.strip()
-							ls = line.split('\t')
-							snv_id, snv_support_count, snv_support_reads = ls
-
-							gsh, ref_pos, ref_al, alt_al = snv_id.split('_|_')
-							hg, allele_cluster, sample, gene = gsh.split('|')
-
-							ref_pos = int(ref_pos)
-
-							# check whether to regard this SNV as potentially legit
-							if not hg in refined_present_homolog_groups or self.hg_prop_multi_copy[hg] >= 0.05: continue
-							if not ref_pos in gene_pos_to_msa_pos[hg][gene]: continue
-							msa_pos = gene_pos_to_msa_pos[hg][gene][ref_pos]
-							msa_pos_als = msa_pos_alleles[hg][msa_pos]
-							if hg_first_position_of_stop_codon[hg] != None and msa_pos >= hg_first_position_of_stop_codon[hg]: continue
-							if int(snv_support_count) >= min_allele_depth and int(homolog_group_depths[hg][msa_pos-1]) <= (trimmed_depth_median+(2*trimmed_depth_mad)) and int(homolog_group_depths[hg][msa_pos-1]) >= trimmed_depth_median-(3*trimmed_depth_mad):
-								assert (ref_al in msa_pos_alleles[hg][msa_pos] and ref_al == gene_pos_to_allele[hg][gene][ref_pos])
-								if not alt_al in msa_pos_als and not msa_pos in gene_ignore_positions[hg]:
-									#if not alt_al in msa_pos_als and not msa_pos in gene_edgy_positions[hg] and msa_pos_ambiguous_freqs[hg][msa_pos] <= 0.1:
-									codon_position = None
-									ref_codon = None
-									ref_aa = None
-									alt_codon = None
-									alt_aa = None
-									dn_or_ds = None
-									ts_or_tv = "transition"
-									if (ref_al in purine_alleles) != (alt_al in purine_alleles):
-										ts_or_tv = "transversion"
-									if ref_pos % 3 == 1:
-										codon_position = 1
-										ref_codon = ref_al + gene_pos_to_allele[hg][gene][ref_pos + 1] + \
-													gene_pos_to_allele[hg][gene][ref_pos + 2]
-										alt_codon = alt_al + gene_pos_to_allele[hg][gene][ref_pos + 1] + \
-													gene_pos_to_allele[hg][gene][ref_pos + 2]
-										ref_aa = str(Seq(ref_codon).translate())
-										alt_aa = str(Seq(alt_codon).translate())
-									elif ref_pos % 3 == 2:
-										codon_position = 2
-										ref_codon = gene_pos_to_allele[hg][gene][ref_pos - 1] + ref_al + \
-													gene_pos_to_allele[hg][gene][ref_pos + 1]
-										alt_codon = gene_pos_to_allele[hg][gene][ref_pos - 1] + alt_al + \
-													gene_pos_to_allele[hg][gene][ref_pos + 1]
-										ref_aa = str(Seq(ref_codon).translate())
-										alt_aa = str(Seq(alt_codon).translate())
-									elif ref_pos % 3 == 0:
-										codon_position = 3
-										ref_codon = gene_pos_to_allele[hg][gene][ref_pos - 2] + \
-													gene_pos_to_allele[hg][gene][ref_pos - 1] + ref_al
-										alt_codon = gene_pos_to_allele[hg][gene][ref_pos - 2] + \
-													gene_pos_to_allele[hg][gene][ref_pos - 1] + alt_al
-										ref_aa = str(Seq(ref_codon).translate())
-										alt_aa = str(Seq(alt_codon).translate())
-									if ref_aa != alt_aa:
-										dn_or_ds = "non-synonymous"
-									else:
-										dn_or_ds = "synonymous"
-									no_handle.write('\t'.join([str(x) for x in [self.gcf_id, pe_sample, hg, msa_pos, alt_al,
-																		codon_position, alt_codon, alt_aa, dn_or_ds,
-																		ts_or_tv, ref_al, sample, gene, ref_pos,
-																		ref_codon, ref_aa, snv_support_count, snv_support_reads]]) + '\n')
-									all_snv_supporting_reads = all_snv_supporting_reads.union(set(snv_support_reads.split(', ')))
-					snv_read_fastq_inputs.append([pe_sample, pe_sample_reads, all_snv_supporting_reads, snv_mining_outdir, self.logObject])
+					parallel_inputs.append([pe_sample, pe_sample_reads, snv_mining_outdir, phased_alleles_outdir,
+											gene_ignore_positions, gene_core_positions, gene_pos_to_msa_pos,
+											gene_pos_to_allele, msa_pos_alleles, msa_pos_ambiguous_freqs,
+											min_hetero_prop, min_allele_depth, allow_phasing, metagenomic,
+											specific_homolog_groups, set(self.core_homolog_groups),
+											dict(self.hg_genes), dict(self.comp_gene_info),
+											dict(self.hg_prop_multi_copy), self.gcf_id, self.logObject])
 
 			p = multiprocessing.Pool(cores)
-			p.map(generate_snv_read_support_fastq, snv_read_fastq_inputs)
+			p.map(phase_and_id_snvs, inputs)
 			p.close()
+
+
+			novelty_report_file = outdir + 'Potentially_Novel_SNVSs.txt'
+			homolog_presence_report_file = outdir + 'Sample_Homolog_Group_Coverage.txt'
+			no_handle = open(novelty_report_file, 'w')
+			hpr_handle = open(homolog_presence_report_file, 'w')
+			no_handle.write('\t'.join(['gcf_id', 'sample', 'homolog_group', 'position_along_msa', 'alternate_allele',
+									   'codon_position', 'alternate_codon', 'alternate_aa', 'dn_or_ds', 'ts_or_tv',
+									   'reference_allele', 'reference_sample', 'reference_gene', 'reference_position',
+									   'ref_codon', 'ref_aa', 'snv_support']) + '\n')
+
+			hpr_handle.write('\t'.join(['sample', 'homolog_group', 'outlier_in_coverage',
+										'homolog_group_is_differentiable_from_paralogs',
+										'homolog_group_proportion_initial_samples_with_multi_copy',
+										'product_has_MGE_related_term', 'homolog_group_trimmed_median_depth',
+										'homolog_group_early_truncation_stop_codon_position', 'difficult_to_resolve_positions']) + '\n')
+
+			with open(paired_end_sequencing_file) as ossf:
+				for line in ossf:
+					pe_sample = line.strip().split('\t')[0]
+					pes_novelty_report_file = snv_mining_outdir + pe_sample + '.novelty_snvs_report.txt'
+					pes_group_coverage_file = snv_mining_outdir + pe_sample + '.homolog_group_coverage.txt'
+
+					with open(pes_novelty_report_file) as opnrf:
+						for i, line in enumerate(opnrf):
+							if i == 0: continue
+							no_handle.write(line)
+
+					with open(pes_group_coverage_file) as opgcf:
+						for i, line in enumerate(opgcf):
+							if i == 0: continue
+							hpr_handle.write(line)
 
 			no_handle.close()
 			hpr_handle.close()
 		except Exception as e:
 			if self.logObject:
-				self.logObject.error("Issues with generating matrices showcasing allele presence across samples.")
+				self.logObject.error("Issues with phasing and identifying potentially novel SNVs.")
 				self.logObject.error(traceback.format_exc())
 			raise RuntimeError(traceback.format_exc())
 
-def generate_snv_read_support_fastq(input_args):
-	pe_sample, pe_sample_reads, all_snv_supporting_reads, snv_mining_outdir, logObject = input_args
+
+def phase_and_id_snvs(input_arguments):
+	pe_sample, pe_sample_reads, snv_mining_outdir, phased_alleles_outdir, gene_ignore_positions, gene_core_positions, gene_pos_to_msa_pos, gene_pos_to_allele, msa_pos_alleles, msa_pos_ambiguous_freqs, min_hetero_prop, min_allele_depth, allow_phasing, metagenomic, specific_homolog_groups, core_homolog_groups, hg_genes, comp_gene_info, hg_prop_multi_copy, gcf_id, logObject = input_arguments
 	try:
+		result_file = snv_mining_outdir + pe_sample + '.txt'
+		snv_file = snv_mining_outdir + pe_sample + '.snvs'
+		homolog_group_positions = defaultdict(list)
+		homolog_group_depths = defaultdict(list)
+		previous_positions = []
+
+		novelty_report_file = snv_mining_outdir + pe_sample + '.novel_snvs_report.txt'
+		homolog_presence_report_file = snv_mining_outdir + '.homolog_group_coverage.txt'
+		no_handle = open(novelty_report_file, 'w')
+		hpr_handle = open(homolog_presence_report_file, 'w')
+		no_handle.write('\t'.join(['gcf_id', 'sample', 'homolog_group', 'position_along_msa', 'alternate_allele',
+								   'codon_position', 'alternate_codon', 'alternate_aa', 'dn_or_ds', 'ts_or_tv',
+								   'reference_allele', 'reference_sample', 'reference_gene', 'reference_position',
+								   'ref_codon', 'ref_aa', 'snv_support']) + '\n')
+		hpr_handle.write('\t'.join(['sample', 'homolog_group', 'outlier_in_coverage',
+									'homolog_group_is_differentiable_from_paralogs',
+									'homolog_group_proportion_initial_samples_with_multi_copy',
+									'product_has_MGE_related_term', 'homolog_group_trimmed_median_depth',
+									'homolog_group_early_truncation_stop_codon_position',
+									'difficult_to_resolve_positions']) + '\n')
+
+		hg_median_depths = defaultdict(float)
+		hg_first_position_of_stop_codon = defaultdict(lambda: None)
+
+		if not os.path.isfile(result_file): return
+		hg_hetero_sites = defaultdict(set)
+		with open(result_file) as orf:
+			for i, line in enumerate(orf):
+				if i == 0: continue
+				line = line.strip()
+				homolog_group = line.split(',')[0]
+				position, a, c, g, t = [int(x) for x in line.split(',')[1:]]
+				total_depth = sum([a,c,g,t])
+
+				adequate_coverage_alleles = []
+				if a >= min_allele_depth:
+					adequate_coverage_alleles.append('A')
+				if c >= min_allele_depth:
+					adequate_coverage_alleles.append('C')
+				if g >= min_allele_depth:
+					adequate_coverage_alleles.append('G')
+				if t >= min_allele_depth:
+					adequate_coverage_alleles.append('T')
+
+				if len(adequate_coverage_alleles) > 1:
+					hg_hetero_sites[homolog_group].add(position)
+
+				if position % 3 == 0:
+					if len(previous_positions) == 2:
+						for al1 in previous_positions[0]:
+							for al2 in previous_positions[1]:
+								for al3 in adequate_coverage_alleles:
+									codon = al1 + al2 + al3
+									if codon in set(['TAG', 'TGA', 'TAA']):
+										if not homolog_group in hg_first_position_of_stop_codon:
+											hg_first_position_of_stop_codon[homolog_group] = position-2
+					previous_positions = []
+				else:
+					previous_positions.append(adequate_coverage_alleles)
+
+				homolog_group_depths[homolog_group].append(total_depth)
+				homolog_group_positions[homolog_group].append(position)
+
+		present_homolog_groups = set([])
+		for hg in homolog_group_depths:
+			hg_depths = homolog_group_depths[hg]
+			hg_positions = homolog_group_positions[hg]
+
+			core_positions_covered = 0
+			for i, pos in enumerate(hg_positions):
+				dp = hg_depths[i]
+				if pos in gene_core_positions[hg] and dp >= 1:
+					core_positions_covered += 1
+
+			if float(core_positions_covered)/len(gene_core_positions[hg]) >= 0.9:
+				present_homolog_groups.add(hg)
+				filtered_hg_depths = []
+				for pos in range(1, len(hg_depths)+1):
+					if pos in gene_ignore_positions[hg]: continue
+					filtered_hg_depths.append(hg_depths[pos-1])
+				hg_filtered_depth_median = statistics.median(filtered_hg_depths)
+				hg_median_depths[hg] = hg_filtered_depth_median
+
+		if len(hg_median_depths) < 5: return
+		median_of_medians = statistics.median(list(hg_median_depths.values()))
+		mad_of_medians = median_absolute_deviation(list(hg_median_depths.values()))
+
+		outlier_homolog_groups = set([])
+		for hg in present_homolog_groups:
+			hg_median = hg_median_depths[hg]
+			if hg_median > (median_of_medians + (2*mad_of_medians)) or hg_median < (median_of_medians - (2*mad_of_medians)):
+				outlier_homolog_groups.add(hg)
+
+		depths_at_all_refined_present_hgs = []
+		hetero_sites = 0
+		total_sites = 0
+		mge_hgs = set([])
+		refined_present_homolog_groups = set([])
+		report_lines = []
+		for hg in hg_genes:
+			product_has_mge_term = False
+			for gene in hg_genes[hg]:
+				for word in mges:
+					if word in comp_gene_info[gene]['product'].lower():
+						product_has_mge_term = True
+			report_lines.append('\t'.join([str(x) for x in [pe_sample, hg, (hg in outlier_homolog_groups),
+														 (hg in specific_homolog_groups),
+														 hg_prop_multi_copy[hg], product_has_mge_term,
+														 hg_median_depths[hg],
+														 hg_first_position_of_stop_codon[hg],
+														 ','.join([str(x) for x in sorted(gene_ignore_positions[hg])])]]))
+
+			if product_has_mge_term: mge_hgs.add(hg)
+			if not product_has_mge_term and not hg in outlier_homolog_groups and hg_median_depths[hg] > 0.0:
+				refined_present_homolog_groups.add(hg)
+				if hg_prop_multi_copy[hg] < 0.05:
+					hg_depths = homolog_group_depths[hg]
+
+					for pos in range(1, len(hg_depths)+1):
+						if pos in gene_ignore_positions[hg]: continue
+						depths_at_all_refined_present_hgs.append(hg_depths[pos-1])
+						total_sites += 1
+						if pos in hg_hetero_sites[hg]:
+							hetero_sites += 1
+
+		if len(refined_present_homolog_groups) < 5: return
+		if len(refined_present_homolog_groups.intersection(core_homologs))/float(len(core_homologs.difference(mge_hgs))) < 0.7 and len(refined_present_homolog_groups.intersection(specific_homolog_groups)) == 0: return
+
+		hpr_handle.write('\n'.join(report_lines) + '\n')
+
+		filt_result_file = snv_mining_outdir + pe_sample + '.filt.txt'
+		filt_result_handle = open(filt_result_file, 'w')
+		pos_allele_support = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
+		with open(result_file) as orf:
+			for linenum, line in enumerate(orf):
+				line = line.strip()
+				if linenum == 0:
+					filt_result_handle.write(line + '\n')
+				else:
+					hg = line.split(',')[0]
+					if not hg in refined_present_homolog_groups or hg_prop_multi_copy[hg] >= 0.05: continue
+					pos, a, c, g, t = [int(x) for x in line.split(',')[1:]]
+					pos_allele_support[hg][pos]['A'] = a
+					pos_allele_support[hg][pos]['C'] = c
+					pos_allele_support[hg][pos]['G'] = g
+					pos_allele_support[hg][pos]['T'] = t
+					pos_allele_support[hg][pos]['TOTAL'] = sum([a,c,g,t])
+					filt_result_handle.write(line + '\n')
+		filt_result_handle.close()
+
+		trimmed_depth_median = statistics.median(depths_at_all_refined_present_hgs)
+		trimmed_depth_mad = median_absolute_deviation(depths_at_all_refined_present_hgs)
+
+		# Check if phasing needed
+		homolog_variable_positions = defaultdict(set)
+		haplotype_allele_at_position = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: None)))
+		number_of_haplotypes = 0
+		if float(hetero_sites)/total_sites >= min_hetero_prop and allow_phasing and metagenomic:
+			# perform phasing using desman
+			cwd = os.getcwd()
+
+			desman_general_dir = snv_mining_outdir + pe_sample + '_Desman_Dir/'
+			desman_variants_dir = desman_general_dir + 'Variants/'
+			desman_inferstrains_dir = desman_general_dir + 'InferStrains/'
+
+			if not os.path.isdir(desman_general_dir): os.system('mkdir %s' % desman_general_dir)
+			if not os.path.isdir(desman_variants_dir): os.system('mkdir %s' % desman_variants_dir)
+			if not os.path.isdir(desman_inferstrains_dir): os.system('mkdir %s' % desman_inferstrains_dir)
+
+			desman_variant_filter_cmd = ['cd', desman_variants_dir, ';', 'Variant_Filter.py', filt_result_file,
+										 ';', 'cd', cwd]
+
+			if logObject:
+				logObject.info(
+					'Running Desman variant filtering with the following command: %s' % ' '.join(desman_variant_filter_cmd))
+			try:
+				subprocess.call(' '.join(desman_variant_filter_cmd), shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, executable='/bin/bash')
+				logObject.info('Successfully ran: %s' % ' '.join(desman_variant_filter_cmd))
+			except Exception as e:
+				if logObject:
+					logObject.error('Had an issue running: %s' % ' '.join(desman_variant_filter_cmd))
+					logObject.error(traceback.format_exc())
+				raise RuntimeError('Had an issue running: %s' % ' '.join(desman_variant_filter_cmd))
+
+			for g in [2, 3, 4, 5, 6, 7, 8]:
+				for r in [0, 1, 2, 3, 4]:
+					desmand_inferstrains_cmd = ['cd', desman_inferstrains_dir, ';', 'desman', '-e',
+												desman_variants_dir + 'outputtran_df.csv', '-o',
+												'ClusterEC_' + str(g) + '_' + str(r), '-r', '1000', '-i',
+												'100', '-g', str(g), '-s', str(r),
+												desman_variants_dir + 'outputsel_var.csv', '>',
+												desman_inferstrains_dir + 'ClusterEC_' + str(g) + '_' + str(r) + '.out']
+
+					if logObject:
+						logObject.info(
+							'Running Desman for strain inference with the following command: %s' % ' '.join(desmand_inferstrains_cmd))
+					try:
+						subprocess.call(' '.join(desmand_inferstrains_cmd), shell=True, stdout=sys.stderr, stderr=sys.stderr, executable='/bin/bash')
+						logObject.info('Successfully ran: %s' % ' '.join(desmand_inferstrains_cmd))
+					except Exception as e:
+						if logObject:
+							logObject.error(
+								'Had an issue running: %s' % ' '.join(desmand_inferstrains_cmd))
+							logObject.error(traceback.format_exc())
+						raise RuntimeError('Had an issue running: %s' % ' '.join(desmand_inferstrains_cmd))
+
+			desman_resolvehap_cmd = ['cd', desman_inferstrains_dir, ';', 'resolvenhap.py', 'ClusterEC', '>',
+									 desman_general_dir + 'Best_Parameter_Combo.txt']
+			if logObject:
+				logObject.info(
+					'Assessing Desman runs for strain inference with the following command: %s' % ' '.join(
+						desman_resolvehap_cmd))
+			try:
+				subprocess.call(' '.join(desman_resolvehap_cmd), shell=True, stdout=sys.stderr, stderr=sys.stderr, executable='/bin/bash')
+				logObject.info('Successfully ran: %s' % ' '.join(desman_resolvehap_cmd))
+			except Exception as e:
+				if logObject:
+					logObject.error('Had an issue running: %s' % ' '.join(desman_resolvehap_cmd))
+					logObject.error(traceback.format_exc())
+				raise RuntimeError('Had an issue running: %s' % ' '.join(desman_resolvehap_cmd))
+
+			haps, conf_haps, seed, avg_error = [None]*4
+			with open(desman_general_dir + 'Best_Parameter_Combo.txt') as obpc:
+				for line in obpc:
+					line = line.strip()
+					haps, conf_haps, seed, avg_error, _ = line.split(',')
+
+			haplotype_spec_file = desman_inferstrains_dir + 'ClusterEC_' + str(haps) + '_' + str(seed) + '/Filtered_Tau_star.csv'
+			with open(haplotype_spec_file) as obhpf:
+				for linenum, line in enumerate(obhpf):
+					if linenum == 0: continue
+					line = line.strip()
+					ls = line.split(',')
+					hg, position = ls[:2]
+					position = int(position)
+					homolog_variable_positions[hg].add(position)
+
+					ambiguity_region_flag = False
+					if position in gene_ignore_positions[hg]: ambiguity_region_flag = True
+					haplotype_calls = ls[2:]
+
+					total_depth = pos_allele_support[hg][position]['TOTAL']
+					depth_above_expectation = False
+					depth_below_expectation = False
+					if total_depth > (trimmed_depth_median + (2 * trimmed_depth_mad)):
+						depth_above_expectation = True
+					if total_depth < (trimmed_depth_median - (3 * trimmed_depth_mad)):
+						depth_below_expectation = True
+
+					for i, allele_call in enumerate(haplotype_calls):
+						haplotype_num = math.floor(i/4)
+						if haplotype_num > number_of_haplotypes: number_of_haplotypes = haplotype_num
+						if allele_call == '1':
+							if (i+1) % 4 == 0:
+								allele_base = 'T'
+							elif (i+1) % 3 == 0:
+								allele_base = 'G'
+							elif (i+1) % 2 == 0:
+								allele_base = 'C'
+							else:
+								allele_base = 'A'
+
+							allele_depth = pos_allele_support[hg][position][allele_base]
+
+							if allele_depth >= min_allele_depth and not depth_below_expectation and \
+									not depth_above_expectation and not ambiguity_region_flag and \
+									haplotype_allele_at_position[hg][position] == None:
+								haplotype_allele_at_position[hg][haplotype_num][position] = allele_base
+							else:
+								haplotype_allele_at_position[hg][haplotype_num][position] = '-'
+
+		haplotype_sequences = defaultdict(lambda: defaultdict(lambda: ""))
+		with open(filt_result_file) as ofrf:
+			for linenum, line in enumerate(ofrf):
+				if linenum == 0: continue
+				line = line.strip()
+				ls = line.split(',')
+				hg, position = ls[:2]
+				position = int(position)
+
+				ambiguity_region_flag = False
+				if position in gene_ignore_positions[hg]: ambiguity_region_flag = True
+				haplotype_calls = [int(x) for x in ls[2:]]
+
+				total_depth = pos_allele_support[hg][position]['TOTAL']
+				depth_above_expectation = False
+				depth_below_expectation = False
+				if total_depth > (trimmed_depth_median + (2 * trimmed_depth_mad)):
+					depth_above_expectation = True
+				if total_depth < (trimmed_depth_median - (3 * trimmed_depth_mad)):
+					depth_below_expectation = True
+
+				max_allele_depth = max(haplotype_calls)
+
+				tie_exists = len([x for x in haplotype_calls if x == max_allele_depth]) > 1
+
+				for i, allele_depth in enumerate(haplotype_calls):
+					if allele_depth == max_allele_depth:
+						if i == 0: allele_base = 'A'
+						elif i == 1: allele_base = 'C'
+						elif i == 2: allele_base = 'G'
+						elif i == 3: allele_base = 'T'
+
+						allele_call = '-'
+						if allele_depth >= min_allele_depth and not depth_below_expectation and not depth_above_expectation and \
+								not ambiguity_region_flag and not tie_exists:
+							allele_call = allele_base
+
+						for hi in range(0, number_of_haplotypes+1):
+							if position in homolog_variable_positions[hg]:
+								haplotype_sequences[hg][hi] += haplotype_allele_at_position[hg][hi][position]
+							else:
+								haplotype_sequences[hg][hi] += allele_call
+						break
+
+		for hg in haplotype_sequences:
+			bgc_fasta_file = phased_alleles_outdir + hg + '.fasta'
+			bgc_fasta_handle = open(bgc_fasta_file, 'a+')
+			for hi in haplotype_sequences[hg]:
+				seq = haplotype_sequences[hg][hi]
+				codons = [str(seq)[i:i + 3] for i in range(0, len(str(seq)), 3)]
+				first_stop_codon = None
+				for cod_i, cod in enumerate(codons):
+					if cod in set(['TAG', 'TGA', 'TAA']):
+						first_stop_codon = 3*(cod_i+1)
+						break
+				if first_stop_codon is not None:
+					seq = seq[:first_stop_codon] + ''.join(['-']*len(seq[first_stop_codon:]))
+					print(hg + '\t' + pe_sample)
+				bgc_fasta_handle.write('>' + pe_sample + '_|_' + str(hi+1) + '\n' + seq + '\n')
+			bgc_fasta_handle.close()
+
+		all_snv_supporting_reads = set([])
+		with open(snv_file) as of:
+			for i, line in enumerate(of):
+				line = line.strip()
+				ls = line.split('\t')
+				snv_id, snv_support_count, snv_support_reads = ls
+
+				gsh, ref_pos, ref_al, alt_al = snv_id.split('_|_')
+				hg, allele_cluster, sample, gene = gsh.split('|')
+
+				ref_pos = int(ref_pos)
+
+				# check whether to regard this SNV as potentially legit
+				if not hg in refined_present_homolog_groups or hg_prop_multi_copy[hg] >= 0.05: continue
+				if not ref_pos in gene_pos_to_msa_pos[hg][gene]: continue
+				msa_pos = gene_pos_to_msa_pos[hg][gene][ref_pos]
+				msa_pos_als = msa_pos_alleles[hg][msa_pos]
+				if hg_first_position_of_stop_codon[hg] != None and msa_pos >= hg_first_position_of_stop_codon[hg]: continue
+				if int(snv_support_count) >= min_allele_depth and int(homolog_group_depths[hg][msa_pos-1]) <= (trimmed_depth_median+(2*trimmed_depth_mad)) and int(homolog_group_depths[hg][msa_pos-1]) >= trimmed_depth_median-(3*trimmed_depth_mad):
+					assert (ref_al in msa_pos_alleles[hg][msa_pos] and ref_al == gene_pos_to_allele[hg][gene][ref_pos])
+					if not alt_al in msa_pos_als and not msa_pos in gene_ignore_positions[hg]:
+						#if not alt_al in msa_pos_als and not msa_pos in gene_edgy_positions[hg] and msa_pos_ambiguous_freqs[hg][msa_pos] <= 0.1:
+						codon_position = None
+						ref_codon = None
+						ref_aa = None
+						alt_codon = None
+						alt_aa = None
+						dn_or_ds = None
+						ts_or_tv = "transition"
+						if (ref_al in purine_alleles) != (alt_al in purine_alleles):
+							ts_or_tv = "transversion"
+						if ref_pos % 3 == 1:
+							codon_position = 1
+							ref_codon = ref_al + gene_pos_to_allele[hg][gene][ref_pos + 1] + \
+										gene_pos_to_allele[hg][gene][ref_pos + 2]
+							alt_codon = alt_al + gene_pos_to_allele[hg][gene][ref_pos + 1] + \
+										gene_pos_to_allele[hg][gene][ref_pos + 2]
+							ref_aa = str(Seq(ref_codon).translate())
+							alt_aa = str(Seq(alt_codon).translate())
+						elif ref_pos % 3 == 2:
+							codon_position = 2
+							ref_codon = gene_pos_to_allele[hg][gene][ref_pos - 1] + ref_al + \
+										gene_pos_to_allele[hg][gene][ref_pos + 1]
+							alt_codon = gene_pos_to_allele[hg][gene][ref_pos - 1] + alt_al + \
+										gene_pos_to_allele[hg][gene][ref_pos + 1]
+							ref_aa = str(Seq(ref_codon).translate())
+							alt_aa = str(Seq(alt_codon).translate())
+						elif ref_pos % 3 == 0:
+							codon_position = 3
+							ref_codon = gene_pos_to_allele[hg][gene][ref_pos - 2] + \
+										gene_pos_to_allele[hg][gene][ref_pos - 1] + ref_al
+							alt_codon = gene_pos_to_allele[hg][gene][ref_pos - 2] + \
+										gene_pos_to_allele[hg][gene][ref_pos - 1] + alt_al
+							ref_aa = str(Seq(ref_codon).translate())
+							alt_aa = str(Seq(alt_codon).translate())
+						if ref_aa != alt_aa:
+							dn_or_ds = "non-synonymous"
+						else:
+							dn_or_ds = "synonymous"
+						no_handle.write('\t'.join([str(x) for x in [gcf_id, pe_sample, hg, msa_pos, alt_al,
+															codon_position, alt_codon, alt_aa, dn_or_ds,
+															ts_or_tv, ref_al, sample, gene, ref_pos,
+															ref_codon, ref_aa, snv_support_count, snv_support_reads]]) + '\n')
+						all_snv_supporting_reads = all_snv_supporting_reads.union(set(snv_support_reads.split(', ')))
+
 		snv_support_fastq_file = snv_mining_outdir + pe_sample + '.snv_support.fastq'
 		snv_support_fastq_handle = open(snv_support_fastq_file, 'w')
 		visited = set([])
@@ -2113,10 +2147,12 @@ def generate_snv_read_support_fastq(input_args):
 				print(pe_sample + '\t' + r)
 		snv_support_fastq_handle.close()
 		os.system('gzip %s' % snv_support_fastq_file)
+		no_handle.close()
+		hpr_handle.close()
 	except Exception as e:
-		if logObject:
-			logObject.error('Difficulties writing supporting reads for SNVs to FASTQ file.')
-			logObject.error(traceback.format_exc())
+		if self.logObject:
+			self.logObject.error('Difficulties with phasing and identifying potentially novel SNVs.')
+			self.logObject.error(traceback.format_exc())
 		raise RuntimeError(traceback.format_exc())
 
 def snv_miner_single(input_args):
