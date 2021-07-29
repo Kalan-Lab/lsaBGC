@@ -2154,9 +2154,9 @@ def phase_and_id_snvs(input_args):
 		no_handle.close()
 		hpr_handle.close()
 	except Exception as e:
-		if self.logObject:
-			self.logObject.error('Difficulties with phasing and identifying potentially novel SNVs.')
-			self.logObject.error(traceback.format_exc())
+		if logObject:
+			logObject.error('Difficulties with phasing and identifying potentially novel SNVs.')
+			logObject.error(traceback.format_exc())
 		raise RuntimeError(traceback.format_exc())
 
 def snv_miner_single(input_args):
