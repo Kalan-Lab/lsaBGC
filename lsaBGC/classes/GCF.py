@@ -1674,7 +1674,7 @@ class GCF(Pan):
 											gene_ignore_positions, gene_core_positions, gene_pos_to_msa_pos,
 											gene_pos_to_allele, msa_pos_alleles, msa_pos_ambiguous_freqs,
 											min_hetero_prop, min_allele_depth, allow_phasing, metagenomic,
-											specific_homolog_groups, set(self.core_homolog_groups),
+											specific_homolog_groups, set(self.core_homologs),
 											dict(self.hg_genes), dict(self.comp_gene_info),
 											dict(self.hg_prop_multi_copy), self.gcf_id, self.logObject])
 
