@@ -995,8 +995,8 @@ class Pan:
 							best_false_hit = 1e-500
 					wth_log10 = decimal.Decimal(worst_true_hit).log10()
 					bfh_log10 = decimal.Decimal(best_false_hit).log10()
-					eval_threshold = max([(decimal.Decimal(10.0) ** decimal.Decimal((wth_log10 + bfh_log10)/2.0)), (decimal.Decimal(10.0) ** decimal.Decimal(bfh_log10 + -5))])
-				hg_differentiation_file.write('\t'.join([hg, str(worst_true_hit), str(best_false_hit), str(able_to_differentiate)]) + '\n')
+					eval_threshold = max([(decimal.Decimal(10.0) ** decimal.Decimal((wth_log10 + bfh_log10)/decimal.Decimal(2.0))), (decimal.Decimal(10.0) ** decimal.Decimal(bfh_log10 + decimal.Decimal(-5)))])
+				hg_differentiation_file.write('\t'.join([hg, str(worst_true_hit), str(best_false_hit), str(able_to_differentiate), str(eval_threshold)]) + '\n')
 				self.hg_differentiation_stats[hg] = {'worst_true_hit': worst_true_hit, 'best_false_hit': best_false_hit,
 													 'able_to_differentiate': able_to_differentiate}
 				self.hg_max_self_evalue[hg] = [eval_threshold, able_to_differentiate]
