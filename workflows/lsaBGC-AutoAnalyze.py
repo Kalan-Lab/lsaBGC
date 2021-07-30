@@ -362,7 +362,7 @@ def lsaBGC_AutoAnalyze():
 		previous_end = 1
 		for tupls in sorted(data, key=itemgetter(0)):
 			ls = tupls[1]
-			combined_gene_plotting_input_handle.write('\t'.join(ls[:2] + ls[3:6] + [str(previous_end), str(previous_end + int(float(ls[6])))] + ls[6:-9] + [ls[-9].split(' [')[0].replace('Conserved', 'NA').replace('Infinite', 'NA').strip()] + ls[-8:-5]) + '\n')
+			combined_gene_plotting_input_handle.write('\t'.join(ls[:2] + ls[3:6] + [str(previous_end), str(previous_end + int(float(ls[6])))] + ls[6:-10] + [ls[-10].replace('No conserved or variable sites!', 'NA'), ls[-9].split(' [')[0].replace('Conserved', 'NA').replace('Infinite', 'NA').strip()] + ls[-8:-5]) + '\n')
 			previous_end = previous_end + int(float(ls[6])) + 1
 
 		hg_ordering = defaultdict(lambda: 'NA')
