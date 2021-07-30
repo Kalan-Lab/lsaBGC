@@ -23,6 +23,8 @@ from pandas import DataFrame
 from pomegranate import *
 import math
 import warnings
+import decimal
+
 warnings.filterwarnings("ignore")
 
 mges = set(['transp', 'integrase'])
@@ -991,7 +993,7 @@ class GCF(Pan):
 					sample_lt_to_hg[hits[2]][lt] = hits[0]
 					sample_hgs[hits[2]].add(hits[0])
 					sample_protein_to_hg[hits[2]][lt] = hits[0]
-					sample_lt_to_evalue[hits[2]][lt] = hits[1]
+					sample_lt_to_evalue[hits[2]][lt] = decimal.Decimal(hits[1])
 
 		sample_hg_proteins = defaultdict(lambda: defaultdict(set))
 		for sample in sample_hgs:
@@ -1155,7 +1157,7 @@ class GCF(Pan):
 
 				for i, lt in enumerate(gcf_segment[0]):
 					hg = gcf_segment[1][i]
-					evalue = 10.0
+					evalue = decimal.Decimal(100000.0)
 					if lt in sample_lt_to_evalue[sample]: evalue = sample_lt_to_evalue[sample][lt]
 					bgc_hmm_evalues_handle.write('\t'.join([bgc_genbank_file, sample, lt, hg, str(evalue)]) + '\n')
 

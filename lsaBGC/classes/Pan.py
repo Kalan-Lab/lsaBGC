@@ -13,7 +13,7 @@ import multiprocessing
 import math
 from operator import itemgetter
 from scipy import stats
-from decimal import Decimal
+import decimal
 
 lsaBGC_main_directory = '/'.join(os.path.realpath(__file__).split('/')[:-3])
 RSCRIPT_FOR_CLUSTER_ASSESSMENT_PLOTTING = lsaBGC_main_directory + '/lsaBGC/Rscripts/plotParameterImpactsOnGCF.R'
@@ -59,7 +59,7 @@ class Pan:
 		# Consensus sequence in fasta format of concatentated profile HMM file
 		self.consensus_sequence_HMM = None
 		self.consensus_sequence_HMM_db = None
-		self.hg_max_self_evalue = defaultdict(lambda: 0.0)
+		self.hg_max_self_evalue = defaultdict(lambda: 100000.0)
 		self.lowerbound_hg_count = 100000
 		self.hg_differentiation_stats = {}
 
@@ -843,9 +843,9 @@ class Pan:
 			sample_hg_counts = [len(sample_hgs[x]) for x in sample_hgs]
 			self.lowerbound_hg_count = math.floor(min(sample_hg_counts))
 
-			#p = multiprocessing.Pool(cores)
-			#p.map(create_hmm_profiles, inputs)
-			#p.close()
+			p = multiprocessing.Pool(cores)
+			p.map(create_hmm_profiles, inputs)
+			p.close()
 
 			if self.logObject:
 				self.logObject.info("Successfully created profile HMMs for each homolog group. Now beginning concatenation into single file.")
@@ -901,9 +901,9 @@ class Pan:
 								   result_file, self.logObject]
 					diamond_cmds.append(diamond_cmd)
 
-				#p = multiprocessing.Pool(cores)
-				#p.map(util.multiProcess, diamond_cmds)
-				#p.close()
+				p = multiprocessing.Pool(cores)
+				p.map(util.multiProcess, diamond_cmds)
+				p.close()
 
 			else:
 				hmmpress_cmd = ['hmmpress', self.concatenated_profile_HMM]
@@ -931,9 +931,9 @@ class Pan:
 								   sample_proteome, self.logObject]
 					hmmscan_cmds.append(hmmscan_cmd)
 
-				#p = multiprocessing.Pool(cores)
-				#p.map(util.multiProcess, hmmscan_cmds)
-				#p.close()
+				p = multiprocessing.Pool(cores)
+				p.map(util.multiProcess, hmmscan_cmds)
+				p.close()
 
 			best_hits = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
 			for sample in initial_sample_prokka_data:
@@ -949,7 +949,7 @@ class Pan:
 							ls = line.split()
 							hg = ls[1].split('-consensus')[0]
 							gene_id = ls[0]
-							eval = float(ls[10])
+							eval = decimal.Decimal(ls[10])
 							hits_per_gene[gene_id].append([hg, eval])
 				else:
 					with open(result_file) as orf:
@@ -959,7 +959,7 @@ class Pan:
 							ls = line.split()
 							hg = ls[0]
 							gene_id = ls[2]
-							eval = float(ls[4])
+							eval = decimal.Decimal(ls[4])
 							hits_per_gene[gene_id].append([hg, eval])
 
 				for gene_id in hits_per_gene:
@@ -982,7 +982,7 @@ class Pan:
 				if len(false_hits) > 0:
 					best_false_hit = min(false_hits)
 				able_to_differentiate = False
-				eval_threshold = 1e-10
+				eval_threshold = decimal.Decimal(1e-10)
 				if best_false_hit > worst_true_hit:
 					able_to_differentiate = True
 					if worst_true_hit == 0.0:
@@ -993,9 +993,9 @@ class Pan:
 						best_false_hit = 1e-300
 						if quick_mode:
 							best_false_hit = 1e-500
-					wth_log10 = math.log(worst_true_hit, 10)
-					bfh_log10 = math.log(best_false_hit, 10)
-					eval_threshold = max([math.pow(10.0, ((wth_log10 + bfh_log10)/2.0)), math.pow(10.0, (bfh_log10 + -5))])
+					wth_log10 = decimal.Decimal(worst_true_hit).log10()
+					bfh_log10 = decimal.Decimal(best_false_hit).log10()
+					eval_threshold = decimal.max([decimal.power(decimal.Decimal(10.0), decimal.Decimal((wth_log10 + bfh_log10)/2.0)), decimal.power(decimal.Decimal(10.0), decimal.Decimal(bfh_log10 + -5))])
 				hg_differentiation_file.write('\t'.join([hg, str(worst_true_hit), str(best_false_hit), str(able_to_differentiate)]) + '\n')
 				self.hg_differentiation_stats[hg] = {'worst_true_hit': worst_true_hit, 'best_false_hit': best_false_hit,
 													 'able_to_differentiate': able_to_differentiate}
@@ -1052,9 +1052,9 @@ class Pan:
 							   sample_proteome, self.logObject]
 				alignment_cmds.append(hmmscan_cmd)
 
-		#p = multiprocessing.Pool(cores)
-		#p.map(util.multiProcess, alignment_cmds)
-		#p.close()
+		p = multiprocessing.Pool(cores)
+		p.map(util.multiProcess, alignment_cmds)
+		p.close()
 
 		hg_valid_length_range = {}
 		for hg in self.hg_genes:
@@ -1084,7 +1084,7 @@ class Pan:
 					if quick_mode:
 						hg = ls[1].split('-consensus')[0]
 						gene_id = ls[0]
-						eval = float(ls[10])
+						eval = decimal.Decimal(ls[10])
 						if eval < best_hit_per_gene[gene_id][1]:
 							best_hit_per_gene[gene_id][1] = eval
 							best_hit_per_gene[gene_id][0] = set([hg])
@@ -1094,7 +1094,7 @@ class Pan:
 						if line.startswith("#"): continue
 						hg = ls[0]
 						gene_id = ls[2]
-						eval = float(ls[4])
+						eval = decimal.Decimal(ls[4])
 						if eval < best_hit_per_gene[gene_id][1]:
 							best_hit_per_gene[gene_id][1] = eval
 							best_hit_per_gene[gene_id][0] = set([hg])
@@ -1112,7 +1112,7 @@ class Pan:
 						is_boundary_gene = gene_id in self.boundary_genes[sample]
 						if not hg in best_hit_per_gene[gene_id][0]: continue
 						scaffold = self.gene_location[sample][gene_id]['scaffold']
-						eval = float(ls[10])
+						eval = decimal.Decimal(ls[10])
 						if eval < 1e-30:
 							self.hmmscan_results_lenient[gene_id] = hg
 						if (not is_boundary_gene) and \
@@ -1128,7 +1128,7 @@ class Pan:
 						is_boundary_gene = gene_id in self.boundary_genes[sample]
 						if not hg in best_hit_per_gene[gene_id][0]: continue
 						scaffold = self.gene_location[sample][gene_id]['scaffold']
-						eval = float(ls[4])
+						eval = decimal.Decimal(ls[4])
 						if eval < 1e-30:
 							self.hmmscan_results_lenient[gene_id] = hg
 						if (not is_boundary_gene) and \
