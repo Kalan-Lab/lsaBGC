@@ -1137,14 +1137,14 @@ class GCF(Pan):
 						lt = self.gene_order_to_id[sample][gcf_segment_scaff][oi]
 						if lt in self.hmmscan_results_lenient.keys():
 							gcf_segment[0].append(lt)
-							gcf_segment[1].append(hmmscan_results_lenient[lt])
+							gcf_segment[1].append(self.hmmscan_results_lenient[lt])
 
 				for oi in range(max_bgc_order+1, max_bgc_order+6):
 					if oi in self.gene_order_to_id[sample][gcf_segment_scaff].keys():
 						lt = self.gene_order_to_id[sample][gcf_segment_scaff][oi]
 						if lt in self.hmmscan_results_lenient.keys():
 							gcf_segment[0].append(lt)
-							gcf_segment[1].append(hmmscan_results_lenient[lt])
+							gcf_segment[1].append(self.hmmscan_results_lenient[lt])
 
 				min_bgc_pos = min([self.gene_location[sample][g]['start'] for g in gcf_segment[0]])
 				max_bgc_pos = max([self.gene_location[sample][g]['end'] for g in gcf_segment[0]])

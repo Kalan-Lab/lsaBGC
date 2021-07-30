@@ -13,6 +13,7 @@ import multiprocessing
 import math
 from operator import itemgetter
 from scipy import stats
+from decimal import Decimal
 
 lsaBGC_main_directory = '/'.join(os.path.realpath(__file__).split('/')[:-3])
 RSCRIPT_FOR_CLUSTER_ASSESSMENT_PLOTTING = lsaBGC_main_directory + '/lsaBGC/Rscripts/plotParameterImpactsOnGCF.R'
@@ -842,9 +843,9 @@ class Pan:
 			sample_hg_counts = [len(sample_hgs[x]) for x in sample_hgs]
 			self.lowerbound_hg_count = math.floor(min(sample_hg_counts))
 
-			p = multiprocessing.Pool(cores)
-			p.map(create_hmm_profiles, inputs)
-			p.close()
+			#p = multiprocessing.Pool(cores)
+			#p.map(create_hmm_profiles, inputs)
+			#p.close()
 
 			if self.logObject:
 				self.logObject.info("Successfully created profile HMMs for each homolog group. Now beginning concatenation into single file.")
@@ -900,9 +901,9 @@ class Pan:
 								   result_file, self.logObject]
 					diamond_cmds.append(diamond_cmd)
 
-				p = multiprocessing.Pool(cores)
-				p.map(util.multiProcess, diamond_cmds)
-				p.close()
+				#p = multiprocessing.Pool(cores)
+				#p.map(util.multiProcess, diamond_cmds)
+				#p.close()
 
 			else:
 				hmmpress_cmd = ['hmmpress', self.concatenated_profile_HMM]
@@ -930,9 +931,9 @@ class Pan:
 								   sample_proteome, self.logObject]
 					hmmscan_cmds.append(hmmscan_cmd)
 
-				p = multiprocessing.Pool(cores)
-				p.map(util.multiProcess, hmmscan_cmds)
-				p.close()
+				#p = multiprocessing.Pool(cores)
+				#p.map(util.multiProcess, hmmscan_cmds)
+				#p.close()
 
 			best_hits = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
 			for sample in initial_sample_prokka_data:
@@ -1051,9 +1052,9 @@ class Pan:
 							   sample_proteome, self.logObject]
 				alignment_cmds.append(hmmscan_cmd)
 
-		p = multiprocessing.Pool(cores)
-		p.map(util.multiProcess, alignment_cmds)
-		p.close()
+		#p = multiprocessing.Pool(cores)
+		#p.map(util.multiProcess, alignment_cmds)
+		#p.close()
 
 		hg_valid_length_range = {}
 		for hg in self.hg_genes:
