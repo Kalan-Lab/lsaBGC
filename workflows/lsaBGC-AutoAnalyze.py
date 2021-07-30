@@ -315,7 +315,7 @@ def lsaBGC_AutoAnalyze():
 		# 4. Run lsaBGC-DiscoVary.py
 		if discovary_analysis_id and discovary_input_listing:
 			gcf_dis_outdir = dis_outdir + gcf_id + '/'
-			if True: #not os.path.isdir(gcf_dis_outdir):
+			if not os.path.isdir(gcf_dis_outdir):
 				os.system('mkdir %s' % gcf_dis_outdir)
 				cmd = ['lsaBGC-DiscoVary.py', '-g', gcf_listing_file, '-m', orthofinder_matrix_file, '-o',
 					   gcf_dis_outdir, '-i', gcf_id, '-c', str(cores), '-p', discovary_input_listing, '-a',
@@ -362,7 +362,7 @@ def lsaBGC_AutoAnalyze():
 		previous_end = 1
 		for tupls in sorted(data, key=itemgetter(0)):
 			ls = tupls[1]
-			combined_gene_plotting_input_handle.write('\t'.join(ls[:2] + ls[3:6] + [str(previous_end), str(previous_end + int(float(ls[6])))] + ls[6:-9] + ls[-9].split(' [')[0].replace('Conserved', 'NA').replace('Infinite', 'NA').strip() + ls[-8:-5]) + '\n')
+			combined_gene_plotting_input_handle.write('\t'.join(ls[:2] + ls[3:6] + [str(previous_end), str(previous_end + int(float(ls[6])))] + ls[6:-9] + [ls[-9].split(' [')[0].replace('Conserved', 'NA').replace('Infinite', 'NA').strip()] + ls[-8:-5]) + '\n')
 			previous_end = previous_end + int(float(ls[6])) + 1
 
 		hg_ordering = defaultdict(lambda: 'NA')
