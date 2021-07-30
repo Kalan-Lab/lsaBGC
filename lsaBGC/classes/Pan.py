@@ -995,7 +995,7 @@ class Pan:
 							best_false_hit = 1e-500
 					wth_log10 = decimal.Decimal(worst_true_hit).log10()
 					bfh_log10 = decimal.Decimal(best_false_hit).log10()
-					eval_threshold = decimal.max([decimal.power(decimal.Decimal(10.0), decimal.Decimal((wth_log10 + bfh_log10)/2.0)), decimal.power(decimal.Decimal(10.0), decimal.Decimal(bfh_log10 + -5))])
+					eval_threshold = max([(decimal.Decimal(10.0) ** decimal.Decimal((wth_log10 + bfh_log10)/2.0)), (decimal.Decimal(10.0) ** decimal.Decimal(bfh_log10 + -5))])
 				hg_differentiation_file.write('\t'.join([hg, str(worst_true_hit), str(best_false_hit), str(able_to_differentiate)]) + '\n')
 				self.hg_differentiation_stats[hg] = {'worst_true_hit': worst_true_hit, 'best_false_hit': best_false_hit,
 													 'able_to_differentiate': able_to_differentiate}
@@ -1113,7 +1113,7 @@ class Pan:
 						if not hg in best_hit_per_gene[gene_id][0]: continue
 						scaffold = self.gene_location[sample][gene_id]['scaffold']
 						eval = decimal.Decimal(ls[10])
-						if eval < 1e-30:
+						if eval < decimal.Decimal(1e-30):
 							self.hmmscan_results_lenient[gene_id] = hg
 						if (not is_boundary_gene) and \
 								(not (gene_length <= hg_valid_length_range[hg]['max_gene_length'] and gene_length >= hg_valid_length_range[hg]['min_gene_length'])) and \
@@ -1129,7 +1129,7 @@ class Pan:
 						if not hg in best_hit_per_gene[gene_id][0]: continue
 						scaffold = self.gene_location[sample][gene_id]['scaffold']
 						eval = decimal.Decimal(ls[4])
-						if eval < 1e-30:
+						if eval < decimal.Decimal(1e-30):
 							self.hmmscan_results_lenient[gene_id] = hg
 						if (not is_boundary_gene) and \
 								(not (gene_length <= hg_valid_length_range[hg]['max_gene_length'] and gene_length >= hg_valid_length_range[hg]['min_gene_length'])) and \
