@@ -351,7 +351,7 @@ def lsaBGC_AutoAnalyze():
 		data = []
 		with open(gcf_pop_results_unrefined) as ogpru:
 			for j, line in enumerate(ogpru):
-				line = line.strip()
+				line = line.strip('\n')
 				ls = line.split('\t')
 				if j == 0 and not include_header: continue
 				elif j == 0 and include_header:
