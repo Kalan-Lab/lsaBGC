@@ -331,10 +331,7 @@ def lsaBGC_AutoAnalyze():
 
 	combined_gene_plotting_input_handle = open(combined_gene_plotting_input_file, 'w')
 	combined_consensus_similarity_handle = open(combined_consensus_similarity_file, 'w')
-	combined_orthoresults_refined_handle = open(outdir + 'GCF_Ortholog_Group_Information_MAD_Refined.txt', 'w')
-	combined_orthoresults_pop_refined_handle = open(outdir + 'Population_GCF_Ortholog_Group_Information_MAD_Refined.txt', 'w')
 	combined_orthoresults_unrefined_handle = open(outdir + 'GCF_Ortholog_Group_Information.txt', 'w')
-	combined_orthoresults_pop_unrefined_handle = open(outdir + 'Population_GCF_Ortholog_Group_Information.txt', 'w')
 	combined_divergence_results_handle = open(outdir + 'GCF_Divergences.txt', 'w')
 
 	combined_consensus_similarity_handle.write('\t'.join(['GCF', 'GCF_Order', 'Homolog_Group', 'Homolog_Group_Order', 'label', 'Difference_to_Consensus_Sequence']) + '\n')
@@ -343,28 +340,12 @@ def lsaBGC_AutoAnalyze():
 		gcf_pop_outdir = pop_outdir + gcf_id + '/'
 		gcf_div_outdir = div_outdir + gcf_id + '/'
 
-		gcf_pop_results_refined = gcf_pop_outdir + 'Ortholog_Group_Information_MAD_Refined.txt'
 		gcf_pop_results_unrefined = gcf_pop_outdir + 'Ortholog_Group_Information.txt'
 		gcf_div_results = gcf_div_outdir + 'Relative_Divergence_Report.txt'
-
-		jref = 0
-		junref = 0
-		for f in os.listdir(gcf_pop_outdir):
-			include_header = False
-			popgene_result_file = gcf_pop_outdir + f
-			if 'Ortholog_Group_Information' in f and 'Pop-' in f and not 'Ortholog_Group_Information_MAD_Refined' in f:
-				if jref == 0 and i == 0: include_header = True
-				writeToOpenHandle(popgene_result_file, combined_orthoresults_pop_refined_handle, include_header)
-				jref += 1
-			if 'Ortholog_Group_Information_MAD_Refined' in f and 'Pop-' in f:
-				if junref == 0 and i == 0: include_header = True
-				writeToOpenHandle(popgene_result_file, combined_orthoresults_pop_unrefined_handle, include_header)
-				junref += 1
 
 		include_header = False
 		if i == 0: include_header = True
 		if os.path.isfile(gcf_pop_results_unrefined): writeToOpenHandle(gcf_pop_results_unrefined, combined_orthoresults_unrefined_handle, include_header)
-		if os.path.isfile(gcf_pop_results_refined): writeToOpenHandle(gcf_pop_results_refined, combined_orthoresults_refined_handle, include_header)
 		if os.path.isfile(gcf_div_results): writeToOpenHandle(gcf_div_results, combined_divergence_results_handle, include_header)
 
 		data = []
@@ -374,14 +355,14 @@ def lsaBGC_AutoAnalyze():
 				ls = line.split('\t')
 				if j == 0 and not include_header: continue
 				elif j == 0 and include_header:
-					combined_gene_plotting_input_handle.write('\t'.join(ls[:2] + ls[3:6] + ['gene_start', 'gene_stop'] + ls[6:-5] + ls[-4:]) + '\n')
+					combined_gene_plotting_input_handle.write('\t'.join(ls[:2] + ls[3:6] + ['gene_start', 'gene_stop'] + ls[6:-5]) + '\n')
 				elif ls[3] != 'NA':
 					data.append([int(ls[3]), ls])
 
 		previous_end = 1
 		for tupls in sorted(data, key=itemgetter(0)):
 			ls = tupls[1]
-			combined_gene_plotting_input_handle.write('\t'.join(ls[:2] + ls[3:6] + [str(previous_end), str(previous_end + int(float(ls[6])))] + ls[6:-5] + ls[-4:]) + '\n')
+			combined_gene_plotting_input_handle.write('\t'.join(ls[:2] + ls[3:6] + [str(previous_end), str(previous_end + int(float(ls[6])))] + ls[6:-9] + ls[-9].split(' [')[0].replace('Conserved', 'NA').replace('Infinite', 'NA').strip() + ls[-8:-5]) + '\n')
 			previous_end = previous_end + int(float(ls[6])) + 1
 
 		hg_ordering = defaultdict(lambda: 'NA')
@@ -409,12 +390,9 @@ def lsaBGC_AutoAnalyze():
 
 	combined_gene_plotting_input_handle.close()
 	combined_consensus_similarity_handle.close()
-	combined_orthoresults_refined_handle.close()
 	combined_orthoresults_unrefined_handle.close()
 	combined_divergence_results_handle.close()
-	combined_orthoresults_pop_unrefined_handle.close()
-	combined_orthoresults_pop_refined_handle.close()
-	
+
 	# Create Final R plots:
 
 	# create big-picture heatmap of presence/sequence-similarity to consensus sequence of homolog groups from each gcf

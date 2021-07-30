@@ -854,10 +854,11 @@ class GCF(Pan):
 		if population:
 			header = ['population'] + header
 		elif population_analysis_on:
-			header[:-1] += ['populations_with_hg', 'most_significant_Fisher_exact_pvalues_presence_absence',
+			header = header[:-1]
+			header += ['populations_with_hg', 'most_significant_Fisher_exact_pvalues_presence_absence',
 							'one_way_ANOVA_pvalues_sequence_similarity', 'most_significant_MK_ratio_log10',
 							'all_fixation_indices_between_populations', 'population_pn_ps_ratios',
-							'population_proportion_of_members_with_hg'] + [header[-1]]
+							'population_proportion_of_members_with_hg', 'all_domains']
 		final_output_handle.write('\t'.join(header) + '\n')
 
 		inputs = []
