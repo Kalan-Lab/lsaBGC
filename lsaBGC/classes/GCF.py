@@ -1117,7 +1117,7 @@ class GCF(Pan):
 						visited_scaffolds_with_edge_gcf_segment.add(gcf_segment[5])
 						cumulative_edge_hgs = cumulative_edge_hgs.union(set(gcf_segment[1]))
 
-			if len(sample_edge_gcf_predictions_filtered) >= 2:
+			if len(sample_edge_gcf_predictions_filtered) >= 1:
 				if len(cumulative_edge_hgs) >= min_size and len(cumulative_edge_hgs.intersection(self.core_homologs)) >= min_core_size:
 					sample_gcf_predictions_filtered += sample_edge_gcf_predictions_filtered
 
