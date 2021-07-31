@@ -1110,8 +1110,9 @@ class GCF(Pan):
 					if (gcf_segment[3] >= min_size and gcf_segment[4] >= min_core_size) or (gcf_segment[-1]) or (
 					gcf_segment[-2]):
 						sample_gcf_predictions_filtered.append(gcf_segment)
-					elif gcf_segment[3] >= 3 and gcf_segment[-3] and not gcf_segment[
-																			 5] in visited_scaffolds_with_edge_gcf_segment:
+						if gcf_segment[-3]:
+							cumulative_edge_hgs = cumulative_edge_hgs.union(set(gcf_segment[1]))
+					elif gcf_segment[3] >= 3 and gcf_segment[-3] and not gcf_segment[5] in visited_scaffolds_with_edge_gcf_segment:
 						sample_edge_gcf_predictions_filtered.append(gcf_segment)
 						visited_scaffolds_with_edge_gcf_segment.add(gcf_segment[5])
 						cumulative_edge_hgs = cumulative_edge_hgs.union(set(gcf_segment[1]))
