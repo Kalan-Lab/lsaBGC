@@ -1120,7 +1120,7 @@ class GCF(Pan):
 						cumulative_edge_hgs = cumulative_edge_hgs.union(set(gcf_segment[1]))
 
 			if len(sample_edge_gcf_predictions_filtered) >= 1:
-				if sample_edge_gcf_predictions_filtered[0][0].startswith('AACJ_'):
+				if sample_edge_gcf_predictions_filtered[0][0][0].startswith('AACJ_'):
 					print(sample_edge_gcf_predictions_filtered)
 					print(cumulative_edge_hgs)
 					print(cumulative_edge_hgs.intersection(self.core_homologs))
