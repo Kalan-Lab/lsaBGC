@@ -1115,7 +1115,7 @@ class Pan:
 						scaffold = self.gene_location[sample][gene_id]['scaffold']
 						eval = decimal.Decimal(ls[10])
 						if eval < decimal.Decimal(1e-10):
-							self.hmmscan_results_lenient[gene_id] = hg
+							self.hmmscan_results_lenient[gene_id] = [hg, eval]
 						if (not is_boundary_gene) and \
 								(not (gene_length <= hg_valid_length_range[hg]['max_gene_length'] and gene_length >= hg_valid_length_range[hg]['min_gene_length'])) and \
 								(abs(gene_length - hg_valid_length_range[hg]['median_gene_length']) >= (2 * hg_valid_length_range[hg]['gene_length_deviation'])): continue
@@ -1133,7 +1133,7 @@ class Pan:
 						scaffold = self.gene_location[sample][gene_id]['scaffold']
 						eval = decimal.Decimal(ls[4])
 						if eval < decimal.Decimal(1e-10):
-							self.hmmscan_results_lenient[gene_id] = hg
+							self.hmmscan_results_lenient[gene_id] = [hg, eval]
 						if (not is_boundary_gene) and \
 								(not (gene_length <= hg_valid_length_range[hg]['max_gene_length'] and gene_length >= hg_valid_length_range[hg]['min_gene_length'])) and \
 								(abs(gene_length - hg_valid_length_range[hg]['median_gene_length']) >= (2 * hg_valid_length_range[hg]['gene_length_deviation'])): continue

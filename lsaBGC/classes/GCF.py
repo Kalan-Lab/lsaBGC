@@ -1118,12 +1118,12 @@ class GCF(Pan):
 				if len(cumulative_edge_hgs) >= min_size and len(cumulative_edge_hgs.intersection(self.core_homologs)) >= min_core_size:
 					sample_gcf_predictions_filtered += sample_edge_gcf_predictions_filtered
 
-			specific_or_protocore_gene_found = False
+			protocore_gene_found = False
 			for gcf_segment in sample_gcf_predictions_filtered:
 				if gcf_segment[-1] or gcf_segment[-2]:
-					specific_or_protocore_gene_found = True
+					protocore_gene_found = True
 
-			if not specific_or_protocore_gene_found: continue
+			if not protocore_gene_found: continue
 
 			for gcf_segment in sample_gcf_predictions_filtered:
 				clean_sample_name = util.cleanUpSampleName(sample)
@@ -1135,7 +1135,7 @@ class GCF(Pan):
 				for i, lt in enumerate(gcf_segment[0]):
 					hg = gcf_segment[1][i]
 					if hg == 'other' and lt in self.hmmscan_results_lenient.keys():
-						gcf_segment[1][i] = self.hmmscan_results_lenient[lt]
+						gcf_segment[1][i] = self.hmmscan_results_lenient[lt][0]
 
 				min_bgc_order = min([self.gene_id_to_order[sample][gcf_segment_scaff][g] for g in gcf_segment[0]])
 				max_bgc_order = max([self.gene_id_to_order[sample][gcf_segment_scaff][g] for g in gcf_segment[0]])
@@ -1145,14 +1145,14 @@ class GCF(Pan):
 						lt = self.gene_order_to_id[sample][gcf_segment_scaff][oi]
 						if lt in self.hmmscan_results_lenient.keys():
 							gcf_segment[0].append(lt)
-							gcf_segment[1].append(self.hmmscan_results_lenient[lt])
+							gcf_segment[1].append(self.hmmscan_results_lenient[lt][0])
 
 				for oi in range(max_bgc_order+1, max_bgc_order+11):
 					if oi in self.gene_order_to_id[sample][gcf_segment_scaff].keys():
 						lt = self.gene_order_to_id[sample][gcf_segment_scaff][oi]
 						if lt in self.hmmscan_results_lenient.keys():
 							gcf_segment[0].append(lt)
-							gcf_segment[1].append(self.hmmscan_results_lenient[lt])
+							gcf_segment[1].append(self.hmmscan_results_lenient[lt][0])
 
 				min_bgc_pos = min([self.gene_location[sample][g]['start'] for g in gcf_segment[0]])
 				max_bgc_pos = max([self.gene_location[sample][g]['end'] for g in gcf_segment[0]])
@@ -1165,6 +1165,7 @@ class GCF(Pan):
 					hg = gcf_segment[1][i]
 					evalue = decimal.Decimal(100000.0)
 					if lt in sample_lt_to_evalue[sample]: evalue = sample_lt_to_evalue[sample][lt]
+					if lt in self.hmmscan_results_lenient.keys(): evalue = hmmscan_results_lenient[lt][1]
 					bgc_hmm_evalues_handle.write('\t'.join([bgc_genbank_file, sample, lt, hg, str(evalue)]) + '\n')
 
 				for lt in gcf_segment[0]:
