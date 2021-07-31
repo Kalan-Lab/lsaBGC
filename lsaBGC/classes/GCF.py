@@ -1043,6 +1043,8 @@ class GCF(Pan):
 														   len(set(gcf_state_hgs).difference("other").intersection(
 															   self.core_homologs)), scaffold, boundary_lt_featured,
 														   features_specific_hg, features_protocoluster_hg])
+							if 'AACJ_02061' in gcf_state_lts:
+								print(sample_gcf_predictions[-1])
 						gcf_state_lts = []
 						gcf_state_hgs = []
 
