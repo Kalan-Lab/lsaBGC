@@ -1133,19 +1133,11 @@ class GCF(Pan):
 						gcf_segment[1][i] = self.hmmscan_results_lenient[lt]
 
 				min_bgc_order = min([self.gene_id_to_order[sample][gcf_segment_scaff][g] for g in gcf_segment[0]])
-				max_bgc_order = min([self.gene_id_to_order[sample][gcf_segment_scaff][g] for g in gcf_segment[0]])
+				max_bgc_order = max([self.gene_id_to_order[sample][gcf_segment_scaff][g] for g in gcf_segment[0]])
 
-				if sample == 'LK566':
-					print(self.gene_id_to_order[sample][gcf_segment_scaff])
-					print(self.hmmscan_results_lenient.keys())
-					print(gcf_segment)
-					print(min_bgc_order)
-					print(max_bgc_order)
 				for oi in range(min_bgc_order-5, min_bgc_order):
 					if oi in self.gene_order_to_id[sample][gcf_segment_scaff].keys():
 						lt = self.gene_order_to_id[sample][gcf_segment_scaff][oi]
-						if lt .startswith('AAFI'):
-							print(lt)
 						if lt in self.hmmscan_results_lenient.keys():
 							gcf_segment[0].append(lt)
 							gcf_segment[1].append(self.hmmscan_results_lenient[lt])
@@ -1153,8 +1145,6 @@ class GCF(Pan):
 				for oi in range(max_bgc_order+1, max_bgc_order+6):
 					if oi in self.gene_order_to_id[sample][gcf_segment_scaff].keys():
 						lt = self.gene_order_to_id[sample][gcf_segment_scaff][oi]
-						if lt .startswith('AAFI'):
-							print(lt)
 						if lt in self.hmmscan_results_lenient.keys():
 							gcf_segment[0].append(lt)
 							gcf_segment[1].append(self.hmmscan_results_lenient[lt])
