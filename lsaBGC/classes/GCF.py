@@ -1036,8 +1036,7 @@ class GCF(Pan):
 								set(gcf_state_hgs).difference('other'))) > 0: features_protocoluster_hg = True
 							if len(self.boundary_genes[sample].intersection(
 								set(gcf_state_lts).difference('other'))) > 0: boundary_lt_featured = True
-							if len(specific_hgs.intersection(
-								set(gcf_state_hgs).difference('other'))) > 0: features_specific_hg = True
+							if len(specific_hgs.intersection(set(gcf_state_hgs).difference('other'))) > 0: features_specific_hg = True
 							sample_gcf_predictions.append([gcf_state_lts, gcf_state_hgs, len(gcf_state_lts),
 														   len(set(gcf_state_hgs).difference("other")),
 														   len(set(gcf_state_hgs).difference("other").intersection(
@@ -1125,6 +1124,8 @@ class GCF(Pan):
 					print(cumulative_edge_hgs)
 					print(cumulative_edge_hgs.intersection(self.core_homologs))
 				if len(cumulative_edge_hgs) >= min_size and len(cumulative_edge_hgs.intersection(self.core_homologs)) >= min_core_size:
+					if sample_edge_gcf_predictions_filtered[0][0][0].startswith('AACJ_'):
+						print('made it!')
 					sample_gcf_predictions_filtered += sample_edge_gcf_predictions_filtered
 
 			for gcf_segment in sample_gcf_predictions_filtered:
