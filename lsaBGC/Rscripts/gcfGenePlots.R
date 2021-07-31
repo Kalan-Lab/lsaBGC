@@ -17,7 +17,7 @@ ggplot(pop.gene.data, aes(xmin = gene_start, xmax = gene_stop, y = gcf_id, forwa
   scale_fill_gradient(low = "#e84a5d", high="#3763ad", na.value = "grey50", guide = "colourbar",  aesthetics = "fill") + ggtitle("Tajima's D")
 
 ggplot(pop.gene.data, aes(xmin = gene_start, xmax = gene_stop, y = gcf_id, forward = hg_consensus_direction)) +
-  geom_gene_arrow(aes(linetype=is_core_to_bgc, fill=dn_ds, alpha=proportion_of_samples_with_hg)) + theme_classic() +
+  geom_gene_arrow(aes(linetype=is_core_to_bgc, fill=log(dn_ds, 10), alpha=proportion_of_samples_with_hg)) + theme_classic() +
   scale_fill_gradient(low = "#e84a5d", high="#3763ad", na.value = "grey50", guide = "colourbar",  aesthetics = "fill") + ggtitle("dN/dS")
 
 ggplot(pop.gene.data, aes(xmin = gene_start, xmax = gene_stop, y = gcf_id, forward = hg_consensus_direction)) +

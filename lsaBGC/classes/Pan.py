@@ -1114,12 +1114,14 @@ class Pan:
 						if not hg in best_hit_per_gene[gene_id][0]: continue
 						scaffold = self.gene_location[sample][gene_id]['scaffold']
 						eval = decimal.Decimal(ls[10])
-						if eval < decimal.Decimal(1e-30):
+						if eval < decimal.Decimal(1e-10):
 							self.hmmscan_results_lenient[gene_id] = hg
 						if (not is_boundary_gene) and \
 								(not (gene_length <= hg_valid_length_range[hg]['max_gene_length'] and gene_length >= hg_valid_length_range[hg]['min_gene_length'])) and \
 								(abs(gene_length - hg_valid_length_range[hg]['median_gene_length']) >= (2 * hg_valid_length_range[hg]['gene_length_deviation'])): continue
 						if eval <= self.hg_max_self_evalue[hg][0]:
+							self.hmmscan_results[gene_id].append([hg, eval, sample, scaffold])
+						elif eval <= decimal.Decimal(1e-10) and is_boundary_gene:
 							self.hmmscan_results[gene_id].append([hg, eval, sample, scaffold])
 					else:
 						if line.startswith("#"): continue
@@ -1130,14 +1132,15 @@ class Pan:
 						if not hg in best_hit_per_gene[gene_id][0]: continue
 						scaffold = self.gene_location[sample][gene_id]['scaffold']
 						eval = decimal.Decimal(ls[4])
-						if eval < decimal.Decimal(1e-30):
+						if eval < decimal.Decimal(1e-10):
 							self.hmmscan_results_lenient[gene_id] = hg
 						if (not is_boundary_gene) and \
 								(not (gene_length <= hg_valid_length_range[hg]['max_gene_length'] and gene_length >= hg_valid_length_range[hg]['min_gene_length'])) and \
 								(abs(gene_length - hg_valid_length_range[hg]['median_gene_length']) >= (2 * hg_valid_length_range[hg]['gene_length_deviation'])): continue
 						if eval <= self.hg_max_self_evalue[hg][0]:
 							self.hmmscan_results[gene_id].append([hg, eval, sample, scaffold])
-
+						elif eval <= decimal.Decimal(1e-10) and is_boundary_gene:
+							self.hmmscan_results[gene_id].append([hg, eval, sample, scaffold])
 
 def create_hmm_profiles(inputs):
 	"""
