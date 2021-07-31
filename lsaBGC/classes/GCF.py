@@ -1120,6 +1120,13 @@ class GCF(Pan):
 				if len(cumulative_edge_hgs) >= min_size and len(cumulative_edge_hgs.intersection(self.core_homologs)) >= min_core_size:
 					sample_gcf_predictions_filtered += sample_edge_gcf_predictions_filtered
 
+			specific_or_protocore_gene_found = False
+			for gcf_segment in sample_edge_gcf_predictions_filtered:
+				if gcf_segment[-1] or gcf_segment[-2]:
+					specific_or_protocore_gene_found = True
+
+			if not specific_or_protocore_gene_found: continue
+
 			for gcf_segment in sample_gcf_predictions_filtered:
 				clean_sample_name = util.cleanUpSampleName(sample)
 				bgc_genbank_file = bgc_genbanks_dir + clean_sample_name + '_BGC-' + str(sample_bgc_ids[sample]) + '.gbk'
@@ -1135,14 +1142,14 @@ class GCF(Pan):
 				min_bgc_order = min([self.gene_id_to_order[sample][gcf_segment_scaff][g] for g in gcf_segment[0]])
 				max_bgc_order = max([self.gene_id_to_order[sample][gcf_segment_scaff][g] for g in gcf_segment[0]])
 
-				for oi in range(min_bgc_order-5, min_bgc_order):
+				for oi in range(min_bgc_order-10, min_bgc_order):
 					if oi in self.gene_order_to_id[sample][gcf_segment_scaff].keys():
 						lt = self.gene_order_to_id[sample][gcf_segment_scaff][oi]
 						if lt in self.hmmscan_results_lenient.keys():
 							gcf_segment[0].append(lt)
 							gcf_segment[1].append(self.hmmscan_results_lenient[lt])
 
-				for oi in range(max_bgc_order+1, max_bgc_order+6):
+				for oi in range(max_bgc_order+1, max_bgc_order+11):
 					if oi in self.gene_order_to_id[sample][gcf_segment_scaff].keys():
 						lt = self.gene_order_to_id[sample][gcf_segment_scaff][oi]
 						if lt in self.hmmscan_results_lenient.keys():
@@ -1859,6 +1866,10 @@ def phase_and_id_snvs(input_args):
 				for word in mges:
 					if word in comp_gene_info[gene]['product'].lower():
 						product_has_mge_term = True
+					for domain_dict in comp_gene_info[gene]['gene_domains']:
+						if word in domain_dict['description'].lower():
+							product_has_mge_term = True
+
 			report_lines.append('\t'.join([str(x) for x in [pe_sample, hg, (hg in outlier_homolog_groups),
 														 (hg in specific_homolog_groups),
 														 hg_prop_multi_copy[hg], product_has_mge_term,
