@@ -1119,9 +1119,7 @@ class GCF(Pan):
 					sample_gcf_predictions_filtered += sample_edge_gcf_predictions_filtered
 
 			specific_or_protocore_gene_found = False
-			for gcf_segment in sample_edge_gcf_predictions_filtered:
-				print(gcf_segment[-1])
-				print(gcf_segment[-2])
+			for gcf_segment in sample_gcf_predictions_filtered:
 				if gcf_segment[-1] or gcf_segment[-2]:
 					specific_or_protocore_gene_found = True
 
