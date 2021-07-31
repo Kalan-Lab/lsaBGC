@@ -481,7 +481,7 @@ def parseGenbankAndFindBoundaryGenes(inputs):
 	:return boundary_genes: Set of gene locus tag ids which are found within proximity to scaffold edges.
 	"""
 
-	distance_to_scaffold_boundary = 500
+	distance_to_scaffold_boundary = 2000
 	gene_location = {}
 	scaffold_genes = defaultdict(set)
 	boundary_genes = set([])
