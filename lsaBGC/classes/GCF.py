@@ -1165,7 +1165,7 @@ class GCF(Pan):
 					hg = gcf_segment[1][i]
 					evalue = decimal.Decimal(100000.0)
 					if lt in sample_lt_to_evalue[sample]: evalue = sample_lt_to_evalue[sample][lt]
-					if lt in self.hmmscan_results_lenient.keys(): evalue = hmmscan_results_lenient[lt][1]
+					elif lt in self.hmmscan_results_lenient.keys(): evalue = self.hmmscan_results_lenient[lt][1]
 					bgc_hmm_evalues_handle.write('\t'.join([bgc_genbank_file, sample, lt, hg, str(evalue)]) + '\n')
 
 				for lt in gcf_segment[0]:
