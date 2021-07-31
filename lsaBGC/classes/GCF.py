@@ -1113,12 +1113,17 @@ class GCF(Pan):
 						sample_gcf_predictions_filtered.append(gcf_segment)
 						if gcf_segment[-3]:
 							cumulative_edge_hgs = cumulative_edge_hgs.union(set(gcf_segment[1]))
+							visited_scaffolds_with_edge_gcf_segment.add(gcf_segment[5])
 					elif gcf_segment[3] >= 3 and gcf_segment[-3] and not gcf_segment[5] in visited_scaffolds_with_edge_gcf_segment:
 						sample_edge_gcf_predictions_filtered.append(gcf_segment)
 						visited_scaffolds_with_edge_gcf_segment.add(gcf_segment[5])
 						cumulative_edge_hgs = cumulative_edge_hgs.union(set(gcf_segment[1]))
 
 			if len(sample_edge_gcf_predictions_filtered) >= 1:
+				if sample_edge_gcf_predictions_filtered[0][0].startswith('AACJ_'):
+					print(sample_edge_gcf_predictions_filtered)
+					print(cumulative_edge_hgs)
+					print(cumulative_edge_hgs.intersection(self.core_homologs))
 				if len(cumulative_edge_hgs) >= min_size and len(cumulative_edge_hgs.intersection(self.core_homologs)) >= min_core_size:
 					sample_gcf_predictions_filtered += sample_edge_gcf_predictions_filtered
 
