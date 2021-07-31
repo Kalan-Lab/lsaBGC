@@ -1054,8 +1054,7 @@ class GCF(Pan):
 			cumulative_edge_hgs = set([])
 			visited_scaffolds_with_edge_gcf_segment = set([])
 			for gcf_segment in sorted_sample_gcf_predictions:
-				if (gcf_segment[3] >= min_size and gcf_segment[4] >= min_core_size) or (gcf_segment[-1]) or (
-				gcf_segment[-2]) or (gcf_segment[3] >= 3 and gcf_segment[-3] and not gcf_segment[5] in visited_scaffolds_with_edge_gcf_segment):
+				if (gcf_segment[3] >= min_size and gcf_segment[4] >= min_core_size) or (gcf_segment[-1]) or (gcf_segment[-2]) or (gcf_segment[3] >= 3 and gcf_segment[-3] and not gcf_segment[5] in visited_scaffolds_with_edge_gcf_segment):
 					# code to determine whether syntenically, the considered segment aligns with what is expected.
 					segment_hg_order = []
 					bgc_hg_orders = defaultdict(list)
@@ -1067,8 +1066,7 @@ class GCF(Pan):
 					for gi, g in enumerate(gcf_segment[0]):
 						hg = gcf_segment[1][gi]
 						if copy_count_of_hgs_in_segment[hg] != 1: continue
-						gene_midpoint = (self.gene_location[sample][g]['start'] + self.gene_location[sample][g][
-							'end']) / 2.0
+						gene_midpoint = (self.gene_location[sample][g]['start'] + self.gene_location[sample][g]['end']) / 2.0
 						segment_hg_order.append(gene_midpoint)
 
 						for bgc in self.bgc_genes:
@@ -1122,6 +1120,8 @@ class GCF(Pan):
 
 			specific_or_protocore_gene_found = False
 			for gcf_segment in sample_edge_gcf_predictions_filtered:
+				print(gcf_segment[-1])
+				print(gcf_segment[-2])
 				if gcf_segment[-1] or gcf_segment[-2]:
 					specific_or_protocore_gene_found = True
 
