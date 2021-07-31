@@ -1042,8 +1042,6 @@ class GCF(Pan):
 														   len(set(gcf_state_hgs).difference("other").intersection(
 															   self.core_homologs)), scaffold, boundary_lt_featured,
 														   features_specific_hg, features_protocoluster_hg])
-							if gcf_state_lts[0].startswith('AACJ_'):
-								print(sample_gcf_predictions[-1])
 						gcf_state_lts = []
 						gcf_state_hgs = []
 
@@ -1119,13 +1117,7 @@ class GCF(Pan):
 						cumulative_edge_hgs = cumulative_edge_hgs.union(set(gcf_segment[1]))
 
 			if len(sample_edge_gcf_predictions_filtered) >= 1:
-				if sample_edge_gcf_predictions_filtered[0][0][0].startswith('AACJ_'):
-					print(sample_edge_gcf_predictions_filtered)
-					print(cumulative_edge_hgs)
-					print(cumulative_edge_hgs.intersection(self.core_homologs))
 				if len(cumulative_edge_hgs) >= min_size and len(cumulative_edge_hgs.intersection(self.core_homologs)) >= min_core_size:
-					if sample_edge_gcf_predictions_filtered[0][0][0].startswith('AACJ_'):
-						print('made it!')
 					sample_gcf_predictions_filtered += sample_edge_gcf_predictions_filtered
 
 			for gcf_segment in sample_gcf_predictions_filtered:
