@@ -1137,7 +1137,7 @@ class GCF(Pan):
 
 				if sample == 'LK566':
 					print(self.gene_id_to_order[sample][gcf_segment_scaff])
-					print(self.gene_id_to_order[sample][gcf_segment_scaff])
+					print(self.hmmscan_results_lenient.keys())
 				for oi in range(min_bgc_order-5, min_bgc_order):
 					if oi in self.gene_order_to_id[sample][gcf_segment_scaff].keys():
 						lt = self.gene_order_to_id[sample][gcf_segment_scaff][oi]
