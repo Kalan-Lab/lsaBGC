@@ -1105,6 +1105,9 @@ class GCF(Pan):
 						except:
 							pass
 
+					if 'AACJ_02061' in gcf_segment[0]:
+						print(best_corr)
+						print(gcf_segment)
 					if not best_corr or best_corr < syntenic_correlation_threshold: continue
 
 					if (gcf_segment[3] >= min_size and gcf_segment[4] >= min_core_size) or (gcf_segment[-1]) or (
