@@ -1083,7 +1083,7 @@ class GCF(Pan):
 								bgc_hg_directions[bgc].append(self.comp_gene_info[bg_matching[0]]['direction'])
 							else:
 								bgc_hg_orders[bgc].append(None)
-								bgc_hg_direction[bgc].append(None)
+								bgc_hg_directions[bgc].append(None)
 
 					best_corr = None
 					for bgc in self.bgc_genes:
