@@ -1120,7 +1120,7 @@ class GCF(Pan):
 
 			protocore_gene_found = False
 			for gcf_segment in sample_gcf_predictions_filtered:
-				if gcf_segment[-1] or gcf_segment[-2]:
+				if gcf_segment[-1]:
 					protocore_gene_found = True
 
 			if not protocore_gene_found: continue
