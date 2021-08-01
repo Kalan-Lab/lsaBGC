@@ -1890,7 +1890,7 @@ def phase_and_id_snvs(input_args):
 						if pos in hg_hetero_sites[hg]:
 							hetero_sites += 1
 
-		if len(refined_present_homolog_groups) < 5 or len(refined_present_homolog_groups.intersection(protocluster_core_homologs) == 0) or (len(refined_present_homolog_groups.intersection(core_homologs))/float(len(core_homologs.difference(mge_hgs))) < 0.7 and len(refined_present_homolog_groups.intersection(specific_homolog_groups)) == 0):
+		if (len(refined_present_homolog_groups) < 5) or (len(refined_present_homolog_groups.intersection(protocluster_core_homologs)) == 0) or (len(refined_present_homolog_groups.intersection(core_homologs))/float(len(core_homologs.difference(mge_hgs))) < 0.7 and len(refined_present_homolog_groups.intersection(specific_homolog_groups)) == 0):
 			no_handle.close()
 			hpr_handle.close()
 			return
