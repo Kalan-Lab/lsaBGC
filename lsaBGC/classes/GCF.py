@@ -1707,7 +1707,8 @@ class GCF(Pan):
 											min_hetero_prop, min_allele_depth, allow_phasing, metagenomic,
 											specific_homolog_groups, set(self.core_homologs),
 											dict(self.hg_genes), dict(self.comp_gene_info),
-											dict(self.hg_prop_multi_copy), self.gcf_id, self.logObject])
+											dict(self.hg_prop_multi_copy), set(self.protocluster_core_homologs),
+											self.gcf_id, self.logObject])
 
 			p = multiprocessing.Pool(cores)
 			p.map(phase_and_id_snvs, parallel_inputs)
@@ -1754,7 +1755,7 @@ class GCF(Pan):
 
 
 def phase_and_id_snvs(input_args):
-	pe_sample, pe_sample_reads, snv_mining_outdir, phased_alleles_outdir, gene_ignore_positions, gene_core_positions, gene_pos_to_msa_pos, gene_pos_to_allele, msa_pos_alleles, msa_pos_ambiguous_freqs, min_hetero_prop, min_allele_depth, allow_phasing, metagenomic, specific_homolog_groups, core_homologs, hg_genes, comp_gene_info, hg_prop_multi_copy, gcf_id, logObject = input_args
+	pe_sample, pe_sample_reads, snv_mining_outdir, phased_alleles_outdir, gene_ignore_positions, gene_core_positions, gene_pos_to_msa_pos, gene_pos_to_allele, msa_pos_alleles, msa_pos_ambiguous_freqs, min_hetero_prop, min_allele_depth, allow_phasing, metagenomic, specific_homolog_groups, core_homologs, hg_genes, comp_gene_info, hg_prop_multi_copy, protocluster_core_homologs, gcf_id, logObject = input_args
 	try:
 		result_file = snv_mining_outdir + pe_sample + '.txt'
 		snv_file = snv_mining_outdir + pe_sample + '.snvs'
@@ -1889,7 +1890,7 @@ def phase_and_id_snvs(input_args):
 						if pos in hg_hetero_sites[hg]:
 							hetero_sites += 1
 
-		if len(refined_present_homolog_groups) < 5 or (len(refined_present_homolog_groups.intersection(core_homologs))/float(len(core_homologs.difference(mge_hgs))) < 0.7 and len(refined_present_homolog_groups.intersection(specific_homolog_groups)) == 0):
+		if len(refined_present_homolog_groups) < 5 or len(refined_present_homolog_groups.intersection(protocluster_core_homologs) == 0) or (len(refined_present_homolog_groups.intersection(core_homologs))/float(len(core_homologs.difference(mge_hgs))) < 0.7 and len(refined_present_homolog_groups.intersection(specific_homolog_groups)) == 0):
 			no_handle.close()
 			hpr_handle.close()
 			return
