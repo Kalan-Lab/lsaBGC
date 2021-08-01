@@ -498,10 +498,11 @@ def parseGenbankAndFindBoundaryGenes(inputs):
 			for feature in rec.features:
 				if not feature.type == 'CDS': continue
 				locus_tag = feature.qualifiers.get('locus_tag')[0]
-				start = min([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')])+1
+				start = min([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')]) + 1
 				end = max([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')])
+				direction = str(feature.location).split('(')[1].split(')')[0]
 
-				gene_location[locus_tag] = {'scaffold': scaffold, 'start': start, 'end': end}
+				gene_location[locus_tag] = {'scaffold': scaffold, 'start': start, 'end': end, 'direction': direction}
 				scaffold_genes[scaffold].add(locus_tag)
 
 				gene_range = set(range(start, end+1))

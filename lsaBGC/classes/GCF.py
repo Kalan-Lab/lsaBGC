@@ -1034,13 +1034,11 @@ class GCF(Pan):
 							features_protocoluster_hg = False
 							if len(self.protocluster_core_homologs.intersection(
 								set(gcf_state_hgs).difference('other'))) > 0: features_protocoluster_hg = True
-							if len(self.boundary_genes[sample].intersection(
-								set(gcf_state_lts).difference('other'))) > 0: boundary_lt_featured = True
+							if len(self.boundary_genes[sample].intersection(set(gcf_state_lts).difference('other'))) > 0: boundary_lt_featured = True
 							if len(specific_hgs.intersection(set(gcf_state_hgs).difference('other'))) > 0: features_specific_hg = True
 							sample_gcf_predictions.append([gcf_state_lts, gcf_state_hgs, len(gcf_state_lts),
 														   len(set(gcf_state_hgs).difference("other")),
-														   len(set(gcf_state_hgs).difference("other").intersection(
-															   self.core_homologs)), scaffold, boundary_lt_featured,
+														   len(set(gcf_state_hgs).difference("other").intersection(self.core_homologs)), scaffold, boundary_lt_featured,
 														   features_specific_hg, features_protocoluster_hg])
 						gcf_state_lts = []
 						gcf_state_hgs = []
@@ -1057,7 +1055,9 @@ class GCF(Pan):
 				if (gcf_segment[3] >= min_size and gcf_segment[4] >= min_core_size) or (gcf_segment[-1]) or (gcf_segment[-2]) or (gcf_segment[3] >= 3 and gcf_segment[-3] and not gcf_segment[5] in visited_scaffolds_with_edge_gcf_segment):
 					# code to determine whether syntenically, the considered segment aligns with what is expected.
 					segment_hg_order = []
+					segment_hg_direction = []
 					bgc_hg_orders = defaultdict(list)
+					bgc_hg_directions = defaultdict(list)
 
 					copy_count_of_hgs_in_segment = defaultdict(int)
 					for hg in gcf_segment[1]:
@@ -1068,6 +1068,7 @@ class GCF(Pan):
 						if copy_count_of_hgs_in_segment[hg] != 1: continue
 						gene_midpoint = (self.gene_location[sample][g]['start'] + self.gene_location[sample][g]['end']) / 2.0
 						segment_hg_order.append(gene_midpoint)
+						segment_hg_direction.append(self.gene_location[sample][g]['direction'])
 
 						for bgc in self.bgc_genes:
 							bg_matching = []
@@ -1079,26 +1080,43 @@ class GCF(Pan):
 								bgc_gene_midpoint = (self.comp_gene_info[bg_matching[0]]['start'] +
 													 self.comp_gene_info[bg_matching[0]]['end']) / 2.0
 								bgc_hg_orders[bgc].append(bgc_gene_midpoint)
+								bgc_hg_directions[bgc].append(self.comp_gene_info[bg_matching[0]]['direction'])
 							else:
 								bgc_hg_orders[bgc].append(None)
+								bgc_hg_direction[bgc].append(None)
 
 					best_corr = None
 					for bgc in self.bgc_genes:
 						try:
 							assert (len(segment_hg_order) == len(bgc_hg_orders[bgc]))
 
-							list1 = []
-							list2 = []
+							list1_same_dir = []
+							list2_same_dir = []
+							list1_comp_dir = []
+							list2_comp_dir = []
 							for iter, hgval1 in enumerate(segment_hg_order):
+								hgdir1 = segment_hg_direction[iter]
 								hgval2 = bgc_hg_orders[bgc][iter]
+								hgdir2 = bgc_hg_directions[bgc][iter]
 								if hgval1 == None or hgval2 == None: continue
-								list1.append(hgval1)
-								list2.append(hgval2)
+								if hgdir1 == None or hgdir2 == None: continue
+								if hgdir1 == hgdir2:
+									list1_same_dir.append(hgval1)
+									list2_same_dir.append(hgval2)
+								else:
+									list1_comp_dir.append(hgval1)
+									list2_comp_dir.append(hgval2)
 
-							corr, pval = pearsonr(list1, list2)
-							corr = abs(corr)
-							if (best_corr and best_corr < corr) or (not best_corr):
-								best_corr = corr
+							if len(list1_same_dir) >= 3:
+								corr, pval = pearsonr(list1_same_dir, list2_same_dir)
+								corr = abs(corr)
+								if (best_corr and best_corr < corr) or (not best_corr):
+									best_corr = corr
+							if len(list1_comp_dir) >= 3:
+								corr, pval = pearsonr(list1_comp_dir, list2_comp_dir)
+								corr = abs(corr)
+								if (best_corr and best_corr < corr) or (not best_corr):
+									best_corr = corr
 						except:
 							pass
 
