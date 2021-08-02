@@ -182,8 +182,6 @@ def determineNonUniqueRegionsAlongCodonAlignment(outdir, initial_sample_prokka_d
 			logObject.error("Issues with determining non-unique positions on profile HMMs.")
 			logObject.error(traceback.format_exc())
 		raise RuntimeError(traceback.format_exc())
-	hg_differentiation_file.close()
-
 
 
 def determineSeqSimCodonAlignment(codon_alignment_file):
