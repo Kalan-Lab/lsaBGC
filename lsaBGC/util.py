@@ -112,7 +112,7 @@ def determineNonUniqueRegionsAlongCodonAlignment(outdir, initial_sample_prokka_d
 
 			with open(sample_proteome) as osp:
 				for rec in SeqIO.parse(osp, 'fasta'):
-					if not (rec.id.split('_')[0]) == 3: continue
+					if not (rec.id.split('_')[0] == 3): continue
 					if rec.id in gcf_protein_ids:
 						all_gcf_proteins_fasta_handle.write('>' + rec.id + '\n' + str(rec.seq) + '\n')
 					else:
