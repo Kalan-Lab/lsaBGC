@@ -149,10 +149,8 @@ def lsaBGC_DiscoVary():
     ### This function is originally intended for the expansion functionality in lsaBGC, but here we
     ### use it to just get a better sense of how paralogous different genes in the GCF might be.
     logObject.info("Determining non-unique positions along codon multiple sequence alignments.")
-    util.determineNonUniqueRegionsAlongCodonAlignment(outdir, input_sample_prokka_data, codon_alignments_file, cores=cores, logObject=logObject)
+    hg_nonunique_positions = util.determineNonUniqueRegionsAlongCodonAlignment(outdir, input_sample_prokka_data, codon_alignments_file, cores=cores, logObject=logObject)
     logObject.info("Marked non-unique positions along codon MSAs!")
-
-    sys.exit(1)
 
     # Step 5: Create database of genes with surrounding flanks and, independently, cluster them into allele groups / haplotypes.
     logObject.info("Extracting and clustering GCF genes with their flanks.")
@@ -181,7 +179,7 @@ def lsaBGC_DiscoVary():
     phased_alleles_outdir = outdir + 'Phased_Homolog_Group_Sequences/'
     if not os.path.isdir(phased_alleles_outdir): os.system('mkdir %s' % phased_alleles_outdir)
     logObject.info("Phasing or determining consensus allele and reporting of novel SNVs.")
-    GCF_Object.phaseAndSummarize(paired_end_sequencing_file, codon_alignments_file, results_outdir, phased_alleles_outdir, outdir, cores=cores)
+    GCF_Object.phaseAndSummarize(paired_end_sequencing_file, codon_alignments_file, results_outdir, phased_alleles_outdir, outdir, hg_nonunique_positions, cores=cores)
     logObject.info("Successfully constructed matrices of allele typings.")
 
     # Step 9: Filter low coverage gene instances and construct gene-phylogenies

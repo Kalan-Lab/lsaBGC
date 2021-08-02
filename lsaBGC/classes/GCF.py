@@ -1656,7 +1656,7 @@ class GCF(Pan):
 				self.logObject.error(traceback.format_exc())
 			raise RuntimeError(traceback.format_exc())
 
-	def phaseAndSummarize(self, paired_end_sequencing_file, codon_alignment_file, snv_mining_outdir, phased_alleles_outdir, outdir, min_hetero_prop=0.05, min_allele_depth = 5, allow_phasing=True, metagenomic=True, cores=1):
+	def phaseAndSummarize(self, paired_end_sequencing_file, codon_alignment_file, snv_mining_outdir, phased_alleles_outdir, outdir, hg_nonunique_positions, min_hetero_prop=0.05, min_allele_depth = 5, allow_phasing=True, metagenomic=True, cores=1):
 		try:
 			specific_homolog_groups = set([])
 			for hg in self.hg_differentiation_stats:
@@ -1713,6 +1713,8 @@ class GCF(Pan):
 						if (msa_pos_ambiguous_counts[pos]/float(seq_count)) >= 0.1:
 							for p in range(pos - 50, pos + 51):
 								gene_ignore_positions[hg].add(p)
+
+					gene_ignore_positions[hg] = gene_ignore_positions.union(hg_nonunique_positions[hg])
 
 			parallel_inputs = []
 			with open(paired_end_sequencing_file) as ossf:
