@@ -149,7 +149,7 @@ def lsaBGC_DiscoVary():
     ### This function is originally intended for the expansion functionality in lsaBGC, but here we
     ### use it to just get a better sense of how paralogous different genes in the GCF might be.
     logObject.info("Determining non-unique positions along codon multiple sequence alignments.")
-    util.determineNonUniqueRegionsAlongCodonAlignment(outdir, initial_sample_prokka_data, codon_alignments_file, cores=cores, logObject=logObject)
+    util.determineNonUniqueRegionsAlongCodonAlignment(outdir, input_sample_prokka_data, codon_alignments_file, cores=cores, logObject=logObject)
     logObject.info("Marked non-unique positions along codon MSAs!")
 
     sys.exit(1)
