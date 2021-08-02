@@ -136,7 +136,7 @@ def lsaBGC_PopGene():
 
     # Step 0B: (Optional) Parse sample to sample genome-wide relationships
     gw_pairwise_differences = None
-    if os.path.isfile(precomputed_mash_input_file) and os.path.isfile(precomputed_mash_result_file):
+    if precomputed_mash_input_file and os.path.isfile(precomputed_mash_input_file) and precomputed_mash_result_file and os.path.isfile(precomputed_mash_result_file):
         fasta_to_name = {}
         gw_pairwise_differences = defaultdict(lambda: defaultdict(float))
         try:
