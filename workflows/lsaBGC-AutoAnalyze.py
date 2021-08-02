@@ -48,7 +48,6 @@ from lsaBGC import util
 lsaBGC_main_directory = '/'.join(os.path.realpath(__file__).split('/')[:-2])
 RSCRIPT_FOR_NJTREECONSTRUCTION = lsaBGC_main_directory + '/lsaBGC/Rscripts/createNJTree.R'
 RSCRIPT_FOR_DEFINECLADES_FROM_PHYLO = lsaBGC_main_directory + '/lsaBGC/Rscripts/defineCladesFromPhylo.R'
-RSCRIPT_FOR_DEFINECLADES_FROM_MASH = lsaBGC_main_directory + '/lsaBGC/Rscripts/defineCladesFromMASH.R'
 RSCRIPT_FOR_BIGPICTUREHEATMAP = lsaBGC_main_directory + '/lsaBGC/Rscripts/plotBigPictureHeatmap.R'
 RSCRIPT_FOR_GCFGENEPLOTS = lsaBGC_main_directory + '/lsaBGC/Rscripts/gcfGenePlots.R'
 
@@ -70,7 +69,7 @@ def create_parser():
 	parser.add_argument('-k', '--sample_set', help="Sample set to keep in analysis. Should be file with one sample id per line.", required=False)
 	parser.add_argument('-s', '--lineage_phylogeny', help="Path to species phylogeny. If not provided a MASH based neighborjoining tree will be constructed and used.", default=None, required=False)
 	parser.add_argument('-p', '--population_analysis',	action='store_true', help="Whether to construct species phylogeny and use it to determine populations.", default=False, required=False)
-	parser.add_argument('-d', '--deep_split_value', type=int, help='If population analysis specified, what is the stringency to be used in population delineation, 1 indicates most course clustering, 4 indicates most granular clustering', required=False, default=3)
+	parser.add_argument('-k', '--num_populations', type=int, help='If population analysis specified, what is the number of populations to . Use the script determinePopulationK.py to see how populations will look with k set to different values.', required=False, default=3)
 	parser.add_argument('-i', '--discovary_analysis_id', help="Identifier for novelty SNV mining analysis. Not providing this parameter will avoid running lsaBGC-DiscoVary step.", required=False, default=None)
 	parser.add_argument('-n', '--discovary_input_listing', help="Path to tab delimited file listing: (1) sample name (2) path to forward reads and (3) path to reverse reads.", required=False, default=None)
 	parser.add_argument('-c', '--cores', type=int, help="Total number of cores to use.", required=False, default=1)
@@ -119,7 +118,7 @@ def lsaBGC_AutoAnalyze():
 	sample_set_file = myargs.sample_set
 	lineage_phylogeny_file = myargs.lineage_phylogeny
 	population_analysis = myargs.population_analysis
-	deep_split_value = myargs.deep_split_value
+	num_populations = myargs.num_populations
 	discovary_analysis_id = myargs.discovary_analysis_id
 	discovary_input_listing = myargs.discovary_input_listing
 	cores = myargs.cores
@@ -137,12 +136,12 @@ def lsaBGC_AutoAnalyze():
 	parameters_file = outdir + 'Parameter_Inputs.txt'
 	parameter_values = [gcf_listing_dir, input_listing_file, original_orthofinder_matrix_file, outdir,
 						lineage_phylogeny_file, population_analysis, discovary_analysis_id, discovary_input_listing,
-						sample_set_file, deep_split_value, cores]
+						sample_set_file, num_populations, cores]
 	parameter_names = ["GCF Listings Directory", "Listing File of Prokka Annotation Files for Initial Set of Samples",
 					   "OrthoFinder Homolog Matrix", "Output Directory", "Phylogeny File in Newick Format",
 					   "Delineate Populations and Perform Population Genetics Analytics", "DiscoVary Analysis ID",
 					   "DiscoVary Sequencing Data Location Specification File", "Sample Retention Set",
-					   "Deep Split Value", "Cores"]
+					   "Number of Populations", "Cores"]
 	util.logParametersToFile(parameters_file, parameter_names, parameter_values)
 	logObject.info("Done saving parameters!")
 
@@ -243,17 +242,14 @@ def lsaBGC_AutoAnalyze():
 		populations_on_nj_tree_pdf = outdir + 'Populations_on_Lineage_Tree.pdf'
 		# create neighbor-joining tree
 
-		if lineage_phylogeny_from_mash:
-			cmd = ['Rscript', RSCRIPT_FOR_DEFINECLADES_FROM_MASH, lineage_phylogeny_file, mash_matrix_file, str(deep_split_value), population_listing_file, populations_on_nj_tree_pdf]
-		else:
-			cmd = ['Rscript', RSCRIPT_FOR_DEFINECLADES_FROM_PHYLO, lineage_phylogeny_file, str(deep_split_value), population_listing_file, populations_on_nj_tree_pdf]
+		cmd = ['Rscript', RSCRIPT_FOR_DEFINECLADES_FROM_PHYLO, lineage_phylogeny_file, str(num_populations), population_listing_file, populations_on_nj_tree_pdf]
 		try:
 			util.run_cmd(cmd, logObject)
 		except Exception as e:
 			logObject.error(
-				"Had issues with creating neighbor joining tree and defining populations using cutreeDynamic.")
+				"Had issues with creating neighbor joining tree and defining populations using cutree.")
 			raise RuntimeError(
-				"Had issues with creating neighbor joining tree and defining populations using cutreeDynamic.")
+				"Had issues with creating neighbor joining tree and defining populations using cutree.")
 
 	see_outdir = outdir + 'See/'
 	pop_outdir = outdir + 'PopGene/'
