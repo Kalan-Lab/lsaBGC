@@ -105,6 +105,8 @@ def lsaBGC_PopGene():
     population_classification_file = myargs.population_classification
     run_for_each_pop = myargs.each_pop
     filter_for_outliers = myargs.filter_for_outliers
+    precomputed_mash_result_file = myargs.precomputed_mash_result
+    precomputed_mash_input_file = myargs.precomputed_mash_input
 
     """
     START WORKFLOW
@@ -116,10 +118,13 @@ def lsaBGC_PopGene():
     # Log input arguments and update reference and query FASTA files.
     logObject.info("Saving parameters for future provedance.")
     parameters_file = outdir + 'Parameter_Inputs.txt'
-    parameter_values = [gcf_listing_file, orthofinder_matrix_file, outdir, gcf_id, population_classification_file, sample_set_file, run_for_each_pop, filter_for_outliers, cores]
+    parameter_values = [gcf_listing_file, orthofinder_matrix_file, outdir, gcf_id, population_classification_file,
+                        sample_set_file, run_for_each_pop, filter_for_outliers, precomputed_mash_result_file,
+                        precomputed_mash_input_file, cores]
     parameter_names = ["GCF Listing File", "OrthoFinder Orthogroups.csv File", "Output Directory", "GCF Identifier",
                        "Populations Specification/Listing File", "Sample Retention Set", 'Run Analysis for Each Population',
-                       "Filter for Outlier Homolog Group Instances", "Cores"]
+                       "Filter for Outlier Homolog Group Instances", "Precomputed MASH dist Results File",
+                       "Precomputed MASH Input File", "Cores"]
     util.logParametersToFile(parameters_file, parameter_names, parameter_values)
     logObject.info("Done saving parameters!")
 
@@ -128,6 +133,35 @@ def lsaBGC_PopGene():
 
     # Step 0: (Optional) Parse sample set retention specifications file, if provided by the user.
     sample_retention_set = util.getSampleRetentionSet(sample_set_file)
+
+    # Step 0B: (Optional) Parse sample to sample genome-wide relationships
+    if os.path.isfile(precomputed_mash_input_file) and os.path.isfile(precomputed_mash_result_file):
+        fasta_to_name = {}
+        gw_pairwise_differences = defaultdict(lambda: defaultdict(float))
+        try:
+            with open(precomputed_mash_input_file) as oflf:
+                for line in oflf:
+                    line = line.strip()
+                    ls = line.split('\t')
+                    fasta_to_name[ls[1]] = ls[0]
+        except:
+            error_message = "Had issues reading the FASTA listing file %s" % precomputed_mash_input_file
+            logObject.error(error_message)
+            raise RuntimeError(error_message)
+        try:
+            with open(precomputed_mash_result_file) as of:
+                for line in of:
+                    line = line.strip()
+                    ls = line.split('\t')
+                    f1, f2, dist = ls[:3]
+                    dist = float(dist)
+                    n1 = fasta_to_name[f1]
+                    n2 = fasta_to_name[f2]
+                    gw_pairwise_differences[n1][n2] = dist
+        except Exception as e:
+            error_message = 'Had issues reading the output of MASH dist analysis in file: %s' % precomputed_mash_result_file
+            logObject.error(error_message)
+            raise RuntimeError(error_message)
 
     # Step 1: Process GCF listings file
     logObject.info("Processing BGC Genbanks from GCF listing file.")
