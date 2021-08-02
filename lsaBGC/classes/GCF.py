@@ -1110,12 +1110,12 @@ class GCF(Pan):
 							if len(list1_same_dir) >= 3:
 								corr, pval = pearsonr(list1_same_dir, list2_same_dir)
 								corr = abs(corr)
-								if (best_corr and best_corr < corr) or (not best_corr):
+								if (pval < 0.1) and (best_corr and best_corr < corr) or (not best_corr):
 									best_corr = corr
 							if len(list1_comp_dir) >= 3:
 								corr, pval = pearsonr(list1_comp_dir, list2_comp_dir)
 								corr = abs(corr)
-								if (best_corr and best_corr < corr) or (not best_corr):
+								if (pval < 0.1) and (best_corr and best_corr < corr) or (not best_corr):
 									best_corr = corr
 						except:
 							pass
