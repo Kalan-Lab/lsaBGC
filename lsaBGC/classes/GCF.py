@@ -532,7 +532,7 @@ class GCF(Pan):
 				self.logObject.error(traceback.format_exc())
 			raise RuntimeError(traceback.format_exc())
 
-	def constructGCFPhylogeny(self, output_alignment, output_phylogeny, only_scc=False):
+	def constructGCFPhylogeny(self, output_alignment, output_phylogeny, only_scc=False, ambiguious_position_cutoff=0.000001):
 		"""
 		Function to create phylogeny based on codon alignments of SCC homolog groups for GCF.
 
@@ -603,7 +603,7 @@ class GCF(Pan):
 						fasta_data_tr.append(ls)
 					else:
 						n_count = len([x for x in ls if x == '-'])
-						if (float(n_count) / len(ls)) < 0.1:
+						if (float(n_count) / len(ls)) < ambiguious_position_cutoff:
 							fasta_data_tr.append(list(ls))
 
 				scc_handle = open(output_alignment, 'w')
@@ -869,8 +869,8 @@ class GCF(Pan):
 			hg = f.split('.msa.fna')[0]
 			codon_alignment_fasta = input_codon_dir + f
 			inputs.append([self.gcf_id, hg, codon_alignment_fasta, popgen_dir, plots_dir, self.comp_gene_info, self.hg_genes,
-							 self.bgc_sample, self.hg_prop_multi_copy, dict(self.hg_order_scores), dict(self.sample_population),
-							 population, self.logObject])
+							 self.bgc_sample, self.hg_prop_multi_copy, dict(self.hg_order_scores), dict(gw_pairwise_differences),
+						     dict(self.sample_population), population, self.logObject])
 
 		p = multiprocessing.Pool(cores)
 		p.map(popgen_analysis_of_hg, inputs)
@@ -1110,20 +1110,12 @@ class GCF(Pan):
 							if len(list1_same_dir) >= 3:
 								corr, pval = pearsonr(list1_same_dir, list2_same_dir)
 								corr = abs(corr)
-								if 'AADU_01841' in gcf_segment[0]:
-									print(bgc + '\t' + str(corr) + '\t' + str(pval))
-									print(list1_same_dir)
-									print(list2_same_dir)
-								if (pval < 0.1) and (best_corr and best_corr < corr) or (not best_corr):
+								if (pval < 0.1) and ((best_corr and best_corr < corr) or (not best_corr)):
 									best_corr = corr
 							if len(list1_comp_dir) >= 3:
 								corr, pval = pearsonr(list1_comp_dir, list2_comp_dir)
 								corr = abs(corr)
-								if 'AADU_01841' in gcf_segment[0]:
-									print(bgc + '\t' + str(corr) + '\t' + str(pval))
-									print(list1_comp_dir)
-									print(list2_comp_dir)
-								if (pval < 0.1) and (best_corr and best_corr < corr) or (not best_corr):
+								if (pval < 0.1) and ((best_corr and best_corr < corr) or (not best_corr)):
 									best_corr = corr
 						except:
 							pass
@@ -2625,7 +2617,7 @@ def popgen_analysis_of_hg(inputs):
 
 	:param inputs: list of inputs passed in by GCF.runPopulationGeneticsAnalysis().
 	"""
-	gcf_id, hg, codon_alignment_fasta, popgen_dir, plots_dir, comp_gene_info, hg_genes, bgc_sample, hg_prop_multi_copy, hg_order_scores, sample_population, population, logObject = inputs
+	gcf_id, hg, codon_alignment_fasta, popgen_dir, plots_dir, comp_gene_info, hg_genes, bgc_sample, hg_prop_multi_copy, hg_order_scores, gw_pairwise_differences, sample_population, population, logObject = inputs
 	domain_plot_file = plots_dir + hg + '_domain.txt'
 	position_plot_file = plots_dir + hg + '_position.txt'
 	plot_pdf_file = plots_dir + hg + '.pdf'
