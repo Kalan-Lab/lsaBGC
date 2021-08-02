@@ -90,7 +90,7 @@ def determineNonUniqueRegionsAlongCodonAlignment(outdir, initial_sample_prokka_d
 				with open(cmsa_fasta) as ocf:
 					for rec in SeqIO.parse(ocf, 'fasta'):
 						samp, gene_id = rec.id.split('|')
-						if not (gene_id.split('_')[0]) == 3: continue
+						if len(gene_id.split('_')[0]) != 3: continue
 						gcf_protein_to_hg[gene_id] = hg
 						gcf_protein_ids.add(gene_id)
 						real_pos = 1
@@ -112,7 +112,7 @@ def determineNonUniqueRegionsAlongCodonAlignment(outdir, initial_sample_prokka_d
 
 			with open(sample_proteome) as osp:
 				for rec in SeqIO.parse(osp, 'fasta'):
-					if not (rec.id.split('_')[0] == 3): continue
+					if len(rec.id.split('_')[0]) != 3: continue
 					if rec.id in gcf_protein_ids:
 						all_gcf_proteins_fasta_handle.write('>' + rec.id + '\n' + str(rec.seq) + '\n')
 					else:
