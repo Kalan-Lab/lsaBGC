@@ -1003,7 +1003,7 @@ class Pan:
 				self.hg_max_self_evalue[hg] = [eval_threshold, able_to_differentiate]
 		except:
 			if self.logObject:
-				self.logObject.error("Issues with running hmmpress on profile HMMs.")
+				self.logObject.error("Issues with constructing profile HMMs.")
 				self.logObject.error(traceback.format_exc())
 			raise RuntimeError(traceback.format_exc())
 		hg_differentiation_file.close()

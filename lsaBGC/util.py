@@ -179,9 +179,9 @@ def determineNonUniqueRegionsAlongCodonAlignment(outdir, initial_sample_prokka_d
 		hg_differentiation_handle.close()
 
 	except:
-		if self.logObject:
-			self.logObject.error("Issues with running hmmpress on profile HMMs.")
-			self.logObject.error(traceback.format_exc())
+		if logObject:
+			logObject.error("Issues with determining non-unique positions on profile HMMs.")
+			logObject.error(traceback.format_exc())
 		raise RuntimeError(traceback.format_exc())
 	hg_differentiation_file.close()
 
