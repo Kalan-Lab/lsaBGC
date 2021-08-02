@@ -172,7 +172,7 @@ def determineNonUniqueRegionsAlongCodonAlignment(outdir, initial_sample_prokka_d
 		for hg in hg_msa_pos_aligned:
 			nonunique_positions = set([])
 			for msa_pos in hg_msa_pos_aligned[hg]:
-				if len(hg_msa_pos_aligned[hg][msa_pos]) >= 5:
+				if len(hg_msa_pos_aligned[hg][msa_pos]) >= 3:
 					nonunique_positions.add(msa_pos)
 			hg_differentiation_handle.write('\t'.join([hg, ','.join([str(x) for x in sorted(nonunique_positions)])]) + '\n')
 		hg_differentiation_handle.close()
