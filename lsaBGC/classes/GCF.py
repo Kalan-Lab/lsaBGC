@@ -1846,7 +1846,7 @@ def phase_and_id_snvs(input_args):
 			core_positions_covered = 0
 			for i, pos in enumerate(hg_positions):
 				dp = hg_depths[i]
-				if hg in gene_core_positions.key() and pos in gene_core_positions[hg] and dp >= 1:
+				if hg in gene_core_positions.keys() and pos in gene_core_positions[hg] and dp >= 1:
 					core_positions_covered += 1
 
 			if float(core_positions_covered)/len(gene_core_positions[hg]) >= 0.9:
