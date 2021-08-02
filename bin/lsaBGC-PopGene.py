@@ -62,6 +62,8 @@ def create_parser():
     parser.add_argument('-c', '--cores', type=int, help="The number of cores to use.", required=False, default=1)
     parser.add_argument('-e', '--each_pop', action='store_true', help='Run analyses individually for each population as well.', required=False, default=False)
     parser.add_argument('-f', '--filter_for_outliers', action='store_true', help='Filter instances of homolog groups which deviate too much from the median gene length observed for the initial set of proteins.', required=False, default=False)
+    parser.add_argument('-pr', '--precomputed_mash_result', help="Path to precomputed MASH dist output.", required=False)
+    parser.add_argument('-pi', '--precomputed_mash_input', help="Path FASTA listing used to compute MASH dist output.", required=False)
     args = parser.parse_args()
 
     return args
