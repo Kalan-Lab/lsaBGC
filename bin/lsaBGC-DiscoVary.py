@@ -148,9 +148,11 @@ def lsaBGC_DiscoVary():
     # Step 4: Build HMMs for homolog groups observed in representative BGCs for GCF
     ### This function is originally intended for the expansion functionality in lsaBGC, but here we
     ### use it to just get a better sense of how paralogous different genes in the GCF might be.
-    logObject.info("Building profile HMMs of homolog groups observed in representative BGCs for GCF.")
-    GCF_Object.constructHMMProfiles(outdir, input_sample_prokka_data, cores=cores)
-    logObject.info("HMM profiles constructed and concatenated successfully!")
+    logObject.info("Determining non-unique positions along codon multiple sequence alignments.")
+    util.determineNonUniqueRegionsAlongCodonAlignment(outdir, initial_sample_prokka_data, codon_alignments_file, cores=cores, logObject=logObject)
+    logObject.info("Marked non-unique positions along codon MSAs!")
+
+    sys.exit(1)
 
     # Step 5: Create database of genes with surrounding flanks and, independently, cluster them into allele groups / haplotypes.
     logObject.info("Extracting and clustering GCF genes with their flanks.")

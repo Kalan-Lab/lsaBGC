@@ -68,6 +68,182 @@ def determineOutliersByGeneLength(gene_sequences, logObject):
 		filtered_gene_sequences = gene_sequences
 	return filtered_gene_sequences
 
+def determineNonUniqueRegionsAlongCodonAlignment(outdir, initial_sample_prokka_data, codon_alignments_file, cores=1, logObject=None):
+	"""
+	Wrapper function to determine regions along
+	"""
+	outdir = os.path.abspath(outdir) + '/'
+	prot_seq_dir = outdir + 'Protein_Sequences/'
+	search_ref_res_dir = outdir + 'Diamond_Alignment_Results/'
+
+	if not os.path.isdir(prot_seq_dir): os.system('mkdir %s' % prot_seq_dir)
+	if not os.path.isdir(search_ref_res_dir): os.system('mkdir %s' % search_ref_res_dir)
+
+	try:
+		gcf_protein_ids = set([])
+		gcf_protein_to_hg = {}
+		gene_pos_to_msa_pos = defaultdict(lambda: defaultdict(dict))
+		with open(codon_alignments_file) as ocaf:
+			for line in ocaf:
+				line = line.strip()
+				hg, cmsa_fasta = line.split('\t')
+				with open(cmsa_fasta) as ocf:
+					for rec in SeqIO.parse(ocf, 'fasta'):
+						samp, gene_id = rec.id.split('|')
+						gcf_protein_to_hg[gene_id] = hg
+						gcf_protein_ids.add(gene_id)
+						real_pos = 1
+						for msa_pos, bp in enumerate(str(rec.seq)):
+							msa_positions.add(msa_pos + 1)
+							if bp != '-':
+								gene_pos_to_msa_pos[hg][gene_id][real_pos] = msa_pos + 1
+								real_pos += 1
+
+		all_gcf_proteins_fasta_file = outdir + 'All_GCF_Proteins.faa'
+		all_gcf_proteins_fasta_db = outdir + 'All_GCF_Proteins'
+		all_comp_gcf_proteins_fasta_file = outdir + 'Complement_All_GCF_Proteins.faa'
+		diamond_outfmt6_result_file = outdir + 'Diamond_CompProts_vs_Prots.txt'
+
+		all_gcf_proteins_fasta_handle = open(all_gcf_proteins_fasta_file, 'w')
+		all_comp_gcf_proteins_fasta_handle = open(all_comp_gcf_proteins_fasta_file, 'w')
+
+		for sample in initial_sample_prokka_data:
+			sample_proteome = initial_sample_prokka_data[sample]['predicted_proteome']
+
+			with open(sample_proteome) as osp:
+				for rec in SeqIO.parse(osp, 'fasta'):
+					if rec.id in gcf_protein_ids:
+						all_gcf_proteins_fasta_handle.write('>' + rec.id + '\n' + str(rec.seq) + '\n')
+					else:
+						all_comp_gcf_proteins_fasta_handle.write('>' + rec.id + '\n' + str(rec.seq) + '\n')
+
+		all_gcf_proteins_fasta_handle.close()
+		all_comp_gcf_proteins_fasta_handle.close()
+
+		makedb_cmd = ['diamond', 'makedb', '--in', all_gcf_proteins_fasta_file, '-d', all_gcf_proteins_fasta_db]
+		if logObject:
+			logObject.info('Running Diamond makedb on proteins from GCF with the following command: %s' % ' '.join(makedb_cmd))
+		try:
+			subprocess.call(' '.join(makedb_cmd), shell=True, stdout=subprocess.DEVNULL,
+							stderr=subprocess.DEVNULL,
+							executable='/bin/bash')
+			if logObject:
+				logObject.info('Successfully ran: %s' % ' '.join(makedb_cmd))
+		except:
+			if logObject:
+				logObject.error('Had an issue running: %s' % ' '.join(makedb_cmd))
+				logObject.error(traceback.format_exc())
+			raise RuntimeError('Had an issue running: %s' % ' '.join(makedb_cmd))
+
+		diamond_cmd = ['diamond', 'blastp', '--threads', str(cores), '--db', all_gcf_proteins_fasta_db,
+					   '--query', all_comp_gcf_proteins_fasta_file , '--outfmt', '6', '--out', diamond_outfmt6_result_file,
+					   '--max-target-seqs', '0']
+		if logObject:
+			logObject.info('Running Diamond blastp between proteins not found in GCF against proteins found in GCF: %s' % ' '.join(diamond_cmd))
+		try:
+			subprocess.call(' '.join(diamond_cmd), shell=True, stdout=subprocess.DEVNULL,
+							stderr=subprocess.DEVNULL,
+							executable='/bin/bash')
+			if logObject:
+				logObject.info('Successfully ran: %s' % ' '.join(diamond_cmd))
+		except:
+			if logObject:
+				logObject.error('Had an issue running: %s' % ' '.join(diamond_cmd))
+				logObject.error(traceback.format_exc())
+			raise RuntimeError('Had an issue running: %s' % ' '.join(diamond_cmd))
+
+		hg_msa_pos_aligned = defaultdict(lambda: defaultdict(set))
+		with open(diamond_outfmt6_result_file) as orf:
+			for line in orf:
+				line = line.strip()
+				ls = line.split()
+				qseqid, sseqid, pident, length, mismatch, gapopen, qstart, qend, sstart, send, evalue, bitscore = ls
+				pident = float(pident)
+				length = int(length)
+				if (length >= 20 and pident >= 99.0) or (length >= 33 and pident >= 90.0):
+					sstart = int(sstart)
+					send = int(send)
+					hg = gcf_protein_to_hg[sseqid]
+					for pos in range(sstart, send+1):
+						msa_pos = gene_pos_to_msa_pos[hg][sseqid][pos]
+						hg_msa_pos_aligned[hg][msa_pos].add(qseqid)
+
+		hg_differentiation_file = outdir + 'Non_Unique_Codon_Alignment_Positions.txt'
+		hg_differentiation_handle = open(hg_differentiation_file, 'w')
+		for hg in hg_msa_pos_aligned:
+			nonunique_positions = set([])
+			for msa_pos in hg_msa_pos_aligned[hg]:
+				if len(hg_msa_pos_aligned[hg][msa_pos]) >= 5:
+					nonunique_positions.add(msa_pos)
+			hg_differentiation_handle.write('\t'.join([hg, ','.join(sorted([str(x) for x in nonunique_positions]))]) + '\n')
+		hg_differentiation_handle.close()
+
+	except:
+		if self.logObject:
+			self.logObject.error("Issues with running hmmpress on profile HMMs.")
+			self.logObject.error(traceback.format_exc())
+		raise RuntimeError(traceback.format_exc())
+	hg_differentiation_file.close()
+
+
+
+def determineSeqSimCodonAlignment(codon_alignment_file):
+	valid_alleles = set(['A', 'C', 'G', 'T'])
+	pair_seq_matching = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: 0.0)))
+	gene_sequences = {}
+	allele_identifiers = {}
+	with open(codon_alignment_file) as ocaf:
+		for i, rec in enumerate(SeqIO.parse(ocaf, 'fasta')):
+			gene_sequences[rec.id] = str(rec.seq).upper()
+			allele_identifiers[rec.id] = i
+			sample = rec.id.split('|')[0]
+			sample_hgs[sample].add(hg)
+
+			for i, g1 in enumerate(gene_sequences):
+				s1 = g1.split('|')[0]
+				g1s = gene_sequences[g1]
+				for j, g2 in enumerate(gene_sequences):
+					if i >= j: continue
+					s2 = g2.split('|')[0]
+					if s1 == s2: continue
+					g2s = gene_sequences[g2]
+					tot_comp_pos = 0
+					g1_comp_pos = 0
+					g2_comp_pos = 0
+					match_pos = 0
+					for pos, g1a in enumerate(g1s):
+						g2a = g2s[pos]
+						if g1a in valid_alleles or g2a in valid_alleles:
+							tot_comp_pos += 1
+							if g1a == g2a:
+								match_pos += 1
+						if g1a in valid_alleles:
+							g1_comp_pos += 1
+						if g2a in valid_alleles:
+							g2_comp_pos += 1
+					general_matching_percentage = float(match_pos)/float(tot_comp_pos)
+
+					if pair_seq_matching[s1][s2][hg] < general_matching_percentage and pair_seq_matching[s2][s1][hg] < general_matching_percentage:
+						pair_seq_matching[s1][s2][hg] = general_matching_percentage
+						pair_seq_matching[s2][s1][hg] = general_matching_percentage
+
+	bgc_pairwise_similarities = defaultdict(lambda: defaultdict(lambda: ["NA", "NA"]))
+	for i, s1 in enumerate(sorted(sample_hgs)):
+		for j, s2 in enumerate(sorted(sample_hgs)):
+			if i >= j: continue
+			common_hgs =  sample_hgs[s1].intersection(sample_hgs[s2])
+			total_hgs = sample_hgs[s1].union(sample_hgs[s2])
+			sum_pair_seq_matching = 0.0
+			for hg in common_hgs:
+				sum_pair_seq_matching += pair_seq_matching[s1][s2][hg]
+			if len(common_hgs) > 0:
+				bgc_pairwise_similarities[s1][s2] = [sum_pair_seq_matching / float(len(common_hgs)), float(len(common_hgs))/float(len(total_hgs))]
+				bgc_pairwise_similarities[s2][s1] = [sum_pair_seq_matching / float(len(common_hgs)), float(len(common_hgs))/float(len(total_hgs))]
+			else:
+				bgc_pairwise_similarities[s1][s2] = ["NA", 0.0]
+				bgc_pairwise_similarities[s2][s1] = ["NA", 0.0]
+
+	return bgc_pairwise_similarities
 
 def determineBGCSequenceSimilarityFromCodonAlignments(codon_alignments_file):
 	valid_alleles = set(['A', 'C', 'G', 'T'])
@@ -202,7 +378,7 @@ def determineAllelesFromCodonAlignment(codon_alignment, max_mismatch=10, matchin
 	return [allele_clusters, pair_matching]
 
 def cleanUpSampleName(original_name):
-	return original_name.replace(' ', '_').replace(':', '_').replace('|', '_').replace('"', '_').replace("'", '_').replace("=", "_").replace('-', '_').replace('(', '').replace(')', '').replace('/', '').replace('\\', '')
+	return original_name.replace(' ', '_').replace(':', '_').replace('|', '_').replace('"', '_').replace("'", '_').replace("=", "_").replace('-', '_').replace('(', '').replace(')', '').replace('/', '').replace('\\', '').replace('[', '').replace(']', '')
 
 def read_pair_generator_defunct(bam, region_string=None, start=None, stop=None):
 	"""

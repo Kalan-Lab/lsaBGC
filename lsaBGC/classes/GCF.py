@@ -2668,6 +2668,9 @@ def popgen_analysis_of_hg(inputs):
 	codon_alignment_fasta = updated_codon_alignment_fasta
 	if len(seqs) == 0: return
 
+	hg_pairwise_similarities = util.determineSeqSimCodonAlignment(codon_alignments_file)
+
+
 	is_core = False
 	if (sum(core_counts.values()) > 0.0):
 		if (float(core_counts['core']) / sum(core_counts.values()) >= 0.8):
