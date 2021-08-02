@@ -90,6 +90,7 @@ def determineNonUniqueRegionsAlongCodonAlignment(outdir, initial_sample_prokka_d
 				with open(cmsa_fasta) as ocf:
 					for rec in SeqIO.parse(ocf, 'fasta'):
 						samp, gene_id = rec.id.split('|')
+						if not (gene_id.split('_')[0]) == 3: continue
 						gcf_protein_to_hg[gene_id] = hg
 						gcf_protein_ids.add(gene_id)
 						real_pos = 1
@@ -111,6 +112,7 @@ def determineNonUniqueRegionsAlongCodonAlignment(outdir, initial_sample_prokka_d
 
 			with open(sample_proteome) as osp:
 				for rec in SeqIO.parse(osp, 'fasta'):
+					if not (rec.id.split('_')[0]) == 3: continue
 					if rec.id in gcf_protein_ids:
 						all_gcf_proteins_fasta_handle.write('>' + rec.id + '\n' + str(rec.seq) + '\n')
 					else:
@@ -172,7 +174,7 @@ def determineNonUniqueRegionsAlongCodonAlignment(outdir, initial_sample_prokka_d
 		for hg in hg_msa_pos_aligned:
 			nonunique_positions = set([])
 			for msa_pos in hg_msa_pos_aligned[hg]:
-				if len(hg_msa_pos_aligned[hg][msa_pos]) >= 3:
+				if len(hg_msa_pos_aligned[hg][msa_pos]) >= 1:
 					nonunique_positions.add(msa_pos)
 			hg_differentiation_handle.write('\t'.join([hg, ','.join([str(x) for x in sorted(nonunique_positions)])]) + '\n')
 		hg_differentiation_handle.close()
