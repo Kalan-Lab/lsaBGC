@@ -94,7 +94,6 @@ def determineNonUniqueRegionsAlongCodonAlignment(outdir, initial_sample_prokka_d
 						gcf_protein_ids.add(gene_id)
 						real_pos = 1
 						for msa_pos, bp in enumerate(str(rec.seq)):
-							msa_positions.add(msa_pos + 1)
 							if bp != '-':
 								gene_pos_to_msa_pos[hg][gene_id][real_pos] = msa_pos + 1
 								real_pos += 1
