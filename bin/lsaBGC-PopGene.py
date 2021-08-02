@@ -135,6 +135,7 @@ def lsaBGC_PopGene():
     sample_retention_set = util.getSampleRetentionSet(sample_set_file)
 
     # Step 0B: (Optional) Parse sample to sample genome-wide relationships
+    gw_pairwise_differences = None
     if os.path.isfile(precomputed_mash_input_file) and os.path.isfile(precomputed_mash_result_file):
         fasta_to_name = {}
         gw_pairwise_differences = defaultdict(lambda: defaultdict(float))
@@ -200,13 +201,13 @@ def lsaBGC_PopGene():
         population_analysis_on = True
     if run_for_each_pop:
         for pop in populations:
-            GCF_Object.runPopulationGeneticsAnalysis(outdir, cores=cores, population=pop, filter_outliers=False, population_analysis_on=population_analysis_on)
+            GCF_Object.runPopulationGeneticsAnalysis(outdir, cores=cores, population=pop, filter_outliers=False, population_analysis_on=population_analysis_on, gw_pairwise_differences=gw_pairwise_differences)
             if filter_for_outliers:
-                GCF_Object.runPopulationGeneticsAnalysis(outdir, cores=cores, population=pop, filter_outliers=True, population_analysis_on=population_analysis_on)
+                GCF_Object.runPopulationGeneticsAnalysis(outdir, cores=cores, population=pop, filter_outliers=True, population_analysis_on=population_analysis_on, gw_pairwise_differences=gw_pairwise_differences)
     else:
-        GCF_Object.runPopulationGeneticsAnalysis(outdir, cores=cores, population=None, filter_outliers=False, population_analysis_on=population_analysis_on)
+        GCF_Object.runPopulationGeneticsAnalysis(outdir, cores=cores, population=None, filter_outliers=False, population_analysis_on=population_analysis_on, gw_pairwise_differences=gw_pairwise_differences)
         if filter_for_outliers:
-            GCF_Object.runPopulationGeneticsAnalysis(outdir, cores=cores, population=None, filter_outliers=True, population_analysis_on=population_analysis_on)
+            GCF_Object.runPopulationGeneticsAnalysis(outdir, cores=cores, population=None, filter_outliers=True, population_analysis_on=population_analysis_on, gw_pairwise_differences=gw_pairwise_differences)
     logObject.info("Successfully ran population genetics and evolutionary analyses of each codon alignment.")
 
     # Close logging object and exit

@@ -817,7 +817,7 @@ class GCF(Pan):
 				self.logObject.error(traceback.format_exc())
 			raise RuntimeError(traceback.format_exc())
 
-	def runPopulationGeneticsAnalysis(self, outdir, cores=1, population=None, filter_outliers=False, population_analysis_on=False):
+	def runPopulationGeneticsAnalysis(self, outdir, cores=1, population=None, filter_outliers=False, population_analysis_on=False, gw_pairwise_differences=None):
 		"""
 		Wrapper function which serves to parallelize population genetics analysis.
 
@@ -1113,6 +1113,7 @@ class GCF(Pan):
 								if 'AADU_01841' in gcf_segment[0]:
 									print(bgc + '\t' + str(corr) + '\t' + str(pval))
 									print(list1_same_dir)
+									print(list2_same_dir)
 								if (pval < 0.1) and (best_corr and best_corr < corr) or (not best_corr):
 									best_corr = corr
 							if len(list1_comp_dir) >= 3:
@@ -1120,7 +1121,8 @@ class GCF(Pan):
 								corr = abs(corr)
 								if 'AADU_01841' in gcf_segment[0]:
 									print(bgc + '\t' + str(corr) + '\t' + str(pval))
-									print(list1_same_dir)
+									print(list1_comp_dir)
+									print(list2_comp_dir)
 								if (pval < 0.1) and (best_corr and best_corr < corr) or (not best_corr):
 									best_corr = corr
 						except:
