@@ -134,7 +134,7 @@ def determineNonUniqueRegionsAlongCodonAlignment(outdir, initial_sample_prokka_d
 				logObject.error(traceback.format_exc())
 			raise RuntimeError('Had an issue running: %s' % ' '.join(makedb_cmd))
 
-		diamond_cmd = ['diamond', 'blastp', '--threads', str(cores), '--ultra-sensitive', '--db', all_gcf_proteins_fasta_db,
+		diamond_cmd = ['diamond', 'blastp', '--threads', str(cores), '--db', all_gcf_proteins_fasta_db,
 					   '--query', all_comp_gcf_proteins_fasta_file , '--outfmt', '6', '--out', diamond_outfmt6_result_file,
 					   '--max-target-seqs', '0']
 		if logObject:
