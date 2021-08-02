@@ -219,7 +219,6 @@ def lsaBGC_Process():
 				util.writeRefinedProteomes(s, sample_bgcs, refined_proteomes_outdir, logObject)
 		antismash_bgc_listing_handle.close()
 
-
 		# Step 4: Run OrthoFinder for de novo ortholog construction
 		orthofinder_outdir = outdir + 'OrthoFinder_Results/'
 		logObject.info("Running/setting-up OrthoFinder!")
