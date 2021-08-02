@@ -1714,7 +1714,7 @@ class GCF(Pan):
 							for p in range(pos - 50, pos + 51):
 								gene_ignore_positions[hg].add(p)
 
-					gene_ignore_positions[hg] = gene_ignore_positions.union(hg_nonunique_positions[hg])
+					gene_ignore_positions[hg] = gene_ignore_positions[hg].union(hg_nonunique_positions[hg])
 
 			parallel_inputs = []
 			with open(paired_end_sequencing_file) as ossf:
