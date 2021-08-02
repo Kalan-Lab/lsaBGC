@@ -107,12 +107,13 @@ def determineNonUniqueRegionsAlongCodonAlignment(outdir, initial_sample_prokka_d
 		all_gcf_proteins_fasta_handle = open(all_gcf_proteins_fasta_file, 'w')
 		all_comp_gcf_proteins_fasta_handle = open(all_comp_gcf_proteins_fasta_file, 'w')
 
+		original_samples = set([])
 		for sample in initial_sample_prokka_data:
 			sample_proteome = initial_sample_prokka_data[sample]['predicted_proteome']
-
 			with open(sample_proteome) as osp:
 				for rec in SeqIO.parse(osp, 'fasta'):
 					if len(rec.id.split('_')[0]) != 3: continue
+					original_samples.add(sample)
 					if rec.id in gcf_protein_ids:
 						all_gcf_proteins_fasta_handle.write('>' + rec.id + '\n' + str(rec.seq) + '\n')
 					else:
@@ -136,7 +137,7 @@ def determineNonUniqueRegionsAlongCodonAlignment(outdir, initial_sample_prokka_d
 				logObject.error(traceback.format_exc())
 			raise RuntimeError('Had an issue running: %s' % ' '.join(makedb_cmd))
 
-		diamond_cmd = ['diamond', 'blastp', '--threads', str(cores), '--db', all_gcf_proteins_fasta_db,
+		diamond_cmd = ['diamond', 'blastp', '--threads', str(cores), '--ultra-sensitive', '--db', all_gcf_proteins_fasta_db,
 					   '--query', all_comp_gcf_proteins_fasta_file , '--outfmt', '6', '--out', diamond_outfmt6_result_file,
 					   '--max-target-seqs', '0']
 		if logObject:
@@ -174,7 +175,7 @@ def determineNonUniqueRegionsAlongCodonAlignment(outdir, initial_sample_prokka_d
 		for hg in hg_msa_pos_aligned:
 			nonunique_positions = set([])
 			for msa_pos in hg_msa_pos_aligned[hg]:
-				if len(hg_msa_pos_aligned[hg][msa_pos]) >= 2:
+				if (len(hg_msa_pos_aligned[hg][msa_pos])/float(len(original_samples))) >= 0.05:
 					nonunique_positions.add(msa_pos)
 			hg_differentiation_handle.write('\t'.join([hg, ','.join([str(x) for x in sorted(nonunique_positions)])]) + '\n')
 		hg_differentiation_handle.close()
