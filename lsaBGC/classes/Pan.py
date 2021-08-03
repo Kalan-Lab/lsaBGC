@@ -922,7 +922,6 @@ class Pan:
 						self.logObject.error(traceback.format_exc())
 					raise RuntimeError('Had an issue running: %s' % ' '.join(hmmpress_cmd))
 
-
 				hmmscan_cmds = []
 				for sample in initial_sample_prokka_data:
 					sample_proteome = initial_sample_prokka_data[sample]['predicted_proteome']

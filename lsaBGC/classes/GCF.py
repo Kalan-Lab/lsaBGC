@@ -503,8 +503,8 @@ class GCF(Pan):
 					gene_sequences = util.determineOutliersByGeneLength(gene_sequences, self.logObject)
 				inputs.append([hg, gene_sequences, nucl_seq_dir, prot_seq_dir, prot_alg_dir, codo_alg_dir, cores, self.logObject])
 
-			p = multiprocessing.Pool(pool_size)
-			p.map(create_codon_msas, inputs)
+			#p = multiprocessing.Pool(pool_size)
+			#p.map(create_codon_msas, inputs)
 
 			if not filter_outliers:
 				self.nucl_seq_dir = nucl_seq_dir
@@ -850,12 +850,12 @@ class GCF(Pan):
 		header = ['gcf_id', 'homolog_group', 'annotation', 'hg_order_index', 'hg_consensus_direction',
 				  'hg_median_copy_count', 'median_gene_length', 'is_core_to_bgc', 'num_of_hg_instances',
 				  'samples_with_hg', 'proportion_of_samples_with_hg', 'Tajimas_D', 'proportion_variable_sites',
-				  'dn_ds', 'all_domains']
+				  'proportion_nondominant_major_allele', 'beta-rd', 'dn_ds', 'all_domains']
 		if population:
 			header = ['population'] + header
 		elif population_analysis_on:
 			header = header[:-1]
-			header += ['populations_with_hg', 'most_significant_Fisher_exact_pvalues_presence_absence',
+			header += ['populations_with_hg', 'max_population_proportion_nondominant_major_allele', 'most_significant_Fisher_exact_pvalues_presence_absence',
 							'one_way_ANOVA_pvalues_sequence_similarity', 'most_significant_MK_ratio_log10',
 							'all_fixation_indices_between_populations', 'population_pn_ps_ratios',
 							'population_proportion_of_members_with_hg', 'all_domains']
@@ -2619,7 +2619,7 @@ def popgen_analysis_of_hg(inputs):
 
 	:param inputs: list of inputs passed in by GCF.runPopulationGeneticsAnalysis().
 	"""
-	gcf_id, hg, codon_alignment_fasta, popgen_dir, plots_dir, comp_gene_info, hg_genes, bgc_sample, hg_prop_multi_copy, hg_order_scores, gw_pairwise_differences, sample_population, population, logObject = inputs
+	gcf_id, hg, codon_alignment_fasta, popgen_dir, plots_dir, comp_gene_info, hg_genes, bgc_sample, hg_prop_multi_copy, hg_order_scores, gw_pairwise_similarities, sample_population, population, logObject = inputs
 	domain_plot_file = plots_dir + hg + '_domain.txt'
 	position_plot_file = plots_dir + hg + '_position.txt'
 	plot_pdf_file = plots_dir + hg + '.pdf'
@@ -2670,8 +2670,19 @@ def popgen_analysis_of_hg(inputs):
 	codon_alignment_fasta = updated_codon_alignment_fasta
 	if len(seqs) == 0: return
 
+	beta_rd_stats = []
 	hg_pairwise_similarities = util.determineSeqSimCodonAlignment(codon_alignments_file)
+	for i, s1 in sorted(samples):
+		for j, s2 in sorted(samples):
+			if i >= j: continue
+			if s1 in hg_pairwise_similarities and s2 in hg_pairwise_similarities:
+				hg_seq_sim = hg_pairwise_similarities[s1][s2]
+				gw_seq_sim = 1.0 - gw_pairwise_similarities[s1][s2]
+				if gw_seq_sim != 0.0:
+					beta_rd = hg_seq_sim / float(gw_seq_sim)
+					beta_rd_stats.append(beta_rd)
 
+	median_beta_rd = statistics.median(beta_rd_stats)
 
 	is_core = False
 	if (sum(core_counts.values()) > 0.0):
@@ -2682,9 +2693,11 @@ def popgen_analysis_of_hg(inputs):
 
 	variable_sites = set([])
 	conserved_sites = set([])
+	nondominant_sites  =  set([])
 	position_plot_handle.write('\t'.join(['pos', 'num_seqs', 'num_alleles', 'num_gaps', 'maj_allele_freq']) + '\n')
 
 	sample_differences_to_consensus = defaultdict(lambda: defaultdict(int))
+
 	for i, ls in enumerate(zip(*seqs)):
 		al_counts = defaultdict(int)
 		for al in ls:
@@ -2703,10 +2716,12 @@ def popgen_analysis_of_hg(inputs):
 			maj_allele_freq = float(maj_allele_count) / float(tot_count-num_gaps)
 		position_plot_handle.write('\t'.join([str(x) for x in [i + 1, tot_count, num_alleles, num_gaps, maj_allele_freq]]) + '\n')
 		if gap_allele_freq < 0.10:
-			if maj_allele_freq >= 0.98:
+			if maj_allele_freq >= 0.95:
 				conserved_sites.add(i)
 			else:
 				variable_sites.add(i)
+			if maj_allele_freq < 0.75:
+				nondominant_sites.add(i)
 		maj_allele_count = max(al_counts.values())
 		maj_alleles = set([a[0] for a in al_counts.items() if maj_allele_count == a[1]])
 		maj_allele = sorted(list(maj_alleles))[0]
@@ -2867,16 +2882,20 @@ def popgen_analysis_of_hg(inputs):
 	else:
 		dnds = 'Conserved'
 	prop_conserved = "NA"
-	if len(conserved_sites) > 0:
+	prop_majallele_nondominant = "NA"
+	if (len(conserved_sites) + len(variable_sites)) > 0:
 		prop_conserved = round(float(len(variable_sites))/float(len(conserved_sites) + len(variable_sites)), 2)
+		prop_majallele_nondominant = round(float(len(nondominant_sites))/float(len(conserved_sites) + len(variable_sites)), 2)
 	else:
-		prop_conserved = "No conserved or variable sites!"
+		# All sites in alignment have >= 10% ambiguity
+		prop_conserved = "NA"
+		prop_majallele_nondominant = "NA"
 	hg_ord = 'NA'; hg_dir = 'NA'
 	if hg in hg_order_scores:
 		hg_ord, hg_dir = hg_order_scores[hg]
 	hg_info += [gcf_id, hg, '; '.join(products), hg_ord, hg_dir, hg_prop_multi_copy[hg],
 				median_gene_length, is_core, len(seqs), len(samples), round(prop_samples_with_hg,2), tajimas_d,
-				prop_conserved, dnds]
+				prop_conserved, prop_majallele_nondominant, median_beta_rd, dnds]
 
 	hg_consim_handle = open(popgen_dir + hg + '_sim_to_consensus.txt', 'w')
 	for s in sample_differences_to_consensus:
@@ -2896,9 +2915,46 @@ def popgen_analysis_of_hg(inputs):
 		for s, p in sample_population.items():
 			population_counts[p] += 1
 
+		pop_prop_nd_mas = []
+		for p in population_counts:
+			if population_counts[p] < 10: continue
+
+			pop_seqs = []
+			with open(codon_alignment_fasta) as ocaf:
+				for rec in SeqIO.parse(ocaf, 'fasta'):
+					sample_id, gene_id = rec.id.split('|')
+					if p != sample_population[sample_id]: continue
+					pop_seqs.append(list(str(rec.seq).upper().replace('N', '-')))
+
+			nondominant_major_allele_sites = 0
+			total_non_amb_sites = 0
+			for i, ls in enumerate(zip(*pop_seqs)):
+				al_counts = defaultdict(int)
+				for al in ls:
+					al_counts[al] += 1
+				maj_allele_count = 0
+				if not (len(al_counts) == 1 and '-' in al_counts):
+					maj_allele_count = max([al_counts[al] for al in al_counts if al != '-'])
+				tot_count = sum(al_counts.values())
+				num_alleles = len(al_counts.keys())
+				num_gaps = al_counts['-']
+				if num_gaps > 0:
+					num_alleles -= 1
+				gap_allele_freq = float(num_gaps) / tot_count
+				maj_allele_freq = 0.0
+				if float(tot_count - num_gaps) > 0.0:
+					maj_allele_freq = float(maj_allele_count) / float(tot_count - num_gaps)
+				if gap_allele_freq < 0.10:
+					if maj_allele_freq <= 0.75:
+						nondominant_major_allele_sites += 1
+					total_non_amb_sites += 1
+
+				pop_prop_nd_ma = float(nondominant_major_allele_sites)/float(total_non_amb_sites)
+				pop_prop_nd_mas.append(pop_prop_nd_ma)
+
+		max_pop_prop_ndma = max(pop_prop_nd_mas)
 		pops_with_hg = set([])
 		pop_count_with_hg = defaultdict(int)
-
 		for s in sample_differences_to_consensus:
 			min_diff_to_consensus = 1e100
 			for g in sample_differences_to_consensus[s]:
@@ -3024,7 +3080,7 @@ def popgen_analysis_of_hg(inputs):
 						all_fixation_indices.append(pop1 + '-vs.-' + pop2 + ': ' + str(round(dn_ds, 2)) + '/' + str(round(pn_ps,2)))
 				all_pn_ps.append(pop1 + ': ' + str(round(p1n, 2)) + '/' + str(round(p1s, 2)))
 
-		hg_population_info = [len(pops_with_hg), fisher_pval, str(anova_pval_seqsim).replace('nan', 'NA'),
+		hg_population_info = [len(pops_with_hg), max_pop_prop_ndma, fisher_pval, str(anova_pval_seqsim).replace('nan', 'NA'),
 							  most_significant_fi_log10, ', '.join(all_fixation_indices), ', '.join(all_pn_ps), '|'.join([str(x[0]) + '=' + str(float(x[1])/population_counts[x[0]]) for x in pop_count_with_hg.items()])]
 		hg_info += hg_population_info
 

@@ -192,7 +192,6 @@ def lsaBGC_PopGene():
         GCF_Object.constructCodonAlignments(outdir, only_scc=False, cores=cores, list_alignments=True, filter_outliers=True)
     logObject.info("All codon alignments for SCC homologs now successfully achieved!")
 
-    sys.exit(1)
     # Step 6: Analyze codon alignments and parse population genetics and conservation stats
     logObject.info("Beginning population genetics analyses of each codon alignment.")
     populations = [None]

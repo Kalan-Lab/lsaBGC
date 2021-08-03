@@ -190,62 +190,44 @@ def determineNonUniqueRegionsAlongCodonAlignment(outdir, initial_sample_prokka_d
 
 
 def determineSeqSimCodonAlignment(codon_alignment_file):
-	valid_alleles = set(['A', 'C', 'G', 'T'])
-	pair_seq_matching = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: 0.0)))
 	gene_sequences = {}
-	allele_identifiers = {}
 	with open(codon_alignment_file) as ocaf:
 		for i, rec in enumerate(SeqIO.parse(ocaf, 'fasta')):
 			gene_sequences[rec.id] = str(rec.seq).upper()
-			allele_identifiers[rec.id] = i
 			sample = rec.id.split('|')[0]
 			sample_hgs[sample].add(hg)
 
-			for i, g1 in enumerate(gene_sequences):
-				s1 = g1.split('|')[0]
-				g1s = gene_sequences[g1]
-				for j, g2 in enumerate(gene_sequences):
-					if i >= j: continue
-					s2 = g2.split('|')[0]
-					if s1 == s2: continue
-					g2s = gene_sequences[g2]
-					tot_comp_pos = 0
-					g1_comp_pos = 0
-					g2_comp_pos = 0
-					match_pos = 0
-					for pos, g1a in enumerate(g1s):
-						g2a = g2s[pos]
-						if g1a in valid_alleles or g2a in valid_alleles:
-							tot_comp_pos += 1
-							if g1a == g2a:
-								match_pos += 1
-						if g1a in valid_alleles:
-							g1_comp_pos += 1
-						if g2a in valid_alleles:
-							g2_comp_pos += 1
-					general_matching_percentage = float(match_pos)/float(tot_comp_pos)
-
-					if pair_seq_matching[s1][s2][hg] < general_matching_percentage and pair_seq_matching[s2][s1][hg] < general_matching_percentage:
-						pair_seq_matching[s1][s2][hg] = general_matching_percentage
-						pair_seq_matching[s2][s1][hg] = general_matching_percentage
-
-	bgc_pairwise_similarities = defaultdict(lambda: defaultdict(lambda: ["NA", "NA"]))
-	for i, s1 in enumerate(sorted(sample_hgs)):
-		for j, s2 in enumerate(sorted(sample_hgs)):
+	pair_seq_matching = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: 0.0)))
+	valid_alleles = set(['A', 'C', 'G', 'T'])
+	for i, g1 in enumerate(gene_sequences):
+		s1 = g1.split('|')[0]
+		g1s = gene_sequences[g1]
+		for j, g2 in enumerate(gene_sequences):
 			if i >= j: continue
-			common_hgs =  sample_hgs[s1].intersection(sample_hgs[s2])
-			total_hgs = sample_hgs[s1].union(sample_hgs[s2])
-			sum_pair_seq_matching = 0.0
-			for hg in common_hgs:
-				sum_pair_seq_matching += pair_seq_matching[s1][s2][hg]
-			if len(common_hgs) > 0:
-				bgc_pairwise_similarities[s1][s2] = [sum_pair_seq_matching / float(len(common_hgs)), float(len(common_hgs))/float(len(total_hgs))]
-				bgc_pairwise_similarities[s2][s1] = [sum_pair_seq_matching / float(len(common_hgs)), float(len(common_hgs))/float(len(total_hgs))]
-			else:
-				bgc_pairwise_similarities[s1][s2] = ["NA", 0.0]
-				bgc_pairwise_similarities[s2][s1] = ["NA", 0.0]
+			s2 = g2.split('|')[0]
+			if s1 == s2: continue
+			g2s = gene_sequences[g2]
+			tot_comp_pos = 0
+			g1_comp_pos = 0
+			g2_comp_pos = 0
+			match_pos = 0
+			for pos, g1a in enumerate(g1s):
+				g2a = g2s[pos]
+				if g1a in valid_alleles or g2a in valid_alleles:
+					tot_comp_pos += 1
+					if g1a == g2a:
+						match_pos += 1
+				if g1a in valid_alleles:
+					g1_comp_pos += 1
+				if g2a in valid_alleles:
+					g2_comp_pos += 1
+			general_matching_percentage = float(match_pos)/float(tot_comp_pos)
 
-	return bgc_pairwise_similarities
+			if pair_seq_matching[s1][s2][hg] < general_matching_percentage and pair_seq_matching[s2][s1][hg] < general_matching_percentage:
+				pair_seq_matching[s1][s2][hg] = general_matching_percentage
+				pair_seq_matching[s2][s1][hg] = general_matching_percentage
+
+	return pair_seq_matching
 
 def determineBGCSequenceSimilarityFromCodonAlignments(codon_alignments_file):
 	valid_alleles = set(['A', 'C', 'G', 'T'])
