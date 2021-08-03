@@ -194,8 +194,6 @@ def determineSeqSimCodonAlignment(codon_alignment_file):
 	with open(codon_alignment_file) as ocaf:
 		for i, rec in enumerate(SeqIO.parse(ocaf, 'fasta')):
 			gene_sequences[rec.id] = str(rec.seq).upper()
-			sample = rec.id.split('|')[0]
-			sample_hgs[sample].add(hg)
 
 	pair_seq_matching = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: 0.0)))
 	valid_alleles = set(['A', 'C', 'G', 'T'])
