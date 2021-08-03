@@ -214,6 +214,7 @@ def determineSeqSimCodonAlignment(codon_alignment_file):
 					if g1a == g2a:
 						match_pos += 1
 			general_matching_percentage = float(match_pos)/float(tot_comp_pos)
+			print(general_matching_percentage)
 			if pair_seq_matching[s1][s2] < general_matching_percentage and pair_seq_matching[s2][s1] < general_matching_percentage:
 				pair_seq_matching[s1][s2] = general_matching_percentage
 				pair_seq_matching[s2][s1] = general_matching_percentage

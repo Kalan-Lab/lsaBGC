@@ -2672,8 +2672,6 @@ def popgen_analysis_of_hg(inputs):
 
 	beta_rd_stats = []
 	hg_pairwise_similarities = util.determineSeqSimCodonAlignment(codon_alignment_fasta)
-	print(hg_pairwise_similarities)
-	#print(gw_pairwise_similarities)
 	for i, s1 in enumerate(sorted(samples)):
 		for j, s2 in enumerate(sorted(samples)):
 			if i >= j: continue
