@@ -2950,6 +2950,7 @@ def popgen_analysis_of_hg(inputs):
 						nondominant_major_allele_sites += 1
 					total_non_amb_sites += 1
 
+			if total_non_amb_sites > 0:
 				pop_prop_nd_ma = float(nondominant_major_allele_sites)/float(total_non_amb_sites)
 				pop_prop_nd_mas.append(pop_prop_nd_ma)
 
