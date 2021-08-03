@@ -54,11 +54,11 @@ RSCRIPT_FOR_GCFGENEPLOTS = lsaBGC_main_directory + '/lsaBGC/Rscripts/gcfGenePlot
 def create_parser():
 	""" Parse arguments """
 	parser = argparse.ArgumentParser(description="""
-	Program: lsaBGC-Automate.py
+	Program: lsaBGC-AutoAnalyze.py
 	Author: Rauf Salamzade
 	Affiliation: Kalan Lab, UW Madison, Department of Medical Microbiology and Immunology
 
-	Program to parallelize most of lsaBGC programs for each GCF 
+	Program to parallelize most of lsaBGC programs for each GCF. 
 	
 	""", formatter_class=argparse.RawTextHelpFormatter)
 

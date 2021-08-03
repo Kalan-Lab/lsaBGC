@@ -55,23 +55,16 @@ RSCRIPT_FOR_GCFGENEPLOTS = lsaBGC_main_directory + '/lsaBGC/Rscripts/gcfGenePlot
 def create_parser():
     """ Parse arguments """
     parser = argparse.ArgumentParser(description="""
-	Program: lsaBGC-Automate.py
+	Program: populationClustersSelectionHelper.py
 	Author: Rauf Salamzade
 	Affiliation: Kalan Lab, UW Madison, Department of Medical Microbiology and Immunology
-
-	Program to parallelize most of lsaBGC programs for each GCF 
-
 	""", formatter_class=argparse.RawTextHelpFormatter)
 
     parser.add_argument('-o', '--output_directory', help="Parent output/workspace directory.", required=True)
     parser.add_argument('-l', '--input_listing', help="Path to tab delimited file listing: (1) sample name (2) path to Prokka Genbank and (3) path to Prokka predicted proteome. This file is produced by lsaBGC-Process.py.", required=False, default=None)
-    parser.add_argument('-k', '--sample_set', help="Sample set to keep in analysis. Should be file with one sample id per line.",
-                        required=False)
-    parser.add_argument('-s', '--lineage_phylogeny',
-                        help="Path to species phylogeny. If not provided a MASH based neighborjoining tree will be constructed and used.",
-                        default=None, required=False)
-    parser.add_argument('-p', '--population_analysis', action='store_true',
-                        help="Whether to construct species phylogeny and use it to determine populations.",
+    parser.add_argument('-k', '--sample_set', help="Sample set to keep in analysis. Should be file with one sample id per line.", required=False)
+    parser.add_argument('-s', '--lineage_phylogeny', help="Path to species phylogeny. If not provided a MASH based neighborjoining tree will be constructed and used.", default=None, required=False)
+    parser.add_argument('-p', '--population_analysis', action='store_true',              help="Whether to construct species phylogeny and use it to determine populations.",
                         default=False, required=False)
     parser.add_argument('-ps', '--num_populations', type=int,
                         help='If population analysis specified, what is the number of populations to . Use the script determinePopulationK.py to see how populations will look with k set to different values.',
