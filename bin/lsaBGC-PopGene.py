@@ -39,6 +39,7 @@ import os
 import sys
 from time import sleep
 import argparse
+from collections import defaultdict
 from lsaBGC import util
 from lsaBGC.classes.GCF import GCF
 
