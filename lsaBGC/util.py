@@ -206,8 +206,6 @@ def determineSeqSimCodonAlignment(codon_alignment_file):
 			if s1 == s2: continue
 			g2s = gene_sequences[g2]
 			tot_comp_pos = 0
-			g1_comp_pos = 0
-			g2_comp_pos = 0
 			match_pos = 0
 			for pos, g1a in enumerate(g1s):
 				g2a = g2s[pos]
@@ -215,12 +213,7 @@ def determineSeqSimCodonAlignment(codon_alignment_file):
 					tot_comp_pos += 1
 					if g1a == g2a:
 						match_pos += 1
-				if g1a in valid_alleles:
-					g1_comp_pos += 1
-				if g2a in valid_alleles:
-					g2_comp_pos += 1
 			general_matching_percentage = float(match_pos)/float(tot_comp_pos)
-
 			if pair_seq_matching[s1][s2] < general_matching_percentage and pair_seq_matching[s2][s1] < general_matching_percentage:
 				pair_seq_matching[s1][s2] = general_matching_percentage
 				pair_seq_matching[s2][s1] = general_matching_percentage
