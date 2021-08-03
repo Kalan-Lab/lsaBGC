@@ -195,7 +195,7 @@ def determineSeqSimCodonAlignment(codon_alignment_file):
 		for i, rec in enumerate(SeqIO.parse(ocaf, 'fasta')):
 			gene_sequences[rec.id] = str(rec.seq).upper()
 
-	pair_seq_matching = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: 0.0)))
+	pair_seq_matching = defaultdict(lambda: defaultdict(lambda: 0.0))
 	valid_alleles = set(['A', 'C', 'G', 'T'])
 	for i, g1 in enumerate(gene_sequences):
 		s1 = g1.split('|')[0]
@@ -221,9 +221,9 @@ def determineSeqSimCodonAlignment(codon_alignment_file):
 					g2_comp_pos += 1
 			general_matching_percentage = float(match_pos)/float(tot_comp_pos)
 
-			if pair_seq_matching[s1][s2][hg] < general_matching_percentage and pair_seq_matching[s2][s1][hg] < general_matching_percentage:
-				pair_seq_matching[s1][s2][hg] = general_matching_percentage
-				pair_seq_matching[s2][s1][hg] = general_matching_percentage
+			if pair_seq_matching[s1][s2] < general_matching_percentage and pair_seq_matching[s2][s1] < general_matching_percentage:
+				pair_seq_matching[s1][s2] = general_matching_percentage
+				pair_seq_matching[s2][s1] = general_matching_percentage
 
 	return pair_seq_matching
 
