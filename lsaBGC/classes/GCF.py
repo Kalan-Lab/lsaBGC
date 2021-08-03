@@ -2681,8 +2681,9 @@ def popgen_analysis_of_hg(inputs):
 				if gw_seq_sim != 0.0:
 					beta_rd = hg_seq_sim / float(gw_seq_sim)
 					beta_rd_stats.append(beta_rd)
-
-	median_beta_rd = statistics.median(beta_rd_stats)
+	median_beta_rd = "NA"
+	if len(beta_rd_stats) >= 1:
+		median_beta_rd = statistics.median(beta_rd_stats)
 
 	is_core = False
 	if (sum(core_counts.values()) > 0.0):
@@ -2952,7 +2953,9 @@ def popgen_analysis_of_hg(inputs):
 				pop_prop_nd_ma = float(nondominant_major_allele_sites)/float(total_non_amb_sites)
 				pop_prop_nd_mas.append(pop_prop_nd_ma)
 
-		max_pop_prop_ndma = max(pop_prop_nd_mas)
+		max_pop_prop_ndma = "NA"
+		if len(pop_prop_nd_mas) > 0:
+			max_pop_prop_ndma = max(pop_prop_nd_mas)
 		pops_with_hg = set([])
 		pop_count_with_hg = defaultdict(int)
 		for s in sample_differences_to_consensus:
