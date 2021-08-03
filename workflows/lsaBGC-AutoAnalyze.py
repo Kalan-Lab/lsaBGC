@@ -283,7 +283,7 @@ def lsaBGC_AutoAnalyze():
 
 		# 2. Run lsaBGC-PopGene.py
 		gcf_pop_outdir = pop_outdir + gcf_id + '/'
-		if True: #not os.path.isdir(gcf_pop_outdir):
+		if not os.path.isdir(gcf_pop_outdir):
 			os.system('mkdir %s' % gcf_pop_outdir)
 			cmd = ['lsaBGC-PopGene.py', '-g', gcf_listing_file, '-m', orthofinder_matrix_file, '-o', gcf_pop_outdir,
 				   '-i', gcf_id, '-c', str(cores), '-pi', gw_fasta_listing_file, '-pr', outdir + 'genome_wide.out']
