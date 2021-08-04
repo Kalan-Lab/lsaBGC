@@ -1586,14 +1586,14 @@ class GCF(Pan):
 							seqs.append(seqlist)
 							types.append('Query')
 
-				ambiguous_positions_to_filter = set([])
+				ambiguous_positions_to_filter = ambiguous_positions_in_og_alignment
 				for i, pos_bases in enumerate(zip(*seqs)):
 					pos = i+1
 					pos_bases = list(pos_bases)
 					tot_seq_count = len(pos_bases)
 					gap_seq_count = len([a for a in pos_bases if a == '-'])
 					amb_prop = float(gap_seq_count)/float(tot_seq_count)
-					if amb_prop >= ambiguity_filter:
+					if amb_prop >= 0.00001 :# ambiguity_filter:
 						ambiguous_positions_to_filter.add(pos)
 
 				gene_alignment_with_refs_filtered_file = comp_hg_phylo_outdir + hg + '.fasta'
