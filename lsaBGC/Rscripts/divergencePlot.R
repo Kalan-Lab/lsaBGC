@@ -12,9 +12,9 @@ dat.filt.50 <- dat[dat$gcf_content_sim >= 0.50,]
 
 pdf(result.pdf, height=10, width=20)
 
-g1 <- ggplot(dat.filt.50, aes(x=gcf_id, y=beta_rd)) + geom_boxplot(fill='grey') + theme_classic() + geom_hline(yintercept=1.0, linetype=2) + ggtitle("Jaccard Index >= 90")
-g2 <- ggplot(dat.filt.50, aes(x=gcf_id, y=beta_rd)) + geom_boxplot(fill='grey') + theme_classic() + geom_hline(yintercept=1.0, linetype=2) + ggtitle("Jaccard Index >= 75")
-g3 <- ggplot(dat.filt.50, aes(x=gcf_id, y=beta_rd)) + geom_boxplot(fill='grey') + theme_classic() + geom_hline(yintercept=1.0, linetype=2) + ggtitle("Jaccard Index >= 50")
+g1 <- ggplot(dat.filt.90, aes(x=gcf_id, y=beta_rd, fill=gcf_id)) + geom_boxplot(fill='grey') + theme_classic() + geom_hline(yintercept=1.0, linetype=2) + ggtitle("Jaccard Index >= 90") + ylim(0, 2)
+g2 <- ggplot(dat.filt.75, aes(x=gcf_id, y=beta_rd, fill=gcf_id)) + geom_boxplot(fill='grey') + theme_classic() + geom_hline(yintercept=1.0, linetype=2) + ggtitle("Jaccard Index >= 75") + ylim(0, 2)
+g3 <- ggplot(dat.filt.50, aes(x=gcf_id, y=beta_rd, fill=gcf_id)) + geom_boxplot(fill='grey') + theme_classic() + geom_hline(yintercept=1.0, linetype=2) + ggtitle("Jaccard Index >= 50") + ylim(0, 2)
 
 plot_grid(g1, g2, g3, rel_heights=c(0.3, 0.3, 0.3), align='v', axis='b', ncol=1)
 
