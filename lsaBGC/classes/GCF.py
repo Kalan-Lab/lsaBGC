@@ -868,8 +868,10 @@ class GCF(Pan):
 		for f in os.listdir(input_codon_dir):
 			hg = f.split('.msa.fna')[0]
 			codon_alignment_fasta = input_codon_dir + f
+			if gw_pairwise_differences:
+				dict(gw_pairwise_differences)
 			inputs.append([self.gcf_id, hg, codon_alignment_fasta, popgen_dir, plots_dir, self.comp_gene_info, self.hg_genes,
-							 self.bgc_sample, self.hg_prop_multi_copy, dict(self.hg_order_scores), dict(gw_pairwise_differences),
+							 self.bgc_sample, self.hg_prop_multi_copy, dict(self.hg_order_scores), gw_pairwise_differences,
 						     dict(self.sample_population), population, self.logObject])
 
 		p = multiprocessing.Pool(cores)
@@ -1529,7 +1531,7 @@ class GCF(Pan):
 				self.logObject.error(traceback.format_exc())
 			raise RuntimeError(traceback.format_exc())
 
-	def generateGenePhylogenies(self, codon_alignments_file, phased_alleles_outdir, comp_hg_phylo_outdir, ambiguity_filter=0.1, sequence_filter=0.25, min_number_of_sites=10):
+	def generateGenePhylogenies(self, codon_alignments_file, phased_alleles_outdir, comp_hg_phylo_outdir, hg_nonunique_positions, ambiguity_filter=0.1, sequence_filter=0.25, min_number_of_sites=10):
 		try:
 			codon_alignment_paths = {}
 			with open(codon_alignments_file) as ocaf:
@@ -1550,20 +1552,22 @@ class GCF(Pan):
 						ids.append(rec.id)
 						seqs.append(list(str(rec.seq).upper()))
 						types.append('Database')
+
 				cod_alg_len = len(seqs[0])
-				ambiguous_positions_in_og_alginment = set([])
+				ambiguous_positions_in_og_alignment = set([])
 				for i, pos_bases in enumerate(zip(*seqs)):
 					pos = i+1
 					if pos <= 50 or pos >= (cod_alg_len-50):
-						ambiguous_positions_in_og_alginment.add(pos)
+						ambiguous_positions_in_og_alignment.add(pos)
 						continue
 					pos_bases = list(pos_bases)
 					tot_seq_count = len(pos_bases)
 					gap_seq_count = len([a for a in pos_bases if a == '-'])
 					amb_prop = float(gap_seq_count)/float(tot_seq_count)
-					if amb_prop >= ambiguity_filter:
+					if amb_prop >= 0.1:
 						for p in range(pos - 50, pos + 51):
-							ambiguous_positions_in_og_alginment.add(p)
+							ambiguous_positions_in_og_alignment.add(p)
+				ambiguous_positions_in_og_alignment = ambiguous_positions_in_og_alignment.union(hg_nonunique_positions[hg])
 
 				with open(phased_alleles_outdir + f) as of:
 					for rec in SeqIO.parse(of, 'fasta'):
@@ -1572,7 +1576,7 @@ class GCF(Pan):
 						tot_count = 0
 						for i, bp in enumerate(seqlist):
 							pos = i+1
-							if not pos in ambiguous_positions_in_og_alginment:
+							if not pos in ambiguous_positions_in_og_alignment:
 								tot_count += 1
 								if bp == '-':
 									gap_count += 1
@@ -2670,20 +2674,22 @@ def popgen_analysis_of_hg(inputs):
 	codon_alignment_fasta = updated_codon_alignment_fasta
 	if len(seqs) == 0: return
 
-	beta_rd_stats = []
-	hg_pairwise_similarities = util.determineSeqSimCodonAlignment(codon_alignment_fasta)
-	for i, s1 in enumerate(sorted(samples)):
-		for j, s2 in enumerate(sorted(samples)):
-			if i >= j: continue
-			if s1 in hg_pairwise_similarities and s2 in hg_pairwise_similarities:
-				hg_seq_sim = hg_pairwise_similarities[s1][s2]
-				gw_seq_sim = 1.0 - gw_pairwise_similarities[s1][s2]
-				if gw_seq_sim != 0.0:
-					beta_rd = hg_seq_sim / float(gw_seq_sim)
-					beta_rd_stats.append(beta_rd)
 	median_beta_rd = "NA"
-	if len(beta_rd_stats) >= 1:
-		median_beta_rd = statistics.median(beta_rd_stats)
+	if gw_pairwise_similarities:
+		beta_rd_stats = []
+		hg_pairwise_similarities = util.determineSeqSimCodonAlignment(codon_alignment_fasta)
+		for i, s1 in enumerate(sorted(samples)):
+			for j, s2 in enumerate(sorted(samples)):
+				if i >= j: continue
+				if s1 in hg_pairwise_similarities and s2 in hg_pairwise_similarities:
+					hg_seq_sim = hg_pairwise_similarities[s1][s2]
+					gw_seq_sim = 1.0 - gw_pairwise_similarities[s1][s2]
+					if gw_seq_sim != 0.0:
+						beta_rd = hg_seq_sim / float(gw_seq_sim)
+						beta_rd_stats.append(beta_rd)
+		median_beta_rd = "NA"
+		if len(beta_rd_stats) >= 1:
+			median_beta_rd = statistics.median(beta_rd_stats)
 
 	is_core = False
 	if (sum(core_counts.values()) > 0.0):
