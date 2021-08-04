@@ -1742,7 +1742,8 @@ class GCF(Pan):
 			homolog_presence_report_file = outdir + 'Sample_Homolog_Group_Coverage.txt'
 			no_handle = open(novelty_report_file, 'w')
 			hpr_handle = open(homolog_presence_report_file, 'w')
-			no_handle.write('\t'.join(['gcf_id', 'sample', 'homolog_group', 'position_along_msa', 'alternate_allele',
+			no_handle.write('\t'.join(['gcf_id', 'sample', 'homolog_group', 'position_along_msa', 'site_total_coverage_standardized',
+									   'site_allele_coverage_standardized', 'alternate_allele_is_major_allele', 'alternate_allele',
 									   'codon_position', 'alternate_codon', 'alternate_aa', 'dn_or_ds', 'ts_or_tv',
 									   'reference_allele', 'reference_sample', 'reference_gene', 'reference_position',
 									   'ref_codon', 'ref_aa', 'snv_support']) + '\n')
@@ -1946,6 +1947,7 @@ def phase_and_id_snvs(input_args):
 		trimmed_depth_mad = median_absolute_deviation(depths_at_all_refined_present_hgs)
 
 		# Check if phasing needed
+		"""
 		homolog_variable_positions = defaultdict(set)
 		haplotype_allele_at_position = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: None)))
 		number_of_haplotypes = 0
@@ -2123,6 +2125,7 @@ def phase_and_id_snvs(input_args):
 					print(hg + '\t' + pe_sample)
 				bgc_fasta_handle.write('>' + pe_sample + '_|_' + str(hi+1) + '\n' + seq + '\n')
 			bgc_fasta_handle.close()
+		"""
 
 		all_snv_supporting_reads = set([])
 		with open(snv_file) as of:
@@ -2183,8 +2186,25 @@ def phase_and_id_snvs(input_args):
 							dn_or_ds = "non-synonymous"
 						else:
 							dn_or_ds = "synonymous"
-						no_handle.write('\t'.join([str(x) for x in [gcf_id, pe_sample, hg, msa_pos, alt_al,
-															codon_position, alt_codon, alt_aa, dn_or_ds,
+
+						site_total_coverage = pos_allele_support[hg][msa_pos]['TOTAL']
+						site_allele_coverage = pos_allele_support[hg][msa_pos][alt_al]
+
+						site_total_coverage_standardized = (site_total_coverage - trimmed_depth_median)/float(trimmed_depth_mad)
+						site_allele_coverage_standardized = (site_allele_coverage - trimmed_depth_median) / float(trimmed_depth_mad)
+
+						site_major_allele_count = max([pos_allele_support[hg][msa_pos]['A'],
+													   pos_allele_support[hg][msa_pos]['C'],
+													   pos_allele_support[hg][msa_pos]['G'],
+													   pos_allele_support[hg][msa_pos]['T']])
+						snv_is_major_allele = False
+						if site_major_allele_count == site_allele_coverage:
+							snv_is_major_allele = True
+
+						no_handle.write('\t'.join([str(x) for x in [gcf_id, pe_sample, hg, msa_pos,
+															site_total_coverage_standardized,
+															site_allele_coverage_standardized, snv_is_major_allele,
+															alt_al, codon_position, alt_codon, alt_aa, dn_or_ds,
 															ts_or_tv, ref_al, sample, gene, ref_pos,
 															ref_codon, ref_aa, snv_support_count, snv_support_reads]]) + '\n')
 						all_snv_supporting_reads = all_snv_supporting_reads.union(set(snv_support_reads.split(', ')))

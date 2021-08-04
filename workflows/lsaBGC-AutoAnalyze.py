@@ -427,7 +427,6 @@ def lsaBGC_AutoAnalyze():
 		logObject.error("Had issues with creating GCF vs. genome-wide divergence plots.")
 		raise RuntimeError("Had issues with creating GCF vs. genome-wide divergence plots.")
 
-
 	# Close logging object and exit
 	util.closeLoggerObject(logObject)
 	sys.exit(0)
