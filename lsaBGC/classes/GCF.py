@@ -1531,7 +1531,7 @@ class GCF(Pan):
 				self.logObject.error(traceback.format_exc())
 			raise RuntimeError(traceback.format_exc())
 
-	def generateGenePhylogenies(self, codon_alignments_file, phased_alleles_outdir, comp_hg_phylo_outdir, hg_nonunique_positions, ambiguity_filter=0.1, sequence_filter=0.25, min_number_of_sites=10):
+	def generateGenePhylogenies(self, codon_alignments_file, phased_alleles_outdir, comp_hg_phylo_outdir, hg_nonunique_positions, ambiguity_filter=0.00001, sequence_filter=0.25, min_number_of_sites=10):
 		try:
 			codon_alignment_paths = {}
 			with open(codon_alignments_file) as ocaf:
@@ -1593,7 +1593,7 @@ class GCF(Pan):
 					tot_seq_count = len(pos_bases)
 					gap_seq_count = len([a for a in pos_bases if a == '-'])
 					amb_prop = float(gap_seq_count)/float(tot_seq_count)
-					if amb_prop >= 0.00001 :# ambiguity_filter:
+					if amb_prop >= ambiguity_filter:
 						ambiguous_positions_to_filter.add(pos)
 
 				gene_alignment_with_refs_filtered_file = comp_hg_phylo_outdir + hg + '.fasta'

@@ -50,6 +50,7 @@ RSCRIPT_FOR_NJTREECONSTRUCTION = lsaBGC_main_directory + '/lsaBGC/Rscripts/creat
 RSCRIPT_FOR_DEFINECLADES_FROM_PHYLO = lsaBGC_main_directory + '/lsaBGC/Rscripts/defineCladesFromPhylo.R'
 RSCRIPT_FOR_BIGPICTUREHEATMAP = lsaBGC_main_directory + '/lsaBGC/Rscripts/plotBigPictureHeatmap.R'
 RSCRIPT_FOR_GCFGENEPLOTS = lsaBGC_main_directory + '/lsaBGC/Rscripts/gcfGenePlots.R'
+RSCRIPT_FOR_DIVERGENCEPLOT = lsaBGC_main_directory + '/lsaBGC/Rscripts/divergencePlot.R'
 
 def create_parser():
 	""" Parse arguments """
@@ -324,11 +325,12 @@ def lsaBGC_AutoAnalyze():
 
 	combined_gene_plotting_input_file = outdir + 'GCF_Gene_Plotting_Input.txt'
 	combined_consensus_similarity_file = outdir + 'GCF_Ortholog_Group_Consensus_Sequence_Similarity.txt'
+	combined_divergence_results_file = outdir + 'GCF_Divergences.txt'
 
 	combined_gene_plotting_input_handle = open(combined_gene_plotting_input_file, 'w')
 	combined_consensus_similarity_handle = open(combined_consensus_similarity_file, 'w')
 	combined_orthoresults_unrefined_handle = open(outdir + 'GCF_Ortholog_Group_Information.txt', 'w')
-	combined_divergence_results_handle = open(outdir + 'GCF_Divergences.txt', 'w')
+	combined_divergence_results_handle = open(combined_divergence_results_file, 'w')
 
 	combined_consensus_similarity_handle.write('\t'.join(['GCF', 'GCF_Order', 'Homolog_Group', 'Homolog_Group_Order', 'label', 'Difference_to_Consensus_Sequence']) + '\n')
 	for i, g in enumerate(os.listdir(gcf_listing_dir)):
@@ -407,7 +409,7 @@ def lsaBGC_AutoAnalyze():
 		logObject.error("Had issues with creating big picture heatmap.")
 		raise RuntimeError("Had issues with creating big picture heatmap.")
 
-	# create big-picture heatmap of presence/sequence-similarity to consensus sequence of homolog groups from each gcf
+	# create gcf pop gen stats and conservation plots
 	gcf_gene_views_pdf_file = outdir + 'GCF_Conservation_and_PopStats_Views.pdf'
 	cmd = ['Rscript', RSCRIPT_FOR_GCFGENEPLOTS, combined_gene_plotting_input_file, gcf_gene_views_pdf_file]
 	try:
@@ -415,6 +417,16 @@ def lsaBGC_AutoAnalyze():
 	except Exception as e:
 		logObject.error("Had issues with creating GCF gene conservation and population stats views.")
 		raise RuntimeError("Had issues with creating GCF gene conservation and population stats views.")
+
+	# create divergence plot
+	gcf_divergence_pdf_file = outdir + 'GCF_Divergence.pdf'
+	cmd = ['Rscript', RSCRIPT_FOR_DIVERGENCEPLOT, combined_divergence_results_file, gcf_divergence_pdf_file]
+	try:
+		util.run_cmd(cmd, logObject)
+	except Exception as e:
+		logObject.error("Had issues with creating GCF vs. genome-wide divergence plots.")
+		raise RuntimeError("Had issues with creating GCF vs. genome-wide divergence plots.")
+
 
 	# Close logging object and exit
 	util.closeLoggerObject(logObject)

@@ -61,7 +61,6 @@ def create_parser():
     parser.add_argument('-o', '--output_directory', help="Output directory.", required=True)
     parser.add_argument('-b1', '--first_boundary_homolog', help="Identifier for the first homolog group to be used as boundary for pruning BGCs..", required=True)
     parser.add_argument('-b2', '--second_boundary_homolog', help="Identifier for the second homolog group to be used as boundary for pruning BGCs.", required=True)
-    parser.add_argument('-c', '--cores', type=int, help="Number of cores to use for MCL step.", required=False, default=1)
     args = parser.parse_args()
     return args
 
@@ -97,7 +96,6 @@ def lsaBGC_Refiner():
     """
 
     gcf_id = myargs.gcf_id
-    cores = myargs.cores
     first_boundary_homolog = myargs.first_boundary_homolog
     second_boundary_homolog = myargs.second_boundary_homolog
 
@@ -111,9 +109,9 @@ def lsaBGC_Refiner():
     # Step 0: Log input arguments and update reference and query FASTA files.
     logObject.info("Saving parameters for future provedance.")
     parameters_file = outdir + 'Parameter_Inputs.txt'
-    parameter_values = [gcf_listing_file, orthofinder_matrix_file, outdir, gcf_id, first_boundary_homolog, second_boundary_homolog, cores]
+    parameter_values = [gcf_listing_file, orthofinder_matrix_file, outdir, gcf_id, first_boundary_homolog, second_boundary_homolog]
     parameter_names = ["GCF Listing File", "OrthoFinder Orthogroups.csv File", "Output Directory", "GCF Identifier",
-                       "First Boundary Homolog", "Second Boundary Homolog", "Cores"]
+                       "First Boundary Homolog", "Second Boundary Homolog"]
     util.logParametersToFile(parameters_file, parameter_names, parameter_values)
     logObject.info("Done saving parameters!")
 
