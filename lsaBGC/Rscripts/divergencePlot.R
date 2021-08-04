@@ -6,9 +6,9 @@ divergence.report <- args[1]
 result.pdf <- args[2]
 
 dat <- read.table(divergence.report, header=T, sep='\t')
-dat.filt.90 <- dat[,dat$gcf_content_sim >= 0.90]
-dat.filt.75 <- dat[,dat$gcf_content_sim >= 0.75]
-dat.filt.50 <- dat[,dat$gcf_content_sim >= 0.50]
+dat.filt.90 <- dat[dat$gcf_content_sim >= 0.90,]
+dat.filt.75 <- dat[dat$gcf_content_sim >= 0.75,]
+dat.filt.50 <- dat[dat$gcf_content_sim >= 0.50,]
 
 pdf(result.pdf, height=10, width=20)
 
