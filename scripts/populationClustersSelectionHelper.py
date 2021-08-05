@@ -48,9 +48,6 @@ from lsaBGC import util
 lsaBGC_main_directory = '/'.join(os.path.realpath(__file__).split('/')[:-2])
 RSCRIPT_FOR_NJTREECONSTRUCTION = lsaBGC_main_directory + '/lsaBGC/Rscripts/createNJTree.R'
 RSCRIPT_FOR_DEFINECLADES_FROM_PHYLO = lsaBGC_main_directory + '/lsaBGC/Rscripts/defineCladesFromPhylo.R'
-RSCRIPT_FOR_BIGPICTUREHEATMAP = lsaBGC_main_directory + '/lsaBGC/Rscripts/plotBigPictureHeatmap.R'
-RSCRIPT_FOR_GCFGENEPLOTS = lsaBGC_main_directory + '/lsaBGC/Rscripts/gcfGenePlots.R'
-
 
 def create_parser():
     """ Parse arguments """
@@ -187,6 +184,7 @@ def lsaBGC_AutoAnalyze():
     if not os.path.isdir(result_dir): os.system('mkdir %s' % result_dir)
     for ps in range(lower_num_populations, upper_num_populations+1):
         ps_dir = result_dir + 'PopSize_' + str(ps) + '/'
+        if not os.path.isdir(ps_dir): os.system('mkdir %s' % ps_dir)
         population_listing_file = ps_dir + 'Populations_Defined.txt'
         populations_on_nj_tree_pdf = ps_dir + 'Populations_on_Lineage_Tree.pdf'
 
