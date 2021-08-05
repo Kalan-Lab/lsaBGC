@@ -60,35 +60,16 @@ def create_parser():
 	Affiliation: Kalan Lab, UW Madison, Department of Medical Microbiology and Immunology
 	""", formatter_class=argparse.RawTextHelpFormatter)
 
+    parser.add_argument('-l', '--input_listing', help="Path to tab delimited file listing: (1) sample name (2) path to Prokka Genbank and (3) path to Prokka predicted proteome. This file is produced by lsaBGC-Process.py.", required=True, default=None)
     parser.add_argument('-o', '--output_directory', help="Parent output/workspace directory.", required=True)
-    parser.add_argument('-l', '--input_listing', help="Path to tab delimited file listing: (1) sample name (2) path to Prokka Genbank and (3) path to Prokka predicted proteome. This file is produced by lsaBGC-Process.py.", required=False, default=None)
     parser.add_argument('-k', '--sample_set', help="Sample set to keep in analysis. Should be file with one sample id per line.", required=False)
     parser.add_argument('-s', '--lineage_phylogeny', help="Path to species phylogeny. If not provided a MASH based neighborjoining tree will be constructed and used.", default=None, required=False)
-    parser.add_argument('-p', '--population_analysis', action='store_true', help="Whether to construct species phylogeny and use it to determine populations.",
-                        default=False, required=False)
-    parser.add_argument('-lps', '--lower_num_populations', type=int, help='If population analysis specified, what is the lower number of populations to fit to . Use the script determinePopulationK.py to see how populations will look with k set to different values.', required=False, default=4)
-    parser.add_argument('-ups', '--lower_num_populations', type=int, help='If population analysis specified, what is the number of populations to . Use the script determinePopulationK.py to see how populations will look with k set to different values.', required=False, default=4)
-
-    parser.add_argument('-i', '--discovary_analysis_id',
-                        help="Identifier for novelty SNV mining analysis. Not providing this parameter will avoid running lsaBGC-DiscoVary step.",
-                        required=False, default=None)
-    parser.add_argument('-n', '--discovary_input_listing',
-                        help="Path to tab delimited file listing: (1) sample name (2) path to forward reads and (3) path to reverse reads.",
-                        required=False, default=None)
+    parser.add_argument('-lps', '--lower_num_populations', type=int, help='If population analysis specified, what is the lower number of populations to fit to . Use the script determinePopulationK.py to see how populations will look with k set to different values.', required=False, default=2)
+    parser.add_argument('-ups', '--upper_num_populations', type=int, help='If population analysis specified, what is the number of populations to . Use the script determinePopulationK.py to see how populations will look with k set to different values.', required=False, default=20)
     parser.add_argument('-c', '--cores', type=int, help="Total number of cores to use.", required=False, default=1)
 
     args = parser.parse_args()
     return args
-
-
-def writeToOpenHandle(gcf_results_file, combined_results_handle, include_header):
-    with open(gcf_results_file) as ogrf:
-        for i, line in enumerate(ogrf):
-            if i == 0 and include_header:
-                combined_results_handle.write(line)
-            elif i != 0:
-                combined_results_handle.write(line)
-
 
 def lsaBGC_AutoAnalyze():
     """
@@ -102,7 +83,6 @@ def lsaBGC_AutoAnalyze():
 
     outdir = os.path.abspath(myargs.output_directory) + '/'
     gcf_listing_dir = os.path.abspath(myargs.gcf_listing_dir) + '/'
-    original_orthofinder_matrix_file = os.path.abspath(myargs.orthofinder_matrix)
     input_listing_file = os.path.abspath(myargs.input_listing)
 
     try:
@@ -124,10 +104,8 @@ def lsaBGC_AutoAnalyze():
 
     sample_set_file = myargs.sample_set
     lineage_phylogeny_file = myargs.lineage_phylogeny
-    population_analysis = myargs.population_analysis
-    num_populations = myargs.num_populations
-    discovary_analysis_id = myargs.discovary_analysis_id
-    discovary_input_listing = myargs.discovary_input_listing
+    lower_num_populations = myargs.lower_num_populations
+    upper_num_populations = myargs.upper_num_populations
     cores = myargs.cores
 
     """
@@ -141,14 +119,11 @@ def lsaBGC_AutoAnalyze():
     # Step 0: Log input arguments and update reference and query FASTA files.
     logObject.info("Saving parameters for easier determination of results' provenance in the future.")
     parameters_file = outdir + 'Parameter_Inputs.txt'
-    parameter_values = [gcf_listing_dir, input_listing_file, original_orthofinder_matrix_file, outdir,
-                        lineage_phylogeny_file, population_analysis, discovary_analysis_id, discovary_input_listing,
-                        sample_set_file, num_populations, cores]
-    parameter_names = ["GCF Listings Directory", "Listing File of Prokka Annotation Files for Initial Set of Samples",
-                       "OrthoFinder Homolog Matrix", "Output Directory", "Phylogeny File in Newick Format",
-                       "Delineate Populations and Perform Population Genetics Analytics", "DiscoVary Analysis ID",
-                       "DiscoVary Sequencing Data Location Specification File", "Sample Retention Set",
-                       "Number of Populations", "Cores"]
+    parameter_values = [input_listing_file, outdir,  lineage_phylogeny_file, sample_set_file,
+                        lower_num_populations, upper_num_populations, cores]
+    parameter_names = ["Listing File of Prokka Annotation Files for Initial Set of Samples",
+                       "Output Directory", "Phylogeny File in Newick Format", "Sample Retention Set",
+                       "Lower Limit for Number of Populations", "Upper Limit for Number of Populations" "Cores"]
     util.logParametersToFile(parameters_file, parameter_names, parameter_values)
     logObject.info("Done saving parameters!")
 
@@ -178,7 +153,6 @@ def lsaBGC_AutoAnalyze():
         mash_matrix_handle.write('\t'.join(printlist) + '\n')
     mash_matrix_handle.close()
 
-    lineage_phylogeny_from_mash = False
     if not lineage_phylogeny_file:
         # Run MASH Analysis Between Genomic Assemblies
         logObject.info("Using MASH estimated distances between genomes to infer neighbor-joining tree.")
@@ -190,7 +164,6 @@ def lsaBGC_AutoAnalyze():
             util.run_cmd(cmd, logObject)
             assert (util.is_newick(mash_nj_tree))
             lineage_phylogeny_file = mash_nj_tree
-            lineage_phylogeny_from_mash = True
         except Exception as e:
             logObject.error(
                 "Had issues with creating neighbor joining tree and defining populations using treestructure.")
@@ -211,48 +184,16 @@ def lsaBGC_AutoAnalyze():
         lineage_phylogeny_file = update_lineage_phylogeny_file
         logObject.info("Successfully refined lineage phylogeny for sample set of interest.")
 
-    if sample_retention_set != None:
-        # Editing GCF listing files and input listing file to keep only samples of interest
-        update_input_listing_file = outdir + 'Sample_Annotation_Files.Pruned.txt'
-        update_input_listing_handle = open(update_input_listing_file, 'w')
-        with open(input_listing_file) as oilf:
-            for line in oilf:
-                line = line.strip()
-                ls = line.split('\t')
-                if ls[0] in sample_retention_set:
-                    update_input_listing_handle.write(line + '\n')
-        update_input_listing_handle.close()
 
-        update_gcf_listing_dir = outdir + 'GCF_Listings_Pruned/'
-        if not os.path.isdir(update_gcf_listing_dir):
-            os.system('mkdir %s' % update_gcf_listing_dir)
+    result_dir = outdir + 'Population_Mapping_Results/'
+    if not os.path.isdir(result_dir): os.system('mkdir %s' % result_dir)
+    for ps in range(lower_num_populations, upper_num_populations+1):
+        ps_dir = result_dir + 'PopSize_' + str(ps) + '/'
+        population_listing_file = ps_dir + 'Populations_Defined.txt'
+        populations_on_nj_tree_pdf = ps_dir + 'Populations_on_Lineage_Tree.pdf'
 
-        for g in os.listdir(gcf_listing_dir):
-            update_gcf_listing_file = update_gcf_listing_dir + g
-            update_gcf_listing_handle = open(update_gcf_listing_file, 'w')
-            with open(gcf_listing_dir + g) as ogf:
-                for line in ogf:
-                    line = line.strip()
-                    ls = line.split('\t')
-                    if ls[0] in sample_retention_set:
-                        update_gcf_listing_handle.write(line + '\n')
-            update_gcf_listing_handle.close()
-
-        input_listing_file = update_input_listing_file
-        gcf_listing_dir = update_gcf_listing_dir
-
-    all_samples = set([])
-    with open(input_listing_file) as oilf:
-        for line in oilf:
-            all_samples.add(line.split('\t')[0])
-
-    population_listing_file = None
-    if population_analysis:
-        population_listing_file = outdir + 'Populations_Defined.txt'
-        populations_on_nj_tree_pdf = outdir + 'Populations_on_Lineage_Tree.pdf'
-        # create neighbor-joining tree
-
-        cmd = ['Rscript', RSCRIPT_FOR_DEFINECLADES_FROM_PHYLO, lineage_phylogeny_file, str(num_populations),
+        # Attempt population fitting
+        cmd = ['Rscript', RSCRIPT_FOR_DEFINECLADES_FROM_PHYLO, lineage_phylogeny_file, str(ps),
                population_listing_file, populations_on_nj_tree_pdf]
         try:
             util.run_cmd(cmd, logObject)
@@ -262,183 +203,9 @@ def lsaBGC_AutoAnalyze():
             raise RuntimeError(
                 "Had issues with creating neighbor joining tree and defining populations using cutree.")
 
-    see_outdir = outdir + 'See/'
-    pop_outdir = outdir + 'PopGene/'
-    div_outdir = outdir + 'Divergence/'
-    if not os.path.isdir(see_outdir): os.system('mkdir %s' % see_outdir)
-    if not os.path.isdir(pop_outdir): os.system('mkdir %s' % pop_outdir)
-    if not os.path.isdir(div_outdir): os.system('mkdir %s' % div_outdir)
-
-    if discovary_analysis_id and discovary_input_listing:
-        dis_outdir = outdir + 'DiscoVary_' + '_'.join(discovary_analysis_id.split()) + '/'
-        if not os.path.isdir(dis_outdir): os.system('mkdir %s' % dis_outdir)
-
-    for g in os.listdir(gcf_listing_dir):
-        gcf_id = g.split('.txt')[0]
-        gcf_listing_file = gcf_listing_dir + g
-        orthofinder_matrix_file = original_orthofinder_matrix_file
-        logObject.info("Beginning analysis for GCF %s" % gcf_id)
-        sys.stderr.write("Beginning analysis for GCF %s\n" % gcf_id)
-
-        # 1. Run lsaBGC-See.py
-        gcf_see_outdir = see_outdir + gcf_id + '/'
-        if not os.path.isdir(gcf_see_outdir):
-            os.system('mkdir %s' % gcf_see_outdir)
-            cmd = ['lsaBGC-See.py', '-g', gcf_listing_file, '-m', orthofinder_matrix_file, '-o', gcf_see_outdir,
-                   '-i', gcf_id, '-s', lineage_phylogeny_file, '-p', '-c', str(cores)]
-            try:
-                util.run_cmd(cmd, logObject)
-            except Exception as e:
-                logObject.warning("lsaBGC-See.py was unsuccessful for GCF %s" % gcf_id)
-                sys.stderr.write("Warning: lsaBGC-See.py was unsuccessful for GCF %s\n" % gcf_id)
-
-        # 2. Run lsaBGC-PopGene.py
-        gcf_pop_outdir = pop_outdir + gcf_id + '/'
-        if not os.path.isdir(gcf_pop_outdir):
-            os.system('mkdir %s' % gcf_pop_outdir)
-            cmd = ['lsaBGC-PopGene.py', '-g', gcf_listing_file, '-m', orthofinder_matrix_file, '-o', gcf_pop_outdir,
-                   '-i', gcf_id, '-c', str(cores)]
-            if population_listing_file:
-                cmd += ['-p', population_listing_file]
-            try:
-                util.run_cmd(cmd, logObject, stderr=sys.stderr, stdout=sys.stdout)
-            except Exception as e:
-                logObject.warning("lsaBGC-PopGene.py was unsuccessful for GCF %s" % gcf_id)
-                sys.stderr.write("Warning: lsaBGC-PopGene.py was unsuccessful for GCF %s\n" % gcf_id)
-
-        # 3. Run lsaBGC-Divergence.py
-        gcf_div_outdir = div_outdir + gcf_id + '/'
-        if not os.path.isdir(gcf_div_outdir):
-            os.system('mkdir %s' % gcf_div_outdir)
-            cmd = ['lsaBGC-Divergence.py', '-g', gcf_listing_file, '-l', input_listing_file, '-o', gcf_div_outdir,
-                   '-i', gcf_id, '-a', gcf_pop_outdir + 'Codon_Alignments_Listings.txt', '-c', str(cores),
-                   '-pi', gw_fasta_listing_file, '-pr', outdir + 'genome_wide.out']
-            try:
-                util.run_cmd(cmd, logObject)
-            except Exception as e:
-                logObject.warning("lsaBGC-Divergence.py was unsuccessful for GCF %s" % gcf_id)
-                sys.stderr.write("Warning: lsaBGC-Divergence.py was unsuccessful for GCF %s\n" % gcf_id)
-
-        # 4. Run lsaBGC-DiscoVary.py
-        if discovary_analysis_id and discovary_input_listing:
-            gcf_dis_outdir = dis_outdir + gcf_id + '/'
-            if not os.path.isdir(gcf_dis_outdir):
-                os.system('mkdir %s' % gcf_dis_outdir)
-                cmd = ['lsaBGC-DiscoVary.py', '-g', gcf_listing_file, '-m', orthofinder_matrix_file, '-o',
-                       gcf_dis_outdir, '-i', gcf_id, '-c', str(cores), '-p', discovary_input_listing, '-a',
-                       gcf_pop_outdir + 'Codon_Alignments_Listings.txt', '-l', input_listing_file]
-                try:
-                    util.run_cmd(cmd, logObject, stderr=sys.stderr, stdout=sys.stdout)
-                except Exception as e:
-                    logObject.warning("lsaBGC-DiscoVary.py was unsuccessful for GCF %s" % gcf_id)
-                    sys.stderr.write("Warning: lsaBGC-DiscoVary.py was unsuccessful for GCF %s\n" % gcf_id)
-
-    combined_gene_plotting_input_file = outdir + 'GCF_Gene_Plotting_Input.txt'
-    combined_consensus_similarity_file = outdir + 'GCF_Ortholog_Group_Consensus_Sequence_Similarity.txt'
-
-    combined_gene_plotting_input_handle = open(combined_gene_plotting_input_file, 'w')
-    combined_consensus_similarity_handle = open(combined_consensus_similarity_file, 'w')
-    combined_orthoresults_unrefined_handle = open(outdir + 'GCF_Ortholog_Group_Information.txt', 'w')
-    combined_divergence_results_handle = open(outdir + 'GCF_Divergences.txt', 'w')
-
-    combined_consensus_similarity_handle.write('\t'.join(
-        ['GCF', 'GCF_Order', 'Homolog_Group', 'Homolog_Group_Order', 'label',
-         'Difference_to_Consensus_Sequence']) + '\n')
-    for i, g in enumerate(os.listdir(gcf_listing_dir)):
-        gcf_id = g.split('.txt')[0]
-        gcf_pop_outdir = pop_outdir + gcf_id + '/'
-        gcf_div_outdir = div_outdir + gcf_id + '/'
-
-        gcf_pop_results_unrefined = gcf_pop_outdir + 'Ortholog_Group_Information.txt'
-        gcf_div_results = gcf_div_outdir + 'Relative_Divergence_Report.txt'
-
-        include_header = False
-        if i == 0: include_header = True
-        if os.path.isfile(gcf_pop_results_unrefined): writeToOpenHandle(gcf_pop_results_unrefined,
-                                                                        combined_orthoresults_unrefined_handle,
-                                                                        include_header)
-        if os.path.isfile(gcf_div_results): writeToOpenHandle(gcf_div_results, combined_divergence_results_handle,
-                                                              include_header)
-
-        data = []
-        with open(gcf_pop_results_unrefined) as ogpru:
-            for j, line in enumerate(ogpru):
-                line = line.strip('\n')
-                ls = line.split('\t')
-                if j == 0 and not include_header:
-                    continue
-                elif j == 0 and include_header:
-                    combined_gene_plotting_input_handle.write(
-                        '\t'.join(ls[:2] + ls[3:6] + ['gene_start', 'gene_stop'] + ls[6:-5]) + '\n')
-                elif ls[3] != 'NA':
-                    data.append([int(ls[3]), ls])
-
-        previous_end = 1
-        for tupls in sorted(data, key=itemgetter(0)):
-            ls = tupls[1]
-            combined_gene_plotting_input_handle.write('\t'.join(
-                ls[:2] + ls[3:6] + [str(previous_end), str(previous_end + int(float(ls[6])))] + ls[6:-10] + [
-                    ls[-10].replace('No conserved or variable sites!', 'NA'),
-                    ls[-9].split(' [')[0].replace('Conserved', 'NA').replace('Infinite', 'NA').strip()] + ls[-8:-5]) + '\n')
-            previous_end = previous_end + int(float(ls[6])) + 1
-
-        hg_ordering = defaultdict(lambda: 'NA')
-        with open(gcf_pop_results_unrefined) as ogpru:
-            for i, line in enumerate(ogpru):
-                if i == 0: continue
-                line = line.strip()
-                ls = line.split('\t')
-                hg_ordering[ls[1]] = ls[3]
-
-        gcf_pop_stats_outdir = gcf_pop_outdir + 'Codon_PopGen_Analyses/'
-        for f in os.listdir(gcf_pop_stats_outdir):
-            if f.endswith("_sim_to_consensus.txt"):
-                samps_accounted = set([])
-                hg = None
-                with open(gcf_pop_stats_outdir + f) as ogpso:
-                    for line in ogpso:
-                        line = line.strip()
-                        hg, samp, diff = line.split('\t')
-                        samps_accounted.add(samp)
-                        combined_consensus_similarity_handle.write(
-                            gcf_id + '\t' + gcf_id.split('_')[1] + '\t' + hg + '\t' + hg_ordering[
-                                hg] + '\t' + samp + '\t' + str(diff) + '\n')
-                for samp in all_samples:
-                    if not samp in samps_accounted:
-                        combined_consensus_similarity_handle.write(
-                            gcf_id + '\t' + gcf_id.split('_')[1] + '\t' + hg + '\t' + hg_ordering[
-                                hg] + '\t' + samp + '\t' + str(1.0) + '\n')
-
-    combined_gene_plotting_input_handle.close()
-    combined_consensus_similarity_handle.close()
-    combined_orthoresults_unrefined_handle.close()
-    combined_divergence_results_handle.close()
-
-    # Create Final R plots:
-
-    # create big-picture heatmap of presence/sequence-similarity to consensus sequence of homolog groups from each gcf
-    big_picture_heatmap_pdf_file = outdir + 'Consensus_Sequence_Similarity_of_Homolog_Groups.pdf'
-    cmd = ['Rscript', RSCRIPT_FOR_BIGPICTUREHEATMAP, lineage_phylogeny_file, combined_consensus_similarity_file,
-           population_listing_file, big_picture_heatmap_pdf_file]
-    try:
-        util.run_cmd(cmd, logObject)
-    except Exception as e:
-        logObject.error("Had issues with creating big picture heatmap.")
-        raise RuntimeError("Had issues with creating big picture heatmap.")
-
-    # create big-picture heatmap of presence/sequence-similarity to consensus sequence of homolog groups from each gcf
-    gcf_gene_views_pdf_file = outdir + 'GCF_Conservation_and_PopStats_Views.pdf'
-    cmd = ['Rscript', RSCRIPT_FOR_GCFGENEPLOTS, combined_gene_plotting_input_file, gcf_gene_views_pdf_file]
-    try:
-        util.run_cmd(cmd, logObject)
-    except Exception as e:
-        logObject.error("Had issues with creating GCF gene conservation and population stats views.")
-        raise RuntimeError("Had issues with creating GCF gene conservation and population stats views.")
-
     # Close logging object and exit
     util.closeLoggerObject(logObject)
     sys.exit(0)
-
 
 if __name__ == '__main__':
     lsaBGC_AutoAnalyze()
