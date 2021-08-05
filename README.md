@@ -39,6 +39,8 @@ lsaBGC was developed and tested on UNIX systems; however, there are no apprent r
 
 ## Acknowledgements
 
+We would like to thank members of the Kalan lab, Currie lab, Kwan lab, and Anantharaman lab at UW Madison for feedback on the development of lsaBGC.
+
 ## License
 
 ```
