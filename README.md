@@ -33,7 +33,7 @@ pip install .
 ## Dependencies
 As described in the Installation section above, dependencies can be set up easily through the use of a Conda environment and the provided yaml file.
 
-The set of dependencies for the core lsaBGC programs and auxiliary scripts, along with versions used for testing, include:
+The set of dependencies for the core lsaBGC programs and auxiliary scripts, along with versions used for testing are listed on the wiki in the Installation page.
 
 lsaBGC was developed and tested on UNIX systems; however, there are no apprent reasons users would have difficulty running on OS X or Windows.
 
