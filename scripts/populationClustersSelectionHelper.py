@@ -85,11 +85,10 @@ def lsaBGC_AutoAnalyze():
     input_listing_file = os.path.abspath(myargs.input_listing)
 
     try:
-        assert (os.path.isdir(gcf_listing_dir) and os.path.isfile(original_orthofinder_matrix_file) and os.path.isfile(
-            input_listing_file))
+        assert (os.path.isfile(input_listing_file))
     except:
         raise RuntimeError(
-            'Input directory with GCF listings does not exist or the OrthoFinder does not exist. Exiting now ...')
+            'Input listings file does not exist. Exiting now ...')
 
     if os.path.isdir(outdir):
         sys.stderr.write("Output directory exists. Continuing in 5 seconds ...\n ")
