@@ -869,7 +869,7 @@ class GCF(Pan):
 			hg = f.split('.msa.fna')[0]
 			codon_alignment_fasta = input_codon_dir + f
 			if gw_pairwise_differences:
-				dict(gw_pairwise_differences)
+				gw_pairwise_differences = dict(gw_pairwise_differences)
 			inputs.append([self.gcf_id, hg, codon_alignment_fasta, popgen_dir, plots_dir, self.comp_gene_info, self.hg_genes,
 							 self.bgc_sample, self.hg_prop_multi_copy, dict(self.hg_order_scores), gw_pairwise_differences,
 						     dict(self.sample_population), population, self.logObject])
@@ -888,7 +888,7 @@ class GCF(Pan):
 
 	def identifyGCFInstances(self, outdir, sample_prokka_data, orthofinder_matrix_file, min_size=5, min_core_size=3,
 							 gcf_to_gcf_transition_prob=0.9, background_to_background_transition_prob=0.9,
-							 syntenic_correlation_threshold=0.8):
+							 syntenic_correlation_threshold=0.8, surround_gene_max=5):
 		"""
 		Function to search for instances of GCF in sample using HMM based approach based on homolog groups as characters,
 		"part of GCF" and "not part of GCF" as states - all trained on initial BGCs constituting GCF as identified by
@@ -1160,14 +1160,14 @@ class GCF(Pan):
 				min_bgc_order = min([self.gene_id_to_order[sample][gcf_segment_scaff][g] for g in gcf_segment[0]])
 				max_bgc_order = max([self.gene_id_to_order[sample][gcf_segment_scaff][g] for g in gcf_segment[0]])
 
-				for oi in range(min_bgc_order-10, min_bgc_order):
+				for oi in range(min_bgc_order-surround_gene_max, min_bgc_order):
 					if oi in self.gene_order_to_id[sample][gcf_segment_scaff].keys():
 						lt = self.gene_order_to_id[sample][gcf_segment_scaff][oi]
 						if lt in self.hmmscan_results_lenient.keys():
 							gcf_segment[0].append(lt)
 							gcf_segment[1].append(self.hmmscan_results_lenient[lt][0])
 
-				for oi in range(max_bgc_order+1, max_bgc_order+11):
+				for oi in range(max_bgc_order+1, max_bgc_order+surround_gene_max+1):
 					if oi in self.gene_order_to_id[sample][gcf_segment_scaff].keys():
 						lt = self.gene_order_to_id[sample][gcf_segment_scaff][oi]
 						if lt in self.hmmscan_results_lenient.keys():
