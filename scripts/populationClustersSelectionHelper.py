@@ -82,7 +82,6 @@ def lsaBGC_AutoAnalyze():
     myargs = create_parser()
 
     outdir = os.path.abspath(myargs.output_directory) + '/'
-    gcf_listing_dir = os.path.abspath(myargs.gcf_listing_dir) + '/'
     input_listing_file = os.path.abspath(myargs.input_listing)
 
     try:
