@@ -121,7 +121,7 @@ def lsaBGC_AutoAnalyze():
                         lower_num_populations, upper_num_populations, cores]
     parameter_names = ["Listing File of Prokka Annotation Files for Initial Set of Samples",
                        "Output Directory", "Phylogeny File in Newick Format", "Sample Retention Set",
-                       "Lower Limit for Number of Populations", "Upper Limit for Number of Populations" "Cores"]
+                       "Lower Limit for Number of Populations", "Upper Limit for Number of Populations", "Cores"]
     util.logParametersToFile(parameters_file, parameter_names, parameter_values)
     logObject.info("Done saving parameters!")
 
