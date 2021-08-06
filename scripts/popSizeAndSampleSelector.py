@@ -176,7 +176,7 @@ def lsaBGC_AutoAnalyze():
     gw_pairwise_differences = util.calculateMashPairwiseDifferences(gw_fasta_listing_file, outdir, 'genome_wide', 10000,
                                                                     cores, logObject, prune_set=sample_retention_set)
 
-    samp_assembly_n50s = {}
+    sample_assembly_n50s = {}
     for f in os.listdir(gw_fasta_dir):
         s = f.split('.fasta')[0]
         sample_assembly_fasta = gw_fasta_dir + f
