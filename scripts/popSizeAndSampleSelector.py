@@ -81,7 +81,7 @@ def determineN50(assembly_fasta):
         for rec in SeqIO.parse(oaf, 'fasta'):
             scaffold_lengths.append(len(str(rec.seq)))
     tmp = []
-    for tmp_number in set(list_of_lengths):
+    for tmp_number in set(scaffold_lengths):
         tmp += [tmp_number] * scaffold_lengths.count(tmp_number) * tmp_number
     tmp.sort()
 
