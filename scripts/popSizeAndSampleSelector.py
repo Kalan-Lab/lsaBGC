@@ -186,7 +186,7 @@ def lsaBGC_AutoAnalyze():
         printlist = [s1]
         all_samples.add(s1)
         for s2 in sorted(gw_pairwise_differences):
-            if gw_pairwise_differences[s1][s2] >= identity_cutoff:
+            if (1.0 - gw_pairwise_differences[s1][s2]) >= identity_cutoff:
                 pair_id = sorted([s1, s2])
                 similar_pairs.append(pair_id)
             printlist.append(str(gw_pairwise_differences[s1][s2]))
