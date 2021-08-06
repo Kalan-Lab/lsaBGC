@@ -213,8 +213,9 @@ def lsaBGC_AutoAnalyze():
     if sample_retention_set == None:
         sample_retention_set = all_samples
 
+    clusters = singleLinkageClustering(similar_pairs)
     redundant_samples = set([])
-    for cluster in singleLinkageClustering(similar_pairs):
+    for cluster in clusters:
         max_n50_rep = [0.0, None]
         for sample in cluster:
             sample_assembly_fasta = gw_fasta_dir + sample + '.fasta'
