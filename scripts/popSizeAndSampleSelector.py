@@ -45,6 +45,7 @@ from ete3 import Tree
 from Bio import SeqIO
 from lsaBGC.classes.Pan import Pan
 from lsaBGC import util
+import itertools
 
 lsaBGC_main_directory = '/'.join(os.path.realpath(__file__).split('/')[:-2])
 RSCRIPT_FOR_NJTREECONSTRUCTION = lsaBGC_main_directory + '/lsaBGC/Rscripts/createNJTree.R'
