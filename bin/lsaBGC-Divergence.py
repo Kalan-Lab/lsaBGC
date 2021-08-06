@@ -188,7 +188,7 @@ def lsaBGC_Divergence():
             logObject.error(error_message)
             raise RuntimeError(error_message)
 
-    # Step 2: Run MASH Analysis Between BGCs in GCF
+    # Step 2: Determine Sequence Similarity from Codon Alignments
     logObject.info("Determining similarities in BGC content and sequence space between pairs of samples.")
     bgc_pairwise_similarities = util.determineBGCSequenceSimilarityFromCodonAlignments(codon_alignments_file)
     logObject.info("Finished determining BGC specific similarity between pairs of samples.")

@@ -68,6 +68,7 @@ def create_parser():
 	parser.add_argument('-g', '--gcf_listing_dir', help='Directory with GCF listing files.', required=True)
 	parser.add_argument('-m', '--orthofinder_matrix', help="OrthoFinder homolog group by sample matrix.", required=True)
 	parser.add_argument('-k', '--sample_set', help="Sample set to keep in analysis. Should be file with one sample id per line.", required=False)
+	parser.add_argument('-f', '--fastani', action='store_true', help="Use FastANI instead of MASH for estimating genome-wide ANI between pairs of samples. Takes much longer but is more accurate.", required=False)
 	parser.add_argument('-s', '--lineage_phylogeny', help="Path to species phylogeny. If not provided a MASH based neighborjoining tree will be constructed and used.", default=None, required=False)
 	parser.add_argument('-p', '--population_analysis',	action='store_true', help="Whether to construct species phylogeny and use it to determine populations.", default=False, required=False)
 	parser.add_argument('-ps', '--num_populations', type=int, help='If population analysis specified, what is the number of populations to . Use the script determinePopulationK.py to see how populations will look with k set to different values.', required=False, default=4)
@@ -117,6 +118,7 @@ def lsaBGC_AutoAnalyze():
 	"""
 
 	sample_set_file = myargs.sample_set
+	use_fastani = myargs.fastani
 	lineage_phylogeny_file = myargs.lineage_phylogeny
 	population_analysis = myargs.population_analysis
 	num_populations = myargs.num_populations
@@ -136,13 +138,13 @@ def lsaBGC_AutoAnalyze():
 	logObject.info("Saving parameters for easier determination of results' provenance in the future.")
 	parameters_file = outdir + 'Parameter_Inputs.txt'
 	parameter_values = [gcf_listing_dir, input_listing_file, original_orthofinder_matrix_file, outdir,
-						lineage_phylogeny_file, population_analysis, discovary_analysis_id, discovary_input_listing,
-						sample_set_file, num_populations, cores]
+						lineage_phylogeny_file, use_fastani, population_analysis, discovary_analysis_id,
+						discovary_input_listing, sample_set_file, num_populations, cores]
 	parameter_names = ["GCF Listings Directory", "Listing File of Prokka Annotation Files for Initial Set of Samples",
 					   "OrthoFinder Homolog Matrix", "Output Directory", "Phylogeny File in Newick Format",
-					   "Delineate Populations and Perform Population Genetics Analytics", "DiscoVary Analysis ID",
-					   "DiscoVary Sequencing Data Location Specification File", "Sample Retention Set",
-					   "Number of Populations", "Cores"]
+					   "Use FastANI Instead of MASH?", "Delineate Populations and Perform Population Genetics Analytics",
+					   "DiscoVary Analysis ID", "DiscoVary Sequencing Data Location Specification File",
+					   "Sample Retention Set", "Number of Populations", "Cores"]
 	util.logParametersToFile(parameters_file, parameter_names, parameter_values)
 	logObject.info("Done saving parameters!")
 

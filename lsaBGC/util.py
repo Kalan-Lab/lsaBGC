@@ -777,6 +777,73 @@ def calculateMashPairwiseDifferences(fasta_listing_file, outdir, name, sketch_si
 		raise RuntimeError(error_message)
 	return pairwise_distances
 
+def runFastANI(fasta_listing_file, fastani_output_file, cores, logObject, prune_set=None):
+	"""
+	Calculate ANI estimate between pairs of samples using FastANI.
+
+	:param fasta_listing_file: A tab-delimited listing file with two columns: (1) sample name (2) path to FASTA file
+	:param outdir: The output directory where to write results
+	:param name: Output file name
+	:param cores: Number of cores/threads to use
+	:param logObject: The logging object.
+	"""
+	fastas = []
+	fasta_to_name = {}
+	try:
+		with open(fasta_listing_file) as oflf:
+			for line in oflf:
+				line = line.strip()
+				ls = line.split('\t')
+				if prune_set != None and not ls[0] in prune_set: continue
+				fastas.append(ls[1])
+				fasta_to_name[ls[1]] = ls[0]
+	except:
+		error_message = "Had issues reading the FASTA listing file %s" % fasta_listing_file
+		logObject.error(error_message)
+		raise RuntimeError(error_message)
+
+	fastani_input_file = outdir + 'MASH_Input.txt'
+	fastani_input_handle = open(mash_input_file, 'w')
+	fastani_input_handle.write('\n'.join(fastas))
+	fastani_input_handle.close()
+
+	# create mash database (using mash sketch)
+	fastani_cmd = ['fastANI', '-t', str(cores), '--ql', fastani_input_file, '--rl', fastani_input_file, '-o', fastani_output_file]
+	logObject.info('Running fastANI sketch with the following command: %s' % ' '.join(fastani_cmd))
+	try:
+		subprocess.call(' '.join(fastani_cmd), shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+						executable='/bin/bash')
+		logObject.info('Successfully ran: %s' % ' '.join(fastani_cmd))
+	except:
+		error_message = 'Had an issue running: %s' % ' '.join(fastani_cmd)
+		logObject.error(error_message)
+		raise RuntimeError(error_message)
+	mash_db = mash_db + '.msh'
+
+	try:
+		assert (os.path.isfile(fastani_output_file))
+	except:
+		error_message = "Had issue validating that FastANI ran properly, couldn't find: %s" % fastani_output_file
+		logObject.error(error_message)
+		raise RuntimeError(error_message)
+
+	pairwise_similarities = defaultdict(lambda: defaultdict(float))
+	try:
+		with open(fastani_output_file) as of:
+			for line in of:
+				line = line.strip()
+				ls = line.split('\t')
+				f1, f2, sim = ls[:3]
+				sim = float(sim)
+				n1 = fasta_to_name[f1]
+				n2 = fasta_to_name[f2]
+				pairwise_similarities[n1][n2] = sim
+	except:
+		error_message = 'Had issues reading the output of FastANI analysis at: %s' % fastani_output_file
+		logObject.error(error_message)
+		raise RuntimeError(error_message)
+	return pairwise_similarities
+
 def parseOrthoFinderMatrix(orthofinder_matrix_file, relevant_gene_lts):
 	"""
 	Function to parse and return information from OrthoFinderV2 de novo homolog group identification.

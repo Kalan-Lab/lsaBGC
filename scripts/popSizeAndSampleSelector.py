@@ -60,12 +60,13 @@ def create_parser():
 	""", formatter_class=argparse.RawTextHelpFormatter)
 
     parser.add_argument('-l', '--input_listing', help="Path to tab delimited file listing: (1) sample name (2) path to Prokka Genbank and (3) path to Prokka predicted proteome. This file is produced by lsaBGC-Process.py.", required=True, default=None)
+    parser.add_argument('-a', '--is_assembly_listing', action='store_true', help="Input listing is an assembly listing file instead.")
     parser.add_argument('-o', '--output_directory', help="Parent output/workspace directory.", required=True)
     parser.add_argument('-k', '--sample_set', help="Sample set to keep in analysis. Should be file with one sample id per line.", required=False)
     parser.add_argument('-s', '--lineage_phylogeny', help="Path to species phylogeny. If not provided a MASH based neighborjoining tree will be constructed and used.", default=None, required=False)
     parser.add_argument('-lps', '--lower_num_populations', type=int, help='If population analysis specified, what is the lower number of populations to fit to . Use the script determinePopulationK.py to see how populations will look with k set to different values.', required=False, default=2)
     parser.add_argument('-ups', '--upper_num_populations', type=int, help='If population analysis specified, what is the number of populations to . Use the script determinePopulationK.py to see how populations will look with k set to different values.', required=False, default=20)
-    parser.add_argument('-i', '--identity_cutoff', type=float, help='Identity to collapse samples at.', required=False, default=0.98)
+    parser.add_argument('-i', '--identity_cutoff', type=float, help='Identity to collapse samples at.', required=False, default=0.99)
     parser.add_argument('-c', '--cores', type=int, help="Total number of cores to use.", required=False, default=1)
 
     args = parser.parse_args()
@@ -90,21 +91,6 @@ def determineN50(assembly_fasta):
     else:
         median = tmp[int(len(tmp) / 2)]
     return(median)
-
-def singleLinkageClustering(similar_pairs):
-    """
-    Solution for single-linkage clustering taken from mimomu's repsonse in the stackoverflow page:
-    https://stackoverflow.com/questions/4842613/merge-lists-that-share-common-elements?lq=1
-    """
-    print(similar_pairs)
-    L = similar_pairs
-    LL = set(itertools.chain.from_iterable(L))
-    for each in LL:
-        components = [x for x in L if each in x]
-        for i in components:
-            L.remove(i)
-        L += [list(set(itertools.chain.from_iterable(components)))]
-    return(L)
 
 def lsaBGC_AutoAnalyze():
     """
@@ -140,6 +126,7 @@ def lsaBGC_AutoAnalyze():
     lower_num_populations = myargs.lower_num_populations
     upper_num_populations = myargs.upper_num_populations
     identity_cutoff = myargs.identity_cutoff
+    is_assembly_listing = myargs.is_assembly_listing
     cores = myargs.cores
 
     """
@@ -153,9 +140,9 @@ def lsaBGC_AutoAnalyze():
     # Step 0: Log input arguments and update reference and query FASTA files.
     logObject.info("Saving parameters for easier determination of results' provenance in the future.")
     parameters_file = outdir + 'Parameter_Inputs.txt'
-    parameter_values = [input_listing_file, outdir,  lineage_phylogeny_file, sample_set_file, identity_cutoff,
+    parameter_values = [input_listing_file, is_assembly_listing, outdir,  lineage_phylogeny_file, sample_set_file, identity_cutoff,
                         lower_num_populations, upper_num_populations, cores]
-    parameter_names = ["Listing File of Prokka Annotation Files for Initial Set of Samples",
+    parameter_names = ["Input Listing File", "Input Listing is Assemblies in FASTA and Not Prokka Annotations",
                        "Output Directory", "Phylogeny File in Newick Format", "Sample Retention Set", "Identity Cutoff",
                        "Lower Limit for Number of Populations", "Upper Limit for Number of Populations", "Cores"]
     util.logParametersToFile(parameters_file, parameter_names, parameter_values)
@@ -164,24 +151,28 @@ def lsaBGC_AutoAnalyze():
     # Step 0: (Optional) Parse sample set retention specifications file, if provided by the user.
     sample_retention_set = util.getSampleRetentionSet(sample_set_file)
 
-    Pan_Object = Pan(input_listing_file, logObject=logObject)
-    logObject.info("Converting Genbanks from Expansion listing file into FASTA per sample.")
-    gw_fasta_dir = outdir + 'Sample_Assemblies_in_FASTA/'
-    if not os.path.isdir(gw_fasta_dir): os.system('mkdir %s' % gw_fasta_dir)
     gw_fasta_listing_file = outdir + 'Genome_FASTA_Listings.txt'
-    Pan_Object.convertGenbanksIntoFastas(gw_fasta_dir, gw_fasta_listing_file)
-    logObject.info("Successfully performed conversions.")
+    if not is_assembly_listing:
+        Pan_Object = Pan(input_listing_file, logObject=logObject)
+        logObject.info("Converting Genbanks from Expansion listing file into FASTA per sample.")
+        gw_fasta_dir = outdir + 'Sample_Assemblies_in_FASTA/'
+        if not os.path.isdir(gw_fasta_dir): os.system('mkdir %s' % gw_fasta_dir)
+        Pan_Object.convertGenbanksIntoFastas(gw_fasta_dir, gw_fasta_listing_file)
+        logObject.info("Successfully performed conversions.")
+    else:
+        gw_fasta_listing_file = input_listing_file
 
     logObject.info("Running MASH Analysis Between Genomes.")
     gw_pairwise_differences = util.calculateMashPairwiseDifferences(gw_fasta_listing_file, outdir, 'genome_wide', 10000,
                                                                     cores, logObject, prune_set=sample_retention_set)
 
     sample_assembly_n50s = {}
-    for f in os.listdir(gw_fasta_dir):
-        s = f.split('.fasta')[0]
-        sample_assembly_fasta = gw_fasta_dir + f
-        sample_assembly_n50 = determineN50(sample_assembly_fasta)
-        sample_assembly_n50s[s] = sample_assembly_n50
+    with open(gw_fasta_listing_file) as ogf:
+        for line in ogf:
+            line = line.strip()
+            s, sample_assembly_fasta = line.split('\t')
+            sample_assembly_n50 = determineN50(sample_assembly_fasta)
+            sample_assembly_n50s[s] = sample_assembly_n50
 
     logObject.info("Ran MASH Analysis Between Genomes.")
     mash_matrix_file = outdir + 'MASH_Distance_Matrix.txt'
@@ -226,23 +217,6 @@ def lsaBGC_AutoAnalyze():
 
     if sample_retention_set == None:
         sample_retention_set = all_samples
-
-    """
-    clusters = singleLinkageClustering(similar_pairs)
-    redundant_samples = set([])
-    for cluster in clusters:
-        print(cluster)
-        max_n50_rep = [0.0, None]
-        for sample in cluster:
-            sample_assembly_fasta = gw_fasta_dir + sample + '.fasta'
-            sample_assembly_n50 = determineN50(sample_assembly_fasta)
-            if sample_assembly_n50 > max_n50_rep[0]:
-                max_n50_rep = [sample_assembly_n50, sample]
-        assert(max_n50_rep[1] != None)
-        for sample in cluster:
-            if sample != max_n50_rep[1]:
-                redundant_samples.add(sample)
-    """
 
     sample_retention_set = sample_retention_set.difference(redundant_samples)
 
