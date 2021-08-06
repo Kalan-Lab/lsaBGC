@@ -137,7 +137,7 @@ def lsaBGC_AutoAnalyze():
     lineage_phylogeny_file = myargs.lineage_phylogeny
     lower_num_populations = myargs.lower_num_populations
     upper_num_populations = myargs.upper_num_populations
-    identity_cutoff = myargs.identity
+    identity_cutoff = myargs.identity_cutoff
     cores = myargs.cores
 
     """
