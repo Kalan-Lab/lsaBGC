@@ -96,6 +96,7 @@ def singleLinkageClustering(similar_pairs):
     Solution for single-linkage clustering taken from mimomu's repsonse in the stackoverflow page:
     https://stackoverflow.com/questions/4842613/merge-lists-that-share-common-elements?lq=1
     """
+    print(similar_pairs)
     L = similar_pairs
     LL = set(itertools.chain.from_iterable(L))
     for each in LL:
@@ -182,18 +183,20 @@ def lsaBGC_AutoAnalyze():
 
     all_samples = set([])
     similar_pairs = []
-    for s1 in sorted(gw_pairwise_differences):
+    for i, s1 in enumerate(sorted(gw_pairwise_differences)):
         printlist = [s1]
         all_samples.add(s1)
-        for s2 in sorted(gw_pairwise_differences):
+        for j, s2 in enumerate(sorted(gw_pairwise_differences)):
             if (1.0 - gw_pairwise_differences[s1][s2]) >= identity_cutoff:
-                pair_id = sorted([s1, s2])
-                similar_pairs.append(pair_id)
+                if i < j:
+                    pair_id = sorted([s1, s2])
+                    similar_pairs.append(pair_id)
             printlist.append(str(gw_pairwise_differences[s1][s2]))
         mash_matrix_handle.write('\t'.join(printlist) + '\n')
     mash_matrix_handle.close()
 
     if not lineage_phylogeny_file:
+        print('Building MASH based tree')
         # Run MASH Analysis Between Genomic Assemblies
         logObject.info("Using MASH estimated distances between genomes to infer neighbor-joining tree.")
         mash_nj_tree = outdir + 'MASH_NeighborJoining_Tree.nwk'
