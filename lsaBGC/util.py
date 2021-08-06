@@ -380,7 +380,7 @@ def determineAllelesFromCodonAlignment(codon_alignment, max_mismatch=10, matchin
 	return [allele_clusters, pair_matching]
 
 def cleanUpSampleName(original_name):
-	return original_name.replace(' ', '_').replace(':', '_').replace('|', '_').replace('"', '_').replace("'", '_').replace("=", "_").replace('-', '_').replace('(', '').replace(')', '').replace('/', '').replace('\\', '').replace('[', '').replace(']', '')
+	return original_name.replace('#', '').replace(' ', '_').replace(':', '_').replace('|', '_').replace('"', '_').replace("'", '_').replace("=", "_").replace('-', '_').replace('(', '').replace(')', '').replace('/', '').replace('\\', '').replace('[', '').replace(']', '').replace(',', '')
 
 def read_pair_generator_defunct(bam, region_string=None, start=None, stop=None):
 	"""
@@ -818,7 +818,6 @@ def runFastANI(fasta_listing_file, fastani_output_file, cores, logObject, prune_
 		error_message = 'Had an issue running: %s' % ' '.join(fastani_cmd)
 		logObject.error(error_message)
 		raise RuntimeError(error_message)
-	mash_db = mash_db + '.msh'
 
 	try:
 		assert (os.path.isfile(fastani_output_file))

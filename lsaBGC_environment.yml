@@ -23,6 +23,8 @@ dependencies:
   - conda-forge::r-pegas=1.0_1
   - conda-forge::r-ggplot2=3.3.5
   - conda-forge::r-cowplot=1.1.1
+  - conda-forge::r-phytools=0.7_80
+  - conda-forge::r-ape=5.5
   - conda-forge::r-scatterpie=0.1.6
   - conda-forge::r-dplyr=1.0.7
   - conda-forge::r-gggenes=0.4.1

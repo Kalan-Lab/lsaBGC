@@ -57,16 +57,16 @@ def create_parser():
 	""", formatter_class=argparse.RawTextHelpFormatter)
 
     parser.add_argument('-g', '--gcf_listing', help='BGC specifications file. Tab delimited: 1st column contains path to AntiSMASH BGC Genbank and 2nd column contains sample name.', required=True)
-    parser.add_argument('-l', '--input_listing', help="Sequencing data specifications file. Tab delimited: 1st column contains metagenomic sample name, whereas 2nd and 3rd columns contain full paths to forward and reverse reads, respectively.", required=True)
-    parser.add_argument('-i', '--gcf_id', help="GCF identifier.", required=False, default='GCF_X')
+    parser.add_argument('-l', '--input_listing', help="Path to tab delimited file listing: (1) sample name (2) path to Prokka Genbank and (3) path to Prokka predicted proteome. This file is produced by lsaBGC-Process.py.", required=False, default=None)
     parser.add_argument('-a', '--codon_alignments', help="File listing the codon alignments for each homolog group in the GCF. Can be found as part of PopGene output.", required=True)
+    parser.add_argument('-pr', '--precomputed_ani_result', help="Path to MASH or FastANI results.", required=False)
+    parser.add_argument('-pi', '--precomputed_ani_input', help="Path to two-column, tab-delimited file showing FASTA used as input for MASH/FastANI in second column with sample name in the first column.", required=False)
+    parser.add_argument('-f', '--fastani', action='store_true', help="Use FastANI instead of MASH for estimating genome-wide ANI between pairs of samples. Takes much longer but is more accurate.", required=False)
+    parser.add_argument('-i', '--gcf_id', help="GCF identifier.", required=False, default='GCF_X')
     parser.add_argument('-o', '--output_directory', help="Prefix for output files.", required=True)
     parser.add_argument('-k', '--sample_set', help="Sample set to keep in analysis. Should be file with one sample id per line.", required=False)
     parser.add_argument('-c', '--cores', type=int, help="The number of cores to use.", required=False, default=1)
     parser.add_argument('-s', '--sketch_size', type=int, help="The sketch size, number of kmers to use in fingerprinting", required=False, default=10000)
-    parser.add_argument('-pr', '--precomputed_mash_result', help="Path to precomputed MASH dist output.", required=False)
-    parser.add_argument('-pi', '--precomputed_mash_input', help="Path FASTA listing used to compute MASH dist output.", required=False)
-
     args = parser.parse_args()
 
     return args
@@ -109,8 +109,9 @@ def lsaBGC_Divergence():
     gcf_id = myargs.gcf_id
     cores = myargs.cores
     sketch_size = myargs.sketch_size
-    precomputed_mash_result_file = myargs.precomputed_mash_result
-    precomputed_mash_input_file = myargs.precomputed_mash_input
+    precomputed_ani_result_file = myargs.precomputed_ani_result
+    precomputed_ani_input_file = myargs.precomputed_ani_input
+    used_fastani = myargs.fastani
 
     """
     START WORKFLOW
@@ -123,12 +124,13 @@ def lsaBGC_Divergence():
     # Log input arguments and update reference and query FASTA files.
     logObject.info("Saving parameters for future provedance.")
     parameters_file = outdir + 'Parameter_Inputs.txt'
-    parameter_values = [gcf_listing_file, input_listing_file, outdir, sketch_size, gcf_id, sample_set_file,
-                        precomputed_mash_result_file, precomputed_mash_input_file, cores]
+    parameter_values = [gcf_listing_file, input_listing_file, codon_alignments_file, outdir, sketch_size, used_fastani,
+                        gcf_id, sample_set_file, precomputed_ani_result_file, precomputed_ani_input_file, cores]
     parameter_names = ["GCF Listing File", "Input Listing File of Prokka Annotation Files for All Samples",
-                       "Output Directory", "MASH Sketch Size",
-                       "GCF Identifier", "Retention Sample Set", "Precomputed MASH dist Results File",
-                       "Precomputed MASH Input File", "Cores"]
+                       "File Listing the Location of Codon Alignments for Each Homolog Group",
+                       "Output Directory", "MASH Sketch Size", 'Used FastANI for ANI Estimation?',
+                       "GCF Identifier", "Retention Sample Set", "Precomputed MASH/FastANI Results File",
+                       "Precomputed MASH/FastANI Input File", "Cores"]
     util.logParametersToFile(parameters_file, parameter_names, parameter_values)
     logObject.info("Done saving parameters!")
 
@@ -140,7 +142,7 @@ def lsaBGC_Divergence():
 
     # Step 1: Extract Genbank Sequences into FASTA and Run MASH Analysis Between Genomic Assemblies
     gw_pairwise_differences = None
-    if not os.path.isfile(precomputed_mash_result_file) or not os.path.isfile(precomputed_mash_input_file):
+    if not os.path.isfile(precomputed_ani_result_file) or not os.path.isfile(precomputed_ani_input_file):
         logObject.info("Converting BGC Genbanks from GCF listing file into FASTA per sample.")
         gcf_fasta_listing_file = outdir + 'GCF_Listings.fasta'
         gcf_fasta_dir = outdir + 'Sample_GCF_FASTAs/'
@@ -162,7 +164,7 @@ def lsaBGC_Divergence():
         logObject.info("Ran MASH Analysis Between Genomes.")
     else:
         fasta_to_name = {}
-        gw_pairwise_differences = defaultdict(lambda: defaultdict(float))
+        gw_pairwise_similarities = defaultdict(lambda: defaultdict(float))
         try:
             with open(precomputed_mash_input_file) as oflf:
                 for line in oflf:

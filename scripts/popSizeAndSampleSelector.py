@@ -210,10 +210,8 @@ def lsaBGC_AutoAnalyze():
             assert (util.is_newick(mash_nj_tree))
             lineage_phylogeny_file = mash_nj_tree
         except Exception as e:
-            logObject.error(
-                "Had issues with creating neighbor joining tree and defining populations using treestructure.")
-            raise RuntimeError(
-                "Had issues with creating neighbor joining tree and defining populations using treestructure.")
+            logObject.error("Had issues with creating neighbor joining tree and defining populations using treestructure.")
+            raise RuntimeError("Had issues with creating neighbor joining tree and defining populations using treestructure.")
 
     if sample_retention_set == None:
         sample_retention_set = all_samples
@@ -252,10 +250,8 @@ def lsaBGC_AutoAnalyze():
         try:
             util.run_cmd(cmd, logObject)
         except Exception as e:
-            logObject.error(
-                "Had issues with creating neighbor joining tree and defining populations using cutree.")
-            raise RuntimeError(
-                "Had issues with creating neighbor joining tree and defining populations using cutree.")
+            logObject.error("Had issues with creating neighbor joining tree and defining populations using cutree.")
+            raise RuntimeError("Had issues with creating neighbor joining tree and defining populations using cutree.")
 
     # Close logging object and exit
     util.closeLoggerObject(logObject)
