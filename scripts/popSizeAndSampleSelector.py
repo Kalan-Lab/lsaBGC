@@ -195,12 +195,13 @@ def lsaBGC_AutoAnalyze():
         all_samples.add(s1)
         for j, s2 in enumerate(sorted(gw_pairwise_differences)):
             if (1.0 - gw_pairwise_differences[s1][s2]) >= identity_cutoff:
-                s1_n50 = sample_assembly_n50s[s1]
-                s2_n50 = sample_assembly_n50s[s2]
-                if s1_n50 >= s2_n50:
-                    redundant_samples.add(s2)
-                else:
-                    redundant_samples.add(s1)
+                if s1 != s2 and i < j:
+                    s1_n50 = sample_assembly_n50s[s1]
+                    s2_n50 = sample_assembly_n50s[s2]
+                    if s1_n50 >= s2_n50:
+                        redundant_samples.add(s2)
+                    else:
+                        redundant_samples.add(s1)
             printlist.append(str(gw_pairwise_differences[s1][s2]))
         mash_matrix_handle.write('\t'.join(printlist) + '\n')
     mash_matrix_handle.close()
