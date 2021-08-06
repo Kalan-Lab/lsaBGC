@@ -219,7 +219,7 @@ def determineSeqSimCodonAlignment(codon_alignment_file):
 				pair_seq_matching[s2][s1] = general_matching_percentage
 
 	return pair_seq_matching
-"""
+
 def determineBGCSequenceSimilarity(input):
 	s1, g1s, s2, g2s = input
 	tot_comp_pos = 0
@@ -270,7 +270,7 @@ def determineBGCSequenceSimilarityFromCodonAlignments(codon_alignments_file):
 					if s1 == s2: continue
 					g2s = gene_sequences[g2]
 
-					multiprocess_inputs.append([s1, g1s, s2, g2s])
+					#multiprocess_inputs.append([s1, g1s, s2, g2s])
 
 					tot_comp_pos = 0
 					g1_comp_pos = 0
@@ -309,7 +309,7 @@ def determineBGCSequenceSimilarityFromCodonAlignments(codon_alignments_file):
 				bgc_pairwise_similarities[s2][s1] = ["NA", 0.0]
 
 	return bgc_pairwise_similarities
-"""
+
 def determineAllelesFromCodonAlignment(codon_alignment, max_mismatch=10, matching_percentage_cutoff=0.99):
 	gene_sequences = {}
 	allele_identifiers = {}

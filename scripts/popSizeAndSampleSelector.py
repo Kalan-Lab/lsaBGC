@@ -176,21 +176,31 @@ def lsaBGC_AutoAnalyze():
     gw_pairwise_differences = util.calculateMashPairwiseDifferences(gw_fasta_listing_file, outdir, 'genome_wide', 10000,
                                                                     cores, logObject, prune_set=sample_retention_set)
 
+    samp_assembly_n50s = {}
+    for f in os.listdir(gw_fasta_dir):
+        s = f.split('.fasta')[0]
+        sample_assembly_fasta = gw_fasta_dir + f
+        sample_assembly_n50 = determineN50(sample_assembly_fasta)
+        sample_assembly_n50s[s] = sample_assembly_n50
+
     logObject.info("Ran MASH Analysis Between Genomes.")
     mash_matrix_file = outdir + 'MASH_Distance_Matrix.txt'
     mash_matrix_handle = open(mash_matrix_file, 'w')
     mash_matrix_handle.write('Sample/Sample\t' + '\t'.join([s for s in sorted(gw_pairwise_differences)]) + '\n')
 
     all_samples = set([])
-    similar_pairs = []
+    redundant_samples = set([])
     for i, s1 in enumerate(sorted(gw_pairwise_differences)):
         printlist = [s1]
         all_samples.add(s1)
         for j, s2 in enumerate(sorted(gw_pairwise_differences)):
             if (1.0 - gw_pairwise_differences[s1][s2]) >= identity_cutoff:
-                if i < j:
-                    pair_id = sorted([s1, s2])
-                    similar_pairs.append(pair_id)
+                s1_n50 = sample_assembly_n50s[s1]
+                s2_n50 = sample_assembly_n50s[s2]
+                if s1_n50 >= s2_n50:
+                    redundant_samples.add(s2)
+                else:
+                    redundant_samples.add(s1)
             printlist.append(str(gw_pairwise_differences[s1][s2]))
         mash_matrix_handle.write('\t'.join(printlist) + '\n')
     mash_matrix_handle.close()
@@ -216,6 +226,7 @@ def lsaBGC_AutoAnalyze():
     if sample_retention_set == None:
         sample_retention_set = all_samples
 
+    """
     clusters = singleLinkageClustering(similar_pairs)
     redundant_samples = set([])
     for cluster in clusters:
@@ -230,6 +241,7 @@ def lsaBGC_AutoAnalyze():
         for sample in cluster:
             if sample != max_n50_rep[1]:
                 redundant_samples.add(sample)
+    """
 
     sample_retention_set = sample_retention_set.difference(redundant_samples)
 
