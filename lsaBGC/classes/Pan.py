@@ -175,9 +175,8 @@ class Pan:
 					['MCL inflation parameter', 'Jaccard similarity cutoff', 'GCF id', 'number of BGCs',
 					 'number of samples',
 					 'samples with multiple BGCs in GCF', 'size of the SCC', 'mean number of OGs',
-					 'stdev for number of OGs', 'min difference', 'max difference',
-					 'number of core gene aggregates',
-					 'annotations']) + '\n')
+					 'stdev for number of OGs', 'number of core gene aggregates',
+					 'min similarity', 'max similarity', 'annotations']) + '\n')
 			else:
 				sfes_handle = open(final_stats_expanded_singletons_file, 'w')
 				sf_handle.write(

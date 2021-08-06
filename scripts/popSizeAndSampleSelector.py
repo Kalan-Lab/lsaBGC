@@ -42,6 +42,7 @@ from operator import itemgetter
 import argparse
 from collections import defaultdict
 from ete3 import Tree
+from Bio import SeqIO
 from lsaBGC.classes.Pan import Pan
 from lsaBGC import util
 
@@ -52,7 +53,7 @@ RSCRIPT_FOR_DEFINECLADES_FROM_PHYLO = lsaBGC_main_directory + '/lsaBGC/Rscripts/
 def create_parser():
     """ Parse arguments """
     parser = argparse.ArgumentParser(description="""
-	Program: populationClustersSelectionHelper.py
+	Program: popSizeAndSampleSelector.py
 	Author: Rauf Salamzade
 	Affiliation: Kalan Lab, UW Madison, Department of Medical Microbiology and Immunology
 	""", formatter_class=argparse.RawTextHelpFormatter)
@@ -63,10 +64,45 @@ def create_parser():
     parser.add_argument('-s', '--lineage_phylogeny', help="Path to species phylogeny. If not provided a MASH based neighborjoining tree will be constructed and used.", default=None, required=False)
     parser.add_argument('-lps', '--lower_num_populations', type=int, help='If population analysis specified, what is the lower number of populations to fit to . Use the script determinePopulationK.py to see how populations will look with k set to different values.', required=False, default=2)
     parser.add_argument('-ups', '--upper_num_populations', type=int, help='If population analysis specified, what is the number of populations to . Use the script determinePopulationK.py to see how populations will look with k set to different values.', required=False, default=20)
+    parser.add_argument('-i', '--identity_cutoff', type=float, help='Identity to collapse samples at.', required=False, default=0.98)
     parser.add_argument('-c', '--cores', type=int, help="Total number of cores to use.", required=False, default=1)
 
     args = parser.parse_args()
     return args
+
+def determineN50(assembly_fasta):
+    """
+    Code borrowed from:
+    https://onestopdataanalysis.com/n50-genome/
+    """
+    scaffold_lengths = []
+    with open(assembly_fasta) as oaf:
+        for rec in SeqIO.parse(oaf, 'fasta'):
+            scaffold_lengths.append(len(str(rec.seq)))
+    tmp = []
+    for tmp_number in set(list_of_lengths):
+        tmp += [tmp_number] * scaffold_lengths.count(tmp_number) * tmp_number
+    tmp.sort()
+
+    if (len(tmp) % 2) == 0:
+        median = (tmp[int(len(tmp) / 2) - 1] + tmp[int(len(tmp) / 2)]) / 2
+    else:
+        median = tmp[int(len(tmp) / 2)]
+    return(median)
+
+def singleLinkageClustering(similar_pairs):
+    """
+    Solution for single-linkage clustering taken from mimomu's repsonse in the stackoverflow page:
+    https://stackoverflow.com/questions/4842613/merge-lists-that-share-common-elements?lq=1
+    """
+    L = similar_pairs
+    LL = set(itertools.chain.from_iterable(L))
+    for each in LL:
+        components = [x for x in L if each in x]
+        for i in components:
+            L.remove(i)
+        L += [list(set(itertools.chain.from_iterable(components)))]
+    return(L)
 
 def lsaBGC_AutoAnalyze():
     """
@@ -101,6 +137,7 @@ def lsaBGC_AutoAnalyze():
     lineage_phylogeny_file = myargs.lineage_phylogeny
     lower_num_populations = myargs.lower_num_populations
     upper_num_populations = myargs.upper_num_populations
+    identity_cutoff = myargs.identity
     cores = myargs.cores
 
     """
@@ -114,10 +151,10 @@ def lsaBGC_AutoAnalyze():
     # Step 0: Log input arguments and update reference and query FASTA files.
     logObject.info("Saving parameters for easier determination of results' provenance in the future.")
     parameters_file = outdir + 'Parameter_Inputs.txt'
-    parameter_values = [input_listing_file, outdir,  lineage_phylogeny_file, sample_set_file,
+    parameter_values = [input_listing_file, outdir,  lineage_phylogeny_file, sample_set_file, identity_cutoff,
                         lower_num_populations, upper_num_populations, cores]
     parameter_names = ["Listing File of Prokka Annotation Files for Initial Set of Samples",
-                       "Output Directory", "Phylogeny File in Newick Format", "Sample Retention Set",
+                       "Output Directory", "Phylogeny File in Newick Format", "Sample Retention Set", "Identity Cutoff",
                        "Lower Limit for Number of Populations", "Upper Limit for Number of Populations", "Cores"]
     util.logParametersToFile(parameters_file, parameter_names, parameter_values)
     logObject.info("Done saving parameters!")
@@ -136,14 +173,21 @@ def lsaBGC_AutoAnalyze():
     logObject.info("Running MASH Analysis Between Genomes.")
     gw_pairwise_differences = util.calculateMashPairwiseDifferences(gw_fasta_listing_file, outdir, 'genome_wide', 10000,
                                                                     cores, logObject, prune_set=sample_retention_set)
+
     logObject.info("Ran MASH Analysis Between Genomes.")
     mash_matrix_file = outdir + 'MASH_Distance_Matrix.txt'
     mash_matrix_handle = open(mash_matrix_file, 'w')
     mash_matrix_handle.write('Sample/Sample\t' + '\t'.join([s for s in sorted(gw_pairwise_differences)]) + '\n')
 
+    all_samples = set([])
+    similar_pairs = []
     for s1 in sorted(gw_pairwise_differences):
         printlist = [s1]
+        all_samples.add(s1)
         for s2 in sorted(gw_pairwise_differences):
+            if gw_pairwise_differences[s1][s2] >= identity_cutoff:
+                pair_id = sorted([s1, s2])
+                similar_pairs.append(pair_id)
             printlist.append(str(gw_pairwise_differences[s1][s2]))
         mash_matrix_handle.write('\t'.join(printlist) + '\n')
     mash_matrix_handle.close()
@@ -165,20 +209,41 @@ def lsaBGC_AutoAnalyze():
             raise RuntimeError(
                 "Had issues with creating neighbor joining tree and defining populations using treestructure.")
 
-    elif lineage_phylogeny_file and sample_retention_set != None:
-        # Pruning lineage phylogeny provided
-        logObject.info("Pruning lineage phylogeny to retain only samples of interest.")
-        update_lineage_phylogeny_file = outdir + 'Lineage_Phylogeny.Pruned.nwk'
+    if sample_retention_set == None:
+        sample_retention_set = all_samples
 
-        t = Tree(lineage_phylogeny_file)
-        R = t.get_midpoint_outgroup()
-        t.set_outgroup(R)
-        t.prune(sample_retention_set)
-        # t.resolve_polytomy(recursive=True)
-        t.write(format=5, outfile=update_lineage_phylogeny_file)
-        lineage_phylogeny_file = update_lineage_phylogeny_file
-        logObject.info("Successfully refined lineage phylogeny for sample set of interest.")
+    redundant_samples = set([])
+    for cluster in singleLinkageClustering(similar_pairs):
+        max_n50_rep = [0.0, None]
+        for sample in cluster:
+            sample_assembly_fasta = gw_fasta_dir + sample + '.fasta'
+            sample_assembly_n50 = determineN50(sample_assembly_fasta)
+            if sample_assembly_n50 > max_n50_rep[0]:
+                max_n50_rep = [sample_assembly_n50, sample]
+        assert(max_n50_rep[1] != None)
+        for sample in cluster:
+            if sample != max_n50_rep[1]:
+                redundant_samples.add(sample)
 
+    sample_retention_set = sample_retention_set.difference(redundant_samples)
+
+    # Pruning lineage phylogeny provided
+    logObject.info("Pruning lineage phylogeny to retain only samples of interest.")
+    update_lineage_phylogeny_file = outdir + 'Lineage_Phylogeny.Pruned.nwk'
+    update_sample_list_file = outdir + 'Sample_Listing_Keep.txt'
+
+    update_sample_list_handle = open(update_sample_list_file, 'w')
+    for sample in sample_retention_set:
+        update_sample_list_handle.write(sample + '\n')
+    update_sample_list_handle.close()
+
+    t = Tree(lineage_phylogeny_file)
+    R = t.get_midpoint_outgroup()
+    t.set_outgroup(R)
+    t.prune(sample_retention_set)
+    t.write(format=5, outfile=update_lineage_phylogeny_file)
+    lineage_phylogeny_file = update_lineage_phylogeny_file
+    logObject.info("Successfully refined lineage phylogeny for sample set of interest.")
 
     result_dir = outdir + 'Population_Mapping_Results/'
     if not os.path.isdir(result_dir): os.system('mkdir %s' % result_dir)
