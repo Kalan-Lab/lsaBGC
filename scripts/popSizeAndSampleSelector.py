@@ -173,7 +173,7 @@ def main():
         gw_pairwise_similarities = util.calculateMashPairwiseDifferences(gw_fasta_listing_file, outdir, 'genome_wide', 10000, cores, logObject, prune_set=sample_retention_set)
     else:
         similarity_output_file = outdir + 'FastANI_Results.txt'
-        gw_pairwise_similarities = util.runFastANI(gw_fasta_listing_file, fastani_output_file, cores, logObject, prune_set=sample_retention_set)
+        gw_pairwise_similarities = util.runFastANI(gw_fasta_listing_file, similarity_output_file, cores, logObject, prune_set=sample_retention_set)
 
     sample_assembly_n50s = {}
     with open(gw_fasta_listing_file) as ogf:
