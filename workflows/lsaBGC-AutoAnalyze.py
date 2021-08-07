@@ -59,7 +59,7 @@ def create_parser():
 	Author: Rauf Salamzade
 	Affiliation: Kalan Lab, UW Madison, Department of Medical Microbiology and Immunology
 
-	Program to parallelize most of lsaBGC programs for each GCF. 
+	Program to parallelize most of lsaBGC programs across each GCF. 
 	
 	""", formatter_class=argparse.RawTextHelpFormatter)
 
@@ -196,7 +196,6 @@ def lsaBGC_AutoAnalyze():
 		R = t.get_midpoint_outgroup()
 		t.set_outgroup(R)
 		t.prune(sample_retention_set)
-		#t.resolve_polytomy(recursive=True)
 		t.write(format=5, outfile=update_lineage_phylogeny_file)
 		lineage_phylogeny_file = update_lineage_phylogeny_file
 		logObject.info("Successfully refined lineage phylogeny for sample set of interest.")
@@ -286,7 +285,7 @@ def lsaBGC_AutoAnalyze():
 		if not os.path.isdir(gcf_pop_outdir):
 			os.system('mkdir %s' % gcf_pop_outdir)
 			cmd = ['lsaBGC-PopGene.py', '-g', gcf_listing_file, '-m', orthofinder_matrix_file, '-o', gcf_pop_outdir,
-				   '-i', gcf_id, '-c', str(cores), '-pi', gw_fasta_listing_file, '-pr', outdir + 'genome_wide.out']
+				   '-i', gcf_id, '-c', str(cores), '-pi', gw_fasta_listing_file, '-pr', fastani_result_file]
 			if population_listing_file:
 				cmd += ['-p', population_listing_file]
 			try:
@@ -301,7 +300,7 @@ def lsaBGC_AutoAnalyze():
 			os.system('mkdir %s' % gcf_div_outdir)
 			cmd = ['lsaBGC-Divergence.py', '-g', gcf_listing_file, '-l', input_listing_file, '-o', gcf_div_outdir,
 				   '-i', gcf_id, '-a',	gcf_pop_outdir + 'Codon_Alignments_Listings.txt', '-c', str(cores),
-				   '-pi', gw_fasta_listing_file, '-pr', outdir + 'genome_wide.out']
+				   '-pi', gw_fasta_listing_file, '-pr', fastani_result_file]
 			try:
 				util.run_cmd(cmd, logObject)
 			except Exception as e:

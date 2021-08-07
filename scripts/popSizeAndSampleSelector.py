@@ -183,8 +183,9 @@ def lsaBGC_AutoAnalyze():
     redundant_samples = set([])
     poor_n50_samples = set([])
     for i, s1 in enumerate(sorted(gw_pairwise_differences)):
-        s1_n50 = sample_assembly_n50s
-        if s1_n50 < 10000: poor_n50_samples.add(s1)
+        s1_n50 = sample_assembly_n50s[s1]
+        if s1_n50 < 10000:
+            poor_n50_samples.add(s1)
         printlist = [s1]
         all_samples.add(s1)
         for j, s2 in enumerate(sorted(gw_pairwise_differences)):
