@@ -181,13 +181,15 @@ def lsaBGC_AutoAnalyze():
 
     all_samples = set([])
     redundant_samples = set([])
+    poor_n50_samples = set([])
     for i, s1 in enumerate(sorted(gw_pairwise_differences)):
+        s1_n50 = sample_assembly_n50s
+        if s1_n50 < 10000: poor_n50_samples.add(s1)
         printlist = [s1]
         all_samples.add(s1)
         for j, s2 in enumerate(sorted(gw_pairwise_differences)):
             if (1.0 - gw_pairwise_differences[s1][s2]) >= identity_cutoff:
                 if s1 != s2 and i < j:
-                    s1_n50 = sample_assembly_n50s[s1]
                     s2_n50 = sample_assembly_n50s[s2]
                     if s1_n50 >= s2_n50:
                         redundant_samples.add(s2)
@@ -216,7 +218,7 @@ def lsaBGC_AutoAnalyze():
     if sample_retention_set == None:
         sample_retention_set = all_samples
 
-    sample_retention_set = sample_retention_set.difference(redundant_samples)
+    sample_retention_set = sample_retention_set.difference(redundant_samples).difference(poor_n50_samples)
 
     # Pruning lineage phylogeny provided
     logObject.info("Pruning lineage phylogeny to retain only samples of interest.")

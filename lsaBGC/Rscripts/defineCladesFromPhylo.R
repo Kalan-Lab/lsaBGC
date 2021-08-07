@@ -5,7 +5,6 @@
 
 library(ape)
 library(phytools)
-library(phylogram)
 library(ggtree)
 
 args = commandArgs(trailingOnly=TRUE)

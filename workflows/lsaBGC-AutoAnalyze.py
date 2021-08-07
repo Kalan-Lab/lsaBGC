@@ -68,8 +68,7 @@ def create_parser():
 	parser.add_argument('-g', '--gcf_listing_dir', help='Directory with GCF listing files.', required=True)
 	parser.add_argument('-m', '--orthofinder_matrix', help="OrthoFinder homolog group by sample matrix.", required=True)
 	parser.add_argument('-k', '--sample_set', help="Sample set to keep in analysis. Should be file with one sample id per line.", required=False)
-	parser.add_argument('-f', '--fastani', action='store_true', help="Use FastANI instead of MASH for estimating genome-wide ANI between pairs of samples. Takes much longer but is more accurate.", required=False)
-	parser.add_argument('-s', '--lineage_phylogeny', help="Path to species phylogeny. If not provided a MASH based neighborjoining tree will be constructed and used.", default=None, required=False)
+	parser.add_argument('-s', '--lineage_phylogeny', help="Path to species phylogeny. If not provided a FastANI based neighborjoining tree will be constructed and used.", default=None, required=False)
 	parser.add_argument('-p', '--population_analysis',	action='store_true', help="Whether to construct species phylogeny and use it to determine populations.", default=False, required=False)
 	parser.add_argument('-ps', '--num_populations', type=int, help='If population analysis specified, what is the number of populations to . Use the script determinePopulationK.py to see how populations will look with k set to different values.', required=False, default=4)
 	parser.add_argument('-i', '--discovary_analysis_id', help="Identifier for novelty SNV mining analysis. Not providing this parameter will avoid running lsaBGC-DiscoVary step.", required=False, default=None)
@@ -118,7 +117,6 @@ def lsaBGC_AutoAnalyze():
 	"""
 
 	sample_set_file = myargs.sample_set
-	use_fastani = myargs.fastani
 	lineage_phylogeny_file = myargs.lineage_phylogeny
 	population_analysis = myargs.population_analysis
 	num_populations = myargs.num_populations
@@ -138,11 +136,11 @@ def lsaBGC_AutoAnalyze():
 	logObject.info("Saving parameters for easier determination of results' provenance in the future.")
 	parameters_file = outdir + 'Parameter_Inputs.txt'
 	parameter_values = [gcf_listing_dir, input_listing_file, original_orthofinder_matrix_file, outdir,
-						lineage_phylogeny_file, use_fastani, population_analysis, discovary_analysis_id,
+						lineage_phylogeny_file, population_analysis, discovary_analysis_id,
 						discovary_input_listing, sample_set_file, num_populations, cores]
 	parameter_names = ["GCF Listings Directory", "Listing File of Prokka Annotation Files for Initial Set of Samples",
 					   "OrthoFinder Homolog Matrix", "Output Directory", "Phylogeny File in Newick Format",
-					   "Use FastANI Instead of MASH?", "Delineate Populations and Perform Population Genetics Analytics",
+					   "Delineate Populations and Perform Population Genetics Analytics",
 					   "DiscoVary Analysis ID", "DiscoVary Sequencing Data Location Specification File",
 					   "Sample Retention Set", "Number of Populations", "Cores"]
 	util.logParametersToFile(parameters_file, parameter_names, parameter_values)
@@ -159,33 +157,32 @@ def lsaBGC_AutoAnalyze():
 	Pan_Object.convertGenbanksIntoFastas(gw_fasta_dir, gw_fasta_listing_file)
 	logObject.info("Successfully performed conversions.")
 
-	logObject.info("Running MASH Analysis Between Genomes.")
-	gw_pairwise_differences = util.calculateMashPairwiseDifferences(gw_fasta_listing_file, outdir, 'genome_wide', 10000, cores, logObject, prune_set=sample_retention_set)
-	logObject.info("Ran MASH Analysis Between Genomes.")
-	mash_matrix_file = outdir + 'MASH_Distance_Matrix.txt'
-	mash_matrix_handle = open(mash_matrix_file, 'w')
-	mash_matrix_handle.write('Sample/Sample\t' + '\t'.join([s for s in sorted(gw_pairwise_differences)]) + '\n')
+	logObject.info("Running FastANI Analysis Between Genomes.")
+	fastani_result_file = outdir + 'FastANI_Results.txt'
+	gw_pairwise_similarities = util.runFastANI(gw_fasta_listing_file, fastani_result_file, cores, logObject, prune_set=sample_retention_set)
+	logObject.info("Ran FastANI Analysis Between Genomes.")
 
+	fastani_matrix_file = outdir + 'FastANI_Distance_Matrix.txt'
+	fastani_matrix_handle = open(fastani_matrix_file, 'w')
+	fastani_matrix_handle.write('Sample/Sample\t' + '\t'.join([s for s in sorted(gw_pairwise_differences)]) + '\n')
 	for s1 in sorted(gw_pairwise_differences):
 		printlist = [s1]
 		for s2 in sorted(gw_pairwise_differences):
-			printlist.append(str(gw_pairwise_differences[s1][s2]))
-		mash_matrix_handle.write('\t'.join(printlist) + '\n')
-	mash_matrix_handle.close()
+			printlist.append(str(1.0 - gw_pairwise_similarities[s1][s2]))
+		fastani_matrix_handle.write('\t'.join(printlist) + '\n')
+	fastani_matrix_handle.close()
 
-	lineage_phylogeny_from_mash = False
 	if not lineage_phylogeny_file:
-		# Run MASH Analysis Between Genomic Assemblies
-		logObject.info("Using MASH estimated distances between genomes to infer neighbor-joining tree.")
-		mash_nj_tree = outdir + 'MASH_NeighborJoining_Tree.nwk'
+		# Run FastANI Analysis Between Genomic Assemblies
+		logObject.info("Using FastANI estimated ANI between genomes to infer neighbor-joining tree.")
+		fastani_nj_tree = outdir + 'FastANI_NeighborJoining_Tree.nwk'
 
 		# create neighbor-joining tree
-		cmd = ['Rscript', RSCRIPT_FOR_NJTREECONSTRUCTION, mash_matrix_file, mash_nj_tree]
+		cmd = ['Rscript', RSCRIPT_FOR_NJTREECONSTRUCTION, fastani_matrix_file, fastani_nj_tree]
 		try:
 			util.run_cmd(cmd, logObject)
-			assert(util.is_newick(mash_nj_tree))
-			lineage_phylogeny_file = mash_nj_tree
-			lineage_phylogeny_from_mash = True
+			assert(util.is_newick(fastani_nj_tree))
+			lineage_phylogeny_file = fastani_nj_tree
 		except Exception as e:
 			logObject.error("Had issues with creating neighbor joining tree and defining populations using treestructure.")
 			raise RuntimeError("Had issues with creating neighbor joining tree and defining populations using treestructure.")
@@ -428,7 +425,6 @@ def lsaBGC_AutoAnalyze():
 	except Exception as e:
 		logObject.error("Had issues with creating GCF vs. genome-wide divergence plots.")
 		raise RuntimeError("Had issues with creating GCF vs. genome-wide divergence plots.")
-
 
 	# Close logging object and exit
 	util.closeLoggerObject(logObject)

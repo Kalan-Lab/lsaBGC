@@ -26,7 +26,8 @@ dependencies:
   - conda-forge::r-phytools=0.7_80
   - conda-forge::r-ape=5.5
   - conda-forge::r-scatterpie=0.1.6
-  - conda-forge::r-dplyr=1.0.7
+  - conda-forge::r-dplyr=1.0.4
   - conda-forge::r-gggenes=0.4.1
-  - bioconda::bioconductor-ggtree=2.4.1
+  - bioconda::bioconductor-ggtree=2.4.0
   - conda-forge::r-ggalluvial=0.12.3
+  - conda-forge::pomegranate=0.13.3
