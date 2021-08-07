@@ -761,13 +761,13 @@ def calculateMashPairwiseDifferences(fasta_listing_file, outdir, name, sketch_si
 		raise RuntimeError(error_message)
 	return pairwise_similarities
 
-def runFastANI(fasta_listing_file, fastani_output_file, cores, logObject, prune_set=None):
+def runFastANI(fasta_listing_file, outdir, fastani_output_file, cores, logObject, prune_set=None):
 	"""
 	Calculate ANI estimate between pairs of samples using FastANI.
 
 	:param fasta_listing_file: A tab-delimited listing file with two columns: (1) sample name (2) path to FASTA file
 	:param outdir: The output directory where to write results
-	:param name: Output file name
+	:param fastani_output_file: Output file name
 	:param cores: Number of cores/threads to use
 	:param logObject: The logging object.
 	"""
