@@ -817,7 +817,7 @@ class GCF(Pan):
 				self.logObject.error(traceback.format_exc())
 			raise RuntimeError(traceback.format_exc())
 
-	def runPopulationGeneticsAnalysis(self, outdir, cores=1, population=None, filter_outliers=False, population_analysis_on=False, gw_pairwise_differences=None):
+	def runPopulationGeneticsAnalysis(self, outdir, cores=1, population=None, filter_outliers=False, population_analysis_on=False, gw_pairwise_similarities=None):
 		"""
 		Wrapper function which serves to parallelize population genetics analysis.
 
@@ -868,10 +868,10 @@ class GCF(Pan):
 		for f in os.listdir(input_codon_dir):
 			hg = f.split('.msa.fna')[0]
 			codon_alignment_fasta = input_codon_dir + f
-			if gw_pairwise_differences:
-				gw_pairwise_differences = dict(gw_pairwise_differences)
+			if gw_pairwise_similarities:
+				gw_pairwise_similarities = dict(gw_pairwise_similarities)
 			inputs.append([self.gcf_id, hg, codon_alignment_fasta, popgen_dir, plots_dir, self.comp_gene_info, self.hg_genes,
-							 self.bgc_sample, self.hg_prop_multi_copy, dict(self.hg_order_scores), gw_pairwise_differences,
+							 self.bgc_sample, self.hg_prop_multi_copy, dict(self.hg_order_scores), gw_pairwise_similarities,
 						     dict(self.sample_population), population, self.logObject])
 
 		p = multiprocessing.Pool(cores)
@@ -2702,7 +2702,7 @@ def popgen_analysis_of_hg(inputs):
 				if i >= j: continue
 				if s1 in hg_pairwise_similarities and s2 in hg_pairwise_similarities:
 					hg_seq_sim = hg_pairwise_similarities[s1][s2]
-					gw_seq_sim = 1.0 - gw_pairwise_similarities[s1][s2]
+					gw_seq_sim = gw_pairwise_similarities[s1][s2]
 					if gw_seq_sim != 0.0:
 						beta_rd = hg_seq_sim / float(gw_seq_sim)
 						beta_rd_stats.append(beta_rd)

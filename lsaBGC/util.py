@@ -221,10 +221,11 @@ def determineSeqSimCodonAlignment(codon_alignment_file):
 	return pair_seq_matching
 
 def determineBGCSequenceSimilarity(input):
-	s1, g1s, s2, g2s = input
+	hg, s1, g1s, s2, g2s, i, j, comparisons_managed = input
+
+	comparison_id = '_|_'.join([hg, s1, s2, str(i), str(j)])
+
 	tot_comp_pos = 0
-	g1_comp_pos = 0
-	g2_comp_pos = 0
 	match_pos = 0
 	for pos, g1a in enumerate(g1s):
 		g2a = g2s[pos]
@@ -232,65 +233,48 @@ def determineBGCSequenceSimilarity(input):
 			tot_comp_pos += 1
 			if g1a == g2a:
 				match_pos += 1
-		if g1a in valid_alleles:
-			g1_comp_pos += 1
-		if g2a in valid_alleles:
-			g2_comp_pos += 1
 	general_matching_percentage = float(match_pos) / float(tot_comp_pos)
+	comparisons_managed[comparison_id] = general_matching_percentage
 
-	if pair_seq_matching[s1][s2][hg] < general_matching_percentage and pair_seq_matching[s2][s1][
-		hg] < general_matching_percentage:
-		pair_seq_matching[s1][s2][hg] = general_matching_percentage
-		pair_seq_matching[s2][s1][hg] = general_matching_percentage
-
-
-def determineBGCSequenceSimilarityFromCodonAlignments(codon_alignments_file):
+def determineBGCSequenceSimilarityFromCodonAlignments(codon_alignments_file, cores=1):
 	valid_alleles = set(['A', 'C', 'G', 'T'])
-	pair_seq_matching = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: 0.0)))
 	sample_hgs = defaultdict(set)
-	with open(codon_alignments_file) as ocaf:
-		for line in ocaf:
-			line = line.strip()
-			hg, codon_alignment = line.split('\t')
-			gene_sequences = {}
-			allele_identifiers = {}
-			with open(codon_alignment) as oca:
-				for i, rec in enumerate(SeqIO.parse(oca, 'fasta')):
-					gene_sequences[rec.id] = str(rec.seq).upper()
-					allele_identifiers[rec.id] = i
-					sample = rec.id.split('|')[0]
-					sample_hgs[sample].add(hg)
+	comparisons_managed = None
+	with multiprocessing.Manager() as manager:
+		comparisons_managed = manager.dict()
+		multiprocess_inputs = []
+		with open(codon_alignments_file) as ocaf:
+			for line in ocaf:
+				line = line.strip()
+				hg, codon_alignment = line.split('\t')
+				gene_sequences = {}
+				allele_identifiers = {}
+				with open(codon_alignment) as oca:
+					for i, rec in enumerate(SeqIO.parse(oca, 'fasta')):
+						gene_sequences[rec.id] = str(rec.seq).upper()
+						allele_identifiers[rec.id] = i
+						sample = rec.id.split('|')[0]
+						sample_hgs[sample].add(hg)
 
-			for i, g1 in enumerate(gene_sequences):
-				s1 = g1.split('|')[0]
-				g1s = gene_sequences[g1]
-				for j, g2 in enumerate(gene_sequences):
-					if i >= j: continue
-					s2 = g2.split('|')[0]
-					if s1 == s2: continue
-					g2s = gene_sequences[g2]
+				for i, g1 in enumerate(gene_sequences):
+					s1 = g1.split('|')[0]
+					g1s = gene_sequences[g1]
+					for j, g2 in enumerate(gene_sequences):
+						if i >= j: continue
+						s2 = g2.split('|')[0]
+						if s1 == s2: continue
+						g2s = gene_sequences[g2]
+						multiprocess_inputs.append([hg, s1, g1s, s2, g2s, i, j, comparisons_managed])
+		with manager.Pool(cores) as pool:
+			pool.map(determineBGCSequenceSimilarity, multiprocess_inputs)
 
-					#multiprocess_inputs.append([s1, g1s, s2, g2s])
-
-					tot_comp_pos = 0
-					g1_comp_pos = 0
-					g2_comp_pos = 0
-					match_pos = 0
-					for pos, g1a in enumerate(g1s):
-						g2a = g2s[pos]
-						if g1a in valid_alleles or g2a in valid_alleles:
-							tot_comp_pos += 1
-							if g1a == g2a:
-								match_pos += 1
-						if g1a in valid_alleles:
-							g1_comp_pos += 1
-						if g2a in valid_alleles:
-							g2_comp_pos += 1
-					general_matching_percentage = float(match_pos)/float(tot_comp_pos)
-
-					if pair_seq_matching[s1][s2][hg] < general_matching_percentage and pair_seq_matching[s2][s1][hg] < general_matching_percentage:
-						pair_seq_matching[s1][s2][hg] = general_matching_percentage
-						pair_seq_matching[s2][s1][hg] = general_matching_percentage
+	pair_seq_matching = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: 0.0)))
+	for comp in comparisons_managed:
+		hg, s1, s2, i, j = comp.split('_|_')
+		general_matching_percentage = comparisons_managed[comp]
+		if pair_seq_matching[s1][s2][hg] < general_matching_percentage and pair_seq_matching[s2][s1][hg] < general_matching_percentage:
+			pair_seq_matching[s1][s2][hg] = general_matching_percentage
+			pair_seq_matching[s2][s1][hg] = general_matching_percentage
 
 	bgc_pairwise_similarities = defaultdict(lambda: defaultdict(lambda: ["NA", "NA"]))
 	for i, s1 in enumerate(sorted(sample_hgs)):

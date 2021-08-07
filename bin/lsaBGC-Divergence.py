@@ -59,13 +59,11 @@ def create_parser():
     parser.add_argument('-g', '--gcf_listing', help='BGC specifications file. Tab delimited: 1st column contains path to AntiSMASH BGC Genbank and 2nd column contains sample name.', required=True)
     parser.add_argument('-l', '--input_listing', help="Path to tab delimited file listing: (1) sample name (2) path to Prokka Genbank and (3) path to Prokka predicted proteome. This file is produced by lsaBGC-Process.py.", required=False, default=None)
     parser.add_argument('-a', '--codon_alignments', help="File listing the codon alignments for each homolog group in the GCF. Can be found as part of PopGene output.", required=True)
-    parser.add_argument('-pr', '--precomputed_ani_result', help="Path to FastANI results.", required=False)
-    parser.add_argument('-pi', '--precomputed_ani_input', help="Path to two-column, tab-delimited file showing FASTA used as input for FastANI in second column with sample name in the first column.", required=False)
+    parser.add_argument('-f', '--precomputed_fastani_results', help="Path to FastANI results.", required=True)
     parser.add_argument('-i', '--gcf_id', help="GCF identifier.", required=False, default='GCF_X')
     parser.add_argument('-o', '--output_directory', help="Prefix for output files.", required=True)
     parser.add_argument('-k', '--sample_set', help="Sample set to keep in analysis. Should be file with one sample id per line.", required=False)
     parser.add_argument('-c', '--cores', type=int, help="The number of cores to use.", required=False, default=1)
-    parser.add_argument('-s', '--sketch_size', type=int, help="The sketch size, number of kmers to use in fingerprinting", required=False, default=10000)
     args = parser.parse_args()
 
     return args
@@ -83,6 +81,7 @@ def lsaBGC_Divergence():
     gcf_listing_file = os.path.abspath(myargs.gcf_listing)
     input_listing_file = os.path.abspath(myargs.input_listing)
     codon_alignments_file = os.path.abspath(myargs.codon_alignments)
+    precomputed_fastani_results_file = myargs.precomputed_fastani_results
     outdir = os.path.abspath(myargs.output_directory) + '/'
 
     ### vet input files quickly
@@ -90,6 +89,7 @@ def lsaBGC_Divergence():
         assert (os.path.isfile(input_listing_file))
         assert (os.path.isfile(gcf_listing_file))
         assert (os.path.isfile(codon_alignments_file))
+        assert (os.path.isfile(precomputed_fastani_results_file))
 
     except:
         raise RuntimeError('One or more of the input files provided, does not exist. Exiting now ...')
@@ -107,10 +107,6 @@ def lsaBGC_Divergence():
     sample_set_file = myargs.sample_set
     gcf_id = myargs.gcf_id
     cores = myargs.cores
-    sketch_size = myargs.sketch_size
-    precomputed_ani_result_file = myargs.precomputed_ani_result
-    precomputed_ani_input_file = myargs.precomputed_ani_input
-    used_fastani = myargs.fastani
 
     """
     START WORKFLOW
@@ -123,81 +119,42 @@ def lsaBGC_Divergence():
     # Log input arguments and update reference and query FASTA files.
     logObject.info("Saving parameters for future provedance.")
     parameters_file = outdir + 'Parameter_Inputs.txt'
-    parameter_values = [gcf_listing_file, input_listing_file, codon_alignments_file, outdir, sketch_size, used_fastani,
-                        gcf_id, sample_set_file, precomputed_ani_result_file, precomputed_ani_input_file, cores]
+    parameter_values = [gcf_listing_file, input_listing_file, codon_alignments_file, outdir,
+                        gcf_id, sample_set_file, precomputed_fastani_results_file, cores]
     parameter_names = ["GCF Listing File", "Input Listing File of Prokka Annotation Files for All Samples",
                        "File Listing the Location of Codon Alignments for Each Homolog Group",
-                       "Output Directory", "MASH Sketch Size", 'Used FastANI for ANI Estimation?',
-                       "GCF Identifier", "Retention Sample Set", "Precomputed MASH/FastANI Results File",
-                       "Precomputed MASH/FastANI Input File", "Cores"]
+                       "Output Directory", "GCF Identifier", "Retention Sample Set",
+                       "Precomputed FastANI Results File", "Cores"]
     util.logParametersToFile(parameters_file, parameter_names, parameter_values)
     logObject.info("Done saving parameters!")
-
-    # Create GCF object
-    GCF_Object = GCF(gcf_listing_file, gcf_id=gcf_id, logObject=logObject)
 
     # Step 0: (Optional) Parse sample set retention specifications file, if provided by the user.
     sample_retention_set = util.getSampleRetentionSet(sample_set_file)
 
-    # Step 1: Extract Genbank Sequences into FASTA and Run MASH Analysis Between Genomic Assemblies
-    gw_pairwise_differences = None
-    if not os.path.isfile(precomputed_ani_result_file) or not os.path.isfile(precomputed_ani_input_file):
-        logObject.info("Converting BGC Genbanks from GCF listing file into FASTA per sample.")
-        gcf_fasta_listing_file = outdir + 'GCF_Listings.fasta'
-        gcf_fasta_dir = outdir + 'Sample_GCF_FASTAs/'
-        if not os.path.isdir(gcf_fasta_dir): os.system('mkdir %s' % gcf_fasta_dir)
-        GCF_Object.convertGenbanksIntoFastas(gcf_fasta_dir, gcf_fasta_listing_file)
-        logObject.info("Successfully performed conversion and partitioning by sample.")
-
-        # Extract Genbank Sequences into FASTA
-        Pan_Object = Pan(input_listing_file, logObject=logObject)
-        logObject.info("Converting Genbanks from Expansion listing file into FASTA per sample.")
-        gw_fasta_dir = outdir + 'Sample_Expansion_FASTAs/'
-        if not os.path.isdir(gw_fasta_dir): os.system('mkdir %s' % gw_fasta_dir)
-        gw_fasta_listing_file = outdir + 'Genome_FASTA_Listings.txt'
-        Pan_Object.convertGenbanksIntoFastas(gw_fasta_dir, gw_fasta_listing_file)
-        logObject.info("Successfully performed conversions.")
-
-        logObject.info("Running MASH Analysis Between Genomes.")
-        gw_pairwise_differences = util.calculateMashPairwiseDifferences(gw_fasta_listing_file, outdir, 'genome_wide', sketch_size, cores, logObject)
-        logObject.info("Ran MASH Analysis Between Genomes.")
-    else:
-        fasta_to_name = {}
-        gw_pairwise_similarities = defaultdict(lambda: defaultdict(float))
-        try:
-            with open(precomputed_mash_input_file) as oflf:
-                for line in oflf:
-                    line = line.strip()
-                    ls = line.split('\t')
-                    fasta_to_name[ls[1]] = ls[0]
-        except:
-            error_message = "Had issues reading the FASTA listing file %s" % precomputed_mash_input_file
-            logObject.error(error_message)
-            raise RuntimeError(error_message)
-        try:
-            with open(precomputed_mash_result_file) as of:
-                for line in of:
-                    line = line.strip()
-                    ls = line.split('\t')
-                    f1, f2, dist = ls[:3]
-                    dist = float(dist)
-                    n1 = fasta_to_name[f1]
-                    n2 = fasta_to_name[f2]
-                    gw_pairwise_differences[n1][n2] = dist
-        except Exception as e:
-            error_message = 'Had issues reading the output of MASH dist analysis in file: %s' % precomputed_mash_result_file
-            logObject.error(error_message)
-            raise RuntimeError(error_message)
+    # Step 1: Parse FastANI results as the genome-wide similarity estimates
+    gw_pairwise_similarities = defaultdict(lambda: defaultdict(float))
+    try:
+        with open(precomputed_fastani_results_file) as of:
+            for line in of:
+                line = line.strip()
+                ls = line.split('\t')
+                s1, s2, sim = ls[:3]
+                sim = float(sim)
+                gw_pairwise_similarities[s1][s2] = sim
+    except Exception as e:
+        error_message = 'Had issues reading the output of FastANI analysis in file: %s' % precomputed_fastani_results_file
+        logObject.error(error_message)
+        raise RuntimeError(error_message)
 
     # Step 2: Determine Sequence Similarity from Codon Alignments
     logObject.info("Determining similarities in BGC content and sequence space between pairs of samples.")
-    bgc_pairwise_similarities = util.determineBGCSequenceSimilarityFromCodonAlignments(codon_alignments_file)
+    bgc_pairwise_similarities = util.determineBGCSequenceSimilarityFromCodonAlignments(codon_alignments_file, cores=cores)
     logObject.info("Finished determining BGC specific similarity between pairs of samples.")
 
     # Step 3: Calculate and report Beta-RD statistic for all pairs of samples/isolates
     logObject.info("Beginning generation of report.")
     samples_bgc = set(bgc_pairwise_similarities.keys())
-    samples_gw = set(gw_pairwise_differences.keys())
+    samples_gw = set(gw_pairwise_similarities.keys())
     samples_intersect = samples_gw.intersection(samples_bgc)
     try:
         final_report = outdir + 'Relative_Divergence_Report.txt'
@@ -209,9 +166,7 @@ def lsaBGC_Divergence():
                 if i >= j: continue
                 gcf_seq_sim = bgc_pairwise_similarities[s1][s2][0]
                 gcf_con_sim = bgc_pairwise_similarities[s1][s2][1]
-                #gcf_sim = 1.0 - gcf_dist
-                gw_dist = gw_pairwise_differences[s1][s2]
-                gw_seq_sim = 1.0 - gw_dist
+                gw_seq_sim = gw_pairwise_similarities[s1][s2]
 
                 if gw_seq_sim != 0.0:
                     if gcf_seq_sim != 'NA':

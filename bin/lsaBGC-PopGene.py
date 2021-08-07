@@ -63,8 +63,7 @@ def create_parser():
     parser.add_argument('-c', '--cores', type=int, help="The number of cores to use.", required=False, default=1)
     parser.add_argument('-e', '--each_pop', action='store_true', help='Run analyses individually for each population as well.', required=False, default=False)
     parser.add_argument('-f', '--filter_for_outliers', action='store_true', help='Filter instances of homolog groups which deviate too much from the median gene length observed for the initial set of proteins.', required=False, default=False)
-    parser.add_argument('-pr', '--precomputed_mash_result', help="Path to precomputed MASH dist output.", required=False)
-    parser.add_argument('-pi', '--precomputed_mash_input', help="Path FASTA listing used to compute MASH dist output.", required=False)
+    parser.add_argument('-f', '--precomputed_fastani_results', help="Path to FastANI results.", required=False)
     args = parser.parse_args()
 
     return args
@@ -106,8 +105,7 @@ def lsaBGC_PopGene():
     population_classification_file = myargs.population_classification
     run_for_each_pop = myargs.each_pop
     filter_for_outliers = myargs.filter_for_outliers
-    precomputed_mash_result_file = myargs.precomputed_mash_result
-    precomputed_mash_input_file = myargs.precomputed_mash_input
+    precomputed_fastani_results_file = myargs.precomputed_fastani_results
 
     """
     START WORKFLOW
@@ -136,32 +134,18 @@ def lsaBGC_PopGene():
     sample_retention_set = util.getSampleRetentionSet(sample_set_file)
 
     # Step 0B: (Optional) Parse sample to sample genome-wide relationships
-    gw_pairwise_differences = None
-    if precomputed_mash_input_file and os.path.isfile(precomputed_mash_input_file) and precomputed_mash_result_file and os.path.isfile(precomputed_mash_result_file):
-        fasta_to_name = {}
-        gw_pairwise_differences = defaultdict(lambda: defaultdict(float))
+    gw_pairwise_similarities = None
+    if precomputed_fastani_results_file and os.path.isfile(precomputed_fastani_results_file):
         try:
-            with open(precomputed_mash_input_file) as oflf:
-                for line in oflf:
-                    line = line.strip()
-                    ls = line.split('\t')
-                    fasta_to_name[ls[1]] = ls[0]
-        except:
-            error_message = "Had issues reading the FASTA listing file %s" % precomputed_mash_input_file
-            logObject.error(error_message)
-            raise RuntimeError(error_message)
-        try:
-            with open(precomputed_mash_result_file) as of:
+            with open(precomputed_fastani_results_file) as of:
                 for line in of:
                     line = line.strip()
                     ls = line.split('\t')
-                    f1, f2, dist = ls[:3]
-                    dist = float(dist)
-                    n1 = fasta_to_name[f1]
-                    n2 = fasta_to_name[f2]
-                    gw_pairwise_differences[n1][n2] = dist
+                    s1, s2, sim = ls[:3]
+                    sim = float(sim)
+                    gw_pairwise_similarities[s1][s2] = sim
         except Exception as e:
-            error_message = 'Had issues reading the output of MASH dist analysis in file: %s' % precomputed_mash_result_file
+            error_message = 'Had issues reading the output of FastANI analysis in file: %s' % precomputed_fastani_results_file
             logObject.error(error_message)
             raise RuntimeError(error_message)
 
@@ -202,13 +186,13 @@ def lsaBGC_PopGene():
         population_analysis_on = True
     if run_for_each_pop:
         for pop in populations:
-            GCF_Object.runPopulationGeneticsAnalysis(outdir, cores=cores, population=pop, filter_outliers=False, population_analysis_on=population_analysis_on, gw_pairwise_differences=gw_pairwise_differences)
+            GCF_Object.runPopulationGeneticsAnalysis(outdir, cores=cores, population=pop, filter_outliers=False, population_analysis_on=population_analysis_on, gw_pairwise_similarities=gw_pairwise_similarities)
             if filter_for_outliers:
-                GCF_Object.runPopulationGeneticsAnalysis(outdir, cores=cores, population=pop, filter_outliers=True, population_analysis_on=population_analysis_on, gw_pairwise_differences=gw_pairwise_differences)
+                GCF_Object.runPopulationGeneticsAnalysis(outdir, cores=cores, population=pop, filter_outliers=True, population_analysis_on=population_analysis_on, gw_pairwise_similarities=gw_pairwise_similarities)
     else:
-        GCF_Object.runPopulationGeneticsAnalysis(outdir, cores=cores, population=None, filter_outliers=False, population_analysis_on=population_analysis_on, gw_pairwise_differences=gw_pairwise_differences)
+        GCF_Object.runPopulationGeneticsAnalysis(outdir, cores=cores, population=None, filter_outliers=False, population_analysis_on=population_analysis_on, gw_pairwise_similarities=gw_pairwise_similarities)
         if filter_for_outliers:
-            GCF_Object.runPopulationGeneticsAnalysis(outdir, cores=cores, population=None, filter_outliers=True, population_analysis_on=population_analysis_on, gw_pairwise_differences=gw_pairwise_differences)
+            GCF_Object.runPopulationGeneticsAnalysis(outdir, cores=cores, population=None, filter_outliers=True, population_analysis_on=population_analysis_on, gw_pairwise_similarities=gw_pairwise_similarities)
     logObject.info("Successfully ran population genetics and evolutionary analyses of each codon alignment.")
 
     # Close logging object and exit

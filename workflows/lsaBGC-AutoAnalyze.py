@@ -163,14 +163,18 @@ def lsaBGC_AutoAnalyze():
 	logObject.info("Ran FastANI Analysis Between Genomes.")
 
 	fastani_matrix_file = outdir + 'FastANI_Distance_Matrix.txt'
+	fastani_result_cleaned_file = outdir + 'FastANI_Estimates.txt'
+	fastani_result_cleaned_handle = open(fastani_result_cleaned_file, 'w')
 	fastani_matrix_handle = open(fastani_matrix_file, 'w')
 	fastani_matrix_handle.write('Sample/Sample\t' + '\t'.join([s for s in sorted(gw_pairwise_differences)]) + '\n')
 	for s1 in sorted(gw_pairwise_differences):
 		printlist = [s1]
 		for s2 in sorted(gw_pairwise_differences):
-			printlist.append(str(1.0 - gw_pairwise_similarities[s1][s2]))
+			printlist.append(str(float(100.0 - gw_pairwise_similarities[s1][s2])/100.0))
+			fastani_result_cleaned_handle.write('\t'.join([s1, s2, str(float(gw_pairwise_similarities[s1][s2])/100.0)]) + '\n')
 		fastani_matrix_handle.write('\t'.join(printlist) + '\n')
 	fastani_matrix_handle.close()
+	fastani_result_cleaned_handle.close()
 
 	if not lineage_phylogeny_file:
 		# Run FastANI Analysis Between Genomic Assemblies
@@ -285,7 +289,7 @@ def lsaBGC_AutoAnalyze():
 		if not os.path.isdir(gcf_pop_outdir):
 			os.system('mkdir %s' % gcf_pop_outdir)
 			cmd = ['lsaBGC-PopGene.py', '-g', gcf_listing_file, '-m', orthofinder_matrix_file, '-o', gcf_pop_outdir,
-				   '-i', gcf_id, '-c', str(cores), '-pi', gw_fasta_listing_file, '-pr', fastani_result_file]
+				   '-i', gcf_id, '-c', str(cores), '-f', fastani_results_cleaned_file]
 			if population_listing_file:
 				cmd += ['-p', population_listing_file]
 			try:
@@ -300,7 +304,7 @@ def lsaBGC_AutoAnalyze():
 			os.system('mkdir %s' % gcf_div_outdir)
 			cmd = ['lsaBGC-Divergence.py', '-g', gcf_listing_file, '-l', input_listing_file, '-o', gcf_div_outdir,
 				   '-i', gcf_id, '-a',	gcf_pop_outdir + 'Codon_Alignments_Listings.txt', '-c', str(cores),
-				   '-pi', gw_fasta_listing_file, '-pr', fastani_result_file]
+				   '-f', fastani_results_cleaned_file]
 			try:
 				util.run_cmd(cmd, logObject)
 			except Exception as e:
