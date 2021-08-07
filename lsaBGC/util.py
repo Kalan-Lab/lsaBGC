@@ -364,7 +364,7 @@ def determineAllelesFromCodonAlignment(codon_alignment, max_mismatch=10, matchin
 	return [allele_clusters, pair_matching]
 
 def cleanUpSampleName(original_name):
-	return original_name.replace('#', '').replace(' ', '_').replace(':', '_').replace('|', '_').replace('"', '_').replace("'", '_').replace("=", "_").replace('-', '_').replace('(', '').replace(')', '').replace('/', '').replace('\\', '').replace('[', '').replace(']', '').replace(',', '')
+	return original_name.replace('#', '').replace(':', '_').replace(';', '_').replace(' ', '_').replace(':', '_').replace('|', '_').replace('"', '_').replace("'", '_').replace("=", "_").replace('-', '_').replace('(', '').replace(')', '').replace('/', '').replace('\\', '').replace('[', '').replace(']', '').replace(',', '')
 
 def read_pair_generator_defunct(bam, region_string=None, start=None, stop=None):
 	"""
