@@ -64,6 +64,7 @@ def create_parser():
     parser.add_argument('-o', '--output_directory', help="Parent output/workspace directory.", required=True)
     parser.add_argument('-k', '--sample_set', help="Sample set to keep in analysis. Should be file with one sample id per line.", required=False)
     parser.add_argument('-s', '--lineage_phylogeny', help="Path to species phylogeny. If not provided a MASH based neighborjoining tree will be constructed and used.", default=None, required=False)
+    parser.add_argument('-f', '--use_fastani', action='store_true', help="Use FastANI instead of MASH for anlaysis.", default=None, required=False)
     parser.add_argument('-lps', '--lower_num_populations', type=int, help='If population analysis specified, what is the lower number of populations to fit to . Use the script determinePopulationK.py to see how populations will look with k set to different values.', required=False, default=2)
     parser.add_argument('-ups', '--upper_num_populations', type=int, help='If population analysis specified, what is the number of populations to . Use the script determinePopulationK.py to see how populations will look with k set to different values.', required=False, default=20)
     parser.add_argument('-i', '--identity_cutoff', type=float, help='Identity to collapse samples at.', required=False, default=0.99)
@@ -92,7 +93,7 @@ def determineN50(assembly_fasta):
         median = tmp[int(len(tmp) / 2)]
     return(median)
 
-def lsaBGC_AutoAnalyze():
+def main():
     """
     Void function which runs primary workflow for program.
     """
@@ -127,6 +128,7 @@ def lsaBGC_AutoAnalyze():
     upper_num_populations = myargs.upper_num_populations
     identity_cutoff = myargs.identity_cutoff
     is_assembly_listing = myargs.is_assembly_listing
+    use_fastani = myargs.use_fastani
     cores = myargs.cores
 
     """
@@ -141,10 +143,11 @@ def lsaBGC_AutoAnalyze():
     logObject.info("Saving parameters for easier determination of results' provenance in the future.")
     parameters_file = outdir + 'Parameter_Inputs.txt'
     parameter_values = [input_listing_file, is_assembly_listing, outdir,  lineage_phylogeny_file, sample_set_file, identity_cutoff,
-                        lower_num_populations, upper_num_populations, cores]
+                        lower_num_populations, upper_num_populations, use_fastani, cores]
     parameter_names = ["Input Listing File", "Input Listing is Assemblies in FASTA and Not Prokka Annotations",
                        "Output Directory", "Phylogeny File in Newick Format", "Sample Retention Set", "Identity Cutoff",
-                       "Lower Limit for Number of Populations", "Upper Limit for Number of Populations", "Cores"]
+                       "Lower Limit for Number of Populations", "Upper Limit for Number of Populations", "Use FastANI",
+                       "Cores"]
     util.logParametersToFile(parameters_file, parameter_names, parameter_values)
     logObject.info("Done saving parameters!")
 
@@ -162,9 +165,15 @@ def lsaBGC_AutoAnalyze():
     else:
         gw_fasta_listing_file = input_listing_file
 
-    logObject.info("Running MASH Analysis Between Genomes.")
-    gw_pairwise_differences = util.calculateMashPairwiseDifferences(gw_fasta_listing_file, outdir, 'genome_wide', 10000,
-                                                                    cores, logObject, prune_set=sample_retention_set)
+    logObject.info("Running MASH/FastANI Analysis Between Genomes.")
+    gw_pairwise_similarities = None
+    similarity_output_file = None
+    if not use_fastani:
+        similarity_output_file = outdir + 'genome_wide.out'
+        gw_pairwise_similarities = util.calculateMashPairwiseDifferences(gw_fasta_listing_file, outdir, 'genome_wide', 10000, cores, logObject, prune_set=sample_retention_set)
+    else:
+        similarity_output_file = outdir + 'FastANI_Results.txt'
+        gw_pairwise_similarities = util.runFastANI(fasta_listing_file, fastani_output_file, cores, logObject, prune_set=sample_retention_set)
 
     sample_assembly_n50s = {}
     with open(gw_fasta_listing_file) as ogf:
@@ -177,26 +186,26 @@ def lsaBGC_AutoAnalyze():
     logObject.info("Ran MASH Analysis Between Genomes.")
     mash_matrix_file = outdir + 'MASH_Distance_Matrix.txt'
     mash_matrix_handle = open(mash_matrix_file, 'w')
-    mash_matrix_handle.write('Sample/Sample\t' + '\t'.join([s for s in sorted(gw_pairwise_differences)]) + '\n')
+    mash_matrix_handle.write('Sample/Sample\t' + '\t'.join([s for s in sorted(gw_pairwise_similarities)]) + '\n')
 
     all_samples = set([])
     redundant_samples = set([])
     poor_n50_samples = set([])
-    for i, s1 in enumerate(sorted(gw_pairwise_differences)):
+    for i, s1 in enumerate(sorted(gw_pairwise_similarities)):
         s1_n50 = sample_assembly_n50s[s1]
         if s1_n50 < 10000:
             poor_n50_samples.add(s1)
         printlist = [s1]
         all_samples.add(s1)
-        for j, s2 in enumerate(sorted(gw_pairwise_differences)):
-            if (1.0 - gw_pairwise_differences[s1][s2]) >= identity_cutoff:
+        for j, s2 in enumerate(sorted(gw_pairwise_similarities)):
+            if gw_pairwise_similarities[s1][s2] >= identity_cutoff:
                 if s1 != s2 and i < j:
                     s2_n50 = sample_assembly_n50s[s2]
                     if s1_n50 >= s2_n50:
                         redundant_samples.add(s2)
                     else:
                         redundant_samples.add(s1)
-            printlist.append(str(gw_pairwise_differences[s1][s2]))
+            printlist.append(str(1.0-gw_pairwise_differences[s1][s2]))
         mash_matrix_handle.write('\t'.join(printlist) + '\n')
     mash_matrix_handle.close()
 
@@ -261,4 +270,4 @@ def lsaBGC_AutoAnalyze():
     sys.exit(0)
 
 if __name__ == '__main__':
-    lsaBGC_AutoAnalyze()
+    main()

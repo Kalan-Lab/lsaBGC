@@ -744,7 +744,7 @@ def calculateMashPairwiseDifferences(fasta_listing_file, outdir, name, sketch_si
 		logObject.error(error_message)
 		raise RuntimeError(error_message)
 
-	pairwise_distances = defaultdict(lambda: defaultdict(float))
+	pairwise_similarities = defaultdict(lambda: defaultdict(float))
 	try:
 		with open(outdir + name + '.out') as of:
 			for line in of:
@@ -754,12 +754,12 @@ def calculateMashPairwiseDifferences(fasta_listing_file, outdir, name, sketch_si
 				dist = float(dist)
 				n1 = fasta_to_name[f1]
 				n2 = fasta_to_name[f2]
-				pairwise_distances[n1][n2] = dist
+				pairwise_similarities[n1][n2] = (1.0 - dist)
 	except:
 		error_message = 'Had issues reading the output of MASH dist anlaysis in: %s.out' % outdir + name
 		logObject.error(error_message)
 		raise RuntimeError(error_message)
-	return pairwise_distances
+	return pairwise_similarities
 
 def runFastANI(fasta_listing_file, fastani_output_file, cores, logObject, prune_set=None):
 	"""
@@ -820,7 +820,7 @@ def runFastANI(fasta_listing_file, fastani_output_file, cores, logObject, prune_
 				sim = float(sim)
 				n1 = fasta_to_name[f1]
 				n2 = fasta_to_name[f2]
-				pairwise_similarities[n1][n2] = sim
+				pairwise_similarities[n1][n2] = sim/100.0
 	except:
 		error_message = 'Had issues reading the output of FastANI analysis at: %s' % fastani_output_file
 		logObject.error(error_message)

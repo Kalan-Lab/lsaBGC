@@ -166,12 +166,12 @@ def lsaBGC_AutoAnalyze():
 	fastani_result_cleaned_file = outdir + 'FastANI_Estimates.txt'
 	fastani_result_cleaned_handle = open(fastani_result_cleaned_file, 'w')
 	fastani_matrix_handle = open(fastani_matrix_file, 'w')
-	fastani_matrix_handle.write('Sample/Sample\t' + '\t'.join([s for s in sorted(gw_pairwise_differences)]) + '\n')
+	fastani_matrix_handle.write('Sample/Sample\t' + '\t'.join([s for s in sorted(gw_pairwise_similarities)]) + '\n')
 	for s1 in sorted(gw_pairwise_differences):
 		printlist = [s1]
 		for s2 in sorted(gw_pairwise_differences):
-			printlist.append(str(float(100.0 - gw_pairwise_similarities[s1][s2])/100.0))
-			fastani_result_cleaned_handle.write('\t'.join([s1, s2, str(float(gw_pairwise_similarities[s1][s2])/100.0)]) + '\n')
+			printlist.append(str(1.0 - gw_pairwise_similarities[s1][s2]))
+			fastani_result_cleaned_handle.write('\t'.join([s1, s2, str(gw_pairwise_similarities[s1][s2])]) + '\n')
 		fastani_matrix_handle.write('\t'.join(printlist) + '\n')
 	fastani_matrix_handle.close()
 	fastani_result_cleaned_handle.close()
