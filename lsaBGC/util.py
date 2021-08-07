@@ -786,12 +786,11 @@ def runFastANI(fasta_listing_file, outdir, fastani_output_file, cores, logObject
 		logObject.error(error_message)
 		raise RuntimeError(error_message)
 
-	fastani_input_file = outdir + 'MASH_Input.txt'
-	fastani_input_handle = open(mash_input_file, 'w')
+	fastani_input_file = outdir + 'FastANI_Input.txt'
+	fastani_input_handle = open(fastani_input_file, 'w')
 	fastani_input_handle.write('\n'.join(fastas))
 	fastani_input_handle.close()
 
-	# create mash database (using mash sketch)
 	fastani_cmd = ['fastANI', '-t', str(cores), '--ql', fastani_input_file, '--rl', fastani_input_file, '-o', fastani_output_file]
 	logObject.info('Running fastANI sketch with the following command: %s' % ' '.join(fastani_cmd))
 	try:
