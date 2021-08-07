@@ -205,7 +205,7 @@ def main():
                         redundant_samples.add(s2)
                     else:
                         redundant_samples.add(s1)
-            printlist.append(str(1.0-gw_pairwise_differences[s1][s2]))
+            printlist.append(str(1.0-gw_pairwise_similarities[s1][s2]))
         mash_matrix_handle.write('\t'.join(printlist) + '\n')
     mash_matrix_handle.close()
 
