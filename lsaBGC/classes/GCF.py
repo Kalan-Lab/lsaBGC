@@ -1017,7 +1017,7 @@ class GCF(Pan):
 		with multiprocessing.Manager() as manager:
 			sample_bgc_ids = manager.dict()
 			for i, sitem in enumerate(identify_gcf_segments_input):
-				sample_bgc_ids[sitem[0]] = 1
+				sample_bgc_ids[sitem[2]] = 1
 				identify_gcf_segments_input[i].append(sample_bgc_ids)
 
 			with manager.Pool(cores) as pool:
