@@ -1028,8 +1028,8 @@ class GCF(Pan):
 				expanded_gcf_list_handle.write(line)
 		expanded_gcf_list_handle.close()
 
-		os.system('cat %s/*.bgcs.txt >> %s' (bgc_info_dir, expanded_gcf_list_file))
-		os.system('cat %s/*.hg_evalues.txt > %s' (bgc_info_dir, bgc_hmm_evalues_file))
+		os.system('cat %s/*.bgcs.txt >> %s' % (bgc_info_dir, expanded_gcf_list_file))
+		os.system('cat %s/*.hg_evalues.txt > %s' % (bgc_info_dir, bgc_hmm_evalues_file))
 		if not os.path.isfile(bgc_hmm_evalues_file):
 			os.system('touch %s' % bgc_hmm_evalues_file)
 
