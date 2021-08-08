@@ -1046,6 +1046,8 @@ class GCF(Pan):
 						if hg in sample_lt_to_hg[sample].keys():
 							sample_hg_proteins[sample][hg].add(lt)
 					all_samples.add(sample)
+		if not os.path.isfile(bgc_hmm_evalues_file):
+			os.system('touch %s' % bgc_hmm_evalues_file)
 
 		original_samples = []
 		all_hgs = set([])
