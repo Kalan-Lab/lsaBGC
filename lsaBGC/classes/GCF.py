@@ -1035,9 +1035,9 @@ class GCF(Pan):
 		all_samples = set([])
 		for f in os.listdir(bgc_info_dir):
 			if f.endswith('.bgcs.txt'):
-				os.system('cat %s >> %' % (bgc_info_dir + f, expanded_gcf_list_file))
+				os.system('cat %s >> %s' % (bgc_info_dir + f, expanded_gcf_list_file))
 			elif f.endswith('.hg_evalues.txt'):
-				os.system('cat %s >> %' % (bgc_info_dir + f, bgc_hmm_evalues_file))
+				os.system('cat %s >> %s' % (bgc_info_dir + f, bgc_hmm_evalues_file))
 				with open(bgc_hmm_evalues_file) as obhef:
 					sample = None
 					for line in obhef:
