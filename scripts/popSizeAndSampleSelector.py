@@ -67,9 +67,9 @@ def create_parser():
     parser.add_argument('-f', '--use_fastani', action='store_true', help="Use FastANI instead of MASH for anlaysis.", default=None, required=False)
     parser.add_argument('-lps', '--lower_num_populations', type=int, help='If population analysis specified, what is the lower number of populations to fit to . Use the script determinePopulationK.py to see how populations will look with k set to different values.', required=False, default=2)
     parser.add_argument('-ups', '--upper_num_populations', type=int, help='If population analysis specified, what is the number of populations to . Use the script determinePopulationK.py to see how populations will look with k set to different values.', required=False, default=20)
-    parser.add_argument('-i', '--identity_cutoff', type=float, help='Identity to collapse samples at.', required=False, default=0.99)
+    parser.add_argument('-i', '--identity_cutoff', type=float, help='Identity to collapse samples at.', required=False, default=1.0)
     parser.add_argument('-c', '--cores', type=int, help="Total number of cores to use.", required=False, default=1)
-
+    parser.add_argument('-k', '--popsize', type=int, help="Desired number of populations.", required=False, default=None)
     args = parser.parse_args()
     return args
 
@@ -129,6 +129,7 @@ def main():
     identity_cutoff = myargs.identity_cutoff
     is_assembly_listing = myargs.is_assembly_listing
     use_fastani = myargs.use_fastani
+    popsize = myargs.popsize
     cores = myargs.cores
 
     """
@@ -143,11 +144,11 @@ def main():
     logObject.info("Saving parameters for easier determination of results' provenance in the future.")
     parameters_file = outdir + 'Parameter_Inputs.txt'
     parameter_values = [input_listing_file, is_assembly_listing, outdir,  lineage_phylogeny_file, sample_set_file, identity_cutoff,
-                        lower_num_populations, upper_num_populations, use_fastani, cores]
+                        lower_num_populations, upper_num_populations, use_fastani, popsize, cores]
     parameter_names = ["Input Listing File", "Input Listing is Assemblies in FASTA and Not Prokka Annotations",
                        "Output Directory", "Phylogeny File in Newick Format", "Sample Retention Set", "Identity Cutoff",
                        "Lower Limit for Number of Populations", "Upper Limit for Number of Populations", "Use FastANI",
-                       "Cores"]
+                       "Desired Population Size", "Cores"]
     util.logParametersToFile(parameters_file, parameter_names, parameter_values)
     logObject.info("Done saving parameters!")
 
@@ -248,22 +249,45 @@ def main():
     lineage_phylogeny_file = update_lineage_phylogeny_file
     logObject.info("Successfully refined lineage phylogeny for sample set of interest.")
 
-    result_dir = outdir + 'Population_Mapping_Results/'
-    if not os.path.isdir(result_dir): os.system('mkdir %s' % result_dir)
-    for ps in range(lower_num_populations, upper_num_populations+1):
-        ps_dir = result_dir + 'PopSize_' + str(ps) + '/'
-        if not os.path.isdir(ps_dir): os.system('mkdir %s' % ps_dir)
-        population_listing_file = ps_dir + 'Populations_Defined.txt'
-        populations_on_nj_tree_pdf = ps_dir + 'Populations_on_Lineage_Tree.pdf'
+    if popsize == None:
+        result_dir = outdir + 'Population_Mapping_Results/'
+        if not os.path.isdir(result_dir): os.system('mkdir %s' % result_dir)
+        for ps in range(lower_num_populations, upper_num_populations+1):
+            ps_dir = result_dir + 'PopSize_' + str(ps) + '/'
+            if not os.path.isdir(ps_dir): os.system('mkdir %s' % ps_dir)
+            population_listing_file = ps_dir + 'Populations_Defined.txt'
+            populations_on_nj_tree_pdf = ps_dir + 'Populations_on_Lineage_Tree.pdf'
+
+            # Attempt population fitting
+            cmd = ['Rscript', RSCRIPT_FOR_DEFINECLADES_FROM_PHYLO, lineage_phylogeny_file, str(ps),
+                   population_listing_file, populations_on_nj_tree_pdf]
+            try:
+                util.run_cmd(cmd, logObject)
+            except Exception as e:
+                logObject.error("Had issues with creating neighbor joining tree and defining populations using cutree.")
+                raise RuntimeError("Had issues with creating neighbor joining tree and defining populations using cutree.")
+    else:
+        sys.exit(1)
+        #### NOT FUNCTIONAL YET!!!
+        population_listing_file = outdir + 'Populations_Defined.txt'
+        populations_on_nj_tree_pdf = outdir + 'Populations_on_Lineage_Tree.pdf'
 
         # Attempt population fitting
-        cmd = ['Rscript', RSCRIPT_FOR_DEFINECLADES_FROM_PHYLO, lineage_phylogeny_file, str(ps),
+        cmd = ['Rscript', RSCRIPT_FOR_DEFINECLADES_FROM_PHYLO, lineage_phylogeny_file, str(popsize),
                population_listing_file, populations_on_nj_tree_pdf]
         try:
             util.run_cmd(cmd, logObject)
         except Exception as e:
             logObject.error("Had issues with creating neighbor joining tree and defining populations using cutree.")
-            raise RuntimeError("Had issues with creating neighbor joining tree and defining populations using cutree.")
+            raise RuntimeError(
+                "Had issues with creating neighbor joining tree and defining populations using cutree.")
+
+        # select representatives from each population
+        with open(population_listing_file) as oplf:
+            for line in oplf:
+                line = line.strip()
+                ls = line.split('\t')
+
 
     # Close logging object and exit
     util.closeLoggerObject(logObject)

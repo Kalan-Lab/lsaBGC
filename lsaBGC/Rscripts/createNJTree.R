@@ -5,10 +5,11 @@
 
 library(ape)
 library(phytools)
+library(data.table)
 
 args = commandArgs(trailingOnly=TRUE)
 
-dat <- read.table(args[1], header=T, sep='\t', row.names=1)
+dat <- fread(args[1], header=T, sep='\t', row.names=1, data.table=FALSE)
 d <- as.dist(dat)
 njt <- nj(d)
 mid.njt <- midpoint.root(njt)

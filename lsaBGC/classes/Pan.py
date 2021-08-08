@@ -259,7 +259,9 @@ class Pan:
 							pairwise_syntenic_relations[bgc1][bgc2] = abs_correlation_coefficient
 							pairwise_syntenic_relations[bgc2][bgc1] = abs_correlation_coefficient
 
-						if not split_by_annotation or (split_by_annotation and len(set(self.bgc_product[bgc1]).intersection(set(self.bgc_product[bgc2])))) > 0:
+						products_union_not_empty = len(set(self.bgc_product[bgc1]).union(set(self.bgc_product[bgc2]))) > 0
+						products_intersection_matches = float(len(set(self.bgc_product[bgc1]).intersection(set(self.bgc_product[bgc2]))))/float(len(set(self.bgc_product[bgc1]).union(set(self.bgc_product[bgc2])))) == 1.0
+						if (not split_by_annotation) or (split_by_annotation and products_union_not_empty and products_intersection_matches):
 							prf_handle.write('%s\t%s\t%f\n' % (bgc1, bgc2, overlap_metric_scaled))
 			prf_handle.close()
 

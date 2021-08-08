@@ -180,7 +180,7 @@ def lsaBGC_Expansion():
                                     min_size=min_segment_size, min_core_size=min_segment_core_size,
                                     gcf_to_gcf_transition_prob=transition_from_gcf_to_gcf,
                                     background_to_background_transition_prob=transition_from_bg_to_bg,
-                                    syntenic_correlation_threshold=syntenic_correlation_threshold)
+                                    syntenic_correlation_threshold=syntenic_correlation_threshold, cores=cores)
     logObject.info("Successfully found new instances of GCF in new sample set.")
 
     # Close logging object and exit
