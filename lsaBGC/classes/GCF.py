@@ -985,6 +985,12 @@ class GCF(Pan):
 					sample_hgs[hits[2]].add(hits[0])
 					sample_lt_to_evalue[hits[2]][lt] = decimal.Decimal(hits[1])
 
+		simplified_comp_gene_info = defaultdict(dict)
+		for g in self.comp_gene_info:
+			simplified_comp_gene_info[g]['start'] = self.comp_gene_info[g]['start']
+			simplified_comp_gene_info[g]['end'] = self.comp_gene_info[g]['end']
+			simplified_comp_gene_info[g]['direction'] = self.comp_gene_info[g]['direction']
+
 		identify_gcf_segments_input = []
 		for sample in sample_hgs:
 			if len(sample_hgs[sample]) < 3: continue
@@ -1005,8 +1011,7 @@ class GCF(Pan):
 
 				hg_seq = numpy.array(list(hgs_ordered))
 				hmm_predictions = model.predict(hg_seq)
-
-				identify_gcf_segments_input.append([bgc_info_dir, bgc_genbanks_dir, sample, sample_prokka_data, sample_lt_to_evalue, dict(self.hmmscan_results_lenient), hmm_predictions, lts_ordered, hgs_ordered, dict(self.comp_gene_info), dict(self.gene_location[sample]), dict(self.gene_id_to_order), dict(self.gene_order_to_id), self.protocluster_core_homologs, self.core_homologs, self.boundary_genes, specific_hgs, dict(self.bgc_genes), dict(self.gene_to_hg), min_size, min_core_size, surround_gene_max])
+				identify_gcf_segments_input.append([bgc_info_dir, bgc_genbanks_dir, sample, sample_prokka_data, sample_lt_to_evalue, dict(self.hmmscan_results_lenient), hmm_predictions, lts_ordered, hgs_ordered, dict(simplified_comp_gene_info), dict(self.gene_location[sample]), dict(self.gene_id_to_order), dict(self.gene_order_to_id), self.protocluster_core_homologs, self.core_homologs, self.boundary_genes, specific_hgs, dict(self.bgc_genes), dict(self.gene_to_hg), min_size, min_core_size, surround_gene_max, syntenic_correlation_threshold])
 
 		with multiprocessing.Manager() as manager:
 			sample_bgc_ids = manager.dict()
