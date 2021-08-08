@@ -1018,11 +1018,6 @@ class GCF(Pan):
 				print(str(it) + '\t' + str(sys.getsizeof(jval)))
 			print('-'*100)
 		with multiprocessing.Manager() as manager:
-			sample_bgc_ids = manager.dict()
-			for i, sitem in enumerate(identify_gcf_segments_input):
-				sample_bgc_ids[sitem[2]] = 1
-				identify_gcf_segments_input[i].append(sample_bgc_ids)
-
 			with manager.Pool(cores) as pool:
 				pool.map(identify_gcf_instances, identify_gcf_segments_input)
 
@@ -3026,9 +3021,10 @@ def create_codon_msas(inputs):
 		logObject.info('Achieved codon alignment for homolog group %s' % hg)
 
 def identify_gcf_instances(input_args):
-	bgc_info_dir, bgc_genbanks_dir, sample, sample_prokka_data, sample_lt_to_evalue, hmmscan_results_lenient, model, lts_ordered_dict, hgs_ordered_dict, comp_gene_info, gene_location, gene_id_to_order, gene_order_to_id, protocluster_core_homologs, core_homologs, boundary_genes, specific_hgs, bgc_genes, gene_to_hg, min_size, min_core_size, surround_gene_max, syntenic_correlation_threshold, sample_bgc_ids = input_args
+	bgc_info_dir, bgc_genbanks_dir, sample, sample_prokka_data, sample_lt_to_evalue, hmmscan_results_lenient, model, lts_ordered_dict, hgs_ordered_dict, comp_gene_info, gene_location, gene_id_to_order, gene_order_to_id, protocluster_core_homologs, core_homologs, boundary_genes, specific_hgs, bgc_genes, gene_to_hg, min_size, min_core_size, surround_gene_max, syntenic_correlation_threshold = input_args
 
 	sample_gcf_predictions = []
+	sample_bgc_ids = 1
 	for scaffold in hgs_ordered_dict:
 		hgs_ordered = hgs_ordered_dict[scaffold]
 		lts_ordered = lts_ordered_dict[scaffold]
@@ -3159,8 +3155,8 @@ def identify_gcf_instances(input_args):
 	bgc_hg_evalue_handle = open(bgc_info_dir + sample + '.hg_evalues.txt', 'w')
 
 	for gcf_segment in sample_gcf_predictions_filtered:
-		bgc_genbank_file = bgc_genbanks_dir + sample + '_BGC-' + str(sample_bgc_ids[sample]) + '.gbk'
-		sample_bgc_ids[sample] += 1
+		bgc_genbank_file = bgc_genbanks_dir + sample + '_BGC-' + str(sample_bgc_ids) + '.gbk'
+		sample_bgc_ids += 1
 
 		gcf_segment_scaff = gcf_segment[5]
 		# check if you can expand and name more hgs
@@ -3180,8 +3176,8 @@ def identify_gcf_instances(input_args):
 					gcf_segment[1].append(hmmscan_results_lenient[lt][0])
 
 		for oi in range(max_bgc_order+1, max_bgc_order+surround_gene_max+1):
-			if oi in gene_order_to_id[sample][gcf_segment_scaff].keys():
-				lt = gene_order_to_id[sample][gcf_segment_scaff][oi]
+			if oi in gene_order_to_id[gcf_segment_scaff].keys():
+				lt = gene_order_to_id[gcf_segment_scaff][oi]
 				if lt in hmmscan_results_lenient.keys():
 					gcf_segment[0].append(lt)
 					gcf_segment[1].append(hmmscan_results_lenient[lt][0])
