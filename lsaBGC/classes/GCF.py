@@ -1021,7 +1021,7 @@ class GCF(Pan):
 				identify_gcf_segments_input[i].append(sample_bgc_ids)
 
 			with manager.Pool(cores) as pool:
-				p.map(identify_gcf_instances, identify_gcf_segments_input)
+				pool.map(identify_gcf_instances, identify_gcf_segments_input)
 
 		bgc_hmm_evalues_file = outdir + 'GCF_NewInstances_HMMEvalues.txt'
 		expanded_gcf_list_file = outdir + 'GCF_Expanded.txt'
