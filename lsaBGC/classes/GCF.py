@@ -1014,7 +1014,7 @@ class GCF(Pan):
 				print(sample)
 				identify_gcf_segments_input.append([bgc_info_dir, bgc_genbanks_dir, sample, sample_prokka_data, sample_lt_to_evalue, dict(self.hmmscan_results_lenient), hmm_predictions, lts_ordered, hgs_ordered, dict(simplified_comp_gene_info), dict(self.gene_location[sample]), dict(self.gene_id_to_order), dict(self.gene_order_to_id), self.protocluster_core_homologs, self.core_homologs, self.boundary_genes, specific_hgs, dict(self.bgc_genes), dict(self.gene_to_hg), min_size, min_core_size, surround_gene_max, syntenic_correlation_threshold])
 				for it, jval in enumerate(identify_gcf_segments_input[-1]):
-					print(str(it) + '\t' + str(sys.getsizeof(jva)))
+					print(str(it) + '\t' + str(sys.getsizeof(jval)))
 				print('-'*100)
 		with multiprocessing.Manager() as manager:
 			sample_bgc_ids = manager.dict()
