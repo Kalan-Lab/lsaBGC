@@ -1009,10 +1009,8 @@ class GCF(Pan):
 					else:
 						hgs_ordered.append('other')
 
-				hg_seq = numpy.array(list(hgs_ordered))
-				hmm_predictions = model.predict(hg_seq)
 				print(sample)
-				identify_gcf_segments_input.append([bgc_info_dir, bgc_genbanks_dir, sample, sample_prokka_data, sample_lt_to_evalue, dict(self.hmmscan_results_lenient), hmm_predictions, lts_ordered, hgs_ordered, dict(simplified_comp_gene_info), dict(self.gene_location[sample]), dict(self.gene_id_to_order), dict(self.gene_order_to_id), self.protocluster_core_homologs, self.core_homologs, self.boundary_genes, specific_hgs, dict(self.bgc_genes), dict(self.gene_to_hg), min_size, min_core_size, surround_gene_max, syntenic_correlation_threshold])
+				identify_gcf_segments_input.append([bgc_info_dir, bgc_genbanks_dir, sample, sample_prokka_data, sample_lt_to_evalue, dict(self.hmmscan_results_lenient[sample]), model, lts_ordered, hgs_ordered, dict(simplified_comp_gene_info), dict(self.gene_location[sample]), dict(self.gene_id_to_order), dict(self.gene_order_to_id), self.protocluster_core_homologs, self.core_homologs, self.boundary_genes, specific_hgs, dict(self.bgc_genes), dict(self.gene_to_hg), min_size, min_core_size, surround_gene_max, syntenic_correlation_threshold])
 				for it, jval in enumerate(identify_gcf_segments_input[-1]):
 					print(str(it) + '\t' + str(sys.getsizeof(jval)))
 				print('-'*100)
@@ -3025,10 +3023,13 @@ def create_codon_msas(inputs):
 		logObject.info('Achieved codon alignment for homolog group %s' % hg)
 
 def identify_gcf_instances(input_args):
-	bgc_info_dir, bgc_genbanks_dir, sample, sample_prokka_data, sample_lt_to_evalue, hmmscan_results_lenient, hmm_predictions, lts_ordered, hgs_ordered, comp_gene_info, gene_location, gene_id_to_order, gene_order_to_id, protocluster_core_homologs, core_homologs, boundary_genes, specific_hgs, bgc_genes, gene_to_hg, min_size, min_core_size, surround_gene_max, syntenic_correlation_threshold, sample_bgc_ids = input_args
+	bgc_info_dir, bgc_genbanks_dir, sample, sample_prokka_data, sample_lt_to_evalue, hmmscan_results_lenient, model, lts_ordered, hgs_ordered, comp_gene_info, gene_location, gene_id_to_order, gene_order_to_id, protocluster_core_homologs, core_homologs, boundary_genes, specific_hgs, bgc_genes, gene_to_hg, min_size, min_core_size, surround_gene_max, syntenic_correlation_threshold, sample_bgc_ids = input_args
 	gcf_state_lts = []
 	gcf_state_hgs = []
 	sample_gcf_predictions = []
+
+	hg_seq = numpy.array(list(hgs_ordered))
+	hmm_predictions = model.predict(hg_seq)
 
 	bgc_sample_listing_handle = open(bgc_info_dir + sample + '.bgcs.txt', 'w')
 	bgc_hg_evalue_handle = open(bgc_info_dir + sample + '.hg_evalues.txt', 'w')
