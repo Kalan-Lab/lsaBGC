@@ -1028,14 +1028,16 @@ class GCF(Pan):
 				expanded_gcf_list_handle.write(line)
 		expanded_gcf_list_handle.close()
 
-		sample_hg_proteins = defaultdict(lambda: defaultdict(set))
-		all_samples = set([])
-		for f in os.listdir(bgc_info_dir):
-			if f.endswith('.bgcs.txt'):
-				os.system('cat %s >> %s' % (bgc_info_dir + f, expanded_gcf_list_file))
-			elif f.endswith('.hg_evalues.txt'):
-				os.system('cat %s >> %s' % (bgc_info_dir + f, bgc_hmm_evalues_file))
-				if not no_orthogroup_matrix:
+		os.system('cat %s/*.bgcs.txt >> %s' (bgc_info_dir, expanded_gcf_list_file))
+		os.system('cat %s/*.hg_evalues.txt > %s' (bgc_info_dir, bgc_hmm_evalues_file))
+		if not os.path.isfile(bgc_hmm_evalues_file):
+			os.system('touch %s' % bgc_hmm_evalues_file)
+
+		if not no_orthogroup_matrix:
+			sample_hg_proteins = defaultdict(lambda: defaultdict(set))
+			all_samples = set([])
+			for f in os.listdir(bgc_info_dir):
+				if f.endswith('.hg_evalues.txt'):
 					with open(bgc_hmm_evalues_file) as obhef:
 						sample = None
 						for line in obhef:
@@ -1045,10 +1047,6 @@ class GCF(Pan):
 								sample_hg_proteins[sample][hg].add(lt)
 						all_samples.add(sample)
 
-		if not os.path.isfile(bgc_hmm_evalues_file):
-			os.system('touch %s' % bgc_hmm_evalues_file)
-
-		if not no_orthogroup_matrix:
 			original_samples = []
 			all_hgs = set([])
 			with open(orthofinder_matrix_file) as omf:
