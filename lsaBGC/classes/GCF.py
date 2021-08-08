@@ -888,7 +888,7 @@ class GCF(Pan):
 
 	def identifyGCFInstances(self, outdir, sample_prokka_data, orthofinder_matrix_file, min_size=5, min_core_size=3,
 							 gcf_to_gcf_transition_prob=0.9, background_to_background_transition_prob=0.9,
-							 syntenic_correlation_threshold=0.8, surround_gene_max=5, cores=1):
+							 syntenic_correlation_threshold=0.8, surround_gene_max=5, no_orthogroup_matrix=False, cores=1):
 		"""
 		Function to search for instances of GCF in sample using HMM based approach based on homolog groups as characters,
 		"part of GCF" and "not part of GCF" as states - all trained on initial BGCs constituting GCF as identified by
@@ -1012,11 +1012,8 @@ class GCF(Pan):
 						hgs_ordered.append('other')
 				hgs_ordered_dict[scaffold] = hgs_ordered
 				lts_ordered_dict[scaffold] = lts_ordered
-			print(sample)
+
 			identify_gcf_segments_input.append([bgc_info_dir, bgc_genbanks_dir, sample, sample_prokka_data[sample], sample_lt_to_evalue[sample], dict(self.hmmscan_results_lenient[sample]), model, lts_ordered_dict, hgs_ordered_dict, dict(simplified_comp_gene_info), dict(self.gene_location[sample]), dict(self.gene_id_to_order[sample]), dict(self.gene_order_to_id[sample]), self.protocluster_core_homologs, self.core_homologs, self.boundary_genes[sample], specific_hgs, dict(self.bgc_genes), dict(self.gene_to_hg), min_size, min_core_size, surround_gene_max, syntenic_correlation_threshold])
-			for it, jval in enumerate(identify_gcf_segments_input[-1]):
-				print(str(it) + '\t' + str(sys.getsizeof(jval)))
-			print('-'*100)
 		with multiprocessing.Manager() as manager:
 			with manager.Pool(cores) as pool:
 				pool.map(identify_gcf_instances, identify_gcf_segments_input)
@@ -1038,43 +1035,46 @@ class GCF(Pan):
 				os.system('cat %s >> %s' % (bgc_info_dir + f, expanded_gcf_list_file))
 			elif f.endswith('.hg_evalues.txt'):
 				os.system('cat %s >> %s' % (bgc_info_dir + f, bgc_hmm_evalues_file))
-				with open(bgc_hmm_evalues_file) as obhef:
-					sample = None
-					for line in obhef:
-						line = line.strip()
-						gbk, sample, lt, hg, eval = line.split('\t')
-						if hg in sample_lt_to_hg[sample].keys():
-							sample_hg_proteins[sample][hg].add(lt)
-					all_samples.add(sample)
+				if not no_orthogroup_matrix:
+					with open(bgc_hmm_evalues_file) as obhef:
+						sample = None
+						for line in obhef:
+							line = line.strip()
+							gbk, sample, lt, hg, eval = line.split('\t')
+							if hg in sample_lt_to_hg[sample].keys():
+								sample_hg_proteins[sample][hg].add(lt)
+						all_samples.add(sample)
+
 		if not os.path.isfile(bgc_hmm_evalues_file):
 			os.system('touch %s' % bgc_hmm_evalues_file)
 
-		original_samples = []
-		all_hgs = set([])
-		with open(orthofinder_matrix_file) as omf:
-			for i, line in enumerate(omf):
-				line = line.strip('\n')
-				ls = line.split('\t')
-				if i == 0:
-					original_samples = [util.cleanUpSampleName(x) for x in ls[1:]]
-					all_samples = all_samples.union(set(original_samples))
-				else:
-					hg = ls[0]
-					all_hgs.add(hg)
-					for j, prot in enumerate(ls[1:]):
-						sample_hg_proteins[original_samples[j]][hg] = sample_hg_proteins[original_samples[j]][hg].union(set(prot.split(', ')))
+		if not no_orthogroup_matrix:
+			original_samples = []
+			all_hgs = set([])
+			with open(orthofinder_matrix_file) as omf:
+				for i, line in enumerate(omf):
+					line = line.strip('\n')
+					ls = line.split('\t')
+					if i == 0:
+						original_samples = [util.cleanUpSampleName(x) for x in ls[1:]]
+						all_samples = all_samples.union(set(original_samples))
+					else:
+						hg = ls[0]
+						all_hgs.add(hg)
+						for j, prot in enumerate(ls[1:]):
+							sample_hg_proteins[original_samples[j]][hg] = sample_hg_proteins[original_samples[j]][hg].union(set(prot.split(', ')))
 
-		expanded_orthofinder_matrix_file = outdir + 'Orthogroups.expanded.csv'
-		expanded_orthofinder_matrix_handle = open(expanded_orthofinder_matrix_file, 'w')
+			expanded_orthofinder_matrix_file = outdir + 'Orthogroups.expanded.csv'
+			expanded_orthofinder_matrix_handle = open(expanded_orthofinder_matrix_file, 'w')
 
-		header = [''] + [s for s in sorted(all_samples)]
-		expanded_orthofinder_matrix_handle.write('\t'.join(header) + '\n')
-		for hg in sorted(all_hgs):
-			printlist = [hg]
-			for s in sorted(all_samples):
-				printlist.append(', '.join(sample_hg_proteins[s][hg]))
-			expanded_orthofinder_matrix_handle.write('\t'.join(printlist) + '\n')
-		expanded_orthofinder_matrix_handle.close()
+			header = [''] + [s for s in sorted(all_samples)]
+			expanded_orthofinder_matrix_handle.write('\t'.join(header) + '\n')
+			for hg in sorted(all_hgs):
+				printlist = [hg]
+				for s in sorted(all_samples):
+					printlist.append(', '.join(sample_hg_proteins[s][hg]))
+				expanded_orthofinder_matrix_handle.write('\t'.join(printlist) + '\n')
+			expanded_orthofinder_matrix_handle.close()
 
 	def extractGenesAndCluster(self, genes_representative_fasta, genes_fasta, codon_alignments_file, bowtie2_db_prefix):
 		"""
