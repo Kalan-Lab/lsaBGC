@@ -994,6 +994,8 @@ class GCF(Pan):
 		identify_gcf_segments_input = []
 		for sample in sample_hgs:
 			if len(sample_hgs[sample]) < 3: continue
+			hgs_ordered_dict = {}
+			lts_ordered_dict = {}
 			for scaffold in self.scaffold_genes[sample]:
 				lts_with_start = []
 				for lt in self.scaffold_genes[sample][scaffold]:
@@ -1008,12 +1010,13 @@ class GCF(Pan):
 						hgs_ordered.append(sample_lt_to_hg[sample][lt])
 					else:
 						hgs_ordered.append('other')
-
-				print(sample)
-				identify_gcf_segments_input.append([bgc_info_dir, bgc_genbanks_dir, sample, sample_prokka_data[sample], sample_lt_to_evalue[sample], dict(self.hmmscan_results_lenient[sample]), model, lts_ordered, hgs_ordered, dict(simplified_comp_gene_info), dict(self.gene_location[sample]), dict(self.gene_id_to_order[sample]), dict(self.gene_order_to_id[sample]), self.protocluster_core_homologs, self.core_homologs, self.boundary_genes[sample], specific_hgs, dict(self.bgc_genes), dict(self.gene_to_hg), min_size, min_core_size, surround_gene_max, syntenic_correlation_threshold])
-				for it, jval in enumerate(identify_gcf_segments_input[-1]):
-					print(str(it) + '\t' + str(sys.getsizeof(jval)))
-				print('-'*100)
+				hgs_ordered_dict[scaffold] = hgs_ordered
+				lts_ordered_dict[scaffold] = lts_ordered
+			print(sample)
+			identify_gcf_segments_input.append([bgc_info_dir, bgc_genbanks_dir, sample, sample_prokka_data[sample], sample_lt_to_evalue[sample], dict(self.hmmscan_results_lenient[sample]), model, lts_ordered_dict, hgs_ordered_dict, dict(simplified_comp_gene_info), dict(self.gene_location[sample]), dict(self.gene_id_to_order[sample]), dict(self.gene_order_to_id[sample]), self.protocluster_core_homologs, self.core_homologs, self.boundary_genes[sample], specific_hgs, dict(self.bgc_genes), dict(self.gene_to_hg), min_size, min_core_size, surround_gene_max, syntenic_correlation_threshold])
+			for it, jval in enumerate(identify_gcf_segments_input[-1]):
+				print(str(it) + '\t' + str(sys.getsizeof(jval)))
+			print('-'*100)
 		with multiprocessing.Manager() as manager:
 			sample_bgc_ids = manager.dict()
 			for i, sitem in enumerate(identify_gcf_segments_input):
@@ -3023,40 +3026,46 @@ def create_codon_msas(inputs):
 		logObject.info('Achieved codon alignment for homolog group %s' % hg)
 
 def identify_gcf_instances(input_args):
-	bgc_info_dir, bgc_genbanks_dir, sample, sample_prokka_data, sample_lt_to_evalue, hmmscan_results_lenient, model, lts_ordered, hgs_ordered, comp_gene_info, gene_location, gene_id_to_order, gene_order_to_id, protocluster_core_homologs, core_homologs, boundary_genes, specific_hgs, bgc_genes, gene_to_hg, min_size, min_core_size, surround_gene_max, syntenic_correlation_threshold, sample_bgc_ids = input_args
-	gcf_state_lts = []
-	gcf_state_hgs = []
+	bgc_info_dir, bgc_genbanks_dir, sample, sample_prokka_data, sample_lt_to_evalue, hmmscan_results_lenient, model, lts_ordered_dict, hgs_ordered_dict, comp_gene_info, gene_location, gene_id_to_order, gene_order_to_id, protocluster_core_homologs, core_homologs, boundary_genes, specific_hgs, bgc_genes, gene_to_hg, min_size, min_core_size, surround_gene_max, syntenic_correlation_threshold, sample_bgc_ids = input_args
+
 	sample_gcf_predictions = []
+	for scaffold in hgs_ordered_dict:
+		hgs_ordered = hgs_ordered_dict[scaffold]
+		lts_ordered = lts_ordered_dict[scaffold]
+		hg_seq = numpy.array(list(hgs_ordered))
+		hmm_predictions = model.predict(hg_seq)
+		gcf_state_lts = []
+		gcf_state_hgs = []
+		for i, hg_state in enumerate(hmm_predictions):
+			lt = lts_ordered[i]
+			hg = hgs_ordered[i]
+			if hg_state == 0:
+				gcf_state_lts.append(lt)
+				gcf_state_hgs.append(hg)
+			if hg_state == 1 or i == (len(hmm_predictions) - 1):
+				if len(set(gcf_state_hgs).difference("other")) >= 3:
+					boundary_lt_featured = False
+					features_specific_hg = False
+					features_protocoluster_hg = False
+					if len(protocluster_core_homologs.intersection(set(gcf_state_hgs).difference('other'))) > 0: features_protocoluster_hg = True
+					if len(boundary_genes.intersection(set(gcf_state_lts).difference('other'))) > 0: boundary_lt_featured = True
+					if len(specific_hgs.intersection(set(gcf_state_hgs).difference('other'))) > 0: features_specific_hg = True
+					sample_gcf_predictions.append([gcf_state_lts, gcf_state_hgs, len(gcf_state_lts),
+												   len(set(gcf_state_hgs).difference("other")),
+												   len(set(gcf_state_hgs).difference("other").intersection(core_homologs)), scaffold, boundary_lt_featured,
+												   features_specific_hg, features_protocoluster_hg])
+				gcf_state_lts = []
+				gcf_state_hgs = []
 
-	hg_seq = numpy.array(list(hgs_ordered))
-	hmm_predictions = model.predict(hg_seq)
-
-	for i, hg_state in enumerate(hmm_predictions):
-		lt = lts_ordered[i]
-		hg = hgs_ordered[i]
-		if hg_state == 0:
-			gcf_state_lts.append(lt)
-			gcf_state_hgs.append(hg)
-		if hg_state == 1 or i == (len(hmm_predictions) - 1):
-			if len(set(gcf_state_hgs).difference("other")) >= 3:
-				boundary_lt_featured = False
-				features_specific_hg = False
-				features_protocoluster_hg = False
-				if len(protocluster_core_homologs.intersection(set(gcf_state_hgs).difference('other'))) > 0: features_protocoluster_hg = True
-				if len(boundary_genes.intersection(set(gcf_state_lts).difference('other'))) > 0: boundary_lt_featured = True
-				if len(specific_hgs.intersection(set(gcf_state_hgs).difference('other'))) > 0: features_specific_hg = True
-				sample_gcf_predictions.append([gcf_state_lts, gcf_state_hgs, len(gcf_state_lts),
-											   len(set(gcf_state_hgs).difference("other")),
-											   len(set(gcf_state_hgs).difference("other").intersection(core_homologs)), scaffold, boundary_lt_featured,
-											   features_specific_hg, features_protocoluster_hg])
 	if len(sample_gcf_predictions) == 0: return
 
+	sorted_sample_gcf_predictions = [x for x in sorted(sample_gcf_predictions, key=itemgetter(3), reverse=True)]
+
+	cumulative_edge_hgs = set([])
+	visited_scaffolds_with_edge_gcf_segment = set([])
 	sample_gcf_predictions_filtered = []
 	sample_edge_gcf_predictions_filtered = []
 
-	sorted_sample_gcf_predictions = [x for x in sorted(sample_gcf_predictions, key=itemgetter(3), reverse=True)]
-	cumulative_edge_hgs = set([])
-	visited_scaffolds_with_edge_gcf_segment = set([])
 	for gcf_segment in sorted_sample_gcf_predictions:
 		if (gcf_segment[3] >= min_size and gcf_segment[4] >= min_core_size) or (gcf_segment[-1]) or (gcf_segment[-2]) or (gcf_segment[3] >= 3 and gcf_segment[-3] and not gcf_segment[5] in visited_scaffolds_with_edge_gcf_segment):
 			# code to determine whether syntenically, the considered segment aligns with what is expected.
