@@ -1010,7 +1010,7 @@ class GCF(Pan):
 						hgs_ordered.append('other')
 
 				print(sample)
-				identify_gcf_segments_input.append([bgc_info_dir, bgc_genbanks_dir, sample, sample_prokka_data, sample_lt_to_evalue, dict(self.hmmscan_results_lenient[sample]), model, lts_ordered, hgs_ordered, dict(simplified_comp_gene_info), dict(self.gene_location[sample]), dict(self.gene_id_to_order), dict(self.gene_order_to_id), self.protocluster_core_homologs, self.core_homologs, self.boundary_genes, specific_hgs, dict(self.bgc_genes), dict(self.gene_to_hg), min_size, min_core_size, surround_gene_max, syntenic_correlation_threshold])
+				identify_gcf_segments_input.append([bgc_info_dir, bgc_genbanks_dir, sample, sample_prokka_data[sample], sample_lt_to_evalue[sample], dict(self.hmmscan_results_lenient[sample]), model, lts_ordered, hgs_ordered, dict(simplified_comp_gene_info), dict(self.gene_location[sample]), dict(self.gene_id_to_order[sample]), dict(self.gene_order_to_id[sample]), self.protocluster_core_homologs, self.core_homologs, self.boundary_genes[sample], specific_hgs, dict(self.bgc_genes), dict(self.gene_to_hg), min_size, min_core_size, surround_gene_max, syntenic_correlation_threshold])
 				for it, jval in enumerate(identify_gcf_segments_input[-1]):
 					print(str(it) + '\t' + str(sys.getsizeof(jval)))
 				print('-'*100)
@@ -3031,9 +3031,6 @@ def identify_gcf_instances(input_args):
 	hg_seq = numpy.array(list(hgs_ordered))
 	hmm_predictions = model.predict(hg_seq)
 
-	bgc_sample_listing_handle = open(bgc_info_dir + sample + '.bgcs.txt', 'w')
-	bgc_hg_evalue_handle = open(bgc_info_dir + sample + '.hg_evalues.txt', 'w')
-
 	for i, hg_state in enumerate(hmm_predictions):
 		lt = lts_ordered[i]
 		hg = hgs_ordered[i]
@@ -3046,7 +3043,7 @@ def identify_gcf_instances(input_args):
 				features_specific_hg = False
 				features_protocoluster_hg = False
 				if len(protocluster_core_homologs.intersection(set(gcf_state_hgs).difference('other'))) > 0: features_protocoluster_hg = True
-				if len(boundary_genes[sample].intersection(set(gcf_state_lts).difference('other'))) > 0: boundary_lt_featured = True
+				if len(boundary_genes.intersection(set(gcf_state_lts).difference('other'))) > 0: boundary_lt_featured = True
 				if len(specific_hgs.intersection(set(gcf_state_hgs).difference('other'))) > 0: features_specific_hg = True
 				sample_gcf_predictions.append([gcf_state_lts, gcf_state_hgs, len(gcf_state_lts),
 											   len(set(gcf_state_hgs).difference("other")),
@@ -3149,9 +3146,11 @@ def identify_gcf_instances(input_args):
 		if gcf_segment[-1]: protocore_gene_found = True
 	if not protocore_gene_found: return
 
+	bgc_sample_listing_handle = open(bgc_info_dir + sample + '.bgcs.txt', 'w')
+	bgc_hg_evalue_handle = open(bgc_info_dir + sample + '.hg_evalues.txt', 'w')
+
 	for gcf_segment in sample_gcf_predictions_filtered:
-		clean_sample_name = util.cleanUpSampleName(sample)
-		bgc_genbank_file = bgc_genbanks_dir + clean_sample_name + '_BGC-' + str(sample_bgc_ids[sample]) + '.gbk'
+		bgc_genbank_file = bgc_genbanks_dir + sample + '_BGC-' + str(sample_bgc_ids[sample]) + '.gbk'
 		sample_bgc_ids[sample] += 1
 
 		gcf_segment_scaff = gcf_segment[5]
@@ -3161,12 +3160,12 @@ def identify_gcf_instances(input_args):
 			if hg == 'other' and lt in hmmscan_results_lenient.keys():
 				gcf_segment[1][i] = hmmscan_results_lenient[lt][0]
 
-		min_bgc_order = min([gene_id_to_order[sample][gcf_segment_scaff][g] for g in gcf_segment[0]])
-		max_bgc_order = max([gene_id_to_order[sample][gcf_segment_scaff][g] for g in gcf_segment[0]])
+		min_bgc_order = min([gene_id_to_order[gcf_segment_scaff][g] for g in gcf_segment[0]])
+		max_bgc_order = max([gene_id_to_order[gcf_segment_scaff][g] for g in gcf_segment[0]])
 
 		for oi in range(min_bgc_order-surround_gene_max, min_bgc_order):
-			if oi in gene_order_to_id[sample][gcf_segment_scaff].keys():
-				lt = gene_order_to_id[sample][gcf_segment_scaff][oi]
+			if oi in gene_order_to_id[gcf_segment_scaff].keys():
+				lt = gene_order_to_id[gcf_segment_scaff][oi]
 				if lt in hmmscan_results_lenient.keys():
 					gcf_segment[0].append(lt)
 					gcf_segment[1].append(hmmscan_results_lenient[lt][0])
@@ -3181,14 +3180,14 @@ def identify_gcf_instances(input_args):
 		min_bgc_pos = min([gene_location[g]['start'] for g in gcf_segment[0]])
 		max_bgc_pos = max([gene_location[g]['end'] for g in gcf_segment[0]])
 
-		util.createBGCGenbank(sample_prokka_data[sample]['genbank'], bgc_genbank_file, gcf_segment_scaff,
+		util.createBGCGenbank(sample_prokka_data['genbank'], bgc_genbank_file, gcf_segment_scaff,
 							  min_bgc_pos, max_bgc_pos)
-		bgc_sample_listing_handle.write('\t'.join([clean_sample_name, bgc_genbank_file]) + '\n')
+		bgc_sample_listing_handle.write('\t'.join([sample, bgc_genbank_file]) + '\n')
 
 		for i, lt in enumerate(gcf_segment[0]):
 			hg = gcf_segment[1][i]
 			evalue = decimal.Decimal(100000.0)
-			if lt in sample_lt_to_evalue[sample]: evalue = sample_lt_to_evalue[sample][lt]
+			if lt in sample_lt_to_evalue: evalue = sample_lt_to_evalue[lt]
 			elif lt in hmmscan_results_lenient.keys(): evalue = hmmscan_results_lenient[lt][1]
 			bgc_hg_evalue_handle.write('\t'.join([bgc_genbank_file, sample, lt, hg, str(evalue)]) + '\n')
 
