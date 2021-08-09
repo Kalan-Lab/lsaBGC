@@ -118,8 +118,7 @@ def lsaBGC_PopGene():
     logObject.info("Saving parameters for future provedance.")
     parameters_file = outdir + 'Parameter_Inputs.txt'
     parameter_values = [gcf_listing_file, orthofinder_matrix_file, outdir, gcf_id, population_classification_file,
-                        sample_set_file, run_for_each_pop, filter_for_outliers, precomputed_fastani_results_file,
-                        precomputed_mash_input_file, cores]
+                        sample_set_file, run_for_each_pop, filter_for_outliers, precomputed_fastani_results_file, cores]
     parameter_names = ["GCF Listing File", "OrthoFinder Orthogroups.csv File", "Output Directory", "GCF Identifier",
                        "Populations Specification/Listing File", "Sample Retention Set", 'Run Analysis for Each Population',
                        "Filter for Outlier Homolog Group Instances", "Precomputed FastANI Results File", "Cores"]
