@@ -18,6 +18,9 @@ from scipy import stats
 from ete3 import Tree
 import itertools
 
+valid_alleles = set(['A', 'C', 'G', 'T'])
+
+
 def writeRefinedProteomes(s, sample_bgcs, refined_proteomes_outdir, logObject):
 	try:
 		refined_proteome_handle = open(refined_proteomes_outdir + s + '.faa', 'w')
@@ -196,7 +199,6 @@ def determineSeqSimCodonAlignment(codon_alignment_file):
 			gene_sequences[rec.id] = str(rec.seq).upper()
 
 	pair_seq_matching = defaultdict(lambda: defaultdict(lambda: 0.0))
-	valid_alleles = set(['A', 'C', 'G', 'T'])
 	for i, g1 in enumerate(gene_sequences):
 		s1 = g1.split('|')[0]
 		g1s = gene_sequences[g1]
