@@ -134,6 +134,7 @@ def lsaBGC_Divergence():
     # Step 1: Parse FastANI results as the genome-wide similarity estimates
     gw_pairwise_similarities = defaultdict(lambda: defaultdict(float))
     try:
+        gw_pairwise_similarities = defaultdict(lambda: defaultdict(float))
         with open(precomputed_fastani_results_file) as of:
             for line in of:
                 line = line.strip()
