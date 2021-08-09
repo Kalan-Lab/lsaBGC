@@ -69,7 +69,7 @@ def create_parser():
     parser.add_argument('-ups', '--upper_num_populations', type=int, help='If population analysis specified, what is the number of populations to . Use the script determinePopulationK.py to see how populations will look with k set to different values.', required=False, default=20)
     parser.add_argument('-i', '--identity_cutoff', type=float, help='Identity to collapse samples at.', required=False, default=1.0)
     parser.add_argument('-c', '--cores', type=int, help="Total number of cores to use.", required=False, default=1)
-    parser.add_argument('-k', '--popsize', type=int, help="Desired number of populations.", required=False, default=None)
+    parser.add_argument('-ps', '--popsize', type=int, help="Desired number of populations.", required=False, default=None)
     args = parser.parse_args()
     return args
 
