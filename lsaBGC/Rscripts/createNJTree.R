@@ -9,7 +9,9 @@ library(data.table)
 
 args = commandArgs(trailingOnly=TRUE)
 
-dat <- fread(args[1], header=T, sep='\t', row.names=1, data.table=FALSE)
+dat <- fread(args[1], header=T, sep='\t', data.table=FALSE)
+row.names(dat) <- dat[,1]
+dat <- dat[,-1]
 d <- as.dist(dat)
 njt <- nj(d)
 mid.njt <- midpoint.root(njt)
