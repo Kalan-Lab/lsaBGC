@@ -135,6 +135,7 @@ def lsaBGC_PopGene():
     gw_pairwise_similarities = None
     if precomputed_fastani_results_file and os.path.isfile(precomputed_fastani_results_file):
         try:
+            gw_pairwise_similarities = defaultdict(lambda: defaultdict(float))
             with open(precomputed_fastani_results_file) as of:
                 for line in of:
                     line = line.strip()
