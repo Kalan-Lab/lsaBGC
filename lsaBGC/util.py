@@ -242,6 +242,7 @@ def determineBGCSequenceSimilarityFromCodonAlignments(codon_alignments_file, cor
 	valid_alleles = set(['A', 'C', 'G', 'T'])
 	sample_hgs = defaultdict(set)
 	comparisons_managed = None
+	pair_seq_matching = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: 0.0)))
 	with multiprocessing.Manager() as manager:
 		comparisons_managed = manager.dict()
 		multiprocess_inputs = []
@@ -270,13 +271,12 @@ def determineBGCSequenceSimilarityFromCodonAlignments(codon_alignments_file, cor
 		with manager.Pool(cores) as pool:
 			pool.map(determineBGCSequenceSimilarity, multiprocess_inputs)
 
-	pair_seq_matching = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: 0.0)))
-	for comp in comparisons_managed:
-		hg, s1, s2, i, j = comp.split('_|_')
-		general_matching_percentage = comparisons_managed[comp]
-		if pair_seq_matching[s1][s2][hg] < general_matching_percentage and pair_seq_matching[s2][s1][hg] < general_matching_percentage:
-			pair_seq_matching[s1][s2][hg] = general_matching_percentage
-			pair_seq_matching[s2][s1][hg] = general_matching_percentage
+		for comp in comparisons_managed:
+			hg, s1, s2, i, j = comp.split('_|_')
+			general_matching_percentage = comparisons_managed[comp]
+			if pair_seq_matching[s1][s2][hg] < general_matching_percentage and pair_seq_matching[s2][s1][hg] < general_matching_percentage:
+				pair_seq_matching[s1][s2][hg] = general_matching_percentage
+				pair_seq_matching[s2][s1][hg] = general_matching_percentage
 
 	bgc_pairwise_similarities = defaultdict(lambda: defaultdict(lambda: ["NA", "NA"]))
 	for i, s1 in enumerate(sorted(sample_hgs)):
