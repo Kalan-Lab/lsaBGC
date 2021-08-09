@@ -159,7 +159,7 @@ def lsaBGC_AutoAnalyze():
 
 	logObject.info("Running FastANI Analysis Between Genomes.")
 	fastani_result_file = outdir + 'FastANI_Results.txt'
-	gw_pairwise_similarities = util.runFastANI(gw_fasta_listing_file, fastani_result_file, cores, logObject, prune_set=sample_retention_set)
+	gw_pairwise_similarities = util.runFastANI(gw_fasta_listing_file, outdir, fastani_result_file, cores, logObject, prune_set=sample_retention_set)
 	logObject.info("Ran FastANI Analysis Between Genomes.")
 
 	fastani_matrix_file = outdir + 'FastANI_Distance_Matrix.txt'
