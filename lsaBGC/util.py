@@ -794,8 +794,8 @@ def runFastANI(fasta_listing_file, outdir, fastani_output_file, cores, logObject
 	fastani_cmd = ['fastANI', '-t', str(cores), '--ql', fastani_input_file, '--rl', fastani_input_file, '-o', fastani_output_file]
 	logObject.info('Running fastANI sketch with the following command: %s' % ' '.join(fastani_cmd))
 	try:
-		subprocess.call(' '.join(fastani_cmd), shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-						executable='/bin/bash')
+		#subprocess.call(' '.join(fastani_cmd), shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+		#				executable='/bin/bash')
 		logObject.info('Successfully ran: %s' % ' '.join(fastani_cmd))
 	except:
 		error_message = 'Had an issue running: %s' % ' '.join(fastani_cmd)
