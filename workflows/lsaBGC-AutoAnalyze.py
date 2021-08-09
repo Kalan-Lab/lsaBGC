@@ -289,7 +289,7 @@ def lsaBGC_AutoAnalyze():
 		if not os.path.isdir(gcf_pop_outdir):
 			os.system('mkdir %s' % gcf_pop_outdir)
 			cmd = ['lsaBGC-PopGene.py', '-g', gcf_listing_file, '-m', orthofinder_matrix_file, '-o', gcf_pop_outdir,
-				   '-i', gcf_id, '-c', str(cores), '-f', fastani_results_cleaned_file]
+				   '-i', gcf_id, '-c', str(cores), '-f', fastani_result_cleaned_file]
 			if population_listing_file:
 				cmd += ['-p', population_listing_file]
 			try:
@@ -304,7 +304,7 @@ def lsaBGC_AutoAnalyze():
 			os.system('mkdir %s' % gcf_div_outdir)
 			cmd = ['lsaBGC-Divergence.py', '-g', gcf_listing_file, '-l', input_listing_file, '-o', gcf_div_outdir,
 				   '-i', gcf_id, '-a',	gcf_pop_outdir + 'Codon_Alignments_Listings.txt', '-c', str(cores),
-				   '-f', fastani_results_cleaned_file]
+				   '-f', fastani_result_cleaned_file]
 			try:
 				util.run_cmd(cmd, logObject)
 			except Exception as e:
