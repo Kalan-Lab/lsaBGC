@@ -132,6 +132,7 @@ def lsaBGC_AutoExpansion():
 
 	gcf_expansion_results = defaultdict(dict)
 	bgc_lt_evals = defaultdict(lambda: defaultdict(lambda: defaultdict(dict)))
+	bgcs_with_func_core_lt = set([])
 	bgc_lts = defaultdict(lambda: defaultdict(lambda: defaultdict(set)))
 	bgc_lt_to_hg = defaultdict(dict)
 	original_gcfs = set([])
@@ -191,6 +192,8 @@ def lsaBGC_AutoExpansion():
 						d = Decimal(eval + 1e-500)
 						bgc_lt_evals[sample][gcf_id][bgc_gbk_path][lt] = float(max([d.log10(), -500]))
 					bgc_lts[sample][gcf_id][bgc_gbk_path].add(lt)
+					if hg_is_functionally_core == 'True':
+						bgcs_with_func_core_lt.add(bgc_gbk_path)
 					bgc_lt_to_hg[bgc_gbk_path][lt] = hg
 
 		except Exception as e:
@@ -213,8 +216,6 @@ def lsaBGC_AutoExpansion():
 					for bgc2 in bgc_lts[sample][gcf2]:
 						bgc2_lts = bgc_lts[sample][gcf2][bgc2]
 						if len(bgc1_lts.intersection(bgc2_lts)) > 0 and ( (float(len(bgc1_lts.intersection(bgc2_lts)))/float(len(bgc1_lts)) >= 0.05) or (float(len(bgc1_lts.intersection(bgc2_lts)))/float(len(bgc2_lts)) >= 0.05)):
-							if 'GCF_10' or 'GCF_15':
-								print(bgc1 + ' vs. ' + bgc2)
 							bgc1_score = 0.0
 							bgc2_score = 0.0
 							for lt in bgc1_lts:
@@ -250,7 +251,6 @@ def lsaBGC_AutoExpansion():
 
 							logObject.info("Overlap found between BGCs %s (%s) and %s (%s), %s." % (bgc1, gcf1, bgc2, gcf2, address))
 
-
 	# create updated general listings file
 	updated_listings_file = outdir + 'Sample_Annotation_Files.txt'
 	updated_listings_handle = open(updated_listings_file, 'w')
@@ -265,6 +265,17 @@ def lsaBGC_AutoExpansion():
 			updated_listings_handle.write(line)
 	updated_listings_handle.close()
 
+	# further filter out entire GCF presence in samples if needed
+	sample_has_bgc_with_functional_core_lt = defaultdict(lambda: defaultdict(lambda: False))
+	for gcf in gcf_expansion_results:
+		expanded_gcf_listing_file = gcf_expansion_results[gcf]
+		with open(expanded_gcf_listing_file) as oeglf:
+			for line in oeglf:
+				line = line.strip()
+				sample, bgc_gbk_path = line.split('\t')
+				if (not bgc_gbk_path in bgcs_to_discard) and (bgc_gbk_path in bgcs_with_func_core_lt):
+					sample_has_bgc_with_functional_core_lt[sample][gcf] = True
+
 	# update OrthoFinder homolog group vs. sample matrix
 	sample_hg_lts = defaultdict(lambda: defaultdict(set))
 	for gcf in gcf_expansion_results:
@@ -275,6 +286,7 @@ def lsaBGC_AutoExpansion():
 			for line in oeglf:
 				line = line.strip()
 				sample, bgc_gbk_path = line.split('\t')
+				if sample_has_bgc_with_functional_core_lt[sample][gcf] == False: continue
 				if bgc_gbk_path in bgcs_to_discard: continue
 				final_expanded_gcf_listing_handle.write(line + '\n')
 				if bgc_gbk_path in original_gcfs: continue
