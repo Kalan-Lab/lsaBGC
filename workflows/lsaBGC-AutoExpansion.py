@@ -286,7 +286,9 @@ def lsaBGC_AutoExpansion():
 			for line in oeglf:
 				line = line.strip()
 				sample, bgc_gbk_path = line.split('\t')
-				if sample_has_bgc_with_functional_core_lt[sample][gcf] == False: continue
+				if sample_has_bgc_with_functional_core_lt[sample][gcf] == False:
+					logObject.info("GCF %s presence in sample %s disregarded, because BGC instance with functionally core homolog group was removed due to overlap with BGC from another GCF." % (gcf, sample))
+					continue
 				if bgc_gbk_path in bgcs_to_discard: continue
 				final_expanded_gcf_listing_handle.write(line + '\n')
 				if bgc_gbk_path in original_gcfs: continue
