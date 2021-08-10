@@ -3031,9 +3031,6 @@ def identify_gcf_instances(input_args):
 		hg_seq = numpy.array(list(hgs_ordered))
 		hmm_predictions = model.predict(hg_seq)
 
-		if sample.endswith('17_May'):
-			print(hmm_predictions)
-
 		gcf_state_lts = []
 		gcf_state_hgs = []
 		for i, hg_state in enumerate(hmm_predictions):
@@ -3067,8 +3064,6 @@ def identify_gcf_instances(input_args):
 	sample_edge_gcf_predictions_filtered = []
 
 	for gcf_segment in sorted_sample_gcf_predictions:
-		if sample.endswith('17_May'):
-			print(gcf_segment)
 		if (gcf_segment[3] >= min_size and gcf_segment[4] >= min_core_size) or (gcf_segment[-1]) or (gcf_segment[-2]) or (gcf_segment[3] >= 3 and gcf_segment[-3] and not gcf_segment[5] in visited_scaffolds_with_edge_gcf_segment):
 			# code to determine whether syntenically, the considered segment aligns with what is expected.
 			segment_hg_order = []
@@ -3136,10 +3131,7 @@ def identify_gcf_instances(input_args):
 				except:
 					pass
 
-			if sample.endswith('17_May'):
-				print(best_corr)
-
-			if not best_corr or best_corr < syntenic_correlation_threshold: return
+			if not best_corr or best_corr < syntenic_correlation_threshold: continue
 
 			if (gcf_segment[3] >= min_size and gcf_segment[4] >= min_core_size) or (gcf_segment[-1]) or (gcf_segment[-2]):
 				sample_gcf_predictions_filtered.append(gcf_segment)
