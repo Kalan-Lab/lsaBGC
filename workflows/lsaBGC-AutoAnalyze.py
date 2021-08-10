@@ -334,6 +334,9 @@ def lsaBGC_AutoAnalyze():
 	combined_orthoresults_unrefined_handle = open(outdir + 'GCF_Ortholog_Group_Information.txt', 'w')
 	combined_divergence_results_handle = open(combined_divergence_results_file, 'w')
 
+	if sample_retention_set == None:
+		sample_retention_set = all_samples
+
 	combined_consensus_similarity_handle.write('\t'.join(['GCF', 'GCF_Order', 'Homolog_Group', 'Homolog_Group_Order', 'label', 'Difference_to_Consensus_Sequence']) + '\n')
 	for i, g in enumerate(os.listdir(gcf_listing_dir)):
 		gcf_id = g.split('.txt')[0]
@@ -380,6 +383,8 @@ def lsaBGC_AutoAnalyze():
 				hg_ordering[ls[1]] = ls[3]
 
 		gcf_pop_stats_outdir = gcf_pop_outdir + 'Codon_PopGen_Analyses/'
+		gcf_consensus_sim_plot_lines = []
+		total_samples_accounted = set([])
 		for f in os.listdir(gcf_pop_stats_outdir):
 			if f.endswith("_sim_to_consensus.txt"):
 				samps_accounted = set([])
@@ -389,11 +394,13 @@ def lsaBGC_AutoAnalyze():
 						line = line.strip()
 						hg, samp, diff = line.split('\t')
 						samps_accounted.add(samp)
-						combined_consensus_similarity_handle.write(gcf_id + '\t' + gcf_id.split('_')[1] + '\t' + hg + '\t' + hg_ordering[hg] + '\t' + samp + '\t' + str(diff) + '\n')
+						gcf_consensus_sim_plot_lines.append(gcf_id + '\t' + gcf_id.split('_')[1] + '\t' + hg + '\t' + hg_ordering[hg] + '\t' + samp + '\t' + str(diff))
 				for samp in all_samples:
 					if not samp in samps_accounted:
-						combined_consensus_similarity_handle.write(gcf_id + '\t' + gcf_id.split('_')[1] + '\t' + hg + '\t' + hg_ordering[hg] + '\t' + samp + '\t' + str(1.0) + '\n')
+						gcf_consensus_sim_plot_lines.append(gcf_id + '\t' + gcf_id.split('_')[1] + '\t' + hg + '\t' + hg_ordering[hg] + '\t' + samp + '\t' + str(1.0))
 
+		if float(len(total_samples_accounted))/float(len(sample_retention_set)) >= 0.1:
+			combined_consensus_similarity_handle.write('\n'.join(gcf_consensus_sim_plot_lines))
 	combined_gene_plotting_input_handle.close()
 	combined_consensus_similarity_handle.close()
 	combined_orthoresults_unrefined_handle.close()
