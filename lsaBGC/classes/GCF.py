@@ -3195,7 +3195,7 @@ def identify_gcf_instances(input_args):
 			evalue = decimal.Decimal(100000.0)
 			if lt in sample_lt_to_evalue: evalue = sample_lt_to_evalue[lt]
 			elif lt in hmmscan_results_lenient.keys(): evalue = hmmscan_results_lenient[lt][1]
-			bgc_hg_evalue_handle.write('\t'.join([bgc_genbank_file, sample, lt, hg, str(evalue)]) + '\n')
+			bgc_hg_evalue_handle.write('\t'.join([bgc_genbank_file, sample, lt, hg, str(evalue), str(hg in protocluster_core_homologs)]) + '\n')
 
 	bgc_hg_evalue_handle.close()
 	bgc_sample_listing_handle.close()

@@ -183,7 +183,7 @@ def lsaBGC_AutoExpansion():
 			with open(gcf_hmm_evalues_file) as oghef:
 				for line in oghef:
 					line = line.strip()
-					bgc_gbk_path, sample, lt, hg, eval = line.split('\t')
+					bgc_gbk_path, sample, lt, hg, eval, hg_is_functionally_core = line.split('\t')
 					eval = float(eval)
 					d = Decimal(eval + 1e-300)
 					bgc_lt_evals[sample][gcf_id][bgc_gbk_path][lt] = float(max([d.log10(), -300]))
