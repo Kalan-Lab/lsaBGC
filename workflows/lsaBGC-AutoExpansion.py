@@ -212,7 +212,9 @@ def lsaBGC_AutoExpansion():
 					bgc1_lts = bgc_lts[sample][gcf1][bgc1]
 					for bgc2 in bgc_lts[sample][gcf2]:
 						bgc2_lts = bgc_lts[sample][gcf2][bgc2]
-						if len(bgc1_lts.intersection(bgc2_lts)) > 0 and (float(len(bgc1_lts.intersection(bgc2_lts)))/float(len(bgc1_lts)) >= 0.1 or float(len(bgc1_lts.intersection(bgc2_lts)))/float(len(bgc2_lts)) >= 0.1):
+						if len(bgc1_lts.intersection(bgc2_lts)) > 0 and ( (float(len(bgc1_lts.intersection(bgc2_lts)))/float(len(bgc1_lts)) >= 0.05) or (float(len(bgc1_lts.intersection(bgc2_lts)))/float(len(bgc2_lts)) >= 0.05)):
+							if 'GCF_10' or 'GCF_15':
+								print(bgc1 + ' vs. ' + bgc2)
 							bgc1_score = 0.0
 							bgc2_score = 0.0
 							for lt in bgc1_lts:
