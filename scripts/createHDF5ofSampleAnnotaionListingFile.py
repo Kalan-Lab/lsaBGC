@@ -90,7 +90,10 @@ def main():
                     gene_loc_lt_grp.attrs['end'] = gene_to_scaff[lt]['end']
                     gene_loc_lt_grp.attrs['direction'] = gene_to_scaff[lt]['direction']
 
-                    gito_scaff_grp = sample_gbk_info_grp.create_group('gito/' + gene_to_scaff[lt]['scaffold'])
+                    if not gene_to_scaff[lt]['scaffold'] in sample_gbk_info_grp['gito'].keys():
+                        gito_scaff_grp = sample_gbk_info_grp.create_group('gito/' + gene_to_scaff[lt]['scaffold'])
+                    else:
+                        gito_scaff_grp = sample_gbk_info_grp['gito/' + gene_to-scaff[lt]['scaffold']]
                     gito_scaff_grp.attrs[lt] = int(gito[gene_to_scaff[lt]['scaffold']][lt])
 
                 sample_gbk_info_grp.attrs['bound_genes'] = list(bound_genes)
