@@ -94,7 +94,7 @@ def main():
 
                 for scaff in scaff_genes:
                     sample_gbk_info_grp['scaff_genes/' + scaff] = list(scaff_genes[scaff])
-                    goti_sample_gbk_info_grp = create_group('gito/' + scaff)
+                    goti_sample_gbk_info_grp = sample_gbk_info_grp.create_group('gito/' + scaff)
                     for ord in goti[scaff]:
                         goti_sample_gbk_info_grp[ord] = goti[scaff][ord]
 
