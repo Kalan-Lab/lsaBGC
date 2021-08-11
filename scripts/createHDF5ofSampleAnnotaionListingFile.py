@@ -79,7 +79,7 @@ def main():
                 sample_prot_path = sample_prokka_data[sample]['proteome']
                 sample_paths_grp = paths_grp.create_group(sample)
                 sample_paths_grp["genbank"] = sample_gbk_path
-                sample_paths_grp["Proteome"] = sample_prot_path
+                sample_paths_grp["proteome"] = sample_prot_path
 
                 gene_to_scaff, scaff_genes, bound_genes, gito, goti = sample_gbk_info[sample]
                 sample_gbk_info_grp = gbk_info_grp.create_group(sample)
