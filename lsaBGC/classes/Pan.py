@@ -14,6 +14,7 @@ import math
 from operator import itemgetter
 from scipy import stats
 import decimal
+import _pickle as cPickle
 
 lsaBGC_main_directory = '/'.join(os.path.realpath(__file__).split('/')[:-3])
 RSCRIPT_FOR_CLUSTER_ASSESSMENT_PLOTTING = lsaBGC_main_directory + '/lsaBGC/Rscripts/plotParameterImpactsOnGCF.R'
