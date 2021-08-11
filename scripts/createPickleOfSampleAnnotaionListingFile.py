@@ -2,7 +2,7 @@
 
 import os
 import sys
-import pickle
+import _pickle as cPickle
 import traceback
 from time import sleep
 import argparse
@@ -76,10 +76,10 @@ def main():
             pool.map(util.parseGenbankAndFindBoundaryGenes, genbanks)
 
         pickle_data = {'paths': dict(sample_prokka_data), 'gbk_info': dict(sample_gbk_info)}
-        of = open(output_file, 'w')
+        of = open(output_file, 'wb')
         pickle.dump(pickle_data, of)
         of.close()
-        
+
     # Exit program
     sys.exit(0)
 
