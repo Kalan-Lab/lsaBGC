@@ -1053,7 +1053,7 @@ class Pan:
 					self.logObject.error("Had issues loading data from extention sample set pickle object.")
 					self.logObject.error(traceback.format_exc())
 				raise RuntimeError(traceback.format_exc())
-			
+
 		alignment_cmds = []
 		for sample in expanded_sample_prokka_data:
 			sample_proteome = expanded_sample_prokka_data[sample]['predicted_proteome']
