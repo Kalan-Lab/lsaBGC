@@ -77,7 +77,7 @@ def main():
                 pool.map(util.parseGenbankAndFindBoundaryGenes, genbanks)
 
             of = open(output_file, 'wb')
-            cPickle.dump(sample_gbk_info, of)
+            cPickle.dump(dict(sample_gbk_info), of)
             of.close()
     except Exception as e:
         sys.stderr.write(traceback.format_exc())
