@@ -83,6 +83,7 @@ def main():
 
                 gene_to_scaff, scaff_genes, bound_genes, gito, goti = sample_gbk_info[sample]
                 sample_gbk_info_grp = gbk_info_grp.create_group(sample)
+                sample_gbk_info_grp.create_group('gito/')
                 for lt in gene_to_scaff:
                     gene_loc_lt_grp = sample_gbk_info_grp.create_group('gene_location/' + lt)
                     gene_loc_lt_grp.attrs['scaffold'] = gene_to_scaff[lt]['scaffold']
