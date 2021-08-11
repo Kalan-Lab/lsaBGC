@@ -93,11 +93,10 @@ def main():
                 sample_gbk_info_grp['bound_genes'] = list(bound_genes)
 
                 for scaff in scaff_genes:
-                    sample_gbk_info_grp['scaff_genes/' + scaff] = scaff_genes[scaff]
-
-                goti_sample_gbk_info_grp = create_group("goti")
-                for ord in goti:
-                    goti_sample_gbk_info_grp[ord] = goti[ord]
+                    sample_gbk_info_grp['scaff_genes/' + scaff] = list(scaff_genes[scaff])
+                    goti_sample_gbk_info_grp = create_group('gito/' + scaff)
+                    for ord in goti[scaff]:
+                        goti_sample_gbk_info_grp[ord] = goti[scaff][ord]
 
     # Exit program
     sys.exit(0)
