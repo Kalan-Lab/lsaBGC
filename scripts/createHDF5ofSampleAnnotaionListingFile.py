@@ -6,6 +6,7 @@ import h5py
 import traceback
 from time import sleep
 import argparse
+import multiprocessing
 from collections import defaultdict
 from lsaBGC import util
 from lsaBGC import processing
