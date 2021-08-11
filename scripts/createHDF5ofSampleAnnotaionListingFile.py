@@ -88,10 +88,9 @@ def main():
                     sample_gbk_info_grp['gene_location/' + lt + '/start'] = gene_to_scaff[lt]['start']
                     sample_gbk_info_grp['gene_location/' + lt + '/end'] = gene_to_scaff[lt]['end']
                     sample_gbk_info_grp['gene_location/' + lt + '/direction'] = gene_to_scaff[lt]['direction']
-                    print(gito[lt])
-                    sample_gbk_info_grp['gito/' + lt] = int(gito[lt])
+                    sample_gbk_info_grp['gito/' +  gene_to_scaff[lt]['scaffold'] + '/' + lt] = int(gito[lt])
 
-                sample_gbk_info_grp['bound_genes'] = set(bound_genes)
+                sample_gbk_info_grp['bound_genes'] = list(bound_genes)
 
                 for scaff in scaff_genes:
                     sample_gbk_info_grp['scaff_genes/' + scaff] = scaff_genes[scaff]
