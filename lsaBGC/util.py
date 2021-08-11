@@ -679,7 +679,7 @@ def parseGenbankAndFindBoundaryGenes(inputs):
 				gene_id_to_order[scaffold][g[0]] = i
 				gene_order_to_id[scaffold][i] = g[0]
 
-	sample_gbk_info[sample] = [gene_location, scaffold_genes, boundary_genes, gene_id_to_order, gene_order_to_id]
+	sample_gbk_info[sample] = [gene_location, dict(scaffold_genes), boundary_genes, dict(gene_id_to_order), dict(gene_order_to_id)]
 
 def calculateMashPairwiseDifferences(fasta_listing_file, outdir, name, sketch_size, cores, logObject, prune_set=None):
 	"""

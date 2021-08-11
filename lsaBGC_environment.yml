@@ -32,4 +32,3 @@ dependencies:
   - conda-forge::r-ggalluvial=0.12.3
   - conda-forge::pomegranate=0.13.3
   - conda-forge::r-data.table=1.14.0
-  - conda-forge::h5py=
