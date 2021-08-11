@@ -78,25 +78,25 @@ def main():
                 sample_gbk_path = sample_prokka_data[sample]['genbank']
                 sample_prot_path = sample_prokka_data[sample]['predicted_proteome']
                 sample_paths_grp = paths_grp.create_group(sample)
-                sample_paths_grp["genbank"] = sample_gbk_path
-                sample_paths_grp["predicted_proteome"] = sample_prot_path
+                sample_paths_grp.attrs['genbank'] = sample_gbk_path
+                sample_paths_grp.attrs['predicted_proteome'] = sample_prot_path
 
                 gene_to_scaff, scaff_genes, bound_genes, gito, goti = sample_gbk_info[sample]
                 sample_gbk_info_grp = gbk_info_grp.create_group(sample)
                 for lt in gene_to_scaff:
-                    sample_gbk_info_grp['gene_location/' + lt + '/scaffold'] = gene_to_scaff[lt]['scaffold']
-                    sample_gbk_info_grp['gene_location/' + lt + '/start'] = gene_to_scaff[lt]['start']
-                    sample_gbk_info_grp['gene_location/' + lt + '/end'] = gene_to_scaff[lt]['end']
-                    sample_gbk_info_grp['gene_location/' + lt + '/direction'] = gene_to_scaff[lt]['direction']
-                    sample_gbk_info_grp['gito/' +  gene_to_scaff[lt]['scaffold'] + '/' + lt] = int(gito[gene_to_scaff[lt]['scaffold']][lt])
+                    sample_gbk_info_grp['gene_location/' + lt].attrs['scaffold'] = gene_to_scaff[lt]['scaffold']
+                    sample_gbk_info_grp['gene_location/' + lt].attrs['start'] = gene_to_scaff[lt]['start']
+                    sample_gbk_info_grp['gene_location/' + lt].attrs['end'] = gene_to_scaff[lt]['end']
+                    sample_gbk_info_grp['gene_location/' + lt].attrs['direction'] = gene_to_scaff[lt]['direction']
+                    sample_gbk_info_grp['gito/' +  gene_to_scaff[lt]['scaffold']].attrs[lt] = int(gito[gene_to_scaff[lt]['scaffold']][lt])
 
-                sample_gbk_info_grp['bound_genes'] = list(bound_genes)
+                sample_gbk_info_grp.attrs['bound_genes'] = list(bound_genes)
 
                 for scaff in scaff_genes:
-                    sample_gbk_info_grp['scaff_genes/' + scaff] = list(scaff_genes[scaff])
+                    sample_gbk_info_grp['scaff_genes'].attrs[scaff] = list(scaff_genes[scaff])
                     goti_sample_gbk_info_grp = sample_gbk_info_grp.create_group('goti/' + scaff)
                     for ord in goti[scaff]:
-                        goti_sample_gbk_info_grp[str(ord)] = goti[scaff][ord]
+                        goti_sample_gbk_info_grp.attrs[str(ord)] = goti[scaff][ord]
 
     # Exit program
     sys.exit(0)
