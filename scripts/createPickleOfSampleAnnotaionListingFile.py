@@ -77,7 +77,7 @@ def main():
 
         pickle_data = {'paths': dict(sample_prokka_data), 'gbk_info': dict(sample_gbk_info)}
         of = open(output_file, 'wb')
-        pickle.dump(pickle_data, of)
+        cPickle.dump(pickle_data, of)
         of.close()
 
     # Exit program
