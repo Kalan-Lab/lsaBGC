@@ -63,22 +63,26 @@ def main():
     START WORKFLOW
     """
 
-    sample_prokka_data = processing.readInAnnotationFilesForExpandedSampleSet(annotation_listing_file)
+    try:
+        sample_prokka_data = processing.readInAnnotationFilesForExpandedSampleSet(annotation_listing_file)
 
-    with multiprocessing.Manager() as manager:
-        sample_gbk_info = manager.dict()
-        genbanks = []
-        for sample in sample_prokka_data:
-            sample_genbank = sample_prokka_data[sample]['genbank']
-            genbanks.append([sample, sample_genbank, sample_gbk_info])
+        with multiprocessing.Manager() as manager:
+            sample_gbk_info = manager.dict()
+            genbanks = []
+            for sample in sample_prokka_data:
+                sample_genbank = sample_prokka_data[sample]['genbank']
+                genbanks.append([sample, sample_genbank, sample_gbk_info])
 
-        with manager.Pool(cores) as pool:
-            pool.map(util.parseGenbankAndFindBoundaryGenes, genbanks)
+            with manager.Pool(cores) as pool:
+                pool.map(util.parseGenbankAndFindBoundaryGenes, genbanks)
 
-        pickle_data = {'paths': dict(sample_prokka_data), 'gbk_info': dict(sample_gbk_info)}
-        of = open(output_file, 'wb')
-        cPickle.dump(pickle_data, of)
-        of.close()
+            pickle_data = {'paths': dict(sample_prokka_data), 'gbk_info': dict(sample_gbk_info)}
+            of = open(output_file, 'wb')
+            cPickle.dump(pickle_data, of)
+            of.close()
+    except Exception as e:
+        sys.stderr.write(traceback.format_exc())
+        raise RuntimeError('Had an issue pickling annotation data!')
 
     # Exit program
     sys.exit(0)

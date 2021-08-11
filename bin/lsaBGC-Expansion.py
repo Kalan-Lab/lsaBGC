@@ -73,6 +73,8 @@ def create_parser():
     parser.add_argument('-c', '--cores', type=int, help="The number of cores to use.", required=False, default=1)
     parser.add_argument('-q', '--quick_mode', action='store_true', help="Run in quick-mode. Instead of running HMMScan for each homolog group, a consensus sequence is emitted and Diamond is used for searching instead. Method inspired by Melnyk et al. 2019", required=False, default=False)
     parser.add_argument('-no', '--no_orthogroup_matrix', action='store_true', help="Avoid writing the updated OrthoFinder matrix at the end.", required=False, default=False)
+    parser.add_argument('-z', '--pickle_expansion_annotation_data', help="Pickle file with serialization of annotation data in the expansion listing file.", required=False, default=None)
+
     args = parser.parse_args()
 
     return args
@@ -121,6 +123,7 @@ def lsaBGC_Expansion():
     transition_from_bg_to_bg = myargs.transition_from_bg_to_bg
     quick_mode = myargs.quick_mode
     no_orthogroup_matrix = myargs.no_orthogroup_matrix
+    pickle_expansion_annotation_data_file = myargs.pickle_expansion_annotation_data
 
     """
     START WORKFLOW
@@ -134,14 +137,17 @@ def lsaBGC_Expansion():
     parameters_file = outdir + 'Parameter_Inputs.txt'
     parameter_values = [gcf_listing_file, orthofinder_matrix_file, initial_listing_file, expansion_listing_file, outdir,
                         gcf_id, cores, min_segment_size, min_segment_core_size, syntenic_correlation_threshold,
-                        transition_from_gcf_to_gcf, transition_from_bg_to_bg, quick_mode]
+                        transition_from_gcf_to_gcf, transition_from_bg_to_bg, quick_mode, no_orthogroup_matrix,
+                        pickle_expansion_annotation_data_file]
     parameter_names = ["GCF Listing File", "OrthoFinder Orthogroups.csv File",
                        "Listing File of Prokka Annotation Files for Initial Set of Samples",
                        "Listing File of Prokka Annotation Files for Expansion/Additional Set of Samples",
                        "Output Directory", "GCF Identifier", "Cores", "Minimum Size of Segments",
                        "Minimum Core Size of Segments", "Syntenic Correlation Threshold",
                        "HMM Transition Probability from GCF to GCF",
-                       "HMM Transition Probability from Background to Background", "Run Expansion in Quick Mode?"]
+                       "HMM Transition Probability from Background to Background", "Run Expansion in Quick Mode?",
+                       "Skip rewriting Expanded OrthoGroup CSV File?",
+                       "Pickle File with Annotation Data in Expansion Listing for Quick Loading"]
     util.logParametersToFile(parameters_file, parameter_names, parameter_values)
     logObject.info("Done saving parameters!")
 
@@ -173,7 +179,8 @@ def lsaBGC_Expansion():
 
     # Step 5: Search HMM profiles in proteomes from comprehensive set of BGCs
     logObject.info("Searching for homolog group HMMs in proteins extracted from comprehensive list of BGCs.")
-    GCF_Object.runHMMScan(outdir, expanded_sample_prokka_data, cores=cores, quick_mode=quick_mode)
+    GCF_Object.runHMMScan(outdir, expanded_sample_prokka_data, cores=cores, quick_mode=quick_mode,
+                          annotation_pickle_file=pickle_expansion_annotation_data_file)
     logObject.info("Successfully found new instances of GCF in new sample set.")
 
     # Step 6: Determine whether samples' assemblies feature GCF of interest

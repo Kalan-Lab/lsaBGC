@@ -68,7 +68,7 @@ def create_parser():
 	parser.add_argument('-e', '--expansion_listing', help="Path to tab delimited file listing: (1) sample name (2) path to Prokka Genbank and (3) path to Prokka predicted proteome. This file is produced by lsaBGC-AutoProcess.py.", required=True)
 	parser.add_argument('-o', '--output_directory', help="Parent output/workspace directory.", required=True)
 	parser.add_argument('-q', '--quick_mode', action='store_true', help='Whether to run lsaBGC-Expansion in quick mode?', required=False, default=False)
-	parser.add_argument('-z', '--hdf5_expansion_listing', action='store_true', help="Expansion listing is an HDF5 file.")
+	parser.add_argument('-z', '--pickle_expansion_annotation_data', help="Pickle file with serialization of annotation data in the expansion listing file.", required=False, default=None)
 	parser.add_argument('-c', '--cores', type=int, help="Total number of cores to use.", required=False, default=1)
 
 	args = parser.parse_args()
@@ -108,7 +108,7 @@ def lsaBGC_AutoExpansion():
 
 	cores = myargs.cores
 	quick_mode = myargs.quick_mode
-	hdf5_expansion_listing = myargs.hdf5_expansion_listing
+	pickle_expansion_annotation_data_file = myargs.pickle_expansion_annotation_data
 
 	"""
 	START WORKFLOW
@@ -122,10 +122,12 @@ def lsaBGC_AutoExpansion():
 	logObject.info("Saving parameters for easier determination of results' provenance in the future.")
 	parameters_file = outdir + 'Parameter_Inputs.txt'
 	parameter_values = [gcf_listing_dir, initial_listing_file,
-						expansion_listing_file, original_orthofinder_matrix_file, outdir, hdf5_expansion_listing, quick_mode, cores]
+						expansion_listing_file, original_orthofinder_matrix_file, outdir, pickle_expansion_annotation_data_file, quick_mode, cores]
 	parameter_names = ["GCF Listings Directory", "Listing File of Prokka Annotation Files for Initial Set of Samples",
 					   "Listing File of Prokka Annotation Files for Expansion/Additional Set of Samples",
-					   "OrthoFinder Homolog Matrix", "Output Directory", "Expansion Listing is an HDF5 File for Quick Loading?", "Run in Quick Mode?", "Cores"]
+					   "OrthoFinder Homolog Matrix", "Output Directory",
+					   "Pickle File with Annotation Data in Expansion Listing for Quick Loading",
+					   "Run in Quick Mode?", "Cores"]
 	util.logParametersToFile(parameters_file, parameter_names, parameter_values)
 	logObject.info("Done saving parameters!")
 
@@ -168,8 +170,8 @@ def lsaBGC_AutoExpansion():
 			   	   '-c', str(cores), '-no']
 			if quick_mode:
 				cmd += ['-q']
-			if hdf5_expansion_listing:
-				cmd += ['-z']
+			if pickle_expansion_annotation_data_file:
+				cmd += ['-z', pickle_expansion_annotation_data_file]
 			try:
 				util.run_cmd(cmd, logObject, stderr=sys.stderr, stdout=sys.stdout)
 			except:

@@ -1008,7 +1008,7 @@ class Pan:
 			raise RuntimeError(traceback.format_exc())
 		hg_differentiation_file.close()
 
-	def runHMMScan(self, outdir, expanded_sample_prokka_data, cores=1, quick_mode=False):
+	def runHMMScan(self, outdir, expanded_sample_prokka_data, cores=1, quick_mode=False, annotation_pickle_file=None):
 		"""
 		Function to run hmmscan and process results as well as read in Genbanks for expanded list of samples.
 
@@ -1020,25 +1020,40 @@ class Pan:
 		search_res_dir = os.path.abspath(outdir + 'Alignment_Results') + '/'
 		if not os.path.isdir(search_res_dir): os.system('mkdir %s' % search_res_dir)
 
-		with multiprocessing.Manager() as manager:
-			sample_gbk_info = manager.dict()
-			genbanks = []
-			for sample in expanded_sample_prokka_data:
-				sample_genbank = expanded_sample_prokka_data[sample]['genbank']
-				genbanks.append([sample, sample_genbank, sample_gbk_info])
+		if not annotation_pickle_file:
+			with multiprocessing.Manager() as manager:
+				sample_gbk_info = manager.dict()
+				genbanks = []
+				for sample in expanded_sample_prokka_data:
+					sample_genbank = expanded_sample_prokka_data[sample]['genbank']
+					genbanks.append([sample, sample_genbank, sample_gbk_info])
 
-			with manager.Pool(cores) as pool:
-				pool.map(util.parseGenbankAndFindBoundaryGenes, genbanks)
+				with manager.Pool(cores) as pool:
+					pool.map(util.parseGenbankAndFindBoundaryGenes, genbanks)
 
-			for sample in sample_gbk_info:
-				gene_to_scaff, gene_location, bound_genes, gito, goti = sample_gbk_info[sample]
-				self.boundary_genes[sample] = bound_genes
-				self.scaffold_genes[sample] = scaff_genes
-				self.gene_location[sample] = gene_location
-				self.gene_id_to_order[sample] = gito
-				self.gene_order_to_id[sample] = goti
-
-
+				for sample in sample_gbk_info:
+					gene_location, scaff_genes, bound_genes, gito, goti = sample_gbk_info[sample]
+					self.gene_location[sample] = gene_location
+					self.scaffold_genes[sample] = scaff_genes
+					self.boundary_genes[sample] = bound_genes
+					self.gene_id_to_order[sample] = gito
+					self.gene_order_to_id[sample] = goti
+		else:
+			try:
+				with open(annotation_pickle_file, "rb") as input_file:
+					genbank_info = cPickle.load(input_file)['gbk_info']
+					for sample in genbank_info:
+						self.gene_location[sample] = genbank_info[sample][0]
+						self.scaffold_genes[sample] = genbank_info[sample][1]
+						self.boundary_genes[sample] = genbank_info[sample][2]
+						self.gene_id_to_order[sample] = genbank_info[sample][3]
+						self.gene_order_to_id[sample] = genbank_info[sample][4]
+			except Exception as e:
+				if self.logObject:
+					self.logObject.error("Had issues loading data from extention sample set pickle object.")
+					self.logObject.error(traceback.format_exc())
+				raise RuntimeError(traceback.format_exc())
+			
 		alignment_cmds = []
 		for sample in expanded_sample_prokka_data:
 			sample_proteome = expanded_sample_prokka_data[sample]['predicted_proteome']
