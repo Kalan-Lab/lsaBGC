@@ -83,12 +83,21 @@ def main():
 
                 gene_to_scaff, scaff_genes, bound_genes, gito, goti = sample_gbk_info[sample]
                 sample_gbk_info_grp = gbk_info_grp.create_group(sample)
-                sample_gbk_info_grp["gene_to_scaff"] = dict(gene_to_scaff)
-                sample_gbk_info_grp["scaff_genes"] = dict(scaff_genes)
-                sample_gbk_info_grp["bound_genes"] = set(bound_genes)
-                sample_gbk_info_grp["gito"] = dict(gito)
-                sample_gbk_info_grp["goti"] = dict(goti)
+                sample_gbk_info_grp['bound_genes'] = set(bound_genes)
+                for lt in gene_to_scaff:
+                    sample_gbk_info_grp['gene_location/' + lt + '/scaffold'] = gene_to_scaff[lk]['scaffold']
+                    sample_gbk_info_grp['gene_location/' + lt + '/start'] = gene_to_scaff[lk]['start']
+                    sample_gbk_info_grp['gene_location/' + lt + '/end'] = gene_to_scaff[lk]['end']
+                    sample_gbk_info_grp['gene_location/' + lt + 'direction/'] = gene_to_scaff[lk]['direction']
+                    sample_gbk_info_grp['gito/' + lt] = gito[lk]
 
+                for scaff in scaff_genes:
+                    sample_gbk_info_grp['scaff_genes/' + scaff] = scaff_genes[scaff]
+
+                goti_sample_gbk_info_grp = create_group("goti")
+                for ord in goti:
+                    goti_sample_gbk_info_grp[ord] = goti[ord]
+                    
     # Exit program
     sys.exit(0)
 

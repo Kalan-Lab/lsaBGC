@@ -1031,10 +1031,10 @@ class Pan:
 				pool.map(util.parseGenbankAndFindBoundaryGenes, genbanks)
 
 			for sample in sample_gbk_info:
-				gene_to_scaff, scaff_genes, bound_genes, gito, goti = sample_gbk_info[sample]
+				gene_to_scaff, gene_location, bound_genes, gito, goti = sample_gbk_info[sample]
 				self.boundary_genes[sample] = bound_genes
 				self.scaffold_genes[sample] = scaff_genes
-				self.gene_location[sample] = gene_to_scaff
+				self.gene_location[sample] = gene_location
 				self.gene_id_to_order[sample] = gito
 				self.gene_order_to_id[sample] = goti
 
