@@ -142,7 +142,7 @@ def lsaBGC_DiscoVary():
 
     # Step 3: Process annotation files related to input sample sets
     logObject.info("Parsing annotation files provided for set of samples to incorporate into analysis.")
-    input_sample_prokka_data = processing.readInAnnotationFilesForExpandedSampleSet(input_listing_file, logObject)
+    input_sample_prokka_data = processing.readInAnnotationFilesForExpandedSampleSet(input_listing_file, logObject=logObject)
     logObject.info("Successfully parsed new sample annotation files.")
 
     # Step 4: Build HMMs for homolog groups observed in representative BGCs for GCF

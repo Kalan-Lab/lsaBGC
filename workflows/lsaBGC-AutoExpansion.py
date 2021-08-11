@@ -64,11 +64,12 @@ def create_parser():
 
 	parser.add_argument('-g', '--gcf_listing_dir', help='Directory with GCF listing files.', required=True)
 	parser.add_argument('-m', '--orthofinder_matrix', help="OrthoFinder homolog group by sample matrix.", required=True)
-	parser.add_argument('-l', '--initial_listing', type=str, help="Tab delimited text file for samples with three columns: (1) sample name (2) Prokka generated Genbank file (*.gbk), and (3) Prokka generated predicted-proteome file (*.faa). Please remove troublesome characters in the sample name.", required=True)
+	parser.add_argument('-l', '--initial_listing', type=str, help="Path to tab delimited text file for samples with three columns: (1) sample name (2) Prokka generated Genbank file (*.gbk), and (3) Prokka generated predicted-proteome file (*.faa). Please remove troublesome characters in the sample name.", required=True)
 	parser.add_argument('-e', '--expansion_listing', help="Path to tab delimited file listing: (1) sample name (2) path to Prokka Genbank and (3) path to Prokka predicted proteome. This file is produced by lsaBGC-AutoProcess.py.", required=True)
 	parser.add_argument('-o', '--output_directory', help="Parent output/workspace directory.", required=True)
-	parser.add_argument('-c', '--cores', type=int, help="Total number of cores to use.", required=False, default=1)
 	parser.add_argument('-q', '--quick_mode', action='store_true', help='Whether to run lsaBGC-Expansion in quick mode?', required=False, default=False)
+	parser.add_argument('-z', '--hdf5_expansion_listing', action='store_true', help="Expansion listing is an HDF5 file.")
+	parser.add_argument('-c', '--cores', type=int, help="Total number of cores to use.", required=False, default=1)
 
 	args = parser.parse_args()
 	return args
@@ -107,6 +108,7 @@ def lsaBGC_AutoExpansion():
 
 	cores = myargs.cores
 	quick_mode = myargs.quick_mode
+	hdf5_expansion_listing = myargs.hdf5_expansion_listing
 
 	"""
 	START WORKFLOW
@@ -119,11 +121,11 @@ def lsaBGC_AutoExpansion():
 	# Step 0: Log input arguments and update reference and query FASTA files.
 	logObject.info("Saving parameters for easier determination of results' provenance in the future.")
 	parameters_file = outdir + 'Parameter_Inputs.txt'
-	parameter_values = [gcf_listing_dir, initial_listing_file, original_orthofinder_matrix_file,
-						expansion_listing_file, outdir, cores, quick_mode]
+	parameter_values = [gcf_listing_dir, initial_listing_file,
+						expansion_listing_file, original_orthofinder_matrix_file, outdir, hdf5_expansion_listing, quick_mode, cores]
 	parameter_names = ["GCF Listings Directory", "Listing File of Prokka Annotation Files for Initial Set of Samples",
 					   "Listing File of Prokka Annotation Files for Expansion/Additional Set of Samples",
-					   "OrthoFinder Homolog Matrix", "Output Directory", "Cores", "Run in Quick Mode?"]
+					   "OrthoFinder Homolog Matrix", "Output Directory", "Expansion Listing is an HDF5 File for Quick Loading?", "Run in Quick Mode?", "Cores"]
 	util.logParametersToFile(parameters_file, parameter_names, parameter_values)
 	logObject.info("Done saving parameters!")
 
@@ -166,6 +168,8 @@ def lsaBGC_AutoExpansion():
 			   	   '-c', str(cores), '-no']
 			if quick_mode:
 				cmd += ['-q']
+			if hdf5_expansion_listing:
+				cmd += ['-z']
 			try:
 				util.run_cmd(cmd, logObject, stderr=sys.stderr, stdout=sys.stdout)
 			except:

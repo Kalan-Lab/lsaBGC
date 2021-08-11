@@ -17,7 +17,7 @@ import logging
 import traceback
 import subprocess
 
-def readInAnnotationFilesForExpandedSampleSet(expansion_listing_file, logObject):
+def readInAnnotationFilesForExpandedSampleSet(expansion_listing_file, logObject=None):
 	"""
 	Function to read in Prokka genbank and predicted proteome annotation paths from expansion listing file and load into dictionary with keys corresponding to sample IDs.
 
@@ -39,13 +39,15 @@ def readInAnnotationFilesForExpandedSampleSet(expansion_listing_file, logObject)
 					sample_prokka_data[sample]['genbank'] = genbank
 					sample_prokka_data[sample]['predicted_proteome'] = predicted_proteome
 				except Exception as e:
-					logObject.warning('Ignoring sample %s, because at least one of two Prokka annotation files does not seem to exist or be in the expected format.' % sample)
+					if logObject:
+						logObject.warning('Ignoring sample %s, because at least one of two Prokka annotation files does not seem to exist or be in the expected format.' % sample)
 					sys.stderr.write('Ignoring sample %s, because at least one of two Prokka annotation files does not seem to exist or be in the expected format.' % sample)
 		assert (len(sample_prokka_data) >= 2)
 		return (sample_prokka_data)
 	except Exception as e:
-		logObject.error("Input file listing the location of Prokka annotation files for samples leads to incorrect paths or something else went wrong with processing of it. Exiting now ...")
-		logObject.error(traceback.format_exc())
+		if logObject:
+			logObject.error("Input file listing the location of Prokka annotation files for samples leads to incorrect paths or something else went wrong with processing of it. Exiting now ...")
+			logObject.error(traceback.format_exc())
 		raise RuntimeError(traceback.format_exc())
 
 def readInAssemblyListing(assembly_listing_file, logObject):

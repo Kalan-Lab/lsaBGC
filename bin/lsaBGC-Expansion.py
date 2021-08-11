@@ -162,8 +162,8 @@ def lsaBGC_Expansion():
 
     # Step 3: Process annotation files related to input and expanded sample sets
     logObject.info("Parsing annotation file provided in expansion listing file for larger set of samples to incorporate into analysis.")
-    initial_sample_prokka_data = processing.readInAnnotationFilesForExpandedSampleSet(initial_listing_file, logObject)
-    expanded_sample_prokka_data = processing.readInAnnotationFilesForExpandedSampleSet(expansion_listing_file, logObject)
+    initial_sample_prokka_data = processing.readInAnnotationFilesForExpandedSampleSet(initial_listing_file, logObject=logObject)
+    expanded_sample_prokka_data = processing.readInAnnotationFilesForExpandedSampleSet(expansion_listing_file, logObject=logObject)
     logObject.info("Successfully parsed new sample annotation files.")
 
     # Step 4: Build HMMs for homolog groups observed in representative BGCs for GCF
