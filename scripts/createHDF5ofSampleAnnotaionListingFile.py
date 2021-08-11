@@ -58,7 +58,7 @@ def main():
     START WORKFLOW
     """
 
-    sample_prokka_data = processing.readInAnnotationFilesForExpandedSample(annotation_listing_file)
+    sample_prokka_data = processing.readInAnnotationFilesForExpandedSampleSet(annotation_listing_file)
 
     with multiprocessing.Manager() as manager:
         sample_gbk_info = manager.dict()
