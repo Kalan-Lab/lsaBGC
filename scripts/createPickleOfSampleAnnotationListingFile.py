@@ -76,9 +76,8 @@ def main():
             with manager.Pool(cores) as pool:
                 pool.map(util.parseGenbankAndFindBoundaryGenes, genbanks)
 
-            pickle_data = {'paths': dict(sample_prokka_data), 'gbk_info': dict(sample_gbk_info)}
             of = open(output_file, 'wb')
-            cPickle.dump(pickle_data, of)
+            cPickle.dump(sample_gbk_info, of)
             of.close()
     except Exception as e:
         sys.stderr.write(traceback.format_exc())

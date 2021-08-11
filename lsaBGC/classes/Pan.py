@@ -1041,7 +1041,7 @@ class Pan:
 		else:
 			try:
 				with open(annotation_pickle_file, "rb") as input_file:
-					genbank_info = cPickle.load(input_file)['gbk_info']
+					genbank_info = cPickle.load(input_file)
 					for sample in genbank_info:
 						self.gene_location[sample] = genbank_info[sample][0]
 						self.scaffold_genes[sample] = genbank_info[sample][1]
