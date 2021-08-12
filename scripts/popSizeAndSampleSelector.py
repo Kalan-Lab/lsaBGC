@@ -189,7 +189,7 @@ def main():
     mash_matrix_handle = open(mash_matrix_file, 'w')
     mash_matrix_handle.write('Sample/Sample\t' + '\t'.join([s for s in sorted(gw_pairwise_similarities)]) + '\n')
 
-    paired_samples = []
+    similar_samples = []
     all_samples = set([])
     redundant_samples = set([])
     poor_n50_samples = set([])
@@ -217,7 +217,7 @@ def main():
     Solution for single-linkage clustering taken from mimomu's repsonse in the stackoverflow page:
     https://stackoverflow.com/questions/4842613/merge-lists-that-share-common-elements?lq=1
     """
-    L = paired_samples
+    L = similar_samples
     LL = set(itertools.chain.from_iterable(L))
     for each in LL:
         components = [x for x in L if each in x]
