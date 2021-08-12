@@ -18,6 +18,6 @@ track_data <- read.table(track_file, header=T, sep='\t')
 
 pdf(pdf_file, height=10, width=10)
 p <- ggtree(phylo.tree, layout="circular")
-p <- p %<+% track_data + geom_tippoint(aes(color=type))
+p <- p %<+% track_data + geom_tippoint(aes(color=as.factor(type)))
 print(p)
 dev.off()
