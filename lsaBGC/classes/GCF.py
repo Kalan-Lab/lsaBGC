@@ -1033,16 +1033,10 @@ class GCF(Pan):
 				with manager.Pool(cores) as pool:
 					pool.map(identify_gcf_instances, identify_gcf_segments_input)
 
-			for samp in block_samp_set:
-				samp_bgc_listing_file = bgc_info_dir + samp + '.bgcs.txt'
-				samp_bgc_info_file = bgc_info_dir + samp + '.hg_evalues.txt'
-				if os.path.isfile(samp_bgc_listing_file):
-					os.system('cat %s >> %s' % (samp_bgc_listing_file, expanded_gcf_list_file))
-				if os.path.isfile(samp_bgc_info_file):
-					os.system('cat %s > %s' % (samp_bgc_info_file, bgc_hmm_evalues_file))
+		os.system('find %s -type f -name "*.bgcs.txt" -exec cat {} + > %s' % (bgc_info_dir, expanded_gcf_list_file))
 
-		if not os.path.isfile(bgc_hmm_evalues_file):
-			os.system('touch %s' % bgc_hmm_evalues_file)
+		os.system('find %s -type f -name "*.hg_evalues.txt" -exec cat {} + > %s' % (bgc_info_dir, bgc_hmm_evalues_file))
+		if not os.path.isfile(bgc_hmm_evalues_file): os.system('touch %s' % bgc_hmm_evalues_file)
 
 		if not no_orthogroup_matrix:
 			sample_hg_proteins = defaultdict(lambda: defaultdict(set))
