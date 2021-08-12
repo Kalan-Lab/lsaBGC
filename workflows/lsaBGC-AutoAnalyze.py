@@ -404,6 +404,7 @@ def lsaBGC_AutoAnalyze():
 						line = line.strip()
 						hg, samp, diff = line.split('\t')
 						samps_accounted.add(samp)
+						total_samples_accounted.add(samp)
 						gcf_consensus_sim_plot_lines.append(gcf_id + '\t' + gcf_id.split('_')[1] + '\t' + hg + '\t' + hg_ordering[hg] + '\t' + samp + '\t' + str(diff))
 				for samp in all_samples:
 					if not samp in samps_accounted:
