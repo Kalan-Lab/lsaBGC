@@ -225,7 +225,7 @@ def main():
             L.remove(i)
         L += [list(set(itertools.chain.from_iterable(components)))]
 
-    outf = open('Cutoff_Defined_Populations.txt', 'w')
+    outf = open(outdir + 'Cutoff_Defined_Populations.txt', 'w')
     outf.write('name\ttype\n')
     for i, sc in enumerate(L):
         for s in sc:
