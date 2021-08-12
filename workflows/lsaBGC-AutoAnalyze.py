@@ -158,7 +158,7 @@ def lsaBGC_AutoAnalyze():
 	gw_fasta_dir = outdir + 'Sample_Assemblies_in_FASTA/'
 	if not os.path.isdir(gw_fasta_dir): os.system('mkdir %s' % gw_fasta_dir)
 	gw_fasta_listing_file = outdir + 'Genome_FASTA_Listings.txt'
-	Pan_Object.convertGenbanksIntoFastas(gw_fasta_dir, gw_fasta_listing_file)
+	Pan_Object.convertGenbanksIntoFastas(gw_fasta_dir, gw_fasta_listing_file, sample_retention_set=sample_retention_set)
 	logObject.info("Successfully performed conversions.")
 
 	logObject.info("Running FastANI Analysis Between Genomes.")

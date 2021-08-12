@@ -719,7 +719,7 @@ class Pan:
 				self.logObject.error(traceback.format_exc())
 			raise RuntimeError(traceback.format_exc())
 
-	def convertGenbanksIntoFastas(self, fasta_dir, fasta_listing_file):
+	def convertGenbanksIntoFastas(self, fasta_dir, fasta_listing_file, sample_retention_set=None):
 		"""
 		Function to convert Genbanks for BGC instances into FASTA format and listing files. Note, there will
 		be one FASTA per sample not per BGC Genbank (in case sample's have more than one associated Genbank).
@@ -750,7 +750,7 @@ class Pan:
 					else:
 						sample, gbk = line.split('\t')[:-1]
 					sample = util.cleanUpSampleName(sample)
-
+					if sample_retention_set != None and sample not in sample_retention_set: continue
 					try:
 						assert (util.is_genbank(gbk))
 						bgc_id = sample
