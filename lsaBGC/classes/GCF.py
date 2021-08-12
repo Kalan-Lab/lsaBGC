@@ -1033,9 +1033,9 @@ class GCF(Pan):
 				with manager.Pool(cores) as pool:
 					pool.map(identify_gcf_instances, identify_gcf_segments_input)
 
-		os.system('find %s -type f -name "*.bgcs.txt" -exec cat {} + > %s' % (bgc_info_dir, expanded_gcf_list_file))
+		os.system('find %s -type f -name "*.bgcs.txt" -exec cat {} + >> %s' % (bgc_info_dir, expanded_gcf_list_file))
 
-		os.system('find %s -type f -name "*.hg_evalues.txt" -exec cat {} + > %s' % (bgc_info_dir, bgc_hmm_evalues_file))
+		os.system('find %s -type f -name "*.hg_evalues.txt" -exec cat {} + >> %s' % (bgc_info_dir, bgc_hmm_evalues_file))
 		if not os.path.isfile(bgc_hmm_evalues_file): os.system('touch %s' % bgc_hmm_evalues_file)
 
 		if not no_orthogroup_matrix:
