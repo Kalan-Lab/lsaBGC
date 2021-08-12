@@ -230,7 +230,7 @@ def main():
 
     for s in all_samples:
         if not s in similar_sample_set:
-            L.append(s)
+            L.append([s])
 
     outf = open(outdir + 'Cutoff_Defined_Populations.txt', 'w')
     outf.write('name\ttype\n')

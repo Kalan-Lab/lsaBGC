@@ -357,7 +357,7 @@ def determineAllelesFromCodonAlignment(codon_alignment, max_mismatch=10, matchin
 
 	for seq in seqs_comprehensive:
 		if not seq in seqs_paired:
-			L.append(seq)
+			L.append([seq])
 
 	allele_cluster_min_id = {}
 	for allele_cluster in L:
