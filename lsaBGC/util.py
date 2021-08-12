@@ -681,6 +681,14 @@ def parseGenbankAndFindBoundaryGenes(inputs):
 
 	sample_gbk_info[sample] = [gene_location, dict(scaffold_genes), boundary_genes, dict(gene_id_to_order), dict(gene_order_to_id)]
 
+def chunks(lst, n):
+	"""
+    Yield successive n-sized chunks from lst.
+    Solution taken from: https://stackoverflow.com/questions/312443/how-do-you-split-a-list-into-evenly-sized-chunks
+    """
+	for i in range(0, len(lst), n):
+		yield lst[i:i + n]
+
 def calculateMashPairwiseDifferences(fasta_listing_file, outdir, name, sketch_size, cores, logObject, prune_set=None):
 	"""
 	Calculate MASH pairwise distances (estimated ANI) between FASTA files.

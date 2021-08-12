@@ -888,7 +888,8 @@ class GCF(Pan):
 
 	def identifyGCFInstances(self, outdir, sample_prokka_data, orthofinder_matrix_file, min_size=5, min_core_size=3,
 							 gcf_to_gcf_transition_prob=0.9, background_to_background_transition_prob=0.9,
-							 syntenic_correlation_threshold=0.8, surround_gene_max=5, no_orthogroup_matrix=False, cores=1):
+							 syntenic_correlation_threshold=0.8, surround_gene_max=5, no_orthogroup_matrix=False,
+							 cores=1, block_size=3000):
 		"""
 		Function to search for instances of GCF in sample using HMM based approach based on homolog groups as characters,
 		"part of GCF" and "not part of GCF" as states - all trained on initial BGCs constituting GCF as identified by
@@ -974,50 +975,6 @@ class GCF(Pan):
 
 		model.bake()
 
-		# start process of finding new BGCs
-		sample_lt_to_hg = defaultdict(dict)
-		sample_hgs = defaultdict(set)
-		sample_lt_to_evalue = defaultdict(dict)
-		for lt in self.hmmscan_results:
-			for i, hits in enumerate(sorted(self.hmmscan_results[lt], key=itemgetter(1))):
-				if i == 0:
-					sample_lt_to_hg[hits[2]][lt] = hits[0]
-					sample_hgs[hits[2]].add(hits[0])
-					sample_lt_to_evalue[hits[2]][lt] = decimal.Decimal(hits[1])
-
-		simplified_comp_gene_info = defaultdict(dict)
-		for g in self.comp_gene_info:
-			simplified_comp_gene_info[g]['start'] = self.comp_gene_info[g]['start']
-			simplified_comp_gene_info[g]['end'] = self.comp_gene_info[g]['end']
-			simplified_comp_gene_info[g]['direction'] = self.comp_gene_info[g]['direction']
-
-		identify_gcf_segments_input = []
-		for sample in sample_hgs:
-			if len(sample_hgs[sample]) < 3: continue
-			hgs_ordered_dict = {}
-			lts_ordered_dict = {}
-			for scaffold in self.scaffold_genes[sample]:
-				lts_with_start = []
-				for lt in self.scaffold_genes[sample][scaffold]:
-					lts_with_start.append([lt, self.gene_location[sample][lt]['start']])
-
-				hgs_ordered = []
-				lts_ordered = []
-				for lt_start in sorted(lts_with_start, key=itemgetter(1)):
-					lt, start = lt_start
-					lts_ordered.append(lt)
-					if lt in sample_lt_to_hg[sample]:
-						hgs_ordered.append(sample_lt_to_hg[sample][lt])
-					else:
-						hgs_ordered.append('other')
-				hgs_ordered_dict[scaffold] = hgs_ordered
-				lts_ordered_dict[scaffold] = lts_ordered
-
-			identify_gcf_segments_input.append([bgc_info_dir, bgc_genbanks_dir, sample, sample_prokka_data[sample], sample_lt_to_evalue[sample], dict(self.hmmscan_results_lenient[sample]), model, lts_ordered_dict, hgs_ordered_dict, dict(simplified_comp_gene_info), dict(self.gene_location[sample]), dict(self.gene_id_to_order[sample]), dict(self.gene_order_to_id[sample]), self.protocluster_core_homologs, self.core_homologs, self.boundary_genes[sample], specific_hgs, dict(self.bgc_genes), dict(self.gene_to_hg), min_size, min_core_size, surround_gene_max, syntenic_correlation_threshold])
-		with multiprocessing.Manager() as manager:
-			with manager.Pool(cores) as pool:
-				pool.map(identify_gcf_instances, identify_gcf_segments_input)
-
 		bgc_hmm_evalues_file = outdir + 'GCF_NewInstances_HMMEvalues.txt'
 		expanded_gcf_list_file = outdir + 'GCF_Expanded.txt'
 
@@ -1028,24 +985,75 @@ class GCF(Pan):
 				expanded_gcf_list_handle.write(line)
 		expanded_gcf_list_handle.close()
 
-		os.system('cat %s/*.bgcs.txt >> %s' % (bgc_info_dir, expanded_gcf_list_file))
-		os.system('cat %s/*.hg_evalues.txt > %s' % (bgc_info_dir, bgc_hmm_evalues_file))
+		total_samples = sorted(sample_prokka_data.keys())
+		for block_samp_list in util.chunks(total_samples, block_size):
+			block_samp_set = set(block_samp_list)
+
+			# start process of finding new BGCs
+			sample_lt_to_hg = defaultdict(dict)
+			sample_hgs = defaultdict(set)
+			sample_lt_to_evalue = defaultdict(dict)
+			for lt in self.hmmscan_results:
+				for i, hits in enumerate(sorted(self.hmmscan_results[lt], key=itemgetter(1))):
+					if i == 0 and hits[2] in block_samp_set:
+						sample_lt_to_hg[hits[2]][lt] = hits[0]
+						sample_hgs[hits[2]].add(hits[0])
+						sample_lt_to_evalue[hits[2]][lt] = decimal.Decimal(hits[1])
+
+			simplified_comp_gene_info = defaultdict(dict)
+			for g in self.comp_gene_info:
+				simplified_comp_gene_info[g]['start'] = self.comp_gene_info[g]['start']
+				simplified_comp_gene_info[g]['end'] = self.comp_gene_info[g]['end']
+				simplified_comp_gene_info[g]['direction'] = self.comp_gene_info[g]['direction']
+
+			identify_gcf_segments_input = []
+			for sample in sample_hgs:
+				if len(sample_hgs[sample]) < 3: continue
+				hgs_ordered_dict = {}
+				lts_ordered_dict = {}
+				for scaffold in self.scaffold_genes[sample]:
+					lts_with_start = []
+					for lt in self.scaffold_genes[sample][scaffold]:
+						lts_with_start.append([lt, self.gene_location[sample][lt]['start']])
+
+					hgs_ordered = []
+					lts_ordered = []
+					for lt_start in sorted(lts_with_start, key=itemgetter(1)):
+						lt, start = lt_start
+						lts_ordered.append(lt)
+						if lt in sample_lt_to_hg[sample]:
+							hgs_ordered.append(sample_lt_to_hg[sample][lt])
+						else:
+							hgs_ordered.append('other')
+					hgs_ordered_dict[scaffold] = hgs_ordered
+					lts_ordered_dict[scaffold] = lts_ordered
+
+				identify_gcf_segments_input.append([bgc_info_dir, bgc_genbanks_dir, sample, sample_prokka_data[sample], sample_lt_to_evalue[sample], dict(self.hmmscan_results_lenient[sample]), model, lts_ordered_dict, hgs_ordered_dict, dict(simplified_comp_gene_info), dict(self.gene_location[sample]), dict(self.gene_id_to_order[sample]), dict(self.gene_order_to_id[sample]), self.protocluster_core_homologs, self.core_homologs, self.boundary_genes[sample], specific_hgs, dict(self.bgc_genes), dict(self.gene_to_hg), min_size, min_core_size, surround_gene_max, syntenic_correlation_threshold])
+			with multiprocessing.Manager() as manager:
+				with manager.Pool(cores) as pool:
+					pool.map(identify_gcf_instances, identify_gcf_segments_input)
+
+			for samp in block_samp_set:
+				samp_bgc_listing_file = bgc_info_dir + samp + '.bgcs.txt'
+				samp_bgc_info_file = bgc_info_dir + samp + '.hg_evalues.txt'
+				if os.path.isfile(samp_bgc_listing_file):
+					os.system('cat %s >> %s' % (samp_bgc_listing_file, expanded_gcf_list_file))
+				if os.path.isfile(samp_bgc_info_file):
+					os.system('cat %s > %s' % (samp_bgc_info_file, bgc_hmm_evalues_file))
+
 		if not os.path.isfile(bgc_hmm_evalues_file):
 			os.system('touch %s' % bgc_hmm_evalues_file)
 
 		if not no_orthogroup_matrix:
 			sample_hg_proteins = defaultdict(lambda: defaultdict(set))
 			all_samples = set([])
-			for f in os.listdir(bgc_info_dir):
-				if f.endswith('.hg_evalues.txt'):
-					with open(bgc_hmm_evalues_file) as obhef:
-						sample = None
-						for line in obhef:
-							line = line.strip()
-							gbk, sample, lt, hg, eval = line.split('\t')
-							if hg in sample_lt_to_hg[sample].keys():
-								sample_hg_proteins[sample][hg].add(lt)
-						all_samples.add(sample)
+			with open(bgc_hmm_evalues_file) as obhef:
+				for line in obhef:
+					line = line.strip()
+					gbk, sample, lt, hg, eval = line.split('\t')
+					if hg in sample_lt_to_hg[sample].keys():
+						sample_hg_proteins[sample][hg].add(lt)
+					all_samples.add(sample)
 
 			original_samples = []
 			all_hgs = set([])
