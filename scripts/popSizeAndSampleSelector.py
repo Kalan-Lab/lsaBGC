@@ -190,6 +190,7 @@ def main():
     mash_matrix_handle.write('Sample/Sample\t' + '\t'.join([s for s in sorted(gw_pairwise_similarities)]) + '\n')
 
     similar_samples = []
+    similar_sample_set = set([])
     all_samples = set([])
     redundant_samples = set([])
     poor_n50_samples = set([])
@@ -204,6 +205,8 @@ def main():
                 if s1 != s2 and i < j:
                     if use_fastani:
                         similar_samples.append(sorted([s1, s2]))
+                        similar_sample_set.add(s1)
+                        similar_sample_set.add(s2)
                     s2_n50 = sample_assembly_n50s[s2]
                     if s1_n50 >= s2_n50:
                         redundant_samples.add(s2)
@@ -224,6 +227,10 @@ def main():
         for i in components:
             L.remove(i)
         L += [list(set(itertools.chain.from_iterable(components)))]
+
+    for s in all_samples:
+        if not s in similar_sample_set:
+            L.append(s)
 
     outf = open(outdir + 'Cutoff_Defined_Populations.txt', 'w')
     outf.write('name\ttype\n')

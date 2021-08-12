@@ -299,13 +299,16 @@ def determineBGCSequenceSimilarityFromCodonAlignments(codon_alignments_file, cor
 def determineAllelesFromCodonAlignment(codon_alignment, max_mismatch=10, matching_percentage_cutoff=0.99):
 	gene_sequences = {}
 	allele_identifiers = {}
+	seqs_comprehensive = set([])
 	with open(codon_alignment) as oca:
 		for i, rec in enumerate(SeqIO.parse(oca, 'fasta')):
 			gene_sequences[rec.id] = str(rec.seq).upper()
 			allele_identifiers[rec.id] = i
+			seqs_comprehensive.add(rec.id)
 
 	valid_alleles = set(['A', 'C', 'G', 'T'])
 	pairs = []
+	seqs_paired = set([])
 	pair_matching = defaultdict(lambda: defaultdict(float))
 	for i, g1 in enumerate(gene_sequences):
 		g1s = gene_sequences[g1]
@@ -336,6 +339,8 @@ def determineAllelesFromCodonAlignment(codon_alignment, max_mismatch=10, matchin
 			pair_matching[g1][g2] = general_matching_percentage
 			if general_matching_percentage >= matching_percentage_cutoff or g1_matching_percentage >= matching_percentage_cutoff or g2_matching_percentage >= matching_percentage_cutoff:
 				if mismatch_pos <= max_mismatch:
+					seqs_paired.add(g1)
+					seqs_paired.add(g2)
 					pairs.append(sorted([g1, g2]))
 
 	"""	
@@ -349,6 +354,10 @@ def determineAllelesFromCodonAlignment(codon_alignment, max_mismatch=10, matchin
 		for i in components:
 			L.remove(i)
 		L += [list(set(itertools.chain.from_iterable(components)))]
+
+	for seq in seqs_comprehensive:
+		if not seq in seqs_paired:
+			L.append(seq)
 
 	allele_cluster_min_id = {}
 	for allele_cluster in L:
