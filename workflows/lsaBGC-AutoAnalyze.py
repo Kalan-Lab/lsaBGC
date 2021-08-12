@@ -248,6 +248,7 @@ def lsaBGC_AutoAnalyze():
 		population_listing_file = manual_populations_file
 		populations_on_tree_pdf = outdir + 'Populations_on_Lineage_Tree.pdf'
 		cmd = ['Rscript', RSCRIPT_FOR_POPULATIONS_ON_PHYLO, lineage_phylogeny_file, population_listing_file, populations_on_tree_pdf]
+		print(' '.join(cmd))
 		try:
 			util.run_cmd(cmd, logObject)
 		except Exception as e:
@@ -260,10 +261,8 @@ def lsaBGC_AutoAnalyze():
 		try:
 			util.run_cmd(cmd, logObject)
 		except Exception as e:
-			logObject.error(
-				"Had issues with creating neighbor joining tree and defining populations using cutree.")
-			raise RuntimeError(
-				"Had issues with creating neighbor joining tree and defining populations using cutree.")
+			logObject.error("Had issues with creating neighbor joining tree and defining populations using cutree.")
+			raise RuntimeError("Had issues with creating neighbor joining tree and defining populations using cutree.")
 
 	see_outdir = outdir + 'See/'
 	pop_outdir = outdir + 'PopGene/'

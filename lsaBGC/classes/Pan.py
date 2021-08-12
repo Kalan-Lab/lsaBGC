@@ -793,7 +793,8 @@ class Pan:
 			self.bgc_population = defaultdict(lambda: "NA")
 			self.sample_population = defaultdict(lambda: "NA")
 			with open(pop_specs_file) as opsf:
-				for line in opsf:
+				for i, line in enumerate(opsf):
+					if i == 0 and line.startswith('name'): continue
 					line = line.strip()
 					sample, population = line.split('\t')
 					if prune_set != None and not sample in prune_set: continue
