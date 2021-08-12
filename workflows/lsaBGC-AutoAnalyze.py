@@ -51,7 +51,7 @@ RSCRIPT_FOR_DEFINECLADES_FROM_PHYLO = lsaBGC_main_directory + '/lsaBGC/Rscripts/
 RSCRIPT_FOR_BIGPICTUREHEATMAP = lsaBGC_main_directory + '/lsaBGC/Rscripts/plotBigPictureHeatmap.R'
 RSCRIPT_FOR_GCFGENEPLOTS = lsaBGC_main_directory + '/lsaBGC/Rscripts/gcfGenePlots.R'
 RSCRIPT_FOR_DIVERGENCEPLOT = lsaBGC_main_directory + '/lsaBGC/Rscripts/divergencePlot.R'
-RSCRIPT_FOR_POPULATIONS_ON_PHYLO = lsaBGC_main_directory + '/lsaBGC/Rscrpits/GeneRatePhylogeny.R'
+RSCRIPT_FOR_POPULATIONS_ON_PHYLO = lsaBGC_main_directory + '/lsaBGC/Rscripts/GeneRatePhylogeny.R'
 
 def create_parser():
 	""" Parse arguments """
