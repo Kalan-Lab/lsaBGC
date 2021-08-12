@@ -51,6 +51,7 @@ RSCRIPT_FOR_DEFINECLADES_FROM_PHYLO = lsaBGC_main_directory + '/lsaBGC/Rscripts/
 RSCRIPT_FOR_BIGPICTUREHEATMAP = lsaBGC_main_directory + '/lsaBGC/Rscripts/plotBigPictureHeatmap.R'
 RSCRIPT_FOR_GCFGENEPLOTS = lsaBGC_main_directory + '/lsaBGC/Rscripts/gcfGenePlots.R'
 RSCRIPT_FOR_DIVERGENCEPLOT = lsaBGC_main_directory + '/lsaBGC/Rscripts/divergencePlot.R'
+RSCRIPT_FOR_POPULATIONS_ON_PHYLO = lsaBGC_main_directory + '/lsaBGC/Rscrpits/GeneRatePhylogeny.R'
 
 def create_parser():
 	""" Parse arguments """
@@ -246,9 +247,12 @@ def lsaBGC_AutoAnalyze():
 	if population_listing_file and manual_populations_file:
 		population_listing_file = manual_populations_file
 		populations_on_tree_pdf = outdir + 'Populations_on_Lineage_Tree.pdf'
-		cmd = ['Rscript', RSCRIPT_FOR_POPULATION_DISPLAY, ]
-
-
+		cmd = ['Rscript', RSCRIPT_FOR_POPULATIONS_ON_PHYLO, lineage_phylogeny_file, population_listing_file, populations_on_tree_pdf]
+		try:
+			util.run_cmd(cmd, logObject)
+		except Exception as e:
+			logObject.error("Had issues showcasing manually defined population labels on phylogeny/tree.")
+			raise RuntimeError("Had issues showcasing manually defined population labels on phylogeny/tree.")
 	elif population_analysis and not manual_populations_file:
 		population_listing_file = outdir + 'Populations_Defined.txt'
 		populations_on_tree_pdf = outdir + 'Populations_on_Lineage_Tree.pdf'
