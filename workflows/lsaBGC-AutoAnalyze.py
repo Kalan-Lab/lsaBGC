@@ -411,7 +411,7 @@ def lsaBGC_AutoAnalyze():
 						gcf_consensus_sim_plot_lines.append(gcf_id + '\t' + gcf_id.split('_')[1] + '\t' + hg + '\t' + hg_ordering[hg] + '\t' + samp + '\t' + str(1.0))
 
 		if float(len(total_samples_accounted))/float(len(sample_retention_set)) >= 0.1:
-			combined_consensus_similarity_handle.write('\n'.join(gcf_consensus_sim_plot_lines))
+			combined_consensus_similarity_handle.write('\n'.join(gcf_consensus_sim_plot_lines) + '\n')
 	combined_gene_plotting_input_handle.close()
 	combined_consensus_similarity_handle.close()
 	combined_orthoresults_unrefined_handle.close()
