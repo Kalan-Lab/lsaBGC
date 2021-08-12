@@ -184,11 +184,12 @@ def main():
             sample_assembly_n50 = determineN50(sample_assembly_fasta)
             sample_assembly_n50s[s] = sample_assembly_n50
 
-    logObject.info("Ran MASH Analysis Between Genomes.")
-    mash_matrix_file = outdir + 'MASH_Distance_Matrix.txt'
+    logObject.info("Ran MASH/FastANI Analysis Between Genomes.")
+    mash_matrix_file = outdir + 'Distance_Matrix.txt'
     mash_matrix_handle = open(mash_matrix_file, 'w')
     mash_matrix_handle.write('Sample/Sample\t' + '\t'.join([s for s in sorted(gw_pairwise_similarities)]) + '\n')
 
+    paired_samples = []
     all_samples = set([])
     redundant_samples = set([])
     poor_n50_samples = set([])
@@ -201,6 +202,8 @@ def main():
         for j, s2 in enumerate(sorted(gw_pairwise_similarities)):
             if gw_pairwise_similarities[s1][s2] >= identity_cutoff:
                 if s1 != s2 and i < j:
+                    if use_fastani:
+                        similar_samples.append(sorted([s1, s2]))
                     s2_n50 = sample_assembly_n50s[s2]
                     if s1_n50 >= s2_n50:
                         redundant_samples.add(s2)
@@ -210,8 +213,27 @@ def main():
         mash_matrix_handle.write('\t'.join(printlist) + '\n')
     mash_matrix_handle.close()
 
+    """	
+    Solution for single-linkage clustering taken from mimomu's repsonse in the stackoverflow page:
+    https://stackoverflow.com/questions/4842613/merge-lists-that-share-common-elements?lq=1
+    """
+    L = paired_samples
+    LL = set(itertools.chain.from_iterable(L))
+    for each in LL:
+        components = [x for x in L if each in x]
+        for i in components:
+            L.remove(i)
+        L += [list(set(itertools.chain.from_iterable(components)))]
+
+    outf = open('Cutoff_Defined_Populations.txt', 'w')
+    outf.write('name\ttype\n')
+    for i, sc in enumerate(L):
+        for s in sc:
+            outf.write(s + '\t' + str(i+1) + '\n')
+    outf.close()
+
     if not lineage_phylogeny_file:
-        print('Building MASH based tree')
+        print('Building MASH/FastANI based tree')
         # Run MASH Analysis Between Genomic Assemblies
         logObject.info("Using MASH estimated distances between genomes to infer neighbor-joining tree.")
         mash_nj_tree = outdir + 'MASH_NeighborJoining_Tree.nwk'

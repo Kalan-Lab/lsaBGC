@@ -26,12 +26,10 @@ write.table(results, file=txt_output_file, col.names=F, row.names=F, quote=F, se
 
 pdf(pdf_output_file, height=10, width=14)
 results.data.frame <- as.data.frame(cbind(hc.labels, clusters))
-colnames(results.data.frame) <- c("node", "clade")
+colnames(results.data.frame) <- c("node", "type")
 rownames(results.data.frame) <- results.data.frame$node
 results.data.frame <-  results.data.frame[,2, drop=FALSE]
-print(head(results.data.frame))
-circ <- ggtree(midpoint.root(tree))
-
-p1 <- gheatmap(circ, results.data.frame)
-print(p1)
+p <- ggtree(phylo.tree, layout="circular")
+p <- p %<+% track_data + geom_tippoint(aes(color=type))
+print(p)
 dev.off()

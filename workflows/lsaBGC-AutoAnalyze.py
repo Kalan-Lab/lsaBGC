@@ -71,6 +71,7 @@ def create_parser():
 	parser.add_argument('-s', '--lineage_phylogeny', help="Path to species phylogeny. If not provided a FastANI based neighborjoining tree will be constructed and used.", default=None, required=False)
 	parser.add_argument('-p', '--population_analysis',	action='store_true', help="Whether to construct species phylogeny and use it to determine populations.", default=False, required=False)
 	parser.add_argument('-ps', '--num_populations', type=int, help='If population analysis specified, what is the number of populations to . Use the script determinePopulationK.py to see how populations will look with k set to different values.', required=False, default=4)
+	parser.add_argument('-mp', '--manual_populations', help='Path to user defined populations file.', required=False, default=None)
 	parser.add_argument('-i', '--discovary_analysis_id', help="Identifier for novelty SNV mining analysis. Not providing this parameter will avoid running lsaBGC-DiscoVary step.", required=False, default=None)
 	parser.add_argument('-n', '--discovary_input_listing', help="Path to tab delimited file listing: (1) sample name (2) path to forward reads and (3) path to reverse reads.", required=False, default=None)
 	parser.add_argument('-c', '--cores', type=int, help="Total number of cores to use.", required=False, default=1)
@@ -120,6 +121,7 @@ def lsaBGC_AutoAnalyze():
 	lineage_phylogeny_file = myargs.lineage_phylogeny
 	population_analysis = myargs.population_analysis
 	num_populations = myargs.num_populations
+	manual_populations_file = myargs.manual_populations
 	discovary_analysis_id = myargs.discovary_analysis_id
 	discovary_input_listing = myargs.discovary_input_listing
 	cores = myargs.cores
@@ -137,12 +139,13 @@ def lsaBGC_AutoAnalyze():
 	parameters_file = outdir + 'Parameter_Inputs.txt'
 	parameter_values = [gcf_listing_dir, input_listing_file, original_orthofinder_matrix_file, outdir,
 						lineage_phylogeny_file, population_analysis, discovary_analysis_id,
-						discovary_input_listing, sample_set_file, num_populations, cores]
+						discovary_input_listing, sample_set_file, num_populations, manual_populations_file, cores]
 	parameter_names = ["GCF Listings Directory", "Listing File of Prokka Annotation Files for Initial Set of Samples",
 					   "OrthoFinder Homolog Matrix", "Output Directory", "Phylogeny File in Newick Format",
 					   "Delineate Populations and Perform Population Genetics Analytics",
 					   "DiscoVary Analysis ID", "DiscoVary Sequencing Data Location Specification File",
-					   "Sample Retention Set", "Number of Populations", "Cores"]
+					   "Sample Retention Set", "Number of Populations", "Path to Manual Population Specifications File",
+					   "Cores"]
 	util.logParametersToFile(parameters_file, parameter_names, parameter_values)
 	logObject.info("Done saving parameters!")
 
@@ -240,12 +243,16 @@ def lsaBGC_AutoAnalyze():
 			all_samples.add(line.split('\t')[0])
 
 	population_listing_file = None
-	if population_analysis:
-		population_listing_file = outdir + 'Populations_Defined.txt'
-		populations_on_nj_tree_pdf = outdir + 'Populations_on_Lineage_Tree.pdf'
-		# create neighbor-joining tree
+	if population_listing_file and manual_populations_file:
+		population_listing_file = manual_populations_file
+		populations_on_tree_pdf = outdir + 'Populations_on_Lineage_Tree.pdf'
+		cmd = ['Rscript', RSCRIPT_FOR_POPULATION_DISPLAY, ]
 
-		cmd = ['Rscript', RSCRIPT_FOR_DEFINECLADES_FROM_PHYLO, lineage_phylogeny_file, str(num_populations), population_listing_file, populations_on_nj_tree_pdf]
+
+	elif population_analysis and not manual_populations_file:
+		population_listing_file = outdir + 'Populations_Defined.txt'
+		populations_on_tree_pdf = outdir + 'Populations_on_Lineage_Tree.pdf'
+		cmd = ['Rscript', RSCRIPT_FOR_DEFINECLADES_FROM_PHYLO, lineage_phylogeny_file, str(num_populations), population_listing_file, populations_on_tree_pdf]
 		try:
 			util.run_cmd(cmd, logObject)
 		except Exception as e:
