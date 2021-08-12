@@ -244,7 +244,7 @@ def lsaBGC_AutoAnalyze():
 			all_samples.add(line.split('\t')[0])
 
 	population_listing_file = None
-	if population_listing_file and manual_populations_file:
+	if population_analysis and manual_populations_file:
 		population_listing_file = manual_populations_file
 		populations_on_tree_pdf = outdir + 'Populations_on_Lineage_Tree.pdf'
 		cmd = ['Rscript', RSCRIPT_FOR_POPULATIONS_ON_PHYLO, lineage_phylogeny_file, population_listing_file, populations_on_tree_pdf]
