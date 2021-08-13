@@ -2191,7 +2191,7 @@ def snv_miner_single(input_args):
 				score_sorted_alignments = sorted(read_ascores_per_allele[read], key=itemgetter(1), reverse=True)
 				for i, align in enumerate(score_sorted_alignments):
 					if i == 0: top_score = align[1]
-					if align[1] == top_score and ((align[2] >= 0.99 and align[3] >= 60) or (align[2] >= 0.95 and align[3] >= 100)) and align[4] <= 5:
+					if align[1] == top_score and ((align[2] >= 0.99 and align[3] >= 60) or (align[2] >= 0.90 and align[3] >= 100)) and align[4] <= 5:
 						read_alignment = align[-1]
 						topaligns_handle.write(read_alignment)
 
