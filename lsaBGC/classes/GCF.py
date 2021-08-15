@@ -1524,7 +1524,8 @@ class GCF(Pan):
 			gene_pos_to_allele = defaultdict(lambda: defaultdict(dict))
 			msa_pos_alleles = defaultdict(lambda: defaultdict(set))
 			msa_pos_ambiguous_freqs = defaultdict(lambda: defaultdict(float))
-			rare_hgs_in_core_genomes = set([])
+			total_core_genomes = set([])
+			hg_core_genome_count = {}
 			with open(codon_alignment_file) as ocaf:
 				for line in ocaf:
 					line = line.strip()
@@ -1540,7 +1541,8 @@ class GCF(Pan):
 							sequence_without_gaps = str(rec.seq).upper().replace('-', '')
 							sample_id, gene_id = rec.id.split('|')
 							if len(gene_id.split('_')[0]) == 3:
-								core_genomes_with_hg.add(hg)
+								core_genomes_with_hg.add(gene_id.split('_')[0])
+								total_core_genomes.add(gene_id.split('_')[0])
 							seqlen = len(sequence_without_gaps)
 							seqlen_lower = 50
 							seqlen_upper = seqlen - seqlen_lower
@@ -1574,8 +1576,13 @@ class GCF(Pan):
 								gene_ignore_positions[hg].add(p)
 
 					gene_ignore_positions[hg] = gene_ignore_positions[hg].union(hg_nonunique_positions[hg])
-					if len(core_genomes_with_hg) < 3:
-						rare_hgs_in_core_genomes.add(hg)
+					hg_core_genome_count[hg] = len(core_genomes_with_hg)
+
+			rare_hgs_in_core_genomes = set([])
+			for hg in hg_core_genome_count:
+				if float(hg_core_genome_count[hg])/len(total_core_genomes) < 0.5:
+					rare_hgs_in_core_genomes.add(hg)
+
 			parallel_inputs = []
 			with open(paired_end_sequencing_file) as ossf:
 				for line in ossf:
