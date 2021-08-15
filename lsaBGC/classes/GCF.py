@@ -1526,6 +1526,7 @@ class GCF(Pan):
 			msa_pos_ambiguous_freqs = defaultdict(lambda: defaultdict(float))
 			total_core_genomes = set([])
 			hg_core_genome_count = {}
+
 			with open(codon_alignment_file) as ocaf:
 				for line in ocaf:
 					line = line.strip()

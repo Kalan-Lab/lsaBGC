@@ -77,10 +77,8 @@ def determineNonUniqueRegionsAlongCodonAlignment(outdir, initial_sample_prokka_d
 	"""
 	outdir = os.path.abspath(outdir) + '/'
 	prot_seq_dir = outdir + 'Protein_Sequences/'
-	search_ref_res_dir = outdir + 'Diamond_Alignment_Results/'
 
 	if not os.path.isdir(prot_seq_dir): os.system('mkdir %s' % prot_seq_dir)
-	if not os.path.isdir(search_ref_res_dir): os.system('mkdir %s' % search_ref_res_dir)
 
 	try:
 		gcf_protein_ids = set([])
@@ -296,17 +294,26 @@ def determineBGCSequenceSimilarityFromCodonAlignments(codon_alignments_file, cor
 
 	return bgc_pairwise_similarities
 
-def determineAllelesFromCodonAlignment(codon_alignment, max_mismatch=10, matching_percentage_cutoff=0.99):
+def determineAllelesFromCodonAlignment(codon_alignment, max_mismatch=10, matching_percentage_cutoff=0.99, filter_by_genelength=True):
 	gene_sequences = {}
+	gene_sequences_lengths = []
 	allele_identifiers = {}
 	seqs_comprehensive = set([])
 	with open(codon_alignment) as oca:
 		for i, rec in enumerate(SeqIO.parse(oca, 'fasta')):
+			gene_sequence_lengths.append(len(str(rec.seq).upper().replace('N', '').replace('-', '')))
+	median_length = statistics.median(gene_sequences_lengths)
+	mad_length = max(stats.median_absolute_deviation(gene_sequences_lengths), 5)
+	with open(codon_alignment) as oca:
+		for i, rec in enumerate(SeqIO.parse(oca, 'fasta')):
+			gene_seq_len = len(str(rec.seq).upper().replace('N', '').replace('-', ''))
+			if filter_by_genelength and (gene_seq_len < median_length-mad_length or gene_seq_len > median_length+mad_length):
+				continue
 			gene_sequences[rec.id] = str(rec.seq).upper()
 			allele_identifiers[rec.id] = i
 			seqs_comprehensive.add(rec.id)
 
-	valid_alleles = set(['A', 'C', 'G', 'T'])
+	valid_alleles = set(['A', 'C', 'G', 'T'])/
 	pairs = []
 	seqs_paired = set([])
 	pair_matching = defaultdict(lambda: defaultdict(float))
