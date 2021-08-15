@@ -1524,6 +1524,7 @@ class GCF(Pan):
 			gene_pos_to_allele = defaultdict(lambda: defaultdict(dict))
 			msa_pos_alleles = defaultdict(lambda: defaultdict(set))
 			msa_pos_ambiguous_freqs = defaultdict(lambda: defaultdict(float))
+			rare_hgs_in_core_genomes = set([])
 			with open(codon_alignment_file) as ocaf:
 				for line in ocaf:
 					line = line.strip()
@@ -1533,10 +1534,13 @@ class GCF(Pan):
 					msa_pos_non_ambiguous_counts = defaultdict(int)
 					seqlen_information = {}
 					msa_positions = set([])
+					core_genomes_with_hg = set([])
 					with open(cod_alignment) as oca:
 						for rec in SeqIO.parse(oca, 'fasta'):
 							sequence_without_gaps = str(rec.seq).upper().replace('-', '')
 							sample_id, gene_id = rec.id.split('|')
+							if len(gene_id.split('_')[0]) == 3:
+								core_genomes_with_hg.add(hg)
 							seqlen = len(sequence_without_gaps)
 							seqlen_lower = 50
 							seqlen_upper = seqlen - seqlen_lower
@@ -1570,7 +1574,8 @@ class GCF(Pan):
 								gene_ignore_positions[hg].add(p)
 
 					gene_ignore_positions[hg] = gene_ignore_positions[hg].union(hg_nonunique_positions[hg])
-
+					if len(core_genomes_with_hg) < 3:
+						rare_hgs_in_core_genomes.add(hg)
 			parallel_inputs = []
 			with open(paired_end_sequencing_file) as ossf:
 				for line in ossf:
@@ -1582,7 +1587,7 @@ class GCF(Pan):
 											min_hetero_prop, min_allele_depth, allow_phasing, metagenomic,
 											specific_homolog_groups, set(self.core_homologs),
 											dict(self.hg_genes), dict(self.comp_gene_info),
-											dict(self.hg_prop_multi_copy), set(self.protocluster_core_homologs),
+											dict(self.hg_prop_multi_copy), set(self.protocluster_core_homologs), rare_hgs_in_core_genomes,
 											self.gcf_id, self.logObject])
 
 			p = multiprocessing.Pool(cores)
@@ -1631,7 +1636,7 @@ class GCF(Pan):
 
 
 def phase_and_id_snvs(input_args):
-	pe_sample, pe_sample_reads, snv_mining_outdir, phased_alleles_outdir, gene_ignore_positions, gene_core_positions, gene_pos_to_msa_pos, gene_pos_to_allele, msa_pos_alleles, msa_pos_ambiguous_freqs, min_hetero_prop, min_allele_depth, allow_phasing, metagenomic, specific_homolog_groups, core_homologs, hg_genes, comp_gene_info, hg_prop_multi_copy, protocluster_core_homologs, gcf_id, logObject = input_args
+	pe_sample, pe_sample_reads, snv_mining_outdir, phased_alleles_outdir, gene_ignore_positions, gene_core_positions, gene_pos_to_msa_pos, gene_pos_to_allele, msa_pos_alleles, msa_pos_ambiguous_freqs, min_hetero_prop, min_allele_depth, allow_phasing, metagenomic, specific_homolog_groups, core_homologs, hg_genes, comp_gene_info, hg_prop_multi_copy, protocluster_core_homologs, rare_hgs_in_core_genomes, gcf_id, logObject = input_args
 	try:
 		result_file = snv_mining_outdir + pe_sample + '.txt'
 		snv_file = snv_mining_outdir + pe_sample + '.snvs'
@@ -1702,6 +1707,7 @@ def phase_and_id_snvs(input_args):
 			hg_depths = homolog_group_depths[hg]
 			hg_positions = homolog_group_positions[hg]
 
+			if hg in rare_hgs_in_core_genomes: continue
 			if not hg in gene_core_positions.keys(): continue
 			core_positions_covered = 0
 			for i, pos in enumerate(hg_positions):
