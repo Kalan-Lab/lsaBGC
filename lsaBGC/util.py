@@ -301,7 +301,7 @@ def determineAllelesFromCodonAlignment(codon_alignment, max_mismatch=10, matchin
 	seqs_comprehensive = set([])
 	with open(codon_alignment) as oca:
 		for i, rec in enumerate(SeqIO.parse(oca, 'fasta')):
-			gene_sequence_lengths.append(len(str(rec.seq).upper().replace('N', '').replace('-', '')))
+			gene_sequences_lengths.append(len(str(rec.seq).upper().replace('N', '').replace('-', '')))
 	median_length = statistics.median(gene_sequences_lengths)
 	mad_length = max(stats.median_absolute_deviation(gene_sequences_lengths), 5)
 	with open(codon_alignment) as oca:
