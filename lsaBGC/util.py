@@ -307,13 +307,13 @@ def determineAllelesFromCodonAlignment(codon_alignment, max_mismatch=10, matchin
 	with open(codon_alignment) as oca:
 		for i, rec in enumerate(SeqIO.parse(oca, 'fasta')):
 			gene_seq_len = len(str(rec.seq).upper().replace('N', '').replace('-', ''))
-			if filter_by_genelength and (gene_seq_len < median_length-mad_length or gene_seq_len > median_length+mad_length):
+			if filter_by_genelength and (gene_seq_len < (median_length-mad_length) or gene_seq_len > (median_length+mad_length)):
 				continue
 			gene_sequences[rec.id] = str(rec.seq).upper()
 			allele_identifiers[rec.id] = i
 			seqs_comprehensive.add(rec.id)
 
-	valid_alleles = set(['A', 'C', 'G', 'T'])/
+	valid_alleles = set(['A', 'C', 'G', 'T'])
 	pairs = []
 	seqs_paired = set([])
 	pair_matching = defaultdict(lambda: defaultdict(float))
