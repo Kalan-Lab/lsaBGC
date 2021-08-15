@@ -810,23 +810,25 @@ def runFastANI(fasta_listing_file, outdir, fastani_output_file, cores, logObject
 	fastani_input_handle.write('\n'.join(fastas))
 	fastani_input_handle.close()
 
-	fastani_cmd = ['fastANI', '-t', str(cores), '--ql', fastani_input_file, '--rl', fastani_input_file, '-o', fastani_output_file]
-	logObject.info('Running fastANI sketch with the following command: %s' % ' '.join(fastani_cmd))
-	try:
-		subprocess.call(' '.join(fastani_cmd), shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-						executable='/bin/bash')
-		logObject.info('Successfully ran: %s' % ' '.join(fastani_cmd))
-	except:
-		error_message = 'Had an issue running: %s' % ' '.join(fastani_cmd)
-		logObject.error(error_message)
-		raise RuntimeError(error_message)
-
-	try:
-		assert (os.path.isfile(fastani_output_file))
-	except:
-		error_message = "Had issue validating that FastANI ran properly, couldn't find: %s" % fastani_output_file
-		logObject.error(error_message)
-		raise RuntimeError(error_message)
+	if not os.path.isfile(fastani_output_file):
+		fastani_cmd = ['fastANI', '-t', str(cores), '--ql', fastani_input_file, '--rl', fastani_input_file, '-o', fastani_output_file]
+		logObject.info('Running fastANI  with the following command: %s' % ' '.join(fastani_cmd))
+		try:
+			subprocess.call(' '.join(fastani_cmd), shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+							executable='/bin/bash')
+			logObject.info('Successfully ran: %s' % ' '.join(fastani_cmd))
+		except:
+			error_message = 'Had an issue running: %s' % ' '.join(fastani_cmd)
+			logObject.error(error_message)
+			raise RuntimeError(error_message)
+		try:
+			assert (os.path.isfile(fastani_output_file))
+		except:
+			error_message = "Had issue validating that FastANI ran properly, couldn't find: %s" % fastani_output_file
+			logObject.error(error_message)
+			raise RuntimeError(error_message)
+	else:
+		logObject.info('fastANI result already exists, assuming valid and avoiding rerunning. ')
 
 	pairwise_similarities = defaultdict(lambda: defaultdict(float))
 	try:
