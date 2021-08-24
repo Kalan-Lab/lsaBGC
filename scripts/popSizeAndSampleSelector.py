@@ -174,7 +174,7 @@ def main():
         gw_pairwise_similarities = util.calculateMashPairwiseDifferences(gw_fasta_listing_file, outdir, 'genome_wide', 10000, cores, logObject, prune_set=sample_retention_set)
     else:
         similarity_output_file = outdir + 'FastANI_Results.txt'
-        gw_pairwise_similarities = util.runFastANI(gw_fasta_listing_file, outdir, similarity_output_file, cores, logObject, prune_set=sample_retention_set)
+        gw_pairwise_similarities, gw_pairwise_comparisons = util.runFastANI(gw_fasta_listing_file, outdir, similarity_output_file, cores, logObject, prune_set=sample_retention_set)
 
     sample_assembly_n50s = {}
     with open(gw_fasta_listing_file) as ogf:
@@ -204,9 +204,10 @@ def main():
             if gw_pairwise_similarities[s1][s2] >= identity_cutoff:
                 if s1 != s2 and i < j:
                     if use_fastani:
-                        similar_samples.append(sorted([s1, s2]))
-                        similar_sample_set.add(s1)
-                        similar_sample_set.add(s2)
+                        if gw_pairwise_comparisons[s1][s2] >= 0.75:
+                            similar_samples.append(sorted([s1, s2]))
+                            similar_sample_set.add(s1)
+                            similar_sample_set.add(s2)
                     s2_n50 = sample_assembly_n50s[s2]
                     if s1_n50 >= s2_n50:
                         redundant_samples.add(s2)

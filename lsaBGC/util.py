@@ -838,21 +838,24 @@ def runFastANI(fasta_listing_file, outdir, fastani_output_file, cores, logObject
 		logObject.info('fastANI result already exists, assuming valid and avoiding rerunning. ')
 
 	pairwise_similarities = defaultdict(lambda: defaultdict(float))
+	pairwise_comparisons = defaultdict(lambda: defaultdict(float))
 	try:
 		with open(fastani_output_file) as of:
 			for line in of:
 				line = line.strip()
 				ls = line.split('\t')
-				f1, f2, sim = ls[:3]
+				f1, f2, sim, comp_seg, tota_seg = ls
 				sim = float(sim)
+				comp_prop = float(comp_seg)/float(tota_seg)
 				n1 = fasta_to_name[f1]
 				n2 = fasta_to_name[f2]
 				pairwise_similarities[n1][n2] = sim/100.0
+				pairwise_comparisons[n1][n2] = comp_prop
 	except:
 		error_message = 'Had issues reading the output of FastANI analysis at: %s' % fastani_output_file
 		logObject.error(error_message)
 		raise RuntimeError(error_message)
-	return pairwise_similarities
+	return [pairwise_similarities, pairwise_comparisons]
 
 def parseOrthoFinderMatrix(orthofinder_matrix_file, relevant_gene_lts):
 	"""
