@@ -204,7 +204,7 @@ def main():
             if gw_pairwise_similarities[s1][s2] >= identity_cutoff:
                 if s1 != s2 and i < j:
                     if use_fastani:
-                        if gw_pairwise_comparisons[s1][s2] >= 0.75:
+                        if gw_pairwise_comparisons[s1][s2] >= 0.85:
                             similar_samples.append(sorted([s1, s2]))
                             similar_sample_set.add(s1)
                             similar_sample_set.add(s2)
