@@ -849,8 +849,8 @@ class GCF(Pan):
 		final_output_handle = open(final_output_file, 'w')
 		header = ['gcf_id', 'homolog_group', 'annotation', 'hg_order_index', 'hg_consensus_direction',
 				  'hg_median_copy_count', 'median_gene_length', 'is_core_to_bgc', 'num_of_hg_instances',
-				  'samples_with_hg', 'proportion_of_samples_with_hg', 'Tajimas_D', 'proportion_variable_sites',
-				  'proportion_nondominant_major_allele', 'beta-rd', 'dn_ds', 'all_domains']
+				  'samples_with_hg', 'proportion_of_samples_with_hg', 'ambiguous_sites_proporition', 'Tajimas_D',
+				  'proportion_variable_sites', 'proportion_nondominant_major_allele', 'beta-rd', 'dn_ds', 'all_domains']
 		if population:
 			header = ['population'] + header
 		elif population_analysis_on:
@@ -2588,7 +2588,8 @@ def popgen_analysis_of_hg(inputs):
 	position_plot_handle.write('\t'.join(['pos', 'num_seqs', 'num_alleles', 'num_gaps', 'maj_allele_freq']) + '\n')
 
 	sample_differences_to_consensus = defaultdict(lambda: defaultdict(int))
-
+	ambiguous_sites = 0
+	nonambiguous_sites = 0
 	for i, ls in enumerate(zip(*seqs)):
 		al_counts = defaultdict(int)
 		for al in ls:
@@ -2613,6 +2614,9 @@ def popgen_analysis_of_hg(inputs):
 				variable_sites.add(i)
 			if maj_allele_freq < 0.75:
 				nondominant_sites.add(i)
+			nonambiguous_sites += 1
+		else:
+			ambiguous_sites += 1
 		maj_allele_count = max(al_counts.values())
 		maj_alleles = set([a[0] for a in al_counts.items() if maj_allele_count == a[1]])
 		maj_allele = sorted(list(maj_alleles))[0]
@@ -2624,6 +2628,8 @@ def popgen_analysis_of_hg(inputs):
 			else:
 				sample_differences_to_consensus[sid][gid] += 0
 	position_plot_handle.close()
+
+	ambiguous_prop = float(ambiguous_sites)/float(ambiguous_sites + nonambiguous_sites)
 
 	domain_positions_msa = defaultdict(set)
 	domain_min_position_msa = defaultdict(lambda: 1e8)
@@ -2785,8 +2791,8 @@ def popgen_analysis_of_hg(inputs):
 	if hg in hg_order_scores:
 		hg_ord, hg_dir = hg_order_scores[hg]
 	hg_info += [gcf_id, hg, '; '.join(products), hg_ord, hg_dir, hg_prop_multi_copy[hg],
-				median_gene_length, is_core, len(seqs), len(samples), round(prop_samples_with_hg,2), tajimas_d,
-				prop_conserved, prop_majallele_nondominant, median_beta_rd, dnds]
+				median_gene_length, is_core, len(seqs), len(samples), round(prop_samples_with_hg,2),
+				round(ambiguous_prop,2), tajimas_d, prop_conserved, prop_majallele_nondominant, median_beta_rd, dnds]
 
 	hg_consim_handle = open(popgen_dir + hg + '_sim_to_consensus.txt', 'w')
 	for s in sample_differences_to_consensus:
