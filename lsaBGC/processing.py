@@ -137,6 +137,50 @@ def runProkka(sample_assemblies, prokka_outdir, prokka_proteomes, prokka_genbank
 		p.map(util.multiProcess, prokka_cmds)
 		p.close()
 
+def appendSingletonHGsToPresenceMatrix(orthofinder_homolog_matrix, unassigned_orthofinder_homolog_matrix, result_file, logObject):
+	"""
+	Void function to append singleton HG instances (HGs represneted by only one protein) to the Orthogroups.csv hg by
+	sample presence matrix.
+	"""
+	try:
+		logObject.info('Beginning process to append singleton HGs to Orthogroups.csv homolog group by sample presence file to be written to the primary output directory.')
+
+		result_handle = open(result_file, 'w')
+
+		last_hg_identifier = None
+		samples_og_header = []
+		with open(orthofinder_homolog_matrix) as oohmf:
+			for i, line in enumerate(oohmf):
+				if i == 0:
+					samples_og_header = line.strip('\n').split('\t')
+				last_hg_identifier = ls[-1]
+				result_handle.write(line)
+
+		logObject.info("The last homolog group identifier included in the original Orthogroups.csv file was %s" % last_hg_identifier)
+
+		assert(os.path.isfile(unassigned_orthofinder_homolog_matrix))
+
+		samples_uog_header = []
+		with open(unassigned_orthofinder_homolog_matrix) as ouohmf:
+			for i, line in enumerate(ouohmf):
+				if i == 0:
+					samples_uog_header = line.strip('\n').split('\t')
+				else:
+					result_handle.write(line)
+		result_handle.close()
+
+		assert(os.path.isfile(result_file))
+
+		for i, so in enumerate(samples_og_header):
+			su = samples_uog_header[i]
+			assert(su == so)
+
+		logObject.info('Updated Orthogroups.csv file including unassigned/singleton homolog groups can be found at: %s' % result_file)
+	except Exception as e:
+		logObject.error('Issues with appending singleton homolog group instances to Orthogroups.csv. Now existing.')
+		logObject.error(traceback.format_exc())
+		raise RuntimeError('Issues with appending singleton homolog group instances to Orthogroups.csv. Now existing.')
+
 def runAntiSMASH(prokka_genbanks_dir, antismash_outdir, antismash_load_code, cores, logObject, dry_run_flag=False):
 	"""
 	Void function to run AntiSMASH based annotation of secondary metabolites / biosynthetic gene clusters.

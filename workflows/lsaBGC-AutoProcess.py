@@ -69,6 +69,7 @@ def create_parser():
 	parser.add_argument('-d', '--dry_run', action='store_true',
 						help="Just create task files with commands for running prodigal, antiSMASH, and OrthoFinder. Useful for parallelizing across an HPC.",
 						required=False, default=False)
+	parser.add_argument('-s', '--append_singleton_hgs', action='store_true', help="Append homolog groups with only one protein representative to the Orthogroups.csv homolog group matrix. This enables more reliable detection of homologous rare/singleton BGCs downstream in the pipeline.", required=False, default=False)
 	parser.add_argument('-q', '--fast_annotation', action='store_true', help="Skip basic/standard annotation in Prokka.", required=False, default=False)
 	parser.add_argument('-p', '--only_run_prokka', action='store_true', help="Only run Prokka for gene annotation and Genbank creation. Skip the rest.", required=False, default=False)
 	parser.add_argument('-f', '--refined_orthofinder', action='store_true', help="Only run OrthoFinder on proteins from antiSMASH proteomes only. This has implications downstream on being able to identify multi-copy genes across the genome.", required=False, default=False)
@@ -114,6 +115,7 @@ def lsaBGC_Process():
 	fast_annotation_flag = myargs.fast_annotation
 	only_run_prokka = myargs.only_run_prokka
 	refined_orthofinder = myargs.refined_orthofinder
+	append_singleton_hgs_flag = myargs.append_singleton_hgs
 
 	orthofinder_env_path = None
 	orthofinder_load_code = None
@@ -143,9 +145,13 @@ def lsaBGC_Process():
 	logObject.info("Saving parameters for future provenance.")
 	parameters_file = outdir + 'Parameter_Inputs.txt'
 	parameter_values = [assembly_listing_file, outdir, cores, dry_run_flag, fast_annotation_flag, prokka_env_path,
-						antiSMASH_env_path, orthofinder_env_path, only_run_prokka, refined_orthofinder]
-	parameter_names = ["Assembly Listing File", "Output Directory", "Cores", "Dry Run Flagged", "Fast Prokka Annotation Requested?",
-					    "Prokka Env Path", "AntiSMASH Env Path", "OrthoFinder Env Path", "Only Prokka Annotations to be Run?", "Run OrthoFinder with Only BGC Proteins?"]
+						antiSMASH_env_path, orthofinder_env_path, only_run_prokka, refined_orthofinder,
+						append_singleton_hgs_flag]
+	parameter_names = ["Assembly Listing File", "Output Directory", "Cores", "Dry Run Flagged",
+					   "Fast Prokka Annotation Requested?", "Prokka Env Path", "AntiSMASH Env Path",
+					   "OrthoFinder Env Path", "Only Prokka Annotations to be Run?",
+					   "Run OrthoFinder with Only BGC Proteins?",
+					   "Append Singleton HGs to the Homolog Group by Sample Matrix?"]
 	util.logParametersToFile(parameters_file, parameter_names, parameter_values)
 	logObject.info("Done saving parameters!")
 
@@ -233,7 +239,11 @@ def lsaBGC_Process():
 		orthofinder_species_tree = [orthofinder_outdir + od for od in os.listdir(orthofinder_outdir) if od.startswith("Orthologues_")][0] + '/SpeciesTree_rooted.txt'
 		if os.path.isfile(orthofinder_species_tree):
 			os.system('mv %s %s' % (orthofinder_species_tree, outdir))
-		if os.path.isfile(orthofinder_homolog_matrix):
+		if os.path.isfile(orthofinder_homolog_matrix) and append_singleton_hgs_flag:
+			unassigned_orthofinder_homolog_matrix = orthofinder_outdir + 'Orthogroups_UnassignedGenes.csv'
+			result_file = outdir + 'Orthogroups.csv'
+			processing.appendSingletonHGsToPresenceMatrix(orthofinder_homolog_matrix, unassigned_orthofinder_homolog_matrix, result_file, logObject)
+		elif os.path.isfile(orthofinder_homolog_matrix):
 			os.system('mv %s %s' % (orthofinder_homolog_matrix, outdir))
 
 	# Close logging object and exit
