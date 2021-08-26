@@ -153,7 +153,7 @@ def appendSingletonHGsToPresenceMatrix(orthofinder_homolog_matrix, unassigned_or
 			for i, line in enumerate(oohmf):
 				if i == 0:
 					samples_og_header = line.strip('\n').split('\t')
-				last_hg_identifier = ls[-1]
+				last_hg_identifier = line.strip('\n').split('\t')[0]
 				result_handle.write(line)
 
 		logObject.info("The last homolog group identifier included in the original Orthogroups.csv file was %s" % last_hg_identifier)
