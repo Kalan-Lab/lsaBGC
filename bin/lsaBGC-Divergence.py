@@ -155,13 +155,12 @@ def lsaBGC_Divergence():
     logObject.info("Beginning generation of report.")
     samples_bgc = set(bgc_pairwise_similarities.keys())
     samples_gw = set(gw_pairwise_similarities.keys())
-    samples_intersect = samples_gw.intersection(samples_bgc)
     try:
         final_report = outdir + 'Relative_Divergence_Report.txt'
         final_report_handle = open(final_report, 'w')
         final_report_handle.write('gcf_id\tsample_1\tsample_2\tbeta_rd\tgw_seq_sim\tgcf_seq_sim\tgcf_content_sim\n')
-        for i, s1 in enumerate(samples_intersect):
-            for j, s2 in enumerate(samples_intersect):
+        for i, s1 in enumerate(samples_bgc):
+            for j, s2 in enumerate(samples_bgc):
                 if sample_retention_set and (not s1 in sample_retention_set or not s2 in sample_retention_set): continue
                 if i >= j: continue
                 gcf_seq_sim = bgc_pairwise_similarities[s1][s2][0]
@@ -170,12 +169,15 @@ def lsaBGC_Divergence():
 
                 if gw_seq_sim != 0.0:
                     if gcf_seq_sim != 'NA':
-                        beta_rd = gcf_seq_sim/gw_seq_sim
+                        beta_rd = min([gcf_seq_sim/gw_seq_sim, 2.0])
                         final_report_handle.write('%s\t%s\t%s\t%f\t%f\t%f\t%f\n' % (gcf_id, s1, s2, beta_rd, gw_seq_sim, gcf_seq_sim, gcf_con_sim))
                     else:
-                        logObject.warning('Samples %s and %s had no genes/positions in common and are thus not reported!' % (s1, s2))
+                        logObject.warning('Samples %s and %s had no GCF-related genes/positions in common and are thus not reported!' % (s1, s2))
                 else:
-                    logObject.warning('Samples %s and %s had an estimated ANI of 0.0 and are thus not reported!' % (s1, s2))
+                    beta_rd = 2.0
+                    final_report_handle.write('%s\t%s\t%s\t%f\t%f\t%f\t%f\n' % (gcf_id, s1, s2, beta_rd, gw_seq_sim, gcf_seq_sim, gcf_con_sim))
+                    logObject.warning('Samples %s and %s had an estimated ANI of 0.0, thus default beta-rd of 2.0 is assigned!' % (s1, s2))
+
         final_report_handle.close()
         logObject.info("Successfully computed Beta-RD statistic between pairs of samples to measure BGC similarity relative to Genome-Wide similarity.")
     except Exception as e:
