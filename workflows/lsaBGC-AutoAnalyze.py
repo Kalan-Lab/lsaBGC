@@ -146,7 +146,7 @@ def lsaBGC_AutoAnalyze():
 						discovary_input_listing, sample_set_file, num_populations, manual_populations_file, cores]
 	parameter_names = ["GCF Listings Directory", "Listing File of Prokka Annotation Files for Initial Set of Samples",
 					   "OrthoFinder Homolog Matrix", "Output Directory", "Phylogeny File in Newick Format",
-					   "Delineate Populations and Perform Population Genetics Analytics", 'CompareM AAI Requested?'
+					   "Delineate Populations and Perform Population Genetics Analytics", "CompareM AAI Requested?",
 					   "DiscoVary Analysis ID", "DiscoVary Sequencing Data Location Specification File",
 					   "Sample Retention Set", "Number of Populations", "Path to Manual Population Specifications File",
 					   "Cores"]
