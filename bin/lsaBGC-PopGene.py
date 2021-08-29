@@ -64,7 +64,7 @@ def create_parser():
     parser.add_argument('-e', '--each_pop', action='store_true', help='Run analyses individually for each population as well.', required=False, default=False)
     parser.add_argument('-t', '--filter_for_outliers', action='store_true', help='Filter instances of homolog groups which deviate too much from the median gene length observed for the initial set of proteins.', required=False, default=False)
     parser.add_argument('-f', '--precomputed_gw_similarity_results', help="Path to precomputed FastANI/CompareM ANI/AAI calculations. Should be tab delimited file with ", required=False)
-    parser.add_argument('-cm', '--comparem_used', action='store_true', help='CompareM was used for genome-wide similarity estimates so protein similarity should similarly be computed for GCF-associated genes.', required=False, defeault=False)
+    parser.add_argument('-cm', '--comparem_used', action='store_true', help='CompareM was used for genome-wide similarity estimates so protein similarity should similarly be computed for GCF-associated genes.', required=False, default=False)
     args = parser.parse_args()
 
     return args

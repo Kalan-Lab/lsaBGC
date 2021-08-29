@@ -60,7 +60,7 @@ def create_parser():
     parser.add_argument('-l', '--input_listing', help="Path to tab delimited file listing: (1) sample name (2) path to Prokka Genbank and (3) path to Prokka predicted proteome. This file is produced by lsaBGC-Process.py.", required=False, default=None)
     parser.add_argument('-a', '--codon_alignments', help="File listing the codon alignments for each homolog group in the GCF. Can be found as part of PopGene output.", required=True)
     parser.add_argument('-f', '--precomputed_gw_similarity_results', help="Path to precomputed FastANI/CompareM ANI/AAI calculations. Should be tab delimited file with ", required=False)
-    parser.add_argument('-cm', '--comparem_used', action='store_true', help='CompareM was used for genome-wide similarity estimates so protein similarity should similarly be computed for GCF-associated genes.', required=False, defeault=False)
+    parser.add_argument('-cm', '--comparem_used', action='store_true', help='CompareM was used for genome-wide similarity estimates so protein similarity should similarly be computed for GCF-associated genes.', required=False, default=False)
     parser.add_argument('-i', '--gcf_id', help="GCF identifier.", required=False, default='GCF_X')
     parser.add_argument('-o', '--output_directory', help="Prefix for output files.", required=True)
     parser.add_argument('-k', '--sample_set', help="Sample set to keep in analysis. Should be file with one sample id per line.", required=False)
