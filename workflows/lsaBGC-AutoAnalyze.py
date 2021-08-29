@@ -164,7 +164,7 @@ def lsaBGC_AutoAnalyze():
 	Pan_Object.convertGenbanksIntoFastas(gw_fasta_dir, gw_fasta_listing_file, sample_retention_set=sample_retention_set)
 	logObject.info("Successfully performed conversions.")
 
-	gw_pairwise_similarities, gw_pairwise_comparisons = [None]*3
+	gw_pairwise_similarities, gw_pairwise_comparisons = [None]*2
 	if not comparem:
 		logObject.info("Running FastANI Analysis Between Genomes.")
 		fastani_result_file = outdir + 'FastANI_Results.txt'
