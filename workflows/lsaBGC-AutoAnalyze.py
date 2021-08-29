@@ -313,6 +313,8 @@ def lsaBGC_AutoAnalyze():
 				   '-i', gcf_id, '-c', str(cores), '-f', gw_result_cleaned_file]
 			if population_listing_file:
 				cmd += ['-p', population_listing_file]
+			if comparem:
+				cmd += ['-cm']
 			try:
 				util.run_cmd(cmd, logObject, stderr=sys.stderr, stdout=sys.stdout)
 			except Exception as e:
@@ -326,6 +328,8 @@ def lsaBGC_AutoAnalyze():
 			cmd = ['lsaBGC-Divergence.py', '-g', gcf_listing_file, '-l', input_listing_file, '-o', gcf_div_outdir,
 				   '-i', gcf_id, '-a',	gcf_pop_outdir + 'Codon_Alignments_Listings.txt', '-c', str(cores),
 				   '-f', gw_result_cleaned_file]
+			if comparem:
+				cmd += ['-cm']
 			try:
 				util.run_cmd(cmd, logObject)
 			except Exception as e:
