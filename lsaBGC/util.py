@@ -892,7 +892,7 @@ def runCompareM(fasta_listing_file, comparem_results_dir, cores, logObject, prun
 
 	comparem_result_file = comparem_results_dir + 'aai/aai_summary.tsv'
 	if not os.path.isfile(comparem_result_file):
-		comparem_cmd = ['comparem', '--cpus', str(cores), 'aai_wf', comparem_input_file, comparem_results_dir]
+		comparem_cmd = ['comparem', 'aai_wf', '--cpus', str(cores), comparem_input_file, comparem_results_dir]
 		logObject.info('Running CompareM  with the following command: %s' % ' '.join(comparem_cmd))
 		try:
 			subprocess.call(' '.join(comparem_cmd), shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
