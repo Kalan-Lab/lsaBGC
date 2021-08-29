@@ -190,11 +190,14 @@ def determineNonUniqueRegionsAlongCodonAlignment(outdir, initial_sample_prokka_d
 		raise RuntimeError(traceback.format_exc())
 
 
-def determineSeqSimCodonAlignment(codon_alignment_file):
+def determineSeqSimCodonAlignment(codon_alignment_file, use_translation=False):
 	gene_sequences = {}
 	with open(codon_alignment_file) as ocaf:
 		for i, rec in enumerate(SeqIO.parse(ocaf, 'fasta')):
-			gene_sequences[rec.id] = str(rec.seq).upper()
+			if use_translation:
+				gene_sequences[rec.id] = str(rec.seq.upper().translate().upper())
+			else:
+				gene_sequences[rec.id] = str(rec.seq).upper()
 
 	pair_seq_matching = defaultdict(lambda: defaultdict(lambda: 0.0))
 	for i, g1 in enumerate(gene_sequences):
@@ -209,7 +212,7 @@ def determineSeqSimCodonAlignment(codon_alignment_file):
 			match_pos = 0
 			for pos, g1a in enumerate(g1s):
 				g2a = g2s[pos]
-				if g1a in valid_alleles or g2a in valid_alleles:
+				if g1a != '-' or g2a != '-':
 					tot_comp_pos += 1
 					if g1a == g2a:
 						match_pos += 1
@@ -229,15 +232,14 @@ def determineBGCSequenceSimilarity(input):
 	match_pos = 0
 	for pos, g1a in enumerate(g1s):
 		g2a = g2s[pos]
-		if g1a in valid_alleles or g2a in valid_alleles:
+		if g1a != '-' or g2a != '-':
 			tot_comp_pos += 1
 			if g1a == g2a:
 				match_pos += 1
 	general_matching_percentage = float(match_pos) / float(tot_comp_pos)
 	comparisons_managed[comparison_id] = general_matching_percentage
 
-def determineBGCSequenceSimilarityFromCodonAlignments(codon_alignments_file, cores=1):
-	valid_alleles = set(['A', 'C', 'G', 'T'])
+def determineBGCSequenceSimilarityFromCodonAlignments(codon_alignments_file, cores=1, use_translation=False):
 	sample_hgs = defaultdict(set)
 	comparisons_managed = None
 	pair_seq_matching = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: 0.0)))
@@ -252,7 +254,10 @@ def determineBGCSequenceSimilarityFromCodonAlignments(codon_alignments_file, cor
 				allele_identifiers = {}
 				with open(codon_alignment) as oca:
 					for i, rec in enumerate(SeqIO.parse(oca, 'fasta')):
-						gene_sequences[rec.id] = str(rec.seq).upper()
+						if use_translation:
+							gene_sequences[rec.id] = str(rec.seq.upper().translate().upper())
+						else:
+							gene_sequences[rec.id] = str(rec.seq).upper()
 						allele_identifiers[rec.id] = i
 						sample = rec.id.split('|')[0]
 						sample_hgs[sample].add(hg)
@@ -313,7 +318,6 @@ def determineAllelesFromCodonAlignment(codon_alignment, max_mismatch=10, matchin
 			allele_identifiers[rec.id] = i
 			seqs_comprehensive.add(rec.id)
 
-	valid_alleles = set(['A', 'C', 'G', 'T'])
 	pairs = []
 	seqs_paired = set([])
 	pair_matching = defaultdict(lambda: defaultdict(float))
@@ -853,6 +857,74 @@ def runFastANI(fasta_listing_file, outdir, fastani_output_file, cores, logObject
 				pairwise_comparisons[n1][n2] = comp_prop
 	except:
 		error_message = 'Had issues reading the output of FastANI analysis at: %s' % fastani_output_file
+		logObject.error(error_message)
+		raise RuntimeError(error_message)
+	return [pairwise_similarities, pairwise_comparisons]
+
+def runCompareM(fasta_listing_file, comparem_results_dir, cores, logObject, prune_set=None):
+	"""
+	Calculate AAI estimate between pairs of samples using CompareM.
+
+	:param fasta_listing_file: A tab-delimited listing file with two columns: (1) sample name (2) path to FASTA file
+	:param comparem_results_dir: The output directory where to write results
+	:param cores: Number of cores/threads to use
+	:param logObject: The logging object.
+	"""
+	fastas = []
+	fasta_to_name = {}
+	try:
+		with open(fasta_listing_file) as oflf:
+			for line in oflf:
+				line = line.strip()
+				ls = line.split('\t')
+				if prune_set != None and not ls[0] in prune_set: continue
+				fastas.append(ls[1])
+				fasta_to_name[ls[1]] = ls[0]
+	except:
+		error_message = "Had issues reading the FASTA listing file %s" % fasta_listing_file
+		logObject.error(error_message)
+		raise RuntimeError(error_message)
+
+	comparem_input_file = comparem_results_dir + 'CompareM_Input.txt'
+	comparem_input_handle = open(comparem_input_file, 'w')
+	comparem_input_handle.write('\n'.join(fastas))
+	comparem_input_handle.close()
+
+	comparem_result_file = comparem_results_dir + 'aai/aai_summary.tsv'
+	if not os.path.isfile(comparem_result_file):
+		comparem_cmd = ['comparem', '--cpus', str(cores), 'aai_wf', comparem_input_file, comparem_results_dir]
+		logObject.info('Running CompareM  with the following command: %s' % ' '.join(comparem_cmd))
+		try:
+			subprocess.call(' '.join(comparem_cmd), shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+							executable='/bin/bash')
+			logObject.info('Successfully ran: %s' % ' '.join(comparem_cmd))
+		except:
+			error_message = 'Had an issue running: %s' % ' '.join(comparem_cmd)
+			logObject.error(error_message)
+			raise RuntimeError(error_message)
+		try:
+			assert (os.path.isfile(comparem_result_file))
+		except:
+			error_message = "Had issue validating that CompareM ran properly, couldn't find: %s" % comparem_result_file
+			logObject.error(error_message)
+			raise RuntimeError(error_message)
+	else:
+		logObject.info('CompareM result already exists, assuming valid and avoiding rerunning.')
+
+	pairwise_similarities = defaultdict(lambda: defaultdict(float))
+	pairwise_comparisons = defaultdict(lambda: defaultdict(float))
+	try:
+		with open(comparem_result_file) as of:
+			for line in of:
+				line = line.strip()
+				s1, s1g, s2, s2g, com_genes, sim, sim_std, ortho_frac = line.split('\t')
+				sim = float(sim)
+				pairwise_similarities[s1][s2] = sim
+				pairwise_similarities[s2][s1] = sim/100.0
+				pairwise_comparisons[s1][s2] = float(com_genes)/float(s1g)
+				pairwise_comparisons[s2][s1] = float(com_genes)/float(s2g)
+	except:
+		error_message = 'Had issues reading the output of CompareM analysis at: %s' % comparem_result_file
 		logObject.error(error_message)
 		raise RuntimeError(error_message)
 	return [pairwise_similarities, pairwise_comparisons]

@@ -59,7 +59,8 @@ def create_parser():
     parser.add_argument('-g', '--gcf_listing', help='BGC specifications file. Tab delimited: 1st column contains path to AntiSMASH BGC Genbank and 2nd column contains sample name.', required=True)
     parser.add_argument('-l', '--input_listing', help="Path to tab delimited file listing: (1) sample name (2) path to Prokka Genbank and (3) path to Prokka predicted proteome. This file is produced by lsaBGC-Process.py.", required=False, default=None)
     parser.add_argument('-a', '--codon_alignments', help="File listing the codon alignments for each homolog group in the GCF. Can be found as part of PopGene output.", required=True)
-    parser.add_argument('-f', '--precomputed_fastani_results', help="Path to FastANI results.", required=True)
+    parser.add_argument('-f', '--precomputed_gw_similarity_results', help="Path to precomputed FastANI/CompareM ANI/AAI calculations. Should be tab delimited file with ", required=False)
+    parser.add_argument('-cm', '--comparem_used', action='store_true', help='CompareM was used for genome-wide similarity estimates so protein similarity should similarly be computed for GCF-associated genes.', required=False, defeault=False)
     parser.add_argument('-i', '--gcf_id', help="GCF identifier.", required=False, default='GCF_X')
     parser.add_argument('-o', '--output_directory', help="Prefix for output files.", required=True)
     parser.add_argument('-k', '--sample_set', help="Sample set to keep in analysis. Should be file with one sample id per line.", required=False)
@@ -81,7 +82,8 @@ def lsaBGC_Divergence():
     gcf_listing_file = os.path.abspath(myargs.gcf_listing)
     input_listing_file = os.path.abspath(myargs.input_listing)
     codon_alignments_file = os.path.abspath(myargs.codon_alignments)
-    precomputed_fastani_results_file = myargs.precomputed_fastani_results
+    precomputed_gw_similarity_results = myargs.precomputed_gw_similarity_results
+    comparem_used = myargs.comparem_used
     outdir = os.path.abspath(myargs.output_directory) + '/'
 
     ### vet input files quickly
@@ -89,7 +91,7 @@ def lsaBGC_Divergence():
         assert (os.path.isfile(input_listing_file))
         assert (os.path.isfile(gcf_listing_file))
         assert (os.path.isfile(codon_alignments_file))
-        assert (os.path.isfile(precomputed_fastani_results_file))
+        assert (os.path.isfile(precomputed_gw_similarity_results))
 
     except:
         raise RuntimeError('One or more of the input files provided, does not exist. Exiting now ...')
@@ -120,21 +122,21 @@ def lsaBGC_Divergence():
     logObject.info("Saving parameters for future provedance.")
     parameters_file = outdir + 'Parameter_Inputs.txt'
     parameter_values = [gcf_listing_file, input_listing_file, codon_alignments_file, outdir,
-                        gcf_id, sample_set_file, precomputed_fastani_results_file, cores]
+                        gcf_id, sample_set_file, precomputed_gw_similarity_results, comparem_used, cores]
     parameter_names = ["GCF Listing File", "Input Listing File of Prokka Annotation Files for All Samples",
                        "File Listing the Location of Codon Alignments for Each Homolog Group",
                        "Output Directory", "GCF Identifier", "Retention Sample Set",
-                       "Precomputed FastANI Results File", "Cores"]
+                       "Precomputed FastANI/CompareM Similarities File", "AAI Similarity Instead of ANI", "Cores"]
     util.logParametersToFile(parameters_file, parameter_names, parameter_values)
     logObject.info("Done saving parameters!")
 
     # Step 0: (Optional) Parse sample set retention specifications file, if provided by the user.
     sample_retention_set = util.getSampleRetentionSet(sample_set_file)
 
-    # Step 1: Parse FastANI results as the genome-wide similarity estimates
+    # Step 1: Parse FastANI/CompareM results as the genome-wide similarity estimates
     gw_pairwise_similarities = defaultdict(lambda: defaultdict(float))
     try:
-        with open(precomputed_fastani_results_file) as of:
+        with open(precomputed_gw_similarity_results) as of:
             for line in of:
                 line = line.strip()
                 ls = line.split('\t')
@@ -142,19 +144,18 @@ def lsaBGC_Divergence():
                 sim = float(sim)
                 gw_pairwise_similarities[s1][s2] = sim
     except Exception as e:
-        error_message = 'Had issues reading the output of FastANI analysis in file: %s' % precomputed_fastani_results_file
+        error_message = 'Had issues reading the output of FastANI/CompareM analysis in file: %s' % precomputed_gw_similarity_results
         logObject.error(error_message)
         raise RuntimeError(error_message)
 
     # Step 2: Determine Sequence Similarity from Codon Alignments
     logObject.info("Determining similarities in BGC content and sequence space between pairs of samples.")
-    bgc_pairwise_similarities = util.determineBGCSequenceSimilarityFromCodonAlignments(codon_alignments_file, cores=cores)
+    bgc_pairwise_similarities = util.determineBGCSequenceSimilarityFromCodonAlignments(codon_alignments_file, cores=cores, use_translation=comparem_used)
     logObject.info("Finished determining BGC specific similarity between pairs of samples.")
 
     # Step 3: Calculate and report Beta-RD statistic for all pairs of samples/isolates
     logObject.info("Beginning generation of report.")
     samples_bgc = set(bgc_pairwise_similarities.keys())
-    samples_gw = set(gw_pairwise_similarities.keys())
     try:
         final_report = outdir + 'Relative_Divergence_Report.txt'
         final_report_handle = open(final_report, 'w')

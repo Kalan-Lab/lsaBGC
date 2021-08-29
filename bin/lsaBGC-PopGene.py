@@ -63,7 +63,8 @@ def create_parser():
     parser.add_argument('-c', '--cores', type=int, help="The number of cores to use.", required=False, default=1)
     parser.add_argument('-e', '--each_pop', action='store_true', help='Run analyses individually for each population as well.', required=False, default=False)
     parser.add_argument('-t', '--filter_for_outliers', action='store_true', help='Filter instances of homolog groups which deviate too much from the median gene length observed for the initial set of proteins.', required=False, default=False)
-    parser.add_argument('-f', '--precomputed_fastani_results', help="Path to FastANI results.", required=False)
+    parser.add_argument('-f', '--precomputed_gw_similarity_results', help="Path to precomputed FastANI/CompareM ANI/AAI calculations. Should be tab delimited file with ", required=False)
+    parser.add_argument('-cm', '--comparem_used', action='store_true', help='CompareM was used for genome-wide similarity estimates so protein similarity should similarly be computed for GCF-associated genes.', required=False, defeault=False)
     args = parser.parse_args()
 
     return args
@@ -105,7 +106,8 @@ def lsaBGC_PopGene():
     population_classification_file = myargs.population_classification
     run_for_each_pop = myargs.each_pop
     filter_for_outliers = myargs.filter_for_outliers
-    precomputed_fastani_results_file = myargs.precomputed_fastani_results
+    precomputed_gw_similarity_results = myargs.precomputed_gw_similarity_results
+    comparem_used = myargs.comparem_used
 
     """
     START WORKFLOW
@@ -118,10 +120,12 @@ def lsaBGC_PopGene():
     logObject.info("Saving parameters for future provedance.")
     parameters_file = outdir + 'Parameter_Inputs.txt'
     parameter_values = [gcf_listing_file, orthofinder_matrix_file, outdir, gcf_id, population_classification_file,
-                        sample_set_file, run_for_each_pop, filter_for_outliers, precomputed_fastani_results_file, cores]
+                        sample_set_file, run_for_each_pop, filter_for_outliers, precomputed_gw_similarity_results,
+                        comparem_used, cores]
     parameter_names = ["GCF Listing File", "OrthoFinder Orthogroups.csv File", "Output Directory", "GCF Identifier",
                        "Populations Specification/Listing File", "Sample Retention Set", 'Run Analysis for Each Population',
-                       "Filter for Outlier Homolog Group Instances", "Precomputed FastANI Results File", "Cores"]
+                       "Filter for Outlier Homolog Group Instances", "Precomputed FastANI/CompareM Similarities File",
+                       "AAI Similarity Instead of ANI", "Cores"]
     util.logParametersToFile(parameters_file, parameter_names, parameter_values)
     logObject.info("Done saving parameters!")
 
@@ -133,10 +137,10 @@ def lsaBGC_PopGene():
 
     # Step 0B: (Optional) Parse sample to sample genome-wide relationships
     gw_pairwise_similarities = None
-    if precomputed_fastani_results_file and os.path.isfile(precomputed_fastani_results_file):
+    if precomputed_gw_similarity_results and os.path.isfile(precomputed_gw_similarity_results):
         try:
             gw_pairwise_similarities = defaultdict(lambda: defaultdict(float))
-            with open(precomputed_fastani_results_file) as of:
+            with open(precomputed_gw_similarity_results) as of:
                 for line in of:
                     line = line.strip()
                     ls = line.split('\t')
@@ -144,7 +148,7 @@ def lsaBGC_PopGene():
                     sim = float(sim)
                     gw_pairwise_similarities[s1][s2] = sim
         except Exception as e:
-            error_message = 'Had issues reading the output of FastANI analysis in file: %s' % precomputed_fastani_results_file
+            error_message = 'Had issues reading the output of FastANI/CompareM results in file: %s' % precomputed_gw_similarity_results
             logObject.error(error_message)
             raise RuntimeError(error_message)
 
@@ -185,13 +189,13 @@ def lsaBGC_PopGene():
         population_analysis_on = True
     if run_for_each_pop:
         for pop in populations:
-            GCF_Object.runPopulationGeneticsAnalysis(outdir, cores=cores, population=pop, filter_outliers=False, population_analysis_on=population_analysis_on, gw_pairwise_similarities=gw_pairwise_similarities)
+            GCF_Object.runPopulationGeneticsAnalysis(outdir, cores=cores, population=pop, filter_outliers=False, population_analysis_on=population_analysis_on, gw_pairwise_similarities=gw_pairwise_similarities, comparem_used=comparem_used)
             if filter_for_outliers:
-                GCF_Object.runPopulationGeneticsAnalysis(outdir, cores=cores, population=pop, filter_outliers=True, population_analysis_on=population_analysis_on, gw_pairwise_similarities=gw_pairwise_similarities)
+                GCF_Object.runPopulationGeneticsAnalysis(outdir, cores=cores, population=pop, filter_outliers=True, population_analysis_on=population_analysis_on, gw_pairwise_similarities=gw_pairwise_similarities, comparem_used=comparem_used)
     else:
-        GCF_Object.runPopulationGeneticsAnalysis(outdir, cores=cores, population=None, filter_outliers=False, population_analysis_on=population_analysis_on, gw_pairwise_similarities=gw_pairwise_similarities)
+        GCF_Object.runPopulationGeneticsAnalysis(outdir, cores=cores, population=None, filter_outliers=False, population_analysis_on=population_analysis_on, gw_pairwise_similarities=gw_pairwise_similarities, comparem_used=comparem_used)
         if filter_for_outliers:
-            GCF_Object.runPopulationGeneticsAnalysis(outdir, cores=cores, population=None, filter_outliers=True, population_analysis_on=population_analysis_on, gw_pairwise_similarities=gw_pairwise_similarities)
+            GCF_Object.runPopulationGeneticsAnalysis(outdir, cores=cores, population=None, filter_outliers=True, population_analysis_on=population_analysis_on, gw_pairwise_similarities=gw_pairwise_similarities, comparem_used=comparem_used)
     logObject.info("Successfully ran population genetics and evolutionary analyses of each codon alignment.")
 
     # Close logging object and exit

@@ -817,7 +817,7 @@ class GCF(Pan):
 				self.logObject.error(traceback.format_exc())
 			raise RuntimeError(traceback.format_exc())
 
-	def runPopulationGeneticsAnalysis(self, outdir, cores=1, population=None, filter_outliers=False, population_analysis_on=False, gw_pairwise_similarities=None):
+	def runPopulationGeneticsAnalysis(self, outdir, cores=1, population=None, filter_outliers=False, population_analysis_on=False, gw_pairwise_similarities=None, comparem_used=False):
 		"""
 		Wrapper function which serves to parallelize population genetics analysis.
 
@@ -870,9 +870,10 @@ class GCF(Pan):
 			codon_alignment_fasta = input_codon_dir + f
 			if gw_pairwise_similarities:
 				gw_pairwise_similarities = dict(gw_pairwise_similarities)
-			inputs.append([self.gcf_id, hg, codon_alignment_fasta, popgen_dir, plots_dir, self.comp_gene_info, self.hg_genes,
-							 self.bgc_sample, self.hg_prop_multi_copy, dict(self.hg_order_scores), gw_pairwise_similarities,
-						     dict(self.sample_population), population, self.logObject])
+			inputs.append([self.gcf_id, hg, codon_alignment_fasta, popgen_dir, plots_dir, self.comp_gene_info,
+						   self.hg_genes, self.bgc_sample, self.hg_prop_multi_copy, dict(self.hg_order_scores),
+						   gw_pairwise_similarities, comparem_used, dict(self.sample_population), population,
+						   self.logObject])
 
 		p = multiprocessing.Pool(cores)
 		p.map(popgen_analysis_of_hg, inputs)
@@ -2507,7 +2508,7 @@ def popgen_analysis_of_hg(inputs):
 
 	:param inputs: list of inputs passed in by GCF.runPopulationGeneticsAnalysis().
 	"""
-	gcf_id, hg, codon_alignment_fasta, popgen_dir, plots_dir, comp_gene_info, hg_genes, bgc_sample, hg_prop_multi_copy, hg_order_scores, gw_pairwise_similarities, sample_population, population, logObject = inputs
+	gcf_id, hg, codon_alignment_fasta, popgen_dir, plots_dir, comp_gene_info, hg_genes, bgc_sample, hg_prop_multi_copy, hg_order_scores, gw_pairwise_similarities, comparem_used, sample_population, population, logObject = inputs
 	domain_plot_file = plots_dir + hg + '_domain.txt'
 	position_plot_file = plots_dir + hg + '_position.txt'
 	plot_pdf_file = plots_dir + hg + '.pdf'
@@ -2561,7 +2562,7 @@ def popgen_analysis_of_hg(inputs):
 	median_beta_rd = "NA"
 	if gw_pairwise_similarities:
 		beta_rd_stats = []
-		hg_pairwise_similarities = util.determineSeqSimCodonAlignment(codon_alignment_fasta)
+		hg_pairwise_similarities = util.determineSeqSimCodonAlignment(codon_alignment_fasta, use_translation=comparem_used)
 		for i, s1 in enumerate(sorted(samples)):
 			for j, s2 in enumerate(sorted(samples)):
 				if i >= j: continue

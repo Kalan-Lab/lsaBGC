@@ -40,6 +40,7 @@ import sys
 from time import sleep
 from operator import itemgetter
 import argparse
+import traceback
 from collections import defaultdict
 from ete3 import Tree
 from lsaBGC.classes.Pan import Pan
@@ -71,7 +72,8 @@ def create_parser():
 	parser.add_argument('-k', '--sample_set', help="Sample set to keep in analysis. Should be file with one sample id per line.", required=False)
 	parser.add_argument('-s', '--lineage_phylogeny', help="Path to species phylogeny. If not provided a FastANI based neighborjoining tree will be constructed and used.", default=None, required=False)
 	parser.add_argument('-p', '--population_analysis',	action='store_true', help="Whether to construct species phylogeny and use it to determine populations.", default=False, required=False)
-	parser.add_argument('-ps', '--num_populations', type=int, help='If population analysis specified, what is the number of populations to . Use the script determinePopulationK.py to see how populations will look with k set to different values.', required=False, default=4)
+	parser.add_argument('-cm', '--comparem', action='store_true', help='Use compareM (to perform AAI analysis) instead of FastANI (to perform ANI analysis). This is recommended if the "lineage" in question is a genus.')
+	parser.add_argument('-ps', '--num_populations', type=int, help='Overwritten if manual_populations is specified. If population analysis specified, what is the number of populations to infer from cutting the neighbor joining tree constructed by FastANI/CompareM inference. Use the script determinePopulationK.py to see how populations will look with k set to different values.', required=False, default=4)
 	parser.add_argument('-mp', '--manual_populations', help='Path to user defined populations file.', required=False, default=None)
 	parser.add_argument('-i', '--discovary_analysis_id', help="Identifier for novelty SNV mining analysis. Not providing this parameter will avoid running lsaBGC-DiscoVary step.", required=False, default=None)
 	parser.add_argument('-n', '--discovary_input_listing', help="Path to tab delimited file listing: (1) sample name (2) path to forward reads and (3) path to reverse reads.", required=False, default=None)
@@ -121,6 +123,7 @@ def lsaBGC_AutoAnalyze():
 	sample_set_file = myargs.sample_set
 	lineage_phylogeny_file = myargs.lineage_phylogeny
 	population_analysis = myargs.population_analysis
+	comparem = myargs.comparem
 	num_populations = myargs.num_populations
 	manual_populations_file = myargs.manual_populations
 	discovary_analysis_id = myargs.discovary_analysis_id
@@ -139,11 +142,11 @@ def lsaBGC_AutoAnalyze():
 	logObject.info("Saving parameters for easier determination of results' provenance in the future.")
 	parameters_file = outdir + 'Parameter_Inputs.txt'
 	parameter_values = [gcf_listing_dir, input_listing_file, original_orthofinder_matrix_file, outdir,
-						lineage_phylogeny_file, population_analysis, discovary_analysis_id,
+						lineage_phylogeny_file, population_analysis, comparem, discovary_analysis_id,
 						discovary_input_listing, sample_set_file, num_populations, manual_populations_file, cores]
 	parameter_names = ["GCF Listings Directory", "Listing File of Prokka Annotation Files for Initial Set of Samples",
 					   "OrthoFinder Homolog Matrix", "Output Directory", "Phylogeny File in Newick Format",
-					   "Delineate Populations and Perform Population Genetics Analytics",
+					   "Delineate Populations and Perform Population Genetics Analytics", 'CompareM AAI Requested?'
 					   "DiscoVary Analysis ID", "DiscoVary Sequencing Data Location Specification File",
 					   "Sample Retention Set", "Number of Populations", "Path to Manual Population Specifications File",
 					   "Cores"]
@@ -161,39 +164,47 @@ def lsaBGC_AutoAnalyze():
 	Pan_Object.convertGenbanksIntoFastas(gw_fasta_dir, gw_fasta_listing_file, sample_retention_set=sample_retention_set)
 	logObject.info("Successfully performed conversions.")
 
-	logObject.info("Running FastANI Analysis Between Genomes.")
-	fastani_result_file = outdir + 'FastANI_Results.txt'
-	gw_pairwise_similarities, gw_pairwise_comparisons = util.runFastANI(gw_fasta_listing_file, outdir, fastani_result_file, cores, logObject, prune_set=sample_retention_set)
-	logObject.info("Ran FastANI Analysis Between Genomes.")
+	gw_pairwise_similarities, gw_pairwise_comparisons = [None]*3
+	if not comparem:
+		logObject.info("Running FastANI Analysis Between Genomes.")
+		fastani_result_file = outdir + 'FastANI_Results.txt'
+		gw_pairwise_similarities, gw_pairwise_comparisons = util.runFastANI(gw_fasta_listing_file, outdir, fastani_result_file, cores, logObject, prune_set=sample_retention_set)
+		logObject.info("Ran FastANI Analysis Between Genomes.")
+	else:
+		logObject.info("Running CompareM Analysis Between Genomes.")
+		comparem_results_dir = outdir + 'CompareM_Results/'
+		if not os.path.isdir(comparem_results_dir): os.system('mkdir %s' % comparem_results_dir)
+		gw_pairwise_similarities, gw_pairwise_comparisons = util.runCompareM(gw_fasta_listing_file, comparem_results_dir, cores, logObject, prune_set=sample_retention_set)
 
-	fastani_matrix_file = outdir + 'FastANI_Distance_Matrix.txt'
-	fastani_result_cleaned_file = outdir + 'FastANI_Estimates.txt'
-	fastani_result_cleaned_handle = open(fastani_result_cleaned_file, 'w')
-	fastani_matrix_handle = open(fastani_matrix_file, 'w')
-	fastani_matrix_handle.write('Sample/Sample\t' + '\t'.join([s for s in sorted(gw_pairwise_similarities)]) + '\n')
+	gw_matrix_file = outdir + 'Genome_Wide_Distance_Matrix.txt'
+	gw_result_cleaned_file = outdir + 'Genome_Wide_Estimates.txt'
+	gw_result_cleaned_handle = open(gw_result_cleaned_file, 'w')
+	gw_matrix_handle = open(gw_matrix_file, 'w')
+	gw_matrix_handle.write('Sample/Sample\t' + '\t'.join([s for s in sorted(gw_pairwise_similarities)]) + '\n')
 	for s1 in sorted(gw_pairwise_similarities):
 		printlist = [s1]
 		for s2 in sorted(gw_pairwise_similarities):
 			printlist.append(str(1.0 - gw_pairwise_similarities[s1][s2]))
-			fastani_result_cleaned_handle.write('\t'.join([s1, s2, str(gw_pairwise_similarities[s1][s2])]) + '\n')
-		fastani_matrix_handle.write('\t'.join(printlist) + '\n')
-	fastani_matrix_handle.close()
-	fastani_result_cleaned_handle.close()
+			gw_result_cleaned_handle.write('\t'.join([s1, s2, str(gw_pairwise_similarities[s1][s2])]) + '\n')
+		gw_matrix_handle.write('\t'.join(printlist) + '\n')
+	gw_matrix_handle.close()
+	gw_result_cleaned_handle.close()
 
 	if not lineage_phylogeny_file:
-		# Run FastANI Analysis Between Genomic Assemblies
-		logObject.info("Using FastANI estimated ANI between genomes to infer neighbor-joining tree.")
-		fastani_nj_tree = outdir + 'FastANI_NeighborJoining_Tree.nwk'
+		# create neighbor joining tree from FastANI/CompareM similarity analysis results
+		logObject.info("Using FastANI/CompareM estimated ANI/AAI between genomes to infer neighbor-joining tree.")
+		gw_nj_tree = outdir + 'Neighbor_Joining_Tree.nwk'
 
 		# create neighbor-joining tree
-		cmd = ['Rscript', RSCRIPT_FOR_NJTREECONSTRUCTION, fastani_matrix_file, fastani_nj_tree]
+		cmd = ['Rscript', RSCRIPT_FOR_NJTREECONSTRUCTION, gw_matrix_file, gw_nj_tree]
 		try:
 			util.run_cmd(cmd, logObject)
-			assert(util.is_newick(fastani_nj_tree))
-			lineage_phylogeny_file = fastani_nj_tree
+			assert(util.is_newick(gw_nj_tree))
+			lineage_phylogeny_file = gw_nj_tree
 		except Exception as e:
-			logObject.error("Had issues with creating neighbor joining tree and defining populations using treestructure.")
-			raise RuntimeError("Had issues with creating neighbor joining tree and defining populations using treestructure.")
+			logObject.error("Had issues with creating neighbor joining tree.")
+			logObject.error(traceback.format_exc())
+			raise RuntimeError("Had issues with creating neighbor joining tree.")
 
 	elif lineage_phylogeny_file and sample_retention_set != None:
 		# Pruning lineage phylogeny provided
@@ -299,7 +310,7 @@ def lsaBGC_AutoAnalyze():
 		if not os.path.isdir(gcf_pop_outdir):
 			os.system('mkdir %s' % gcf_pop_outdir)
 			cmd = ['lsaBGC-PopGene.py', '-g', gcf_listing_file, '-m', orthofinder_matrix_file, '-o', gcf_pop_outdir,
-				   '-i', gcf_id, '-c', str(cores), '-f', fastani_result_cleaned_file]
+				   '-i', gcf_id, '-c', str(cores), '-f', gw_result_cleaned_file]
 			if population_listing_file:
 				cmd += ['-p', population_listing_file]
 			try:
@@ -314,7 +325,7 @@ def lsaBGC_AutoAnalyze():
 			os.system('mkdir %s' % gcf_div_outdir)
 			cmd = ['lsaBGC-Divergence.py', '-g', gcf_listing_file, '-l', input_listing_file, '-o', gcf_div_outdir,
 				   '-i', gcf_id, '-a',	gcf_pop_outdir + 'Codon_Alignments_Listings.txt', '-c', str(cores),
-				   '-f', fastani_result_cleaned_file]
+				   '-f', gw_result_cleaned_file]
 			try:
 				util.run_cmd(cmd, logObject)
 			except Exception as e:
