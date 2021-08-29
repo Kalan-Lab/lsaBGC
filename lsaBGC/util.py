@@ -915,7 +915,8 @@ def runCompareM(fasta_listing_file, comparem_results_dir, cores, logObject, prun
 	pairwise_comparisons = defaultdict(lambda: defaultdict(float))
 	try:
 		with open(comparem_result_file) as of:
-			for line in of:
+			for i, line in enumerate(of):
+				if i == 0: continue
 				line = line.strip()
 				s1, s1g, s2, s2g, com_genes, sim, sim_std, ortho_frac = line.split('\t')
 				sim = float(sim)
