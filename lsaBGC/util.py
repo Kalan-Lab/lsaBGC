@@ -924,7 +924,7 @@ def runCompareM(fasta_listing_file, comparem_results_dir, cores, logObject, prun
 				line = line.strip()
 				s1, s1g, s2, s2g, com_genes, sim, sim_std, ortho_frac = line.split('\t')
 				sim = float(sim)
-				pairwise_similarities[s1][s2] = sim
+				pairwise_similarities[s1][s2] = sim/100.0
 				pairwise_similarities[s2][s1] = sim/100.0
 				pairwise_comparisons[s1][s2] = float(com_genes)/float(s1g)
 				pairwise_comparisons[s2][s1] = float(com_genes)/float(s2g)

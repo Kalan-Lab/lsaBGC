@@ -185,7 +185,8 @@ def lsaBGC_AutoAnalyze():
 		printlist = [s1]
 		for s2 in sorted(gw_pairwise_similarities):
 			printlist.append(str(1.0 - gw_pairwise_similarities[s1][s2]))
-			gw_result_cleaned_handle.write('\t'.join([s1, s2, str(gw_pairwise_similarities[s1][s2])]) + '\n')
+			if s1 != s2:
+				gw_result_cleaned_handle.write('\t'.join([s1, s2, str(gw_pairwise_similarities[s1][s2])]) + '\n')
 		gw_matrix_handle.write('\t'.join(printlist) + '\n')
 	gw_matrix_handle.close()
 	gw_result_cleaned_handle.close()
