@@ -2873,7 +2873,7 @@ def popgen_analysis_of_hg(inputs):
 			for p in pops_with_hg:
 				if pop_count_with_hg[p] >= 3:
 					well_rep_pops_with_hg.add(p)
-			if well_rep_pops_with_hg >= 2:
+			if len(well_rep_pops_with_hg) >= 2:
 				anova_input_df = DataFrame(np.array(input_anova_data_seqsim), columns=input_anova_header_seqsim)
 				anova_input_df['differences_to_consensus'] = anova_input_df['differences_to_consensus'].astype(float)
 				aov = welch_anova(dv='differences_to_consensus', between='population', data=anova_input_df)
