@@ -503,8 +503,8 @@ class GCF(Pan):
 					gene_sequences = util.determineOutliersByGeneLength(gene_sequences, self.logObject)
 				inputs.append([hg, gene_sequences, nucl_seq_dir, prot_seq_dir, prot_alg_dir, codo_alg_dir, cores, self.logObject])
 
-			p = multiprocessing.Pool(pool_size)
-			p.map(create_codon_msas, inputs)
+			#p = multiprocessing.Pool(pool_size)
+			#p.map(create_codon_msas, inputs)
 
 			if not filter_outliers:
 				self.nucl_seq_dir = nucl_seq_dir
@@ -2863,16 +2863,21 @@ def popgen_analysis_of_hg(inputs):
 					min_diff_to_consensus = sample_differences_to_consensus[s][g]
 			if min_diff_to_consensus < 1e100:
 				pop_count_with_hg[sample_population[s]] += 1
-				data_row = [s, sample_population[s], float(min_diff_to_consensus)]
+				data_row = [s, sample_population[s], float(min_diff_to_consensus)/float(len(seqs[0]))]
 				input_anova_data_seqsim.append(data_row)
 				pops_with_hg.add(sample_population[s])
 
 		anova_pval_seqsim = "NA"
 		if len(pops_with_hg) >= 2:
-			anova_input_df = DataFrame(np.array(input_anova_data_seqsim), columns=input_anova_header_seqsim)
-			anova_input_df['differences_to_consensus'] = anova_input_df['differences_to_consensus'].astype(float)
-			aov = welch_anova(dv='differences_to_consensus', between='population', data=anova_input_df)
-			anova_pval_seqsim = aov.iloc[0, 4]
+			well_rep_pops_with_hg = set([])
+			for p in pops_with_hg:
+				if pop_count_with_hg[p] >= 3:
+					well_rep_pops_with_hg.add(p)
+			if well_rep_pops_with_hg >= 2:
+				anova_input_df = DataFrame(np.array(input_anova_data_seqsim), columns=input_anova_header_seqsim)
+				anova_input_df['differences_to_consensus'] = anova_input_df['differences_to_consensus'].astype(float)
+				aov = welch_anova(dv='differences_to_consensus', between='population', data=anova_input_df)
+				anova_pval_seqsim = aov.iloc[0, 4]
 
 		fishers_pvals = []
 		for pop in pop_count_with_hg:
