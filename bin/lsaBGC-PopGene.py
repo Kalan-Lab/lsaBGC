@@ -59,6 +59,7 @@ def create_parser():
     parser.add_argument('-i', '--gcf_id', help="GCF identifier.", required=False, default='GCF_X')
     parser.add_argument('-o', '--output_directory', help="Path to output directory.", required=True)
     parser.add_argument('-k', '--sample_set', help="Sample set to keep in analysis. Should be file with one sample id per line.", required=False)
+    parser.add_argument('-s', '--species_phylogeny', help="The species phylogeny in Newick format. Specifies that dN/dS should be calculated by comparing extant homolog-group sequences to ancestral state reconstruction. Does not currently work!!!", required=False, default=None)
     parser.add_argument('-p', '--population_classification', help='Popualation classifications for each sample. Tab delemited: 1st column lists sample name while the 2nd column is an identifier for the population the sample belongs to.', required=False, default=None)
     parser.add_argument('-c', '--cores', type=int, help="The number of cores to use.", required=False, default=1)
     parser.add_argument('-e', '--each_pop', action='store_true', help='Run analyses individually for each population as well.', required=False, default=False)
@@ -100,6 +101,7 @@ def lsaBGC_PopGene():
     PARSE OPTIONAL INPUTS
     """
 
+    species_phylogeny = myargs.species_phylogeny
     sample_set_file = myargs.sample_set
     gcf_id = myargs.gcf_id
     cores = myargs.cores
@@ -120,10 +122,11 @@ def lsaBGC_PopGene():
     logObject.info("Saving parameters for future provedance.")
     parameters_file = outdir + 'Parameter_Inputs.txt'
     parameter_values = [gcf_listing_file, orthofinder_matrix_file, outdir, gcf_id, population_classification_file,
-                        sample_set_file, run_for_each_pop, filter_for_outliers, precomputed_gw_similarity_results,
+                        sample_set_file, species_phylogeny, run_for_each_pop, filter_for_outliers, precomputed_gw_similarity_results,
                         comparem_used, cores]
     parameter_names = ["GCF Listing File", "OrthoFinder Orthogroups.csv File", "Output Directory", "GCF Identifier",
-                       "Populations Specification/Listing File", "Sample Retention Set", 'Run Analysis for Each Population',
+                       "Populations Specification/Listing File", "Sample Retention Set",
+                       "Species Phylogeny Newick File", "Run Analysis for Each Population",
                        "Filter for Outlier Homolog Group Instances", "Precomputed FastANI/CompareM Similarities File",
                        "AAI Similarity Instead of ANI", "Cores"]
     util.logParametersToFile(parameters_file, parameter_names, parameter_values)
@@ -189,13 +192,13 @@ def lsaBGC_PopGene():
         population_analysis_on = True
     if run_for_each_pop:
         for pop in populations:
-            GCF_Object.runPopulationGeneticsAnalysis(outdir, cores=cores, population=pop, filter_outliers=False, population_analysis_on=population_analysis_on, gw_pairwise_similarities=gw_pairwise_similarities, comparem_used=comparem_used)
+            GCF_Object.runPopulationGeneticsAnalysis(outdir, cores=cores, population=pop, filter_outliers=False, population_analysis_on=population_analysis_on, gw_pairwise_similarities=gw_pairwise_similarities, comparem_used=comparem_used, species_phylogeny=species_phylogeny)
             if filter_for_outliers:
-                GCF_Object.runPopulationGeneticsAnalysis(outdir, cores=cores, population=pop, filter_outliers=True, population_analysis_on=population_analysis_on, gw_pairwise_similarities=gw_pairwise_similarities, comparem_used=comparem_used)
+                GCF_Object.runPopulationGeneticsAnalysis(outdir, cores=cores, population=pop, filter_outliers=True, population_analysis_on=population_analysis_on, gw_pairwise_similarities=gw_pairwise_similarities, comparem_used=comparem_used, species_phylogeny=species_phylogeny)
     else:
-        GCF_Object.runPopulationGeneticsAnalysis(outdir, cores=cores, population=None, filter_outliers=False, population_analysis_on=population_analysis_on, gw_pairwise_similarities=gw_pairwise_similarities, comparem_used=comparem_used)
+        GCF_Object.runPopulationGeneticsAnalysis(outdir, cores=cores, population=None, filter_outliers=False, population_analysis_on=population_analysis_on, gw_pairwise_similarities=gw_pairwise_similarities, comparem_used=comparem_used, species_phylogeny=species_phylogeny)
         if filter_for_outliers:
-            GCF_Object.runPopulationGeneticsAnalysis(outdir, cores=cores, population=None, filter_outliers=True, population_analysis_on=population_analysis_on, gw_pairwise_similarities=gw_pairwise_similarities, comparem_used=comparem_used)
+            GCF_Object.runPopulationGeneticsAnalysis(outdir, cores=cores, population=None, filter_outliers=True, population_analysis_on=population_analysis_on, gw_pairwise_similarities=gw_pairwise_similarities, comparem_used=comparem_used, species_phylogeny=species_phylogeny)
     logObject.info("Successfully ran population genetics and evolutionary analyses of each codon alignment.")
 
     # Close logging object and exit

@@ -11,10 +11,9 @@ import gzip
 import multiprocessing
 from scipy.stats import f_oneway, fisher_exact, pearsonr, median_absolute_deviation
 from ete3 import Tree
-from Bio import SeqIO
-from Bio.Seq import Seq
 import numpy as np
 from operator import itemgetter
+import itertools
 from collections import defaultdict
 from lsaBGC.classes.Pan import Pan
 from lsaBGC import util
@@ -24,9 +23,12 @@ from pomegranate import *
 import math
 import warnings
 import decimal
+from Bio import SeqIO, Align
+from Bio.Seq import Seq
+from Bio.SeqRecord import SeqRecord
+from Bio.codonalign.codonseq import CodonSeq, cal_dn_ds
 
 warnings.filterwarnings("ignore")
-
 mges = set(['transp', 'integrase'])
 purine_alleles = set(['A', 'G'])
 
@@ -37,6 +39,7 @@ RSCRIPT_FOR_CLUSTER_ASSESSMENT_PLOTTING = lsaBGC_main_directory + '/lsaBGC/Rscri
 RSCRIPT_FOR_TAJIMA = lsaBGC_main_directory + '/lsaBGC/Rscripts/calculateTajimasD.R'
 RSCRIPT_FOR_GENERATE = lsaBGC_main_directory + '/lsaBGC/Rscripts/GeneRatePhylogeny.R'
 RSCRIPT_FOR_PCA = lsaBGC_main_directory + '/lsaBGC/Rscripts/ClusterVisualOfSamples.R'
+SEED = 1234
 
 class GCF(Pan):
 	def __init__(self, bgc_genbanks_listing, gcf_id='GCF_X', logObject=None, lineage_name='Unnamed lineage'):
@@ -196,7 +199,7 @@ class GCF(Pan):
 		colors = []
 		with open(color_listing_file) as ocf:
 			colors = [x.strip() for x in ocf.readlines()]
-		random.shuffle(colors)
+		random.Random(SEED).shuffle(colors)
 
 		hg_to_color = {}
 		for i, c in enumerate(set(hgs)):
@@ -817,7 +820,7 @@ class GCF(Pan):
 				self.logObject.error(traceback.format_exc())
 			raise RuntimeError(traceback.format_exc())
 
-	def runPopulationGeneticsAnalysis(self, outdir, cores=1, population=None, filter_outliers=False, population_analysis_on=False, gw_pairwise_similarities=None, comparem_used=False):
+	def runPopulationGeneticsAnalysis(self, outdir, cores=1, population=None, filter_outliers=False, population_analysis_on=False, gw_pairwise_similarities=None, comparem_used=False, species_phylogeny=None, sample_size=1000):
 		"""
 		Wrapper function which serves to parallelize population genetics analysis.
 
@@ -850,15 +853,16 @@ class GCF(Pan):
 		header = ['gcf_id', 'homolog_group', 'annotation', 'hg_order_index', 'hg_consensus_direction',
 				  'hg_median_copy_count', 'median_gene_length', 'is_core_to_bgc', 'num_of_hg_instances',
 				  'samples_with_hg', 'proportion_of_samples_with_hg', 'ambiguous_sites_proporition', 'Tajimas_D',
-				  'proportion_variable_sites', 'proportion_nondominant_major_allele', 'beta-rd', 'dn_ds', 'all_domains']
+				  'proportion_variable_sites', 'proportion_nondominant_major_allele', 'median_beta_rd', 'median_dn_ds',
+				  'mad_dn_ds', 'all_domains']
 		if population:
 			header = ['population'] + header
 		elif population_analysis_on:
 			header = header[:-1]
-			header += ['populations_with_hg', 'max_population_proportion_nondominant_major_allele', 'most_significant_Fisher_exact_pvalues_presence_absence',
-							'one_way_ANOVA_pvalues_sequence_similarity', 'most_significant_MK_ratio_log10',
-							'all_fixation_indices_between_populations', 'population_pn_ps_ratios',
-							'population_proportion_of_members_with_hg', 'all_domains']
+			header += ['populations_with_hg', 'max_population_proportion_nondominant_major_allele',
+					   'most_significant_Fisher_exact_pvalues_presence_absence',
+					   'one_way_ANOVA_pvalues_sequence_similarity', 'population_proportion_of_members_with_hg',
+					   'all_domains']
 		final_output_handle.write('\t'.join(header) + '\n')
 
 		inputs = []
@@ -873,7 +877,7 @@ class GCF(Pan):
 			inputs.append([self.gcf_id, hg, codon_alignment_fasta, popgen_dir, plots_dir, self.comp_gene_info,
 						   self.hg_genes, self.bgc_sample, self.hg_prop_multi_copy, dict(self.hg_order_scores),
 						   gw_pairwise_similarities, comparem_used, dict(self.sample_population), population,
-						   self.logObject])
+						   species_phylogeny, sample_size, self.logObject])
 
 		p = multiprocessing.Pool(cores)
 		p.map(popgen_analysis_of_hg, inputs)
@@ -2508,7 +2512,7 @@ def popgen_analysis_of_hg(inputs):
 
 	:param inputs: list of inputs passed in by GCF.runPopulationGeneticsAnalysis().
 	"""
-	gcf_id, hg, codon_alignment_fasta, popgen_dir, plots_dir, comp_gene_info, hg_genes, bgc_sample, hg_prop_multi_copy, hg_order_scores, gw_pairwise_similarities, comparem_used, sample_population, population, logObject = inputs
+	gcf_id, hg, codon_alignment_fasta, popgen_dir, plots_dir, comp_gene_info, hg_genes, bgc_sample, hg_prop_multi_copy, hg_order_scores, gw_pairwise_similarities, comparem_used, sample_population, population, species_phylogeny, sample_size, logObject = inputs
 	domain_plot_file = plots_dir + hg + '_domain.txt'
 	position_plot_file = plots_dir + hg + '_position.txt'
 	plot_pdf_file = plots_dir + hg + '.pdf'
@@ -2526,13 +2530,14 @@ def popgen_analysis_of_hg(inputs):
 	gene_locs = defaultdict(dict)
 	core_counts = defaultdict(int)
 	products = set([])
-
+	high_ambiguity_sequences = set([])
+	sample_leaf_names = defaultdict(list)
 	updated_codon_alignment_fasta = popgen_dir + codon_alignment_fasta.split('/')[-1]
 	updated_codon_alignment_handle = open(updated_codon_alignment_fasta, 'w')
-
 	with open(codon_alignment_fasta) as ocaf:
 		for rec in SeqIO.parse(ocaf, 'fasta'):
 			sample_id, gene_id = rec.id.split('|')
+			sample_leaf_names[sample_id].append(rec.id)
 			if len(gene_id.split('_')[0]) == 3:
 				if comp_gene_info[gene_id]['core_overlap']:
 					core_counts['core'] += 1
@@ -2554,9 +2559,11 @@ def popgen_analysis_of_hg(inputs):
 					gene_locs[gene_id][real_pos] = msa_pos + 1
 					real_pos += 1
 			gene_lengths.append(len(str(rec.seq).replace('-', '')))
-
+			seq_ambiguous_prop = float(len(str(rec.seq).replace('-', '')))/float(len(str(rec.seq)))
+			high_ambiguity_sequences.add(rec.id)
 	updated_codon_alignment_handle.close()
 	codon_alignment_fasta = updated_codon_alignment_fasta
+
 	if len(seqs) == 0: return
 
 	median_beta_rd = "NA"
@@ -2574,7 +2581,7 @@ def popgen_analysis_of_hg(inputs):
 						beta_rd_stats.append(beta_rd)
 		median_beta_rd = "NA"
 		if len(beta_rd_stats) >= 1:
-			median_beta_rd = statistics.median(beta_rd_stats)
+			median_beta_rd = round(statistics.median(beta_rd_stats), 2)
 
 	is_core = False
 	if (sum(core_counts.values()) > 0.0):
@@ -2675,53 +2682,6 @@ def popgen_analysis_of_hg(inputs):
 			domain_plot_handle.write('\t'.join([str(x) for x in [dom[0], i, min_pos, max_pos]]) + '\n')
 	domain_plot_handle.close()
 
-	nonsynonymous_sites = 0.0
-	synonymous_sites = 0.0
-	for cod_index in range(0, num_codons):
-		first_bp = (cod_index + 1) * 3
-		aa_count = defaultdict(int)
-		aa_codons = defaultdict(set)
-		cod_count = defaultdict(int)
-		cod_to_aa = {}
-		cods = set([])
-		for bgc in bgc_codons:
-			cod = bgc_codons[bgc][cod_index].replace('N', '-')
-			aa = None
-			if '-' in cod or 'N' in cod:
-				aa = '-'
-			else:
-				cod_obj = Seq(cod)
-				aa = str(cod_obj.translate())
-			cods.add(cod)
-			cod_count[cod] += 1
-			aa_count[aa] += 1
-			cod_to_aa[cod] = aa
-			aa_codons[aa].add(cod)
-
-		major_codon_count = max(cod_count.values())
-		major_codon_freq = float(major_codon_count) / float(sum(cod_count.values()))
-		gap_residue_freq = float(aa_count['-'])/float(sum(aa_count.values()))
-		if major_codon_freq < 0.9 and gap_residue_freq < 0.1:
-			cod_n = 0
-			cod_s = 0
-			for c1i, cod1 in enumerate(cod_count.items()):
-				for c2i, cod2 in enumerate(cod_count.items()):
-					if c1i >= c2i: continue
-					# singleton codons ignored in case of assembly error
-					if cod1[0] == cod2[0]: continue
-					if cod1[1]/float(sum(cod_count.values())  - aa_count['-']) < 0.1 or cod2[1]/float(sum(cod_count.values()) - aa_count['-']) < 0.1:
-						continue
-					aa1 = cod_to_aa[cod1[0]]
-					aa2 = cod_to_aa[cod2[0]]
-					if aa1 == '-' or aa2 == '-': continue
-					if aa1 == aa2:
-						cod_s += 1
-					else:
-						cod_n += 1
-			if (cod_n + cod_s) > 0:
-				nonsynonymous_sites += float(cod_n)/float(cod_n+cod_s)
-				synonymous_sites += float(cod_s)/float(cod_n+cod_s)
-
 	rscript_plot_cmd = ["Rscript", RSCRIPT_FOR_CLUSTER_ASSESSMENT_PLOTTING, domain_plot_file, position_plot_file,
 						plot_pdf_file]
 	if logObject:
@@ -2738,47 +2698,115 @@ def popgen_analysis_of_hg(inputs):
 			logObject.error(traceback.format_exc())
 		raise RuntimeError(traceback.format_exc())
 
-	tajima_results = popgen_dir + hg + '.tajima.txt'
-	if len(seqs) >= 3:
-		rscript_tajimaD_cmd = ["Rscript", RSCRIPT_FOR_TAJIMA, codon_alignment_fasta, tajima_results]
-		if logObject:
-			logObject.info('Running R pegas for calculating Tajima\'s D from codon alignment with the following command: %s' % ' '.join(
-				rscript_tajimaD_cmd))
+	#### Perform population genetics analyses, including dN/dS calculation and Tajima's D calculation
+
+	sequences_filtered = defaultdict(lambda: '')
+	codons_filtered = defaultdict(lambda: [])
+	for cod_index in range(0, num_codons):
+		cod_count = defaultdict(int)
+		for bgc in bgc_codons:
+			cod = bgc_codons[bgc][cod_index].replace('N', '-')
+			cod_count[cod] += 1
+
+		singleton_codons = set([])
+		for cod in cod_count:
+			if cod_count[cod] == 1: singleton_codons.add(cod)
+
+		cod_count = defaultdict(int)
+		aa_count = defaultdict(int)
+		cod_count = defaultdict(int)
+		cods = set([])
+		for bgc in bgc_codons:
+			if bgc in high_ambiguity_sequences: continue
+			cod = bgc_codons[bgc][cod_index].replace('N', '-')
+			if cod in singleton_codons or '-' in cod: cod = '---'
+			aa = None
+			if '-' in cod: aa = '-'
+			else: cod_obj = Seq(cod); aa = str(cod_obj.translate())
+			cods.add(cod)
+			cod_count[cod] += 1
+			aa_count[aa] += 1
+
+		major_codon_count = max(cod_count.values())
+		major_codon_freq = float(major_codon_count) / float(sum(cod_count.values()))
+		gap_residue_freq = float(aa_count['-']) / float(sum(aa_count.values()))
+		if major_codon_freq < 0.95 and gap_residue_freq < 0.1:
+			for bgc in bgc_codons:
+				if bgc in high_ambiguity_sequences: continue
+				cod = bgc_codons[bgc][cod_index].replace('N', '-')
+				if cod in singleton_codons or '-' in cod: cod = '---'
+				sequences_filtered[bgc] += cod
+				codons_filtered[bgc].append(cod)
+
+	median_dnds = "NA"
+	mad_dnds = "NA"
+	if species_phylogeny:
+		pass
+		"""
+		# If species phylogeny was provided we can perform dn/ds analysis using ancestral recosntructed sequence for 
+		# the homolog group
+
+		# First, we filter the phylogeny for samples with the HG and create duplicate leafs for samples with multiple
+		# instances of the HG identified in BGCs belonging to the GCF.
+
+		result_phylogeny = popgen_dir + hg + '.tre'
 		try:
-			subprocess.call(' '.join(rscript_tajimaD_cmd), shell=True, stdout=subprocess.DEVNULL,
-							stderr=subprocess.DEVNULL,
-							executable='/bin/bash')
-			if logObject:
-				logObject.info('Successfully ran: %s' % ' '.join(rscript_tajimaD_cmd))
+			t = Tree(species_phylogeny)
+			t.prune(sample_leaf_names.keys())
+			for node in t.traverse('postorder'):
+				if node.name in sample_leaf_names and len(sample_leaf_names[node.name]) > 1:
+					for leaf_name in sample_leaf_names[node.name]:
+						# if bgc_id == node.name: continue
+						node.add_child(name=leaf_name)
+						child_node = t.search_nodes(name=leaf_name)[0]
+						child_node.dist = 0
+				elif node.name in sample_leaf_names and len(sample_leaf_names[node.name]) == 1:
+					node.name = sample_leaf_names[node.name][0]
+
+			t.write(format=0, outfile=result_phylogeny)
+			if self.logObject:
+				logObject.info("New phylogeny with an additional %d leafs to reflect samples with multiple BGCs can be found at: %s." % (result_phylogeny))
 		except Exception as e:
 			if logObject:
-				logObject.error('Had an issue running: %s' % ' '.join(rscript_tajimaD_cmd))
+				logObject.error("Had difficulties properly editing phylogeny to duplicate leafs for samples with multiple instances of the HG.")
 				logObject.error(traceback.format_exc())
 			raise RuntimeError(traceback.format_exc())
 
-	tajimas_d = "NA"
-	if os.path.isfile(tajima_results):
-		with open(tajima_results) as otrf:
-			for i, line in enumerate(otrf):
-				if i == 4:
-					try:
-						tajimas_d = round(float(line.strip()), 2)
-					except:
-						pass
+		# Second, we run FastML simply to perform ancestral state reconstruction
+		try:
+			result_prefix = popgen_dir + hg
+			ancestral_hg_codons = util.performAncestralReconstructionCFML(codon_alignment_fasta, result_phylogeny, result_prefix, logObject)
+		except:
+			if logObject:
+				logObject.error("Had difficulties running ClonalFrameML to perform ancestral state reconstruction and imputation.")
+				logObject.error(traceback.format_exc())
+			raise RuntimeError(traceback.format_exc())
+		"""
+	else:
+
+		combos = list(itertools.combinations(sequences, 2))
+		random.Random(SEED).shuffle(combos)
+
+		all_dNdS = []
+		for i, pair in enumerate(combos):
+			if i >= sample_size: continue
+			seqA = pair[0]
+			seqB = pair[1]
+			csA = CodonSeq(seqA)
+			csB = Codonseq(seqB)
+
+			dN, dS = cal_dn_ds(csA, csB)
+			if dN != -1 and dS != -1:
+				all_dNdS.append(float(dN)/float(dS))
+
+		if len(all_dNdS) >= (0.75*sample_size):
+			median_dnds = statistics.median(all_dNdS)
+			mad_dnds = median_absolute_deviation(all_dNdS)
+
+	# calculate Tajima's D
+	tajimas_d = round(util.calculateTajimasD(sequences_filtered.values()), 2)
 
 	prop_samples_with_hg = len(samples) / float(len(set(bgc_sample.values())))
-
-	hg_info = []
-	if population:
-		hg_info = [population]
-
-	dnds = "NA"
-	if synonymous_sites > 0.0:
-		dnds = str(round(nonsynonymous_sites / synonymous_sites, 2)) + ' [' + str(nonsynonymous_sites) + '/' + str(synonymous_sites) + ']'
-	elif nonsynonymous_sites > 0.0:
-		dnds = "Infinite [%d NS codons]" % nonsynonymous_sites
-	else:
-		dnds = 'Conserved'
 	prop_conserved = "NA"
 	prop_majallele_nondominant = "NA"
 	if (len(conserved_sites) + len(variable_sites)) > 0:
@@ -2788,12 +2816,17 @@ def popgen_analysis_of_hg(inputs):
 		# All sites in alignment have >= 10% ambiguity
 		prop_conserved = "NA"
 		prop_majallele_nondominant = "NA"
+
 	hg_ord = 'NA'; hg_dir = 'NA'
 	if hg in hg_order_scores:
 		hg_ord, hg_dir = hg_order_scores[hg]
+
+	hg_info = []
+	if population:
+		hg_info = [population]
 	hg_info += [gcf_id, hg, '; '.join(products), hg_ord, hg_dir, hg_prop_multi_copy[hg],
 				median_gene_length, is_core, len(seqs), len(samples), round(prop_samples_with_hg,2),
-				round(ambiguous_prop,2), tajimas_d, prop_conserved, prop_majallele_nondominant, median_beta_rd, dnds]
+				round(ambiguous_prop,2), tajimas_d, prop_conserved, prop_majallele_nondominant, median_beta_rd, median_dnds, mad_dnds]
 
 	hg_consim_handle = open(popgen_dir + hg + '_sim_to_consensus.txt', 'w')
 	for s in sample_differences_to_consensus:
@@ -2813,47 +2846,20 @@ def popgen_analysis_of_hg(inputs):
 		for s, p in sample_population.items():
 			population_counts[p] += 1
 
-		pop_prop_nd_mas = []
+		most_extreme_pop_tajimas_d = [['NA'], 0.0]
 		for p in population_counts:
-			if population_counts[p] < 10: continue
+			if population_counts[p] < 5: continue
+			population_sequences = []
+			for seq_id in sequences_filtered:
+				if sample_population[seq_id.split('|')[0]] == p:
+					population_sequences.append(sequences_filtered[seq_id])
+			p_tajimas_d = round(util.calculateTajimasD(population_sequences), 2)
+			pops_tajimas_d.append(p_tajimas_d)
+			if abs(p_tajimas_d - 1.0) > most_extreme_pop_tajimas_d[1]:
+				most_extreme_pop_tajimas_d = [[p + '=' + str(p_tajimas_d)], abs(p_tajimas_d-1.0)]
+			elif abs(p_tajimas_d - 1.0) == most_extreme_pop_tajimas_d[1]:
+				most_extreme_pop_tajimas_d[0].append(p + '=' + str(p_tajimas_d))
 
-			pop_seqs = []
-			with open(codon_alignment_fasta) as ocaf:
-				for rec in SeqIO.parse(ocaf, 'fasta'):
-					sample_id, gene_id = rec.id.split('|')
-					if p != sample_population[sample_id]: continue
-					pop_seqs.append(list(str(rec.seq).upper().replace('N', '-')))
-
-			nondominant_major_allele_sites = 0
-			total_non_amb_sites = 0
-			for i, ls in enumerate(zip(*pop_seqs)):
-				al_counts = defaultdict(int)
-				for al in ls:
-					al_counts[al] += 1
-				maj_allele_count = 0
-				if not (len(al_counts) == 1 and '-' in al_counts):
-					maj_allele_count = max([al_counts[al] for al in al_counts if al != '-'])
-				tot_count = sum(al_counts.values())
-				num_alleles = len(al_counts.keys())
-				num_gaps = al_counts['-']
-				if num_gaps > 0:
-					num_alleles -= 1
-				gap_allele_freq = float(num_gaps) / tot_count
-				maj_allele_freq = 0.0
-				if float(tot_count - num_gaps) > 0.0:
-					maj_allele_freq = float(maj_allele_count) / float(tot_count - num_gaps)
-				if gap_allele_freq < 0.10:
-					if maj_allele_freq <= 0.75:
-						nondominant_major_allele_sites += 1
-					total_non_amb_sites += 1
-
-			if total_non_amb_sites > 0:
-				pop_prop_nd_ma = float(nondominant_major_allele_sites)/float(total_non_amb_sites)
-				pop_prop_nd_mas.append(pop_prop_nd_ma)
-
-		max_pop_prop_ndma = "NA"
-		if len(pop_prop_nd_mas) > 0:
-			max_pop_prop_ndma = max(pop_prop_nd_mas)
 		pops_with_hg = set([])
 		pop_count_with_hg = defaultdict(int)
 		for s in sample_differences_to_consensus:
@@ -2889,105 +2895,9 @@ def popgen_analysis_of_hg(inputs):
 		fisher_pval = "NA"
 		if len(fishers_pvals) > 0: fisher_pval = min(fishers_pvals)
 
-		cod_to_aa = {}
-		population_site_info = defaultdict(lambda: defaultdict(list))
-		for pop in pop_count_with_hg:
-			if pop_count_with_hg[pop] < 10: continue
-			for cod_index in range(0, num_codons):
-				first_bp = (cod_index + 1) * 3
-				aa_count = defaultdict(int)
-				aa_codons = defaultdict(set)
-				cod_count = defaultdict(int)
-				cods = set([])
-				for bgc in bgc_codons:
-					if sample_population[bgc.split('|')[0]] != pop: continue
-					cod = bgc_codons[bgc][cod_index].replace('N', '-')
-					aa = None
-					if '-' in cod or 'N' in cod:
-						aa = '-'
-					else:
-						cod_obj = Seq(cod)
-						aa = str(cod_obj.translate())
-					cods.add(cod)
-					cod_count[cod] += 1
-					aa_count[aa] += 1
-					cod_to_aa[cod] = aa
-					aa_codons[aa].add(cod)
-
-				major_codon_count = max(cod_count.values())
-				major_codons = [c for c in cod_count if cod_count[c] == major_codon_count]
-				major_codon = 'NA'
-				if len(major_codons) == 1:
-					major_codon = major_codons[0]
-				major_codon_count = max(cod_count.values())
-				major_codon_freq = float(major_codon_count) / float(sum(cod_count.values()))
-				gap_residue_freq = float(aa_count['-']) / float(sum(aa_count.values()))
-				if major_codon_freq < 0.9 and gap_residue_freq < 0.1:
-					cod_n = 0
-					cod_s = 0
-					for c1i, cod1 in enumerate(cod_count.items()):
-						for c2i, cod2 in enumerate(cod_count.items()):
-							if c1i >= c2i: continue
-							# singleton codons ignored in case of assembly error
-							if cod1[0] == cod2[0]: continue
-							if cod1[1] / float(sum(cod_count.values()) - aa_count['-']) < 0.1 or cod2[1] / float(
-									sum(cod_count.values()) - aa_count['-']) < 0.1:
-								continue
-							aa1 = cod_to_aa[cod1[0]]
-							aa2 = cod_to_aa[cod2[0]]
-							if aa1 == '-' or aa2 == '-': continue
-							if aa1 == aa2:
-								cod_s += 1
-							else:
-								cod_n += 1
-					if (cod_n + cod_s) > 0:
-						population_site_info[pop][cod_index] = ['variable', cod_n, cod_s, major_codon]
-					else:
-						population_site_info[pop][cod_index] = ['amb', None, None, major_codon]
-				elif (major_codon_freq + gap_residue_freq) == 1.0 and gap_residue_freq < 0.1:
-					population_site_info[pop][cod_index] = ['fixed', None, None, major_codon]
-				else:
-					population_site_info[pop][cod_index] = ['amb', None, None, major_codon]
-
-		all_pn_ps = []
-		all_fixation_indices = []
-		most_significant_fi_log10 = 0.0
-		if len(population_site_info) >= 2:
-			for pop1 in population_site_info:
-				p1n = 0.0
-				p1s = 0.0
-				for pop2 in population_site_info:
-					dn = 0
-					ds = 0
-					pn = 0.0
-					ps = 0.0
-					for ci in population_site_info[pop1]:
-						pop1_type, pop1_n, pop1_s, pop1_mc = population_site_info[pop1][ci]
-						pop2_type, pop2_n, pop2_s, pop2_mc = population_site_info[pop2][ci]
-						if pop1_type == 'fixed' and pop2_type == 'fixed' and pop1_mc != pop2_mc:
-							if cod_to_aa[pop1_mc] == cod_to_aa[pop2_mc]:
-								ds += 1
-							else:
-								dn += 1
-						if pop1_type == 'variable':
-							pn += float(pop1_n)/(pop1_n + pop1_s)
-							ps += float(pop1_s)/(pop1_n + pop1_s)
-					p1n = pn
-					p1s = ps
-
-					if ps > 0 and ds > 0:
-						pn_ps = pn/float(ps)
-						dn_ds = dn/float(ds)
-						if pn_ps > 0:
-							fixation_index = dn_ds / pn_ps
-							fi_log10 = math.log(fixation_index + 1e-5, 10)
-							if abs(fi_log10) > most_significant_fi_log10:
-								most_significant_fi_log10 = abs(fi_log10)
-						all_fixation_indices.append(pop1 + '-vs.-' + pop2 + ': ' + str(round(dn_ds, 2)) + '/' + str(round(pn_ps,2)))
-				all_pn_ps.append(pop1 + ': ' + str(round(p1n, 2)) + '/' + str(round(p1s, 2)))
-
-		hg_population_info = [len(pops_with_hg), max_pop_prop_ndma, fisher_pval, str(anova_pval_seqsim).replace('nan', 'NA'),
-							  most_significant_fi_log10, ', '.join(all_fixation_indices), ', '.join(all_pn_ps), '|'.join([str(x[0]) + '=' + str(float(x[1])/population_counts[x[0]]) for x in pop_count_with_hg.items()])]
+		hg_population_info = [len(pops_with_hg), max_pop_prop_ndma, fisher_pval,
+							  str(anova_pval_seqsim).replace('nan', 'NA'), '|'.join(most_extreme_pop_tajimas_d[0]),
+							 '|'.join([str(x[0]) + '=' + str(float(x[1])/population_counts[x[0]]) for x in pop_count_with_hg.items()])]
 		hg_info += hg_population_info
 
 	hg_info += ['; '.join(all_domains)]

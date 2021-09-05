@@ -17,6 +17,10 @@ import pysam
 from scipy import stats
 from ete3 import Tree
 import itertools
+import os
+import subprocess
+import argparse
+import math
 
 valid_alleles = set(['A', 'C', 'G', 'T'])
 
@@ -188,6 +192,12 @@ def determineNonUniqueRegionsAlongCodonAlignment(outdir, initial_sample_prokka_d
 			logObject.error("Issues with determining non-unique positions on profile HMMs.")
 			logObject.error(traceback.format_exc())
 		raise RuntimeError(traceback.format_exc())
+
+
+"""
+def performAncestralReconstructionCFML(codon_alignment_fasta, result_phylogeny, result_prefix, logObject=None):
+	pass
+"""
 
 
 def determineSeqSimCodonAlignment(codon_alignment_file, use_translation=False):
@@ -1106,6 +1116,79 @@ def logParametersToObject(logObject, parameter_names, parameter_values):
 		pn = parameter_names[i]
 		logObject.info(pn + ': ' + str(pv))
 
+def _calculate_pairwise(sequences):
+	"""Calculate pi, number of pairwise differences."""
+	for seq in sequences:
+		if len(seq) != len(sequences[0]):
+			raise ("All sequences must have the same length.")
 
+	numseqs = len(sequences)
 
+	num = float(numseqs * (numseqs - 1)) / float(2)
 
+	combos = itertools.combinations(sequences, 2)
+	counts = []
+	for pair in combos:
+		seqA = pair[0]
+		seqB = pair[1]
+		count = sum(1 for a, b in zip(seqA, seqB) if a != b and a != '-' and b != '-')
+		counts.append(count)
+
+	return (float(sum(counts)) / float(num))
+
+def _calculate_segregating_sites(sequences):
+	"""Calculate S, number of segregation sites)."""
+	# Assume if we're in here seqs have already been checked
+	combos = itertools.combinations(sequences, 2)
+	indexes = set([])
+	for pair in combos:
+		seqA = pair[0]
+		seqB = pair[1]
+		for idx, (i, j) in enumerate(zip(seqA, seqB)):
+			if i != j and i != '-' and j != '-':
+				indexes.add(idx)
+
+	indexes = list(indexes)
+
+	S = len(indexes)
+	n = len(sequences)
+
+	denom = 0
+	for i in range(1, n):
+		denom += (float(1) / float(i))
+	return float(S / denom)
+
+def _D(l, pi, s):
+	a1 = sum([1.0 / i for i in range(1, l)])
+	a2 = sum([1.0 / (i ** 2) for i in range(1, l)])
+
+	b1 = float(l + 1) / (3 * (l - 1))
+	b2 = float(2 * ((l ** 2) + l + 3)) / (9 * l * (l - 1))
+
+	c1 = b1 - 1.0 / a1
+	c2 = b2 - float(l + 2) / (a1 * l) + float(a2) / (a1 ** 2)
+
+	e1 = float(c1) / a1
+	e2 = float(c2) / ((a1 ** 2) + a2)
+
+	D = (float(pi - (float(s) / a1)) / math.sqrt((e1 * s) + ((e2 * s) * (s - 1))))
+
+	return D
+
+def calculateTajimasD(sequences):
+	"""
+	The code for this functionality was largely taken from Tom Whalley's Tajima's D implementation in Python and further
+	adapted.
+	"""
+
+	pi = _calculate_pairwise(sequences)
+	S = _calculate_segregating_sites(sequences)
+
+	"""
+    Now we have pi (pairwise differences) and s (number
+    of segregating sites). This gives us 'little d', so
+    now we need to divide it by sqrt of variance.
+    """
+	l = len(sequences)
+	D = _D(l, pi, S)
+	return D
