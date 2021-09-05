@@ -861,8 +861,8 @@ class GCF(Pan):
 			header = header[:-1]
 			header += ['populations_with_hg', 'max_population_proportion_nondominant_major_allele',
 					   'most_significant_Fisher_exact_pvalues_presence_absence',
-					   'one_way_ANOVA_pvalues_sequence_similarity', 'population_proportion_of_members_with_hg',
-					   'all_domains']
+					   'one_way_ANOVA_pvalues_sequence_similarity', 'least_neutral_Tajimas_D_for_single_population',
+					   'population_proportion_of_members_with_hg', 'all_domains']
 		final_output_handle.write('\t'.join(header) + '\n')
 
 		inputs = []
