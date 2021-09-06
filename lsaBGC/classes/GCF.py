@@ -2805,6 +2805,7 @@ def popgen_analysis_of_hg(inputs):
 			if i >= sample_size: continue
 			seqA = pair[0]
 			seqB = pair[1]
+			print('HEY!!!')
 			print(len(seqA))
 			print(len(seqB))
 			csA = CodonSeq(seqA)
