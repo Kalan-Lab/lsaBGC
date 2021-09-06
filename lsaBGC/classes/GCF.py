@@ -859,8 +859,7 @@ class GCF(Pan):
 			header = ['population'] + header
 		elif population_analysis_on:
 			header = header[:-1]
-			header += ['populations_with_hg', 'max_population_proportion_nondominant_major_allele',
-					   'most_significant_Fisher_exact_pvalues_presence_absence',
+			header += ['populations_with_hg', 'most_significant_Fisher_exact_pvalues_presence_absence',
 					   'one_way_ANOVA_pvalues_sequence_similarity', 'least_neutral_Tajimas_D_for_single_population',
 					   'population_proportion_of_members_with_hg', 'all_domains']
 		final_output_handle.write('\t'.join(header) + '\n')
@@ -2913,7 +2912,7 @@ def popgen_analysis_of_hg(inputs):
 		fisher_pval = "NA"
 		if len(fishers_pvals) > 0: fisher_pval = min(fishers_pvals)
 
-		hg_population_info = [len(pops_with_hg), max_pop_prop_ndma, fisher_pval,
+		hg_population_info = [len(pops_with_hg), fisher_pval,
 							  str(anova_pval_seqsim).replace('nan', 'NA'), '|'.join(most_extreme_pop_tajimas_d[0]),
 							 '|'.join([str(x[0]) + '=' + str(float(x[1])/population_counts[x[0]]) for x in pop_count_with_hg.items()])]
 		hg_info += hg_population_info
