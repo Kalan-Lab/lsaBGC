@@ -2715,12 +2715,12 @@ def popgen_analysis_of_hg(inputs):
 				high_ambiguity_sequences.add(rec.id)
 
 	sequences_filtered = defaultdict(lambda: '')
-	codons_filtered = defaultdict(lambda: [])
 	for cod_index in range(0, num_codons):
 		cod_count = defaultdict(int)
 		for bgc in bgc_codons:
 			cod = bgc_codons[bgc][cod_index].replace('N', '-')
-			cod_count[cod] += 1
+			if not '-' in cod:
+				cod_count[cod] += 1
 
 		singleton_codons = set([])
 		for cod in cod_count:
@@ -2749,8 +2749,9 @@ def popgen_analysis_of_hg(inputs):
 				cod = bgc_codons[bgc][cod_index].replace('N', '-')
 				if cod in singleton_codons or '-' in cod: cod = '---'
 				sequences_filtered[bgc] += cod
-				codons_filtered[bgc].append(cod)
 
+	for s in sequences_filtered:
+		print(s + '\t' + str(len(sequences_filtered[s])) + '\t' + sequences_filtered[s])
 	median_dnds = "NA"
 	mad_dnds = "NA"
 	if species_phylogeny:
