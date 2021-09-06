@@ -1116,7 +1116,7 @@ def logParametersToObject(logObject, parameter_names, parameter_values):
 		pn = parameter_names[i]
 		logObject.info(pn + ': ' + str(pv))
 
-def calculateTajimasD(sequences):
+def calculateTajimasD(hg, sequences):
 	"""
 	The code for this functionality was largely taken from Tom Whalley's Tajima's D implementation in Python and further
 	adapted.
@@ -1137,6 +1137,7 @@ def calculateTajimasD(sequences):
 				differences += 1
 	print('-----------------')
 	print(hg)
+	print(numseqs)
 	print(divisor)
 	pi = float(differences) / divisor
 

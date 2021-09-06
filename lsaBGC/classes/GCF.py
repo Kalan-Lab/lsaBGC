@@ -2806,6 +2806,7 @@ def popgen_analysis_of_hg(inputs):
 			if i >= sample_size: continue
 			seqA = pair[0]
 			seqB = pair[1]
+			assert(len(seqA) == len(seqB))
 			csA = CodonSeq(seqA)
 			csB = CodonSeq(seqB)
 
@@ -2820,7 +2821,7 @@ def popgen_analysis_of_hg(inputs):
 	# calculate Tajima's D
 	tajimas_d = "NA"
 	if len(list(sequences_filtered.values())) >= 4:
-		tajimas_d = round(util.calculateTajimasD(list(sequences_filtered.values())), 2)
+		tajimas_d = round(util.calculateTajimasD(hg, list(sequences_filtered.values())), 2)
 
 	prop_samples_with_hg = len(samples) / float(len(set(bgc_sample.values())))
 	prop_conserved = "NA"
@@ -2869,7 +2870,7 @@ def popgen_analysis_of_hg(inputs):
 			for seq_id in sequences_filtered:
 				if sample_population[seq_id.split('|')[0]] == p:
 					population_sequences.append(sequences_filtered[seq_id])
-			p_tajimas_d = round(util.calculateTajimasD(population_sequences), 2)
+			p_tajimas_d = round(util.calculateTajimasD(hg, population_sequences), 2)
 
 			if abs(p_tajimas_d - 1.0) > most_extreme_pop_tajimas_d[1]:
 				most_extreme_pop_tajimas_d = [[p + '=' + str(p_tajimas_d)], abs(p_tajimas_d-1.0)]
