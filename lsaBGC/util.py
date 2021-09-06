@@ -1133,8 +1133,8 @@ def _calculate_pairwise(sequences):
 		seqB = pair[1]
 		count = sum(1 for a, b in zip(seqA, seqB) if a != b and a != '-' and b != '-')
 		counts.append(count)
-
-	return (float(sum(counts)) / float(num))
+	pi = float(sum(counts))/float(num)
+	return (pi)
 
 def _calculate_segregating_sites(sequences):
 	"""Calculate S, number of segregation sites)."""
@@ -1156,7 +1156,8 @@ def _calculate_segregating_sites(sequences):
 	denom = 0
 	for i in range(1, n):
 		denom += (float(1) / float(i))
-	return float(S / denom)
+	segsites = float(S / denom)
+	return (segsites)
 
 def _D(l, pi, s):
 	a1 = sum([1.0 / i for i in range(1, l)])
