@@ -2543,6 +2543,7 @@ def popgen_analysis_of_hg(inputs):
 			print(float(differences))
 			print(float(divisor))
 			print(hg)
+			sys.exit(1)
 
 		"""Calculate s, number of segregation sites)."""
 		# Assume if we're in here seqs have already been checked
