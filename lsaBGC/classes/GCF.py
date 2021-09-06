@@ -2753,80 +2753,81 @@ def popgen_analysis_of_hg(inputs):
 
 	median_dnds = "NA"
 	mad_dnds = "NA"
-	if species_phylogeny:
-		pass
-		"""
-		# If species phylogeny was provided we can perform dn/ds analysis using ancestral recosntructed sequence for 
-		# the homolog group
-
-		# First, we filter the phylogeny for samples with the HG and create duplicate leafs for samples with multiple
-		# instances of the HG identified in BGCs belonging to the GCF.
-
-		result_phylogeny = popgen_dir + hg + '.tre'
-		try:
-			t = Tree(species_phylogeny)
-			t.prune(sample_leaf_names.keys())
-			for node in t.traverse('postorder'):
-				if node.name in sample_leaf_names and len(sample_leaf_names[node.name]) > 1:
-					for leaf_name in sample_leaf_names[node.name]:
-						# if bgc_id == node.name: continue
-						node.add_child(name=leaf_name)
-						child_node = t.search_nodes(name=leaf_name)[0]
-						child_node.dist = 0
-				elif node.name in sample_leaf_names and len(sample_leaf_names[node.name]) == 1:
-					node.name = sample_leaf_names[node.name][0]
-
-			t.write(format=0, outfile=result_phylogeny)
-			if self.logObject:
-				logObject.info("New phylogeny with an additional %d leafs to reflect samples with multiple BGCs can be found at: %s." % (result_phylogeny))
-		except Exception as e:
-			if logObject:
-				logObject.error("Had difficulties properly editing phylogeny to duplicate leafs for samples with multiple instances of the HG.")
-				logObject.error(traceback.format_exc())
-			raise RuntimeError(traceback.format_exc())
-
-		# Second, we run FastML simply to perform ancestral state reconstruction
-		try:
-			result_prefix = popgen_dir + hg
-			ancestral_hg_codons = util.performAncestralReconstructionCFML(codon_alignment_fasta, result_phylogeny, result_prefix, logObject)
-		except:
-			if logObject:
-				logObject.error("Had difficulties running ClonalFrameML to perform ancestral state reconstruction and imputation.")
-				logObject.error(traceback.format_exc())
-			raise RuntimeError(traceback.format_exc())
-		"""
-	else:
-
-
-		all_median_dnds = []
-		for iter in range(0, 20):
-			combos = list(itertools.combinations(list(sequences_filtered.values()), 2))
-			random.Random(iter).shuffle(combos)
-
-			all_dNdS = []
-			for i, pair in enumerate(combos):
-				if i >= sample_size: continue
-				seqA = pair[0]
-				seqB = pair[1]
-				assert(len(seqA) == len(seqB))
-				csA = CodonSeq(seqA)
-				csB = CodonSeq(seqB)
-				dN, dS = cal_dn_ds(csA, csB)
-				if dN != -1 and dS != -1 and dS != 0.0:
-					all_dNdS.append(float(dN)/float(dS))
-			if len(all_dNdS) >= (0.75* min([sample_size, len(combos)])) and len(all_dNdS) >= 4:
-				all_median_dnds.append(statistics.median(all_dNdS))
-
-		if len(all_median_dnds) >= 8:
-			median_dnds = statistics.median(all_median_dnds)
-			mad_dnds = median_absolute_deviation(all_median_dnds)
-
-	# calculate Tajima's D
 	tajimas_d = "NA"
-	if len(list(sequences_filtered.values())) >= 4:
-		tajimas_d = util.calculateTajimasD(list(sequences_filtered.values()))
-		if tajimas_d != 'NA':
-			tajimas_d = round(tajimas_d, 2)
+	if len(list(sequences_filtered.values())[0]) >= 21:
+		if species_phylogeny:
+			pass
+			"""
+			# If species phylogeny was provided we can perform dn/ds analysis using ancestral recosntructed sequence for 
+			# the homolog group
+	
+			# First, we filter the phylogeny for samples with the HG and create duplicate leafs for samples with multiple
+			# instances of the HG identified in BGCs belonging to the GCF.
+	
+			result_phylogeny = popgen_dir + hg + '.tre'
+			try:
+				t = Tree(species_phylogeny)
+				t.prune(sample_leaf_names.keys())
+				for node in t.traverse('postorder'):
+					if node.name in sample_leaf_names and len(sample_leaf_names[node.name]) > 1:
+						for leaf_name in sample_leaf_names[node.name]:
+							# if bgc_id == node.name: continue
+							node.add_child(name=leaf_name)
+							child_node = t.search_nodes(name=leaf_name)[0]
+							child_node.dist = 0
+					elif node.name in sample_leaf_names and len(sample_leaf_names[node.name]) == 1:
+						node.name = sample_leaf_names[node.name][0]
+	
+				t.write(format=0, outfile=result_phylogeny)
+				if self.logObject:
+					logObject.info("New phylogeny with an additional %d leafs to reflect samples with multiple BGCs can be found at: %s." % (result_phylogeny))
+			except Exception as e:
+				if logObject:
+					logObject.error("Had difficulties properly editing phylogeny to duplicate leafs for samples with multiple instances of the HG.")
+					logObject.error(traceback.format_exc())
+				raise RuntimeError(traceback.format_exc())
+	
+			# Second, we run FastML simply to perform ancestral state reconstruction
+			try:
+				result_prefix = popgen_dir + hg
+				ancestral_hg_codons = util.performAncestralReconstructionCFML(codon_alignment_fasta, result_phylogeny, result_prefix, logObject)
+			except:
+				if logObject:
+					logObject.error("Had difficulties running ClonalFrameML to perform ancestral state reconstruction and imputation.")
+					logObject.error(traceback.format_exc())
+				raise RuntimeError(traceback.format_exc())
+			"""
+		else:
+
+
+			all_median_dnds = []
+			for iter in range(0, 20):
+				combos = list(itertools.combinations(list(sequences_filtered.values()), 2))
+				random.Random(iter).shuffle(combos)
+
+				all_dNdS = []
+				for i, pair in enumerate(combos):
+					if i >= sample_size: continue
+					seqA = pair[0]
+					seqB = pair[1]
+					assert(len(seqA) == len(seqB))
+					csA = CodonSeq(seqA)
+					csB = CodonSeq(seqB)
+					dN, dS = cal_dn_ds(csA, csB)
+					if dN != -1 and dS != -1 and dS != 0.0:
+						all_dNdS.append(float(dN)/float(dS))
+				if len(all_dNdS) >= (0.75* min([sample_size, len(combos)])) and len(all_dNdS) >= 4:
+					all_median_dnds.append(statistics.median(all_dNdS))
+
+			if len(all_median_dnds) >= 8:
+				median_dnds = statistics.median(all_median_dnds)
+				mad_dnds = median_absolute_deviation(all_median_dnds)
+
+		# calculate Tajima's D
+		if len(list(sequences_filtered.values())) >= 4:
+			tajimas_d = util.calculateTajimasD(list(sequences_filtered.values()))
+			if tajimas_d != 'NA':
+				tajimas_d = round(tajimas_d, 2)
 
 	prop_samples_with_hg = len(samples) / float(len(set(bgc_sample.values())))
 	prop_conserved = "NA"
@@ -2875,7 +2876,7 @@ def popgen_analysis_of_hg(inputs):
 			for seq_id in sequences_filtered:
 				if sample_population[seq_id.split('|')[0]] == p:
 					population_sequences.append(sequences_filtered[seq_id])
-			if len(population_sequences) >= 4:
+			if len(population_sequences) >= 4 and len(list(sequences_filtered.values())[0]) >= 21:
 				p_tajimas_d = util.calculateTajimasD(population_sequences)
 				if p_tajimas_d != 'NA':
 					p_tajimas_d = round(p_tajimas_d, 2)
