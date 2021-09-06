@@ -2827,15 +2827,16 @@ def popgen_analysis_of_hg(inputs):
 	divisor = float(numseqs) * float(numseqs - 1)
 	divisor = divisor / 2.0
 	combos = itertools.combinations(sequences, 2)
-	counts = []
+	differences = 0
 	for pair in combos:
 		seqA = pair[0]
 		seqB = pair[1]
-		count = sum([1 for a, b in zip(seqA, seqB) if a != b and a != '-' and b != '-'])
-		counts.append(count)
-	print(divisor)
-	print(counts)
-	pi = float(sum(counts)) / divisor
+		for p, a in enumerate(seqA):
+			b = seqB[p]
+			if a != b and a != '-' and b != '-':
+				differences += 1
+ 	print(divisor)
+	pi = float(sum(differences)) / divisor
 
 	"""Calculate s, number of segregation sites)."""
 	# Assume if we're in here seqs have already been checked
