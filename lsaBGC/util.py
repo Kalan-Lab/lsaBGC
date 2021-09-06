@@ -1133,6 +1133,7 @@ def _calculate_pairwise(sequences):
 		seqB = pair[1]
 		count = sum(1 for a, b in zip(seqA, seqB) if a != b and a != '-' and b != '-')
 		counts.append(count)
+	print(num)
 	pi = float(sum(counts))/float(num)
 	return (pi)
 
