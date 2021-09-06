@@ -2871,11 +2871,10 @@ def popgen_analysis_of_hg(inputs):
 					population_sequences.append(sequences_filtered[seq_id])
 			if len(population_sequences) >= 4:
 				p_tajimas_d = round(util.calculateTajimasD(hg, population_sequences), 2)
-
-			if abs(p_tajimas_d - 1.0) > most_extreme_pop_tajimas_d[1]:
-				most_extreme_pop_tajimas_d = [[p + '=' + str(p_tajimas_d)], abs(p_tajimas_d-1.0)]
-			elif abs(p_tajimas_d - 1.0) == most_extreme_pop_tajimas_d[1]:
-				most_extreme_pop_tajimas_d[0].append(p + '=' + str(p_tajimas_d))
+				if abs(p_tajimas_d - 1.0) > most_extreme_pop_tajimas_d[1]:
+					most_extreme_pop_tajimas_d = [[p + '=' + str(p_tajimas_d)], abs(p_tajimas_d-1.0)]
+				elif abs(p_tajimas_d - 1.0) == most_extreme_pop_tajimas_d[1]:
+					most_extreme_pop_tajimas_d[0].append(p + '=' + str(p_tajimas_d))
 
 		pops_with_hg = set([])
 		pop_count_with_hg = defaultdict(int)
