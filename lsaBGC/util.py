@@ -1119,12 +1119,12 @@ def logParametersToObject(logObject, parameter_names, parameter_values):
 def calculateTajimasD(hg, sequences):
 	"""
 	The code for this functionality was largely taken from Tom Whalley's Tajima's D implementation in Python and further
-	adapted.
+	modified/corrected based on Wikipedia's page for Tajima's D (Mathematical details).
 	"""
 
 	"""Calculate pi"""
 	numseqs = len(sequences)
-	divisor = comb(numseqs, 2)
+	divisor = math.comb(numseqs, 2)
 	combos = itertools.combinations(sequences, 2)
 	differences = 0
 	for pair in combos:
@@ -1148,14 +1148,7 @@ def calculateTajimasD(hg, sequences):
 				indexes.add(idx)
 
 	indexes = list(indexes)
-
 	S = len(indexes)
-	n = len(sequences)
-
-	denom = 0
-	for i in range(1, n):
-		denom += (float(1) / float(i))
-	s = float(S / denom)
 
 	"""
 	Now we have pi (pairwise differences) and s (number
@@ -1165,8 +1158,8 @@ def calculateTajimasD(hg, sequences):
 	l = len(sequences)
 
 	# calculate D
-	a1 = sum([1.0 / i for i in range(1, l)])
-	a2 = sum([1.0 / (i ** 2) for i in range(1, l)])
+	a1 = sum([ (1.0 / float(i)) for i in range(1, l)])
+	a2 = sum([ (1.0 / (i ** 2)) for i in range(1, l)])
 
 	b1 = float(l + 1) / (3 * (l - 1))
 	b2 = float(2 * ((l ** 2) + l + 3)) / (9 * l * (l - 1))
@@ -1176,5 +1169,5 @@ def calculateTajimasD(hg, sequences):
 
 	e1 = float(c1) / a1
 	e2 = float(c2) / ((a1 ** 2) + a2)
-	D = (float(pi - (float(s) / a1)) / math.sqrt((e1 * s) + ((e2 * s) * (s - 1))))
+	D = (float(pi - (float(S) / a1)) / math.sqrt((e1 * S) + ((e2 * S) * (S - 1))))
 	return (D)
