@@ -1116,16 +1116,14 @@ def logParametersToObject(logObject, parameter_names, parameter_values):
 		pn = parameter_names[i]
 		logObject.info(pn + ': ' + str(pv))
 
-def _calculate_pairwise(sequences):
+def calculate_pairwise(sequences):
 	"""Calculate pi, number of pairwise differences."""
 	for seq in sequences:
 		if len(seq) != len(sequences[0]):
 			raise ("All sequences must have the same length.")
 
 	numseqs = len(sequences)
-	print(numseqs)
 	num = float(numseqs * (numseqs - 1)) / float(2)
-	print(num)
 	combos = itertools.combinations(sequences, 2)
 	counts = []
 	for pair in combos:
@@ -1133,12 +1131,10 @@ def _calculate_pairwise(sequences):
 		seqB = pair[1]
 		count = sum(1 for a, b in zip(seqA, seqB) if a != b and a != '-' and b != '-')
 		counts.append(count)
-	print(num)
-	print(sum(counts))
 	pi = float(sum(counts))/num
 	return (pi)
 
-def _calculate_segregating_sites(sequences):
+def calculate_segregating_sites(sequences):
 	"""Calculate S, number of segregation sites)."""
 	# Assume if we're in here seqs have already been checked
 	combos = itertools.combinations(sequences, 2)
@@ -1161,7 +1157,7 @@ def _calculate_segregating_sites(sequences):
 	segsites = float(S / denom)
 	return (segsites)
 
-def _D(l, pi, s):
+def D(l, pi, s):
 	a1 = sum([1.0 / i for i in range(1, l)])
 	a2 = sum([1.0 / (i ** 2) for i in range(1, l)])
 
@@ -1182,9 +1178,9 @@ def calculateTajimasD(sequences):
 	The code for this functionality was largely taken from Tom Whalley's Tajima's D implementation in Python and further
 	adapted.
 	"""
-
-	pi = _calculate_pairwise(sequences)
-	S = _calculate_segregating_sites(sequences)
+	print(len(sequences))
+	pi = calculate_pairwise(sequences)
+	S = calculate_segregating_sites(sequences)
 
 	"""
     Now we have pi (pairwise differences) and s (number
@@ -1192,5 +1188,5 @@ def calculateTajimasD(sequences):
     now we need to divide it by sqrt of variance.
     """
 	l = len(sequences)
-	D = _D(l, pi, S)
+	D = D(l, pi, S)
 	return D
