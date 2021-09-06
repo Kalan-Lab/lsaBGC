@@ -1123,9 +1123,9 @@ def _calculate_pairwise(sequences):
 			raise ("All sequences must have the same length.")
 
 	numseqs = len(sequences)
-
+	print(numseqs)
 	num = float(numseqs * (numseqs - 1)) / float(2)
-
+	print(num)
 	combos = itertools.combinations(sequences, 2)
 	counts = []
 	for pair in combos:
