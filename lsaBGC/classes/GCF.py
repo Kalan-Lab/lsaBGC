@@ -2836,7 +2836,7 @@ def popgen_analysis_of_hg(inputs):
 			if a != b and a != '-' and b != '-':
 				differences += 1
 	print(divisor)
-	pi = float(sum(differences)) / divisor
+	pi = float(differences) / divisor
 
 	"""Calculate s, number of segregation sites)."""
 	# Assume if we're in here seqs have already been checked
