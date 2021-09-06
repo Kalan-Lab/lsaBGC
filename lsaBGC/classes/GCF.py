@@ -2623,7 +2623,7 @@ def popgen_analysis_of_hg(inputs):
 			nonambiguous_sites += 1
 		else:
 			ambiguous_sites += 1
-			ambiguous_sites_pos.append(i+1)
+			ambiguous_sites_pos.add(i+1)
 		maj_allele_count = max(al_counts.values())
 		maj_alleles = set([a[0] for a in al_counts.items() if maj_allele_count == a[1]])
 		maj_allele = sorted(list(maj_alleles))[0]
