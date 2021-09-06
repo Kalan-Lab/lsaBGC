@@ -787,7 +787,7 @@ class GCF(Pan):
 							next_hg = fhg[0]
 							break
 
-					print('Second loop:\t' + '\t'.join(ordered_hgs_list))
+					#print('Second loop:\t' + '\t'.join(ordered_hgs_list))
 					if next_hg != None:
 						ordered_hgs_list.insert(i+1, next_hg)
 						visited_hgs.add(next_hg)
