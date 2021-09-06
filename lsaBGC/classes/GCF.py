@@ -3159,7 +3159,8 @@ def _calculateTajimasD(sequences):
 	adapted.
 	"""
 	numseqs = len(sequences)
-	divisor = float(numseqs * (numseqs - 1)) / float(2)
+	divisor = float(numseqs) * float(numseqs - 1)
+	divisor = divisor/2.0
 	combos = itertools.combinations(sequences, 2)
 	counts = []
 	for pair in combos:
