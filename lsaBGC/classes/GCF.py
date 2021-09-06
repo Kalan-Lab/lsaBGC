@@ -820,7 +820,7 @@ class GCF(Pan):
 				self.logObject.error(traceback.format_exc())
 			raise RuntimeError(traceback.format_exc())
 
-	def runPopulationGeneticsAnalysis(self, outdir, cores=1, population=None, filter_outliers=False, population_analysis_on=False, gw_pairwise_similarities=None, comparem_used=False, species_phylogeny=None, sample_size=1000):
+	def runPopulationGeneticsAnalysis(self, outdir, cores=1, population=None, filter_outliers=False, population_analysis_on=False, gw_pairwise_similarities=None, comparem_used=False, species_phylogeny=None, sample_size=1024):
 		"""
 		Wrapper function which serves to parallelize population genetics analysis.
 
@@ -2800,22 +2800,26 @@ def popgen_analysis_of_hg(inputs):
 		combos = list(itertools.combinations(list(sequences_filtered.values()), 2))
 		random.Random(SEED).shuffle(combos)
 
-		all_dNdS = []
-		for i, pair in enumerate(combos):
-			if i >= sample_size: continue
-			seqA = pair[0]
-			seqB = pair[1]
-			assert(len(seqA) == len(seqB))
-			csA = CodonSeq(seqA)
-			csB = CodonSeq(seqB)
+		all_median_dnds = []
+		for iter in range(0, 100):
+			all_dNdS = []
+			for i, pair in enumerate(combos):
+				if i >= sample_size: continue
+				seqA = pair[0]
+				seqB = pair[1]
+				assert(len(seqA) == len(seqB))
+				csA = CodonSeq(seqA)
+				csB = CodonSeq(seqB)
 
 			dN, dS = cal_dn_ds(csA, csB)
 			if dN != -1 and dS != -1 and dS != 0.0:
 				all_dNdS.append(float(dN)/float(dS))
 
-		if len(all_dNdS) >= (0.75*sample_size):
-			median_dnds = statistics.median(all_dNdS)
-			mad_dnds = median_absolute_deviation(all_dNdS)
+			if len(all_dNdS) >= (0.75*sample_size):
+				all_median_dnds.append(statistics.median(all_dNdS))
+
+		median_dnds = statistics.median(all_median_dnds)
+		mad_dnds = median_absolute_deviation(all_median_dnds)
 
 	# calculate Tajima's D
 	tajimas_d = "NA"
