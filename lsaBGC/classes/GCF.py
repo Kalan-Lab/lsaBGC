@@ -2814,7 +2814,7 @@ def popgen_analysis_of_hg(inputs):
 				dN, dS = cal_dn_ds(csA, csB)
 				if dN != -1 and dS != -1 and dS != 0.0:
 					all_dNdS.append(float(dN)/float(dS))
-			if len(all_dNdS) >= (0.75* min([sample_size, len(combos)])):
+			if len(all_dNdS) >= (0.75* min([sample_size, len(combos)])) and len(all_dNdS) >= 4:
 				all_median_dnds.append(statistics.median(all_dNdS))
 
 		if len(all_median_dnds) >= 8:
