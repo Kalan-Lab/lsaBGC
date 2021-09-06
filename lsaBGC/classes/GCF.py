@@ -2708,8 +2708,11 @@ def popgen_analysis_of_hg(inputs):
 					total_nonambiguous_positions += 1
 					if bp == '-':
 						gap_nonambiguous_positions += 1
-			seq_ambiguous_prop = float(gap_nonambiguous_positions)/float(total_nonambiguous_positions)
-			if seq_ambiguous_prop >= 0.25:
+			if total_nonambiguous_positions > 0:
+				seq_ambiguous_prop = float(gap_nonambiguous_positions)/float(total_nonambiguous_positions)
+				if seq_ambiguous_prop >= 0.25:
+					high_ambiguity_sequences.add(rec.id)
+			else:
 				high_ambiguity_sequences.add(rec.id)
 
 	sequences_filtered = defaultdict(lambda: '')
