@@ -2513,6 +2513,8 @@ def popgen_analysis_of_hg(inputs):
 	:param inputs: list of inputs passed in by GCF.runPopulationGeneticsAnalysis().
 	"""
 
+	gcf_id, hg, codon_alignment_fasta, popgen_dir, plots_dir, comp_gene_info, hg_genes, bgc_sample, hg_prop_multi_copy, hg_order_scores, gw_pairwise_similarities, comparem_used, sample_population, population, species_phylogeny, sample_size, logObject = inputs
+
 	def calculateTajimasD(sequences):
 		"""
 		The code for this functionality was largely taken from Tom Whalley's Tajima's D implementation in Python and further
@@ -2534,9 +2536,13 @@ def popgen_analysis_of_hg(inputs):
 					differences += 1
 		print(float(differences))
 		print(float(divisor))
-		print(float(differences)/divisor)
-
-		pi = float(differences) / divisor
+		try:
+			print(float(differences) / divisor)
+			pi = float(differences) / divisor
+		except (IndexError, ZeroDivisionError):
+			print(float(differences))
+			print(float(divisor))
+			print(hg)
 
 		"""Calculate s, number of segregation sites)."""
 		# Assume if we're in here seqs have already been checked
@@ -2581,7 +2587,6 @@ def popgen_analysis_of_hg(inputs):
 		D = (float(pi - (float(s) / a1)) / math.sqrt((e1 * s) + ((e2 * s) * (s - 1))))
 		return (D)
 
-	gcf_id, hg, codon_alignment_fasta, popgen_dir, plots_dir, comp_gene_info, hg_genes, bgc_sample, hg_prop_multi_copy, hg_order_scores, gw_pairwise_similarities, comparem_used, sample_population, population, species_phylogeny, sample_size, logObject = inputs
 	domain_plot_file = plots_dir + hg + '_domain.txt'
 	position_plot_file = plots_dir + hg + '_position.txt'
 	plot_pdf_file = plots_dir + hg + '.pdf'
