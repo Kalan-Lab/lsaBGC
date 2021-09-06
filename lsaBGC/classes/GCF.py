@@ -2740,7 +2740,7 @@ def popgen_analysis_of_hg(inputs):
 			cods.add(cod)
 			cod_count[cod] += 1
 			aa_count[aa] += 1
-
+		if len(cod_count) == 0: return
 		major_codon_count = max(cod_count.values())
 		major_codon_freq = float(major_codon_count) / float(sum(cod_count.values()))
 		gap_residue_freq = float(aa_count['-']) / float(sum(aa_count.values()))
