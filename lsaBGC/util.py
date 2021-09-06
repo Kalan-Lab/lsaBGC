@@ -1169,5 +1169,8 @@ def calculateTajimasD(hg, sequences):
 
 	e1 = float(c1) / a1
 	e2 = float(c2) / ((a1 ** 2) + a2)
-	D = (float(pi - (float(S) / a1)) / math.sqrt((e1 * S) + ((e2 * S) * (S - 1))))
-	return (D)
+	if S >= 3:
+		D = (float(pi - (float(S) / a1)) / math.sqrt((e1 * S) + ((e2 * S) * (S - 1))))
+		return (D)
+	else:
+		return ("NA")
