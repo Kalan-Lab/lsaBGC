@@ -1124,8 +1124,7 @@ def calculateTajimasD(hg, sequences):
 
 	"""Calculate pi"""
 	numseqs = len(sequences)
-	divisor = float(numseqs) * float(numseqs - 1)
-	divisor = divisor / 2.0
+	divisor = comb(numseqs, 2)
 	combos = itertools.combinations(sequences, 2)
 	differences = 0
 	for pair in combos:
