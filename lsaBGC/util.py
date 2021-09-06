@@ -1134,7 +1134,8 @@ def _calculate_pairwise(sequences):
 		count = sum(1 for a, b in zip(seqA, seqB) if a != b and a != '-' and b != '-')
 		counts.append(count)
 	print(num)
-	pi = float(sum(counts))/float(num)
+	print(sum(counts))
+	pi = float(sum(counts))/num
 	return (pi)
 
 def _calculate_segregating_sites(sequences):
@@ -1172,7 +1173,7 @@ def _D(l, pi, s):
 
 	e1 = float(c1) / a1
 	e2 = float(c2) / ((a1 ** 2) + a2)
-
+/
 	D = (float(pi - (float(s) / a1)) / math.sqrt((e1 * s) + ((e2 * s) * (s - 1))))
 
 	return D
