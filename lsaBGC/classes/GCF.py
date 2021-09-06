@@ -2706,9 +2706,9 @@ def popgen_analysis_of_hg(inputs):
 			total_nonambiguous_positions = 0
 			gap_nonambiguous_positions = 0
 			for msa_pos, bp in enumerate(str(rec.seq)):
-				if not msa_pos in ambiguous_sites_pos:
+				if not (msa_pos+1) in ambiguous_sites_pos:
 					total_nonambiguous_positions += 1
-					if bp != '-':
+					if bp == '-':
 						gap_nonambiguous_positions += 1
 			seq_ambiguous_prop = float(gap_nonambiguous_positions)/float(total_nonambiguous_positions)
 			if seq_ambiguous_prop >= 0.25:
