@@ -1173,7 +1173,6 @@ def _D(l, pi, s):
 
 	e1 = float(c1) / a1
 	e2 = float(c2) / ((a1 ** 2) + a2)
-/
 	D = (float(pi - (float(s) / a1)) / math.sqrt((e1 * s) + ((e2 * s) * (s - 1))))
 
 	return D
