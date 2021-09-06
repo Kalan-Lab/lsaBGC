@@ -2539,12 +2539,12 @@ def popgen_analysis_of_hg(inputs):
 		try:
 			print(float(differences) / divisor)
 			pi = float(differences) / divisor
-		except (IndexError, ZeroDivisionError):
+		except:
 			print(float(differences))
 			print(float(divisor))
 			print(hg)
-			sys.exit(1)
-
+			raise RuntimeError()
+		
 		"""Calculate s, number of segregation sites)."""
 		# Assume if we're in here seqs have already been checked
 		combos = itertools.combinations(sequences, 2)
