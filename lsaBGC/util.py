@@ -1121,16 +1121,22 @@ def calculateTajimasD(sequences):
 	The code for this functionality was largely taken from Tom Whalley's Tajima's D implementation in Python and further
 	adapted.
 	"""
+
+	"""Calculate pi"""
 	numseqs = len(sequences)
-	num = float(numseqs * (numseqs - 1)) / float(2)
+	divisor = float(numseqs) * float(numseqs - 1)
+	divisor = divisor / 2.0
 	combos = itertools.combinations(sequences, 2)
-	counts = []
+	differences = 0
 	for pair in combos:
 		seqA = pair[0]
 		seqB = pair[1]
-		count = sum(1 for a, b in zip(seqA, seqB) if a != b and a != '-' and b != '-')
-		counts.append(count)
-	pi = float(sum(counts)) / num
+		for p, a in enumerate(seqA):
+			b = seqB[p]
+			if a != b and a != '-' and b != '-':
+				differences += 1
+	print(divisor)
+	pi = float(differences) / divisor
 
 	"""Calculate s, number of segregation sites)."""
 	# Assume if we're in here seqs have already been checked
@@ -1154,10 +1160,10 @@ def calculateTajimasD(sequences):
 	s = float(S / denom)
 
 	"""
-    Now we have pi (pairwise differences) and s (number
-    of segregating sites). This gives us 'little d', so
-    now we need to divide it by sqrt of variance.
-    """
+	Now we have pi (pairwise differences) and s (number
+	of segregating sites). This gives us 'little d', so
+	now we need to divide it by sqrt of variance.
+	"""
 	l = len(sequences)
 
 	# calculate D
