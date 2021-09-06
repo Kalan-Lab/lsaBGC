@@ -1135,6 +1135,9 @@ def calculateTajimasD(sequences):
 			b = seqB[p]
 			if a != b and a != '-' and b != '-':
 				differences += 1
+	print('-----------------')
+	print(hg)
+	print(divisor)
 	pi = float(differences) / divisor
 
 	"""Calculate s, number of segregation sites)."""
