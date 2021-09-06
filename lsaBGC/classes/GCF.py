@@ -3167,7 +3167,7 @@ def _calculateTajimasD(sequences):
 		seqB = pair[1]
 		count = sum(1 for a, b in zip(seqA, seqB) if a != b and a != '-' and b != '-')
 		counts.append(count)
-	pi = float(sum(counts)) / num
+	pi = float(decimal.Decimal(sum(counts)) / decimal.Decimal(num))
 
 	"""Calculate s, number of segregation sites)."""
 	# Assume if we're in here seqs have already been checked
