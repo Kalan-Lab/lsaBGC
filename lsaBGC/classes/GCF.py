@@ -2716,6 +2716,7 @@ def popgen_analysis_of_hg(inputs):
 				high_ambiguity_sequences.add(rec.id)
 
 	sequences_filtered = defaultdict(lambda: '')
+	sequences_filtered_singleton_codons_allowed = defaultdict(lambda: '')
 	for cod_index in range(0, num_codons):
 		cod_count = defaultdict(int)
 		for bgc in bgc_codons:
@@ -2748,7 +2749,9 @@ def popgen_analysis_of_hg(inputs):
 			for bgc in bgc_codons:
 				if bgc in high_ambiguity_sequences: continue
 				cod = bgc_codons[bgc][cod_index].replace('N', '-')
-				if cod in singleton_codons or '-' in cod: cod = '---'
+				if '-' in cod: cod == '---'
+				sequences_filtered_singleton_codons_allowed[bgc] += cod
+				if cod in singleton_codons: cod == '---'
 				sequences_filtered[bgc] += cod
 
 	median_dnds = "NA"
@@ -2825,7 +2828,7 @@ def popgen_analysis_of_hg(inputs):
 
 		# calculate Tajima's D
 		if len(list(sequences_filtered.values())) >= 4:
-			tajimas_d = util.calculateTajimasD(list(sequences_filtered.values()))
+			tajimas_d = util.calculateTajimasD(list(sequences_filtered_singleton_codons_allowed.values()))
 			if tajimas_d != 'NA':
 				tajimas_d = round(tajimas_d, 2)
 
@@ -2875,7 +2878,7 @@ def popgen_analysis_of_hg(inputs):
 			population_sequences = []
 			for seq_id in sequences_filtered:
 				if sample_population[seq_id.split('|')[0]] == p:
-					population_sequences.append(sequences_filtered[seq_id])
+					population_sequences.append(sequences_filtered_singleton_codons_allowed[seq_id])
 			if len(population_sequences) >= 4 and len(list(sequences_filtered.values())[0]) >= 21:
 				p_tajimas_d = util.calculateTajimasD(population_sequences)
 				if p_tajimas_d != 'NA':
