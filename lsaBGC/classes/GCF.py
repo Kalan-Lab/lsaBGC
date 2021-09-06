@@ -2808,7 +2808,7 @@ def popgen_analysis_of_hg(inputs):
 			print(len(seqA))
 			print(len(seqB))
 			csA = CodonSeq(seqA)
-			csB = Codonseq(seqB)
+			csB = CodonSeq(seqB)
 
 			dN, dS = cal_dn_ds(csA, csB)
 			if dN != -1 and dS != -1:
