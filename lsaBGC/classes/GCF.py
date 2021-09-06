@@ -2819,6 +2819,8 @@ def popgen_analysis_of_hg(inputs):
 			mad_dnds = median_absolute_deviation(all_dNdS)
 
 	# calculate Tajima's D
+	print(len(list(sequences_filtered.values())))
+	print(list(sequences_filtered.values()))
 	tajimas_d = round(util.calculateTajimasD(list(sequences_filtered.values())), 2)
 
 	prop_samples_with_hg = len(samples) / float(len(set(bgc_sample.values())))
