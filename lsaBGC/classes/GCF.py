@@ -2797,11 +2797,12 @@ def popgen_analysis_of_hg(inputs):
 		"""
 	else:
 
-		combos = list(itertools.combinations(list(sequences_filtered.values()), 2))
-		random.Random(SEED).shuffle(combos)
 
 		all_median_dnds = []
 		for iter in range(0, 100):
+			combos = list(itertools.combinations(list(sequences_filtered.values()), 2))
+			random.Random(iter).shuffle(combos)
+
 			all_dNdS = []
 			for i, pair in enumerate(combos):
 				if i >= sample_size: continue
