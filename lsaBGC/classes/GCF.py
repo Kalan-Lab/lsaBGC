@@ -2757,7 +2757,7 @@ def popgen_analysis_of_hg(inputs):
 	median_dnds = "NA"
 	mad_dnds = "NA"
 	tajimas_d = "NA"
-	if len(list(sequences_filtered.values())[0]) >= 21:
+	if len(sequences_filtered) >= 4 and len(list(sequences_filtered.values())[0]) >= 21:
 		if species_phylogeny:
 			pass
 			"""
@@ -2827,10 +2827,9 @@ def popgen_analysis_of_hg(inputs):
 				mad_dnds = median_absolute_deviation(all_median_dnds)
 
 		# calculate Tajima's D
-		if len(list(sequences_filtered.values())) >= 4:
-			tajimas_d = util.calculateTajimasD(list(sequences_filtered_singleton_codons_allowed.values()))
-			if tajimas_d != 'NA':
-				tajimas_d = round(tajimas_d, 2)
+		tajimas_d = util.calculateTajimasD(list(sequences_filtered_singleton_codons_allowed.values()))
+		if tajimas_d != 'NA':
+			tajimas_d = round(tajimas_d, 2)
 
 	prop_samples_with_hg = len(samples) / float(len(set(bgc_sample.values())))
 	prop_conserved = "NA"
