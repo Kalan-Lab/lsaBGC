@@ -204,7 +204,7 @@ class GCF(Pan):
 		hg_to_color = {}
 		for i, c in enumerate(set(hgs)):
 			hg_to_color[c] = colors[i]
-		print(hg_to_color); self.hg_to_color = hg_to_color
+		self.hg_to_color = hg_to_color
 
 	def createItolBGCSeeTrack(self, result_track_file):
 		"""
@@ -477,12 +477,10 @@ class GCF(Pan):
 		all_samples = set(self.bgc_sample.values())
 		try:
 			inputs = []
-			print(self.hg_genes)
 			for hg in self.hg_genes:
 				# if len(self.hg_genes[hg]) < 2: continue
 				sample_counts = defaultdict(int)
 				gene_sequences = {}
-				print(hg)
 				for gene in self.hg_genes[hg]:
 					gene_info = self.comp_gene_info[gene]
 					bgc_id = gene_info['bgc_name']
@@ -760,7 +758,6 @@ class GCF(Pan):
 			curr_hg = 'start'
 			visited_hgs = set([curr_hg])
 			ordered_hgs_list = [curr_hg]
-			print(following_hgs)
 			while curr_hg != 'end':
 				next_hg = None
 				for fhg in sorted(following_hgs[curr_hg].items(), key=itemgetter(1), reverse=True):
@@ -1355,8 +1352,8 @@ class GCF(Pan):
 					distance_stat = 1.0
 					if total_intersect_positions > 0:
 						distance_stat = float(stat_pos)/float(total_intersect_positions)
-					else:
-						print(s1 + '\t' + s2)
+					#else:
+					#	print(s1 + '\t' + s2)
 
 					pair_id = s1 + ' vs. ' + s2
 					pairwise_distance_handle.write('\t'.join([str(x) for x in [pair_id, s1, s2, distance_stat, total_intersect_positions]]) + '\n')
@@ -2799,7 +2796,7 @@ def popgen_analysis_of_hg(inputs):
 
 
 		all_median_dnds = []
-		for iter in range(0, 100):
+		for iter in range(0, 10):
 			combos = list(itertools.combinations(list(sequences_filtered.values()), 2))
 			random.Random(iter).shuffle(combos)
 
@@ -2817,8 +2814,9 @@ def popgen_analysis_of_hg(inputs):
 			if len(all_dNdS) >= (0.75*sample_size):
 				all_median_dnds.append(statistics.median(all_dNdS))
 
-		median_dnds = statistics.median(all_median_dnds)
-		mad_dnds = median_absolute_deviation(all_median_dnds)
+		if len(all_median_dnds) >= 8:
+			median_dnds = statistics.median(all_median_dnds)
+			mad_dnds = median_absolute_deviation(all_median_dnds)
 
 	# calculate Tajima's D
 	tajimas_d = "NA"
