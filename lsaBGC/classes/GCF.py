@@ -2797,7 +2797,7 @@ def popgen_analysis_of_hg(inputs):
 		"""
 	else:
 
-		combos = list(itertools.combinations(sequences, 2))
+		combos = list(itertools.combinations(sequences_filtered, 2))
 		random.Random(SEED).shuffle(combos)
 
 		all_dNdS = []
