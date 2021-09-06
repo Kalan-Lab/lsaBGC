@@ -1116,12 +1116,11 @@ def logParametersToObject(logObject, parameter_names, parameter_values):
 		pn = parameter_names[i]
 		logObject.info(pn + ': ' + str(pv))
 
-def calculate_pairwise(sequences):
-	"""Calculate pi, number of pairwise differences."""
-	for seq in sequences:
-		if len(seq) != len(sequences[0]):
-			raise ("All sequences must have the same length.")
-
+def calculateTajimasD(sequences):
+	"""
+	The code for this functionality was largely taken from Tom Whalley's Tajima's D implementation in Python and further
+	adapted.
+	"""
 	numseqs = len(sequences)
 	num = float(numseqs * (numseqs - 1)) / float(2)
 	combos = itertools.combinations(sequences, 2)
@@ -1131,11 +1130,9 @@ def calculate_pairwise(sequences):
 		seqB = pair[1]
 		count = sum(1 for a, b in zip(seqA, seqB) if a != b and a != '-' and b != '-')
 		counts.append(count)
-	pi = float(sum(counts))/num
-	return (pi)
+	pi = float(sum(counts)) / num
 
-def calculate_segregating_sites(sequences):
-	"""Calculate S, number of segregation sites)."""
+	"""Calculate s, number of segregation sites)."""
 	# Assume if we're in here seqs have already been checked
 	combos = itertools.combinations(sequences, 2)
 	indexes = set([])
@@ -1154,10 +1151,16 @@ def calculate_segregating_sites(sequences):
 	denom = 0
 	for i in range(1, n):
 		denom += (float(1) / float(i))
-	segsites = float(S / denom)
-	return (segsites)
+	s = float(S / denom)
 
-def D(l, pi, s):
+	"""
+    Now we have pi (pairwise differences) and s (number
+    of segregating sites). This gives us 'little d', so
+    now we need to divide it by sqrt of variance.
+    """
+	l = len(sequences)
+
+	# calculate D
 	a1 = sum([1.0 / i for i in range(1, l)])
 	a2 = sum([1.0 / (i ** 2) for i in range(1, l)])
 
@@ -1170,23 +1173,4 @@ def D(l, pi, s):
 	e1 = float(c1) / a1
 	e2 = float(c2) / ((a1 ** 2) + a2)
 	D = (float(pi - (float(s) / a1)) / math.sqrt((e1 * s) + ((e2 * s) * (s - 1))))
-
-	return D
-
-def calculateTajimasD(sequences):
-	"""
-	The code for this functionality was largely taken from Tom Whalley's Tajima's D implementation in Python and further
-	adapted.
-	"""
-	print(len(sequences))
-	pi = calculate_pairwise(sequences)
-	S = calculate_segregating_sites(sequences)
-
-	"""
-    Now we have pi (pairwise differences) and s (number
-    of segregating sites). This gives us 'little d', so
-    now we need to divide it by sqrt of variance.
-    """
-	l = len(sequences)
-	D = D(l, pi, S)
-	return D
+	return(D)
