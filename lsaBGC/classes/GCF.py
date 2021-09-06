@@ -2530,7 +2530,6 @@ def popgen_analysis_of_hg(inputs):
 	gene_locs = defaultdict(dict)
 	core_counts = defaultdict(int)
 	products = set([])
-	high_ambiguity_sequences = set([])
 	sample_leaf_names = defaultdict(list)
 	updated_codon_alignment_fasta = popgen_dir + codon_alignment_fasta.split('/')[-1]
 	updated_codon_alignment_handle = open(updated_codon_alignment_fasta, 'w')
@@ -2559,8 +2558,6 @@ def popgen_analysis_of_hg(inputs):
 					gene_locs[gene_id][real_pos] = msa_pos + 1
 					real_pos += 1
 			gene_lengths.append(len(str(rec.seq).replace('-', '')))
-			seq_ambiguous_prop = float(len(str(rec.seq).replace('-', '')))/float(len(str(rec.seq)))
-			high_ambiguity_sequences.add(rec.id)
 	updated_codon_alignment_handle.close()
 	codon_alignment_fasta = updated_codon_alignment_fasta
 
@@ -2598,6 +2595,7 @@ def popgen_analysis_of_hg(inputs):
 	sample_differences_to_consensus = defaultdict(lambda: defaultdict(int))
 	ambiguous_sites = 0
 	nonambiguous_sites = 0
+	ambiguous_sites_pos = set([])
 	for i, ls in enumerate(zip(*seqs)):
 		al_counts = defaultdict(int)
 		for al in ls:
@@ -2625,6 +2623,7 @@ def popgen_analysis_of_hg(inputs):
 			nonambiguous_sites += 1
 		else:
 			ambiguous_sites += 1
+			ambiguous_sites_pos.append(i+1)
 		maj_allele_count = max(al_counts.values())
 		maj_alleles = set([a[0] for a in al_counts.items() if maj_allele_count == a[1]])
 		maj_allele = sorted(list(maj_alleles))[0]
@@ -2700,6 +2699,21 @@ def popgen_analysis_of_hg(inputs):
 
 	#### Perform population genetics analyses, including dN/dS calculation and Tajima's D calculation
 
+	high_ambiguity_sequences = set([])
+	with open(codon_alignment_fasta) as ocaf:
+		for rec in SeqIO.parse(ocaf, 'fasta'):
+			if population != sample_population[sample_id] and population != None: continue
+			total_nonambiguous_positions = 0
+			gap_nonambiguous_positions = 0
+			for msa_pos, bp in enumerate(str(rec.seq)):
+				if not msa_pos in ambiguous_sites_pos:
+					total_nonambiguous_positions += 1
+					if bp != '-':
+						gap_nonambiguous_positions += 1
+			seq_ambiguous_prop = float(gap_nonambiguous_positions)/float(total_nonambiguous_positions)
+			if seq_ambiguous_prop >= 0.25:
+				high_ambiguity_sequences.add(rec.id)
+
 	sequences_filtered = defaultdict(lambda: '')
 	codons_filtered = defaultdict(lambda: [])
 	for cod_index in range(0, num_codons):
@@ -2712,7 +2726,6 @@ def popgen_analysis_of_hg(inputs):
 		for cod in cod_count:
 			if cod_count[cod] == 1: singleton_codons.add(cod)
 
-		cod_count = defaultdict(int)
 		aa_count = defaultdict(int)
 		cod_count = defaultdict(int)
 		cods = set([])
