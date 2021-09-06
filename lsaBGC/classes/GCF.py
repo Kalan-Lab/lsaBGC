@@ -2750,8 +2750,6 @@ def popgen_analysis_of_hg(inputs):
 				if cod in singleton_codons or '-' in cod: cod = '---'
 				sequences_filtered[bgc] += cod
 
-	for s in sequences_filtered:
-		print(s + '\t' + str(len(sequences_filtered[s])) + '\t' + sequences_filtered[s])
 	median_dnds = "NA"
 	mad_dnds = "NA"
 	if species_phylogeny:
@@ -2798,7 +2796,7 @@ def popgen_analysis_of_hg(inputs):
 		"""
 	else:
 
-		combos = list(itertools.combinations(sequences_filtered, 2))
+		combos = list(itertools.combinations(list(sequences_filtered.values()), 2))
 		random.Random(SEED).shuffle(combos)
 
 		all_dNdS = []
