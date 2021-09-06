@@ -2796,7 +2796,7 @@ def popgen_analysis_of_hg(inputs):
 
 
 		all_median_dnds = []
-		for iter in range(0, 10):
+		for iter in range(0, 20):
 			combos = list(itertools.combinations(list(sequences_filtered.values()), 2))
 			random.Random(iter).shuffle(combos)
 
