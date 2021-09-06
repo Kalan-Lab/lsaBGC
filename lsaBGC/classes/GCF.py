@@ -2515,79 +2515,6 @@ def popgen_analysis_of_hg(inputs):
 
 	gcf_id, hg, codon_alignment_fasta, popgen_dir, plots_dir, comp_gene_info, hg_genes, bgc_sample, hg_prop_multi_copy, hg_order_scores, gw_pairwise_similarities, comparem_used, sample_population, population, species_phylogeny, sample_size, logObject = inputs
 
-	def calculateTajimasD(sequences):
-		"""
-		The code for this functionality was largely taken from Tom Whalley's Tajima's D implementation in Python and further
-		adapted.
-		"""
-
-		"""Calculate pi"""
-		numseqs = len(sequences)
-		divisor = float(numseqs) * float(numseqs - 1)
-		divisor = divisor / 2.0
-		combos = itertools.combinations(sequences, 2)
-		differences = 0
-		for pair in combos:
-			seqA = pair[0]
-			seqB = pair[1]
-			for p, a in enumerate(seqA):
-				b = seqB[p]
-				if a != b and a != '-' and b != '-':
-					differences += 1
-
-		try:
-			print(float(differences) / divisor)
-			pi = float(differences) / divisor
-		except:
-			print(hg)
-			print(float(differences))
-			print(float(divisor))
-			print(hg)
-			raise RuntimeError()
-
-		"""Calculate s, number of segregation sites)."""
-		# Assume if we're in here seqs have already been checked
-		combos = itertools.combinations(sequences, 2)
-		indexes = set([])
-		for pair in combos:
-			seqA = pair[0]
-			seqB = pair[1]
-			for idx, (i, j) in enumerate(zip(seqA, seqB)):
-				if i != j and i != '-' and j != '-':
-					indexes.add(idx)
-
-		indexes = list(indexes)
-
-		S = len(indexes)
-		n = len(sequences)
-
-		denom = 0
-		for i in range(1, n):
-			denom += (float(1) / float(i))
-		s = float(S / denom)
-
-		"""
-		Now we have pi (pairwise differences) and s (number
-		of segregating sites). This gives us 'little d', so
-		now we need to divide it by sqrt of variance.
-		"""
-		l = len(sequences)
-
-		# calculate D
-		a1 = sum([1.0 / i for i in range(1, l)])
-		a2 = sum([1.0 / (i ** 2) for i in range(1, l)])
-
-		b1 = float(l + 1) / (3 * (l - 1))
-		b2 = float(2 * ((l ** 2) + l + 3)) / (9 * l * (l - 1))
-
-		c1 = b1 - (1.0 / a1)
-		c2 = b2 - (float(l + 2) / (a1 * l)) + (float(a2) / (a1 ** 2.0))
-
-		e1 = float(c1) / a1
-		e2 = float(c2) / ((a1 ** 2) + a2)
-		D = (float(pi - (float(s) / a1)) / math.sqrt((e1 * s) + ((e2 * s) * (s - 1))))
-		return (D)
-
 	domain_plot_file = plots_dir + hg + '_domain.txt'
 	position_plot_file = plots_dir + hg + '_position.txt'
 	plot_pdf_file = plots_dir + hg + '.pdf'
@@ -2879,9 +2806,6 @@ def popgen_analysis_of_hg(inputs):
 			if i >= sample_size: continue
 			seqA = pair[0]
 			seqB = pair[1]
-			print('HEY!!!')
-			print(len(seqA))
-			print(len(seqB))
 			csA = CodonSeq(seqA)
 			csB = CodonSeq(seqB)
 
@@ -2894,9 +2818,9 @@ def popgen_analysis_of_hg(inputs):
 			mad_dnds = median_absolute_deviation(all_dNdS)
 
 	# calculate Tajima's D
-	print(len(list(sequences_filtered.values())))
-	print(list(sequences_filtered.values()))
-	tajimas_d = round(calculateTajimasD(list(sequences_filtered.values())), 2)
+	tajimas_d = "NA"
+	if len(list(sequences_filtered.values())) >= 4:
+		tajimas_d = round(util.calculateTajimasD(list(sequences_filtered.values())), 2)
 
 	prop_samples_with_hg = len(samples) / float(len(set(bgc_sample.values())))
 	prop_conserved = "NA"
@@ -2940,12 +2864,13 @@ def popgen_analysis_of_hg(inputs):
 
 		most_extreme_pop_tajimas_d = [['NA'], 0.0]
 		for p in population_counts:
-			if population_counts[p] < 5: continue
+			if population_counts[p] < 4: continue
 			population_sequences = []
 			for seq_id in sequences_filtered:
 				if sample_population[seq_id.split('|')[0]] == p:
 					population_sequences.append(sequences_filtered[seq_id])
-			p_tajimas_d = round(calculateTajimasD(population_sequences), 2)
+			p_tajimas_d = round(util.calculateTajimasD(population_sequences), 2)
+
 			if abs(p_tajimas_d - 1.0) > most_extreme_pop_tajimas_d[1]:
 				most_extreme_pop_tajimas_d = [[p + '=' + str(p_tajimas_d)], abs(p_tajimas_d-1.0)]
 			elif abs(p_tajimas_d - 1.0) == most_extreme_pop_tajimas_d[1]:
