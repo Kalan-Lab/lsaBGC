@@ -1116,7 +1116,7 @@ def logParametersToObject(logObject, parameter_names, parameter_values):
 		pn = parameter_names[i]
 		logObject.info(pn + ': ' + str(pv))
 
-def calculateTajimasD(hg, sequences):
+def calculateTajimasD(sequences):
 	"""
 	The code for this functionality was largely taken from Tom Whalley's Tajima's D implementation in Python and further
 	modified/corrected based on Wikipedia's page for Tajima's D (Mathematical details).

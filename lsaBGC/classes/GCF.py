@@ -2876,7 +2876,7 @@ def popgen_analysis_of_hg(inputs):
 				if sample_population[seq_id.split('|')[0]] == p:
 					population_sequences.append(sequences_filtered[seq_id])
 			if len(population_sequences) >= 4:
-				p_tajimas_d = util.calculateTajimasD(hg, population_sequences)
+				p_tajimas_d = util.calculateTajimasD(population_sequences)
 				if p_tajimas_d != 'NA':
 					p_tajimas_d = round(p_tajimas_d, 2)
 					if abs(p_tajimas_d - 0.0) > most_extreme_pop_tajimas_d[1]:
