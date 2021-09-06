@@ -2810,11 +2810,9 @@ def popgen_analysis_of_hg(inputs):
 				assert(len(seqA) == len(seqB))
 				csA = CodonSeq(seqA)
 				csB = CodonSeq(seqB)
-
-			dN, dS = cal_dn_ds(csA, csB)
-			if dN != -1 and dS != -1 and dS != 0.0:
-				all_dNdS.append(float(dN)/float(dS))
-
+				dN, dS = cal_dn_ds(csA, csB)
+				if dN != -1 and dS != -1 and dS != 0.0:
+					all_dNdS.append(float(dN)/float(dS))
 			if len(all_dNdS) >= (0.75*sample_size):
 				all_median_dnds.append(statistics.median(all_dNdS))
 
