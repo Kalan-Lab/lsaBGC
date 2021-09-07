@@ -2816,15 +2816,18 @@ def popgen_analysis_of_hg(inputs):
 					assert(len(seqA) == len(seqB))
 					csA = CodonSeq(seqA)
 					csB = CodonSeq(seqB)
-					print(csA)
-					print(csB)
-					dN, dS = cal_dn_ds(csA, csB)
-					if dN != -1 and dS != -1 and dS != 0.0:
-						all_dNdS.append(float(dN)/float(dS))
-				if len(all_dNdS) >= (0.75* min([sample_size, len(combos)])) and len(all_dNdS) >= 4:
+					try:
+						dN, dS = cal_dn_ds(csA, csB)
+						if dN != -1 and dS != -1 and dS != 0.0:
+							all_dNdS.append(float(dN)/float(dS))
+					except:
+						# ignore errors. Introduced because of an error caused by no synonymous sites being identified
+						# between a pair of sequences resulting in Division by Zero error being raised.
+						pass
+				if len(all_dNdS) >= 10:
 					all_median_dnds.append(statistics.median(all_dNdS))
 
-			if len(all_median_dnds) >= 8:
+			if len(all_median_dnds) >= 16:
 				median_dnds = statistics.median(all_median_dnds)
 				mad_dnds = median_absolute_deviation(all_median_dnds)
 
