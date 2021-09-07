@@ -2741,18 +2741,18 @@ def popgen_analysis_of_hg(inputs):
 			cods.add(cod)
 			cod_count[cod] += 1
 			aa_count[aa] += 1
-		if len(cod_count) == 0: return
-		major_codon_count = max(cod_count.values())
-		major_codon_freq = float(major_codon_count) / float(sum(cod_count.values()))
-		gap_residue_freq = float(aa_count['-']) / float(sum(aa_count.values()))
-		if major_codon_freq < 0.95 and gap_residue_freq < 0.1:
-			for bgc in bgc_codons:
-				if bgc in high_ambiguity_sequences: continue
-				cod = bgc_codons[bgc][cod_index].replace('N', '-')
-				if '-' in cod: cod == '---'
-				sequences_filtered_singleton_codons_allowed[bgc] += cod
-				if cod in singleton_codons: cod == '---'
-				sequences_filtered[bgc] += cod
+		if len(cod_count) > 0:
+			major_codon_count = max(cod_count.values())
+			major_codon_freq = float(major_codon_count) / float(sum(cod_count.values()))
+			gap_residue_freq = float(aa_count['-']) / float(sum(aa_count.values()))
+			if major_codon_freq < 0.95 and gap_residue_freq < 0.1:
+				for bgc in bgc_codons:
+					if bgc in high_ambiguity_sequences: continue
+					cod = bgc_codons[bgc][cod_index].replace('N', '-')
+					if '-' in cod: cod = '---'
+					sequences_filtered_singleton_codons_allowed[bgc] += cod
+					if cod in singleton_codons: cod = '---'
+					sequences_filtered[bgc] += cod
 
 	median_dnds = "NA"
 	mad_dnds = "NA"
