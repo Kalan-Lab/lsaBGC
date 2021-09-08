@@ -2888,7 +2888,7 @@ def popgen_analysis_of_hg(inputs):
 				if p_tajimas_d != 'NA':
 					p_tajimas_d = round(p_tajimas_d, 2)
 					if abs(p_tajimas_d - 0.0) > most_extreme_pop_tajimas_d[1]:
-						most_extreme_pop_tajimas_d = [[p + '=' + str(p_tajimas_d)], abs(p_tajimas_d-1.0)]
+						most_extreme_pop_tajimas_d = [[p + '=' + str(p_tajimas_d)], abs(p_tajimas_d)]
 					elif abs(p_tajimas_d - 0.0) == most_extreme_pop_tajimas_d[1]:
 						most_extreme_pop_tajimas_d[0].append(p + '=' + str(p_tajimas_d))
 
