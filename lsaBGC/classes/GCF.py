@@ -2864,8 +2864,8 @@ def popgen_analysis_of_hg(inputs):
 			population_counts[p] += 1
 			population_samples[p].add(s)
 
-		most_positive_tajimas_d = [['NA'], -20000.0]
-		most_negative_tajimas_d = [['NA'], 20000.0]
+		most_positive_tajimas_d = [['NA'], 0.0]
+		most_negative_tajimas_d = [['NA'], 0.0]
 		all_tajimas_d = []
 		for p in population_counts:
 			if population_counts[p] < 4: continue
