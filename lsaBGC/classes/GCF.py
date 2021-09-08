@@ -906,7 +906,7 @@ class GCF(Pan):
 
 		for i, ls in enumerate(data):
 			newline = '\t'.join(ls[:-9]) + '\t' + str(adj_pvals[i]) + '\t' + '\t'.join(ls[-8:])
-			final_output_handle.write(newline + '\n')
+			final_output_handle.write(newline)
 		final_output_handle.close()
 
 	def identifyGCFInstances(self, outdir, sample_prokka_data, orthofinder_matrix_file, min_size=5, min_core_size=3,
