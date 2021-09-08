@@ -856,10 +856,11 @@ class GCF(Pan):
 			header = ['population'] + header
 		elif population_analysis_on:
 			header = header[:-1]
-			header += ['populations_with_hg', 'most_significant_Fisher_exact_pvalues_presence_absence',
-					   'median_Tajimas_D_per_population', 'mad_Tajimas_D_per_population',
-					   'most_negative_population_Tajimas_D', 'most_positive_population_Tajimas_D', 'population_entropy',
-					   'median_fst_like_estimate', 'population_proportion_of_members_with_hg', 'all_domains']
+			header += ['populations_with_hg', 'proportion_of_total_populations_with_hg',
+					   'most_significant_Fisher_exact_pvalues_presence_absence', 'median_Tajimas_D_per_population',
+					   'mad_Tajimas_D_per_population', 'most_negative_population_Tajimas_D',
+					   'most_positive_population_Tajimas_D', 'population_entropy', 'median_fst_like_estimate',
+					   'population_proportion_of_members_with_hg', 'all_domains']
 
 		final_output_handle.write('\t'.join(header) + '\n')
 
@@ -2969,11 +2970,10 @@ def popgen_analysis_of_hg(inputs):
 		most_pos_taj_d = most_positive_tajimas_d[1]
 		if most_positive_tajimas_d[0][0] == 'NA': most_pos_taj_d = 'NA'
 
-		hg_population_info = [len(pops_with_hg), fisher_pval, median_tajimas_d, mad_tajimas_d,
-							  str(most_neg_taj_d) + '|' + ','.join(most_negative_tajimas_d[0]),
+		hg_population_info = [len(pops_with_hg), float(len(pops_with_hg))/float(len(population_counts)), fisher_pval,
+							  median_tajimas_d, mad_tajimas_d, str(most_neg_taj_d) + '|' + ','.join(most_negative_tajimas_d[0]),
 							  str(most_pos_taj_d) + '|' + ','.join(most_positive_tajimas_d[0]),
-							  population_entropy, median_fst_like_est,
-							  '|'.join([str(x[0]) + '=' + str(float(x[1])/population_counts[x[0]]) for x in pop_count_with_hg.items()])]
+							  population_entropy, median_fst_like_est, '|'.join([str(x[0]) + '=' + str(float(x[1])/population_counts[x[0]]) for x in pop_count_with_hg.items()])]
 		hg_info += hg_population_info
 
 	hg_info += ['; '.join(all_domains)]
