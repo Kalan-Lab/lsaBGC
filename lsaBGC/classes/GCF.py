@@ -2935,6 +2935,7 @@ def popgen_analysis_of_hg(inputs):
 						else:
 							fst_like_estimates.append(0.0)
 
+		median_fst_like_est = "NA"
 		if len(fst_like_estimates) > 0:
 			median_fst_like_est = statistics.median(fst_like_estimates)
 
