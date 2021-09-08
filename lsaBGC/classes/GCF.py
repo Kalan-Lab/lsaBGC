@@ -9,7 +9,7 @@ import subprocess
 import pysam
 import gzip
 import multiprocessing
-from scipy.stats import f_oneway, fisher_exact, pearsonr, median_absolute_deviation
+from scipy.stats import f_oneway, fisher_exact, pearsonr, median_absolute_deviation, entropy
 from ete3 import Tree
 import numpy as np
 from operator import itemgetter
@@ -17,7 +17,6 @@ import itertools
 from collections import defaultdict
 from lsaBGC.classes.Pan import Pan
 from lsaBGC import util
-from pingouin import welch_anova
 from pandas import DataFrame
 from pomegranate import *
 import math
@@ -857,20 +856,31 @@ class GCF(Pan):
 		elif population_analysis_on:
 			header = header[:-1]
 			header += ['populations_with_hg', 'most_significant_Fisher_exact_pvalues_presence_absence',
-					   'one_way_ANOVA_pvalues_sequence_similarity', 'least_neutral_Tajimas_D_for_single_population',
-					   'population_proportion_of_members_with_hg', 'all_domains']
+					   'median_Tajimas_D_per_population', 'mad_Tajimas_D_per_population',
+					   'most_negative_population_Tajimas_D', 'most_positive_population_Tajimas_D', 'population_entropy',
+					   'min_fst_like_estimate', 'max_fst_like_estimate', 'population_proportion_of_members_with_hg',
+					   'all_domains']
+
 		final_output_handle.write('\t'.join(header) + '\n')
 
 		inputs = []
 		input_codon_dir = self.codo_alg_dir
 		if filter_outliers:
 			input_codon_dir = self.codo_filt_alg_dir
+
+		products = defaultdict(float)
+		for bgc in self.bgc_product:
+			for prod in self.bgc_product[bgc]:
+				products[prod] += 1.0 / len(self.bgc_product[bgc])
+		gcf_product_summary = '; '.join([x[0] + ':' + str(x[1]) for x in products.items()])
+
 		for f in os.listdir(input_codon_dir):
 			hg = f.split('.msa.fna')[0]
 			codon_alignment_fasta = input_codon_dir + f
 			if gw_pairwise_similarities:
 				gw_pairwise_similarities = dict(gw_pairwise_similarities)
-			inputs.append([self.gcf_id, hg, codon_alignment_fasta, popgen_dir, plots_dir, self.comp_gene_info,
+
+			inputs.append([self.gcf_id, gcf_product_summary, hg, codon_alignment_fasta, popgen_dir, plots_dir, self.comp_gene_info,
 						   self.hg_genes, self.bgc_sample, self.hg_prop_multi_copy, dict(self.hg_order_scores),
 						   gw_pairwise_similarities, comparem_used, dict(self.sample_population), population,
 						   species_phylogeny, sample_size, self.logObject])
@@ -2509,7 +2519,7 @@ def popgen_analysis_of_hg(inputs):
 	:param inputs: list of inputs passed in by GCF.runPopulationGeneticsAnalysis().
 	"""
 
-	gcf_id, hg, codon_alignment_fasta, popgen_dir, plots_dir, comp_gene_info, hg_genes, bgc_sample, hg_prop_multi_copy, hg_order_scores, gw_pairwise_similarities, comparem_used, sample_population, population, species_phylogeny, sample_size, logObject = inputs
+	gcf_id, gcf_annot, hg, codon_alignment_fasta, popgen_dir, plots_dir, comp_gene_info, hg_genes, bgc_sample, hg_prop_multi_copy, hg_order_scores, gw_pairwise_similarities, comparem_used, sample_population, population, species_phylogeny, sample_size, logObject = inputs
 
 	domain_plot_file = plots_dir + hg + '_domain.txt'
 	position_plot_file = plots_dir + hg + '_position.txt'
@@ -2766,39 +2776,6 @@ def popgen_analysis_of_hg(inputs):
 	
 			# First, we filter the phylogeny for samples with the HG and create duplicate leafs for samples with multiple
 			# instances of the HG identified in BGCs belonging to the GCF.
-	
-			result_phylogeny = popgen_dir + hg + '.tre'
-			try:
-				t = Tree(species_phylogeny)
-				t.prune(sample_leaf_names.keys())
-				for node in t.traverse('postorder'):
-					if node.name in sample_leaf_names and len(sample_leaf_names[node.name]) > 1:
-						for leaf_name in sample_leaf_names[node.name]:
-							# if bgc_id == node.name: continue
-							node.add_child(name=leaf_name)
-							child_node = t.search_nodes(name=leaf_name)[0]
-							child_node.dist = 0
-					elif node.name in sample_leaf_names and len(sample_leaf_names[node.name]) == 1:
-						node.name = sample_leaf_names[node.name][0]
-	
-				t.write(format=0, outfile=result_phylogeny)
-				if self.logObject:
-					logObject.info("New phylogeny with an additional %d leafs to reflect samples with multiple BGCs can be found at: %s." % (result_phylogeny))
-			except Exception as e:
-				if logObject:
-					logObject.error("Had difficulties properly editing phylogeny to duplicate leafs for samples with multiple instances of the HG.")
-					logObject.error(traceback.format_exc())
-				raise RuntimeError(traceback.format_exc())
-	
-			# Second, we run FastML simply to perform ancestral state reconstruction
-			try:
-				result_prefix = popgen_dir + hg
-				ancestral_hg_codons = util.performAncestralReconstructionCFML(codon_alignment_fasta, result_phylogeny, result_prefix, logObject)
-			except:
-				if logObject:
-					logObject.error("Had difficulties running ClonalFrameML to perform ancestral state reconstruction and imputation.")
-					logObject.error(traceback.format_exc())
-				raise RuntimeError(traceback.format_exc())
 			"""
 		else:
 
@@ -2854,7 +2831,7 @@ def popgen_analysis_of_hg(inputs):
 	hg_info = []
 	if population:
 		hg_info = [population]
-	hg_info += [gcf_id, hg, '; '.join(products), hg_ord, hg_dir, hg_prop_multi_copy[hg],
+	hg_info += [gcf_id, gcf_annot, hg, '; '.join(products), hg_ord, hg_dir, hg_prop_multi_copy[hg],
 				median_gene_length, is_core, len(seqs), len(samples), round(prop_samples_with_hg,2),
 				round(ambiguous_prop,2), tajimas_d, prop_conserved, prop_majallele_nondominant, median_beta_rd, median_dnds, mad_dnds]
 
@@ -2869,14 +2846,15 @@ def popgen_analysis_of_hg(inputs):
 	hg_consim_handle.close()
 
 	if sample_population and not population:
-		input_anova_data_seqsim = []
-		input_anova_header_seqsim = ['sample', 'population', 'differences_to_consensus']
-
 		population_counts = defaultdict(int)
+		population_samples = defaultdict(set)
 		for s, p in sample_population.items():
 			population_counts[p] += 1
+			population_samples[p].add(s)
 
-		most_extreme_pop_tajimas_d = [['NA'], 0.0]
+		most_positive_tajimas_d = [['NA'], -20000.0]
+		most_negative_tajimas_d = [['NA'], 20000.0]
+		all_tajimas_d = []
 		for p in population_counts:
 			if population_counts[p] < 4: continue
 			population_sequences = []
@@ -2886,11 +2864,20 @@ def popgen_analysis_of_hg(inputs):
 			if len(population_sequences) >= 4 and len(list(sequences_filtered.values())[0]) >= 21:
 				p_tajimas_d = util.calculateTajimasD(population_sequences)
 				if p_tajimas_d != 'NA':
-					p_tajimas_d = round(p_tajimas_d, 2)
-					if abs(p_tajimas_d - 0.0) > most_extreme_pop_tajimas_d[1]:
-						most_extreme_pop_tajimas_d = [[p + '=' + str(p_tajimas_d)], abs(p_tajimas_d)]
-					elif abs(p_tajimas_d - 0.0) == most_extreme_pop_tajimas_d[1]:
-						most_extreme_pop_tajimas_d[0].append(p + '=' + str(p_tajimas_d))
+					p_tajimas_d = round(p_tajimas_d, 3)
+					all_tajimas_d.append(p_tajimas_d)
+					if p_tajimas_d > most_positive_tajimas_d[1]:
+						most_positive_tajimas_d = [[p], p_tajimas_d]
+					elif p_tajimas_d == most_positive_tajimas_d[1]:
+						most_positive_tajimas_d[0].append(p)
+
+					if p_tajimas_d < most_negative_tajimas_d[1]:
+						most_negative_tajimas_d = [[p], p_tajimas_d]
+					elif p_tajimas_d == most_negative_tajimas_d[1]:
+						most_negative_tajimas_d[0].append(p)
+
+		median_tajimas_d = statistics.median(all_tajimas_d)
+		mad_tajimas_d = median_absolute_deviation(all_tajimas_d)
 
 		pops_with_hg = set([])
 		pop_count_with_hg = defaultdict(int)
@@ -2901,34 +2888,68 @@ def popgen_analysis_of_hg(inputs):
 					min_diff_to_consensus = sample_differences_to_consensus[s][g]
 			if min_diff_to_consensus < 1e100:
 				pop_count_with_hg[sample_population[s]] += 1
-				data_row = [s, sample_population[s], float(min_diff_to_consensus)/float(len(seqs[0]))]
-				input_anova_data_seqsim.append(data_row)
 				pops_with_hg.add(sample_population[s])
 
-		anova_pval_seqsim = "NA"
-		if len(pops_with_hg) >= 2:
-			well_rep_pops_with_hg = set([])
-			for p in pops_with_hg:
-				if pop_count_with_hg[p] >= 3:
-					well_rep_pops_with_hg.add(p)
-			if len(well_rep_pops_with_hg) >= 2:
-				anova_input_df = DataFrame(np.array(input_anova_data_seqsim), columns=input_anova_header_seqsim)
-				anova_input_df['differences_to_consensus'] = anova_input_df['differences_to_consensus'].astype(float)
-				aov = welch_anova(dv='differences_to_consensus', between='population', data=anova_input_df)
-				anova_pval_seqsim = aov.iloc[0, 4]
-
 		fishers_pvals = []
+		fst_like_estimates = []
 		for pop in pop_count_with_hg:
 			other_count = sum([x[1] for x in pop_count_with_hg.items() if x[0] != pop])
 			other_total = sum([x[1] for x in population_counts.items() if x[0] != pop])
 			odds, pval = fisher_exact([[pop_count_with_hg[pop], population_counts[pop]], [other_count, other_total]])
 			fishers_pvals.append(pval)
+			pds_within = []
+			for si1, s1 in enumerate(sorted(population_samples[pop])):
+				for si2, s2 in enumerate(sorted(population_samples[pop])):
+					if si1 >= si2: continue
+					min_diff = 1e100
+					for g1 in sample_differences_to_consensus[s1]:
+						for g2 in sample_differences_to_consensus[s2]:
+							samp_gene_diff = abs(sample_differences_to_consensus[s1][g1] - sample_differences_to_consensus[s2][g2])
+							if samp_gene_diff < min_diff:
+								min_diff = samp_gene_diff
+					if min_diff < 1e100:
+						pds_within.append(min_diff)
+			pi_within = statistics.median(pds_within)
+			for comp_pop in pop_count_with_hg:
+				if pop != comp_pop:
+					pds_between = []
+					for si1, s1 in enumerate(sorted(population_samples[pop])):
+						for si2, s2 in enumerate(sorted(population_samples[comp_pop])):
+							min_diff = 1e100
+							for g1 in sample_differences_to_consensus[s1]:
+								for g2 in sample_differences_to_consensus[s2]:
+									samp_gene_diff = abs(sample_differences_to_consensus[s1][g1] - sample_differences_to_consensus[s2][g2])
+									if samp_gene_diff < min_diff:
+										min_diff = samp_gene_diff
+							if min_diff < 1e100:
+								pds_between.append(min_diff)
+					pi_between = statistics.median(pds_between)
+					fst_like_est = float(pi_between - pi_within)/float(pi_between)
+					fst_like_estimates.append(fst_like_est)
 
+		max_fst_like_est = max(fst_like_estimates)
+		min_fst_like_est = min(fst_like_estimates)
 		fisher_pval = "NA"
 		if len(fishers_pvals) > 0: fisher_pval = min(fishers_pvals)
 
-		hg_population_info = [len(pops_with_hg), fisher_pval,
-							  str(anova_pval_seqsim).replace('nan', 'NA'), '|'.join(most_extreme_pop_tajimas_d[0]),
+		pop_rel_freqs = []
+		for p in population_counts:
+			prf = population_counts[p]/sum(population_counts.values())
+			pop_rel_freqs.append(prf)
+
+		population_entropy = entropy(pop_rel_freqs, base=2)
+
+		most_neg_taj_d = most_negative_tajimas_d[1]
+		if most_negative_tajimas_d[0][0] == 'NA': most_neg_taj_d = 'NA'
+
+		most_pos_taj_d = most_positive_tajimas_d[1]
+		if most_positive_tajimas_d[0][0] == 'NA': most_pos_taj_d = 'NA'
+
+		hg_population_info = [len(pops_with_hg), fisher_pval, '|'.join(most_positive_pop_tajimas_d[0]),
+							  median_tajimas_d, mad_tajimas_d,
+							  most_neg_taj_d + '|' + ','.join(most_negative_tajimas_d[0]),
+							  most_pos_taj_d + '|' + ','.join(most_positive_tajimas_d[0]),
+							  population_entropy, min_fst_like_est, max_fst_like_est,
 							 '|'.join([str(x[0]) + '=' + str(float(x[1])/population_counts[x[0]]) for x in pop_count_with_hg.items()])]
 		hg_info += hg_population_info
 
