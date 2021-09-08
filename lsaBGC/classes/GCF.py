@@ -2800,10 +2800,10 @@ def popgen_analysis_of_hg(inputs):
 						# ignore errors. Introduced because of an error caused by no synonymous sites being identified
 						# between a pair of sequences resulting in Division by Zero error being raised.
 						pass
-				if len(all_dNdS) >= 10:
+				if len(all_dNdS) > 0:
 					all_median_dnds.append(statistics.median(all_dNdS))
 
-			if len(all_median_dnds) >= 16:
+			if len(all_median_dnds) >= 10:
 				median_dnds = statistics.median(all_median_dnds)
 				mad_dnds = median_absolute_deviation(all_median_dnds)
 
@@ -2956,8 +2956,8 @@ def popgen_analysis_of_hg(inputs):
 		if most_positive_tajimas_d[0][0] == 'NA': most_pos_taj_d = 'NA'
 
 		hg_population_info = [len(pops_with_hg), fisher_pval, median_tajimas_d, mad_tajimas_d,
-							  most_neg_taj_d + '|' + ','.join(most_negative_tajimas_d[0]),
-							  most_pos_taj_d + '|' + ','.join(most_positive_tajimas_d[0]),
+							  str(most_neg_taj_d) + '|' + ','.join(most_negative_tajimas_d[0]),
+							  str(most_pos_taj_d) + '|' + ','.join(most_positive_tajimas_d[0]),
 							  population_entropy, median_fst_like_est,
 							  '|'.join([str(x[0]) + '=' + str(float(x[1])/population_counts[x[0]]) for x in pop_count_with_hg.items()])]
 		hg_info += hg_population_info
