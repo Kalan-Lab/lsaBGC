@@ -21,6 +21,7 @@ import os
 import subprocess
 import argparse
 import math
+import numpy as np
 
 valid_alleles = set(['A', 'C', 'G', 'T'])
 
