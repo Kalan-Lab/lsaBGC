@@ -2953,11 +2953,12 @@ def popgen_analysis_of_hg(inputs):
 			median_fst_like_est = statistics.median(fst_like_estimates)
 
 		fisher_pval = "NA"
-		if len(fishers_pvals) > 0: fisher_pval = min(fishers_pvals)
+		if len(fishers_pvals) > 0:
+			fisher_pval = min(fishers_pvals)*len(fishers_pvals)
 
 		pop_rel_freqs = []
-		for p in population_counts:
-			prf = float(population_counts[p])/float(sum(population_counts.values()))
+		for p in pop_count_with_hg:
+			prf = float(population_counts[p])/float(sum(pop_count_with_hg.values()))
 			pop_rel_freqs.append(prf)
 
 		population_entropy = entropy(pop_rel_freqs, base=2)
