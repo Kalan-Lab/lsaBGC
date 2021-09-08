@@ -2876,8 +2876,11 @@ def popgen_analysis_of_hg(inputs):
 					elif p_tajimas_d == most_negative_tajimas_d[1]:
 						most_negative_tajimas_d[0].append(p)
 
-		median_tajimas_d = statistics.median(all_tajimas_d)
-		mad_tajimas_d = median_absolute_deviation(all_tajimas_d)
+		median_tajimas_d = "NA"
+		mad_tajimas_d = "NA"
+		if len(all_tajimas_d) > 0:
+			median_tajimas_d = statistics.median(all_tajimas_d)
+			mad_tajimas_d = median_absolute_deviation(all_tajimas_d)
 
 		pops_with_hg = set([])
 		pop_count_with_hg = defaultdict(int)
