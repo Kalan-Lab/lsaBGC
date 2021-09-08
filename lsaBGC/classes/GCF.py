@@ -2937,7 +2937,7 @@ def popgen_analysis_of_hg(inputs):
 
 		if len(fst_like_estimates) > 0:
 			median_fst_like_est = statistics.median(fst_like_estimates)
-			
+
 		fisher_pval = "NA"
 		if len(fishers_pvals) > 0: fisher_pval = min(fishers_pvals)
 
@@ -2954,12 +2954,11 @@ def popgen_analysis_of_hg(inputs):
 		most_pos_taj_d = most_positive_tajimas_d[1]
 		if most_positive_tajimas_d[0][0] == 'NA': most_pos_taj_d = 'NA'
 
-		hg_population_info = [len(pops_with_hg), fisher_pval, '|'.join(most_positive_pop_tajimas_d[0]),
-							  median_tajimas_d, mad_tajimas_d,
+		hg_population_info = [len(pops_with_hg), fisher_pval, median_tajimas_d, mad_tajimas_d,
 							  most_neg_taj_d + '|' + ','.join(most_negative_tajimas_d[0]),
 							  most_pos_taj_d + '|' + ','.join(most_positive_tajimas_d[0]),
 							  population_entropy, median_fst_like_est,
-							 '|'.join([str(x[0]) + '=' + str(float(x[1])/population_counts[x[0]]) for x in pop_count_with_hg.items()])]
+							  '|'.join([str(x[0]) + '=' + str(float(x[1])/population_counts[x[0]]) for x in pop_count_with_hg.items()])]
 		hg_info += hg_population_info
 
 	hg_info += ['; '.join(all_domains)]
