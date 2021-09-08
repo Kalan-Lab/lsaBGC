@@ -2580,7 +2580,7 @@ def popgen_analysis_of_hg(inputs):
 
 	is_core = False
 	if (sum(core_counts.values()) > 0.0):
-		if (float(core_counts['core']) / sum(core_counts.values()) >= 0.8):
+		if (float(core_counts['core']) / sum(core_counts.values()) >= 0.5):
 			is_core = True
 
 	median_gene_length = statistics.median(gene_lengths)
