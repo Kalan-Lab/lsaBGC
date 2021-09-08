@@ -810,6 +810,7 @@ class GCF(Pan):
 					i+=1
 
 
+
 		except Exception as e:
 			if self.logObject:
 				self.logObject.error("Issues in attempting to calculate order score for each homolog group.")
@@ -888,12 +889,24 @@ class GCF(Pan):
 		p.map(popgen_analysis_of_hg, inputs)
 
 		final_output_handle = open(final_output_file, 'a+')
+		data = []
+		pvals = []
 		for f in os.listdir(popgen_dir):
 			if not f.endswith('_stats.txt'): continue
 			with open(popgen_dir + f) as opf:
 				for line in opf:
 					line = line
-					final_output_handle.write(line)
+					if population_analysis_on:
+						ls = line.split('\t')
+						pvals.append(float(ls[-9]))
+						data.append(ls)
+					else:
+						final_output_handle.write(line)
+		adj_pvals = util.p_adjust_bh(pvals)
+
+		for i, ls in enumerate(data):
+			newline = '\t'.join(ls[:-9]) + '\t' + str(adj_pvals[i]) + '\t' + '\t'.join(ls[-8:])
+			final_output_handle.write(newline + '\n')
 		final_output_handle.close()
 
 	def identifyGCFInstances(self, outdir, sample_prokka_data, orthofinder_matrix_file, min_size=5, min_core_size=3,
@@ -2944,7 +2957,7 @@ def popgen_analysis_of_hg(inputs):
 
 		pop_rel_freqs = []
 		for p in population_counts:
-			prf = population_counts[p]/sum(population_counts.values())
+			prf = float(population_counts[p])/float(sum(population_counts.values()))
 			pop_rel_freqs.append(prf)
 
 		population_entropy = entropy(pop_rel_freqs, base=2)
