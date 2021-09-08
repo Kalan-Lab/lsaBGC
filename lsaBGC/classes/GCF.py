@@ -2894,7 +2894,7 @@ def popgen_analysis_of_hg(inputs):
 
 		fishers_pvals = []
 		fst_like_estimates = []
-		for pop in pop_count_with_hg:
+		for pi, pop in enumerate(pop_count_with_hg):
 			other_count = sum([x[1] for x in pop_count_with_hg.items() if x[0] != pop])
 			other_total = sum([x[1] for x in population_counts.items() if x[0] != pop])
 			odds, pval = fisher_exact([[pop_count_with_hg[pop], population_counts[pop]], [other_count, other_total]])
@@ -2914,8 +2914,8 @@ def popgen_analysis_of_hg(inputs):
 			pi_within = 0.0
 			if len(pds_within) > 0:
 				pi_within = statistics.median(pds_within)
-			for comp_pop in pop_count_with_hg:
-				if pop != comp_pop:
+			for cpi, comp_pop in enumerate(pop_count_with_hg):
+				if pop != comp_pop and cpi > pi:
 					pds_between = []
 					for si1, s1 in enumerate(sorted(population_samples[pop])):
 						for si2, s2 in enumerate(sorted(population_samples[comp_pop])):
@@ -2935,7 +2935,9 @@ def popgen_analysis_of_hg(inputs):
 						else:
 							fst_like_estimates.append(0.0)
 
-		median_fst_like_est = statistics.median(fst_like_estimates)
+		if len(fst_like_estimates) > 0:
+			median_fst_like_est = statistics.median(fst_like_estimates)
+			
 		fisher_pval = "NA"
 		if len(fishers_pvals) > 0: fisher_pval = min(fishers_pvals)
 
