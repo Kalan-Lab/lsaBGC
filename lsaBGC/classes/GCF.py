@@ -846,7 +846,7 @@ class GCF(Pan):
 		if not os.path.isdir(plots_dir): os.system('mkdir %s' % plots_dir)
 
 		final_output_handle = open(final_output_file, 'w')
-		header = ['gcf_id', 'homolog_group', 'annotation', 'hg_order_index', 'hg_consensus_direction',
+		header = ['gcf_id', 'gcf_annotation', 'homolog_group', 'annotation', 'hg_order_index', 'hg_consensus_direction',
 				  'hg_median_copy_count', 'median_gene_length', 'is_core_to_bgc', 'num_of_hg_instances',
 				  'samples_with_hg', 'proportion_of_samples_with_hg', 'ambiguous_sites_proporition', 'Tajimas_D',
 				  'proportion_variable_sites', 'proportion_nondominant_major_allele', 'median_beta_rd', 'median_dn_ds',

@@ -388,8 +388,8 @@ def lsaBGC_AutoAnalyze():
 						combined_gene_plotting_input_handle.write('\t'.join(ls[:3] + ls[4:7] + ['gene_start', 'gene_stop'] + ls[7:-2]) + '\n')
 					else:
 						combined_gene_plotting_input_handle.write('\t'.join(ls[:3] + ls[4:7] + ['gene_start', 'gene_stop'] + ls[7:-1]) + '\n')
-				elif ls[3] != 'NA':
-					data.append([int(ls[3]), ls])
+				elif ls[4] != 'NA':
+					data.append([int(ls[4]), ls])
 
 		previous_end = 1
 		for tupls in sorted(data, key=itemgetter(0)):
@@ -406,7 +406,7 @@ def lsaBGC_AutoAnalyze():
 				if i == 0: continue
 				line = line.strip()
 				ls = line.split('\t')
-				hg_ordering[ls[1]] = ls[3]
+				hg_ordering[ls[2]] = ls[4]
 
 		gcf_pop_stats_outdir = gcf_pop_outdir + 'Codon_PopGen_Analyses/'
 		gcf_consensus_sim_plot_lines = []
