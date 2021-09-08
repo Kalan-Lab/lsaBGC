@@ -385,9 +385,9 @@ def lsaBGC_AutoAnalyze():
 				if j == 0 and not include_header: continue
 				elif j == 0 and include_header:
 					if population_analysis:
-						combined_gene_plotting_input_handle.write('\t'.join(ls[:2] + ls[3:6] + ['gene_start', 'gene_stop'] + ls[6:-3]) + '\n')
+						combined_gene_plotting_input_handle.write('\t'.join(ls[:3] + ls[4:7] + ['gene_start', 'gene_stop'] + ls[7:-2]) + '\n')
 					else:
-						combined_gene_plotting_input_handle.write('\t'.join(ls[:2] + ls[3:6] + ['gene_start', 'gene_stop'] + ls[6:-1]) + '\n')
+						combined_gene_plotting_input_handle.write('\t'.join(ls[:3] + ls[4:7] + ['gene_start', 'gene_stop'] + ls[7:-1]) + '\n')
 				elif ls[3] != 'NA':
 					data.append([int(ls[3]), ls])
 
@@ -395,9 +395,9 @@ def lsaBGC_AutoAnalyze():
 		for tupls in sorted(data, key=itemgetter(0)):
 			ls = tupls[1]
 			if population_analysis:
-				combined_gene_plotting_input_handle.write('\t'.join(ls[:2] + ls[3:6] + [str(previous_end), str(previous_end + int(float(ls[6])))] + ls[6:-2]) + '\n')
+				combined_gene_plotting_input_handle.write('\t'.join(ls[:3] + ls[4:7] + [str(previous_end), str(previous_end + int(float(ls[6])))] + ls[7:-2]) + '\n')
 			else:
-				combined_gene_plotting_input_handle.write('\t'.join(ls[:2] + ls[3:6] + [str(previous_end), str(previous_end + int(float(ls[6])))] + ls[6:-1]) + '\n')
+				combined_gene_plotting_input_handle.write('\t'.join(ls[:3] + ls[4:7] + [str(previous_end), str(previous_end + int(float(ls[6])))] + ls[7:-1]) + '\n')
 			previous_end = previous_end + int(float(ls[6])) + 1
 
 		hg_ordering = defaultdict(lambda: 'NA')

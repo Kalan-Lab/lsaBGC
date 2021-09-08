@@ -858,8 +858,7 @@ class GCF(Pan):
 			header += ['populations_with_hg', 'most_significant_Fisher_exact_pvalues_presence_absence',
 					   'median_Tajimas_D_per_population', 'mad_Tajimas_D_per_population',
 					   'most_negative_population_Tajimas_D', 'most_positive_population_Tajimas_D', 'population_entropy',
-					   'min_fst_like_estimate', 'max_fst_like_estimate', 'population_proportion_of_members_with_hg',
-					   'all_domains']
+					   'median_fst_like_estimate', 'population_proportion_of_members_with_hg', 'all_domains']
 
 		final_output_handle.write('\t'.join(header) + '\n')
 
@@ -2912,7 +2911,9 @@ def popgen_analysis_of_hg(inputs):
 								min_diff = samp_gene_diff
 					if min_diff < 1e100:
 						pds_within.append(min_diff)
-			pi_within = statistics.median(pds_within)
+			pi_within = 0.0
+			if len(pds_within) > 0:
+				pi_within = statistics.median(pds_within)
 			for comp_pop in pop_count_with_hg:
 				if pop != comp_pop:
 					pds_between = []
@@ -2926,12 +2927,15 @@ def popgen_analysis_of_hg(inputs):
 										min_diff = samp_gene_diff
 							if min_diff < 1e100:
 								pds_between.append(min_diff)
-					pi_between = statistics.median(pds_between)
-					fst_like_est = float(pi_between - pi_within)/float(pi_between)
-					fst_like_estimates.append(fst_like_est)
+					if len(pds_between) > 0:
+						pi_between = statistics.median(pds_between)
+						if pi_between > 0:
+							fst_like_est = float(pi_between - pi_within)/float(pi_between)
+							fst_like_estimates.append(fst_like_est)
+						else:
+							fst_like_estimates.append(0.0)
 
-		max_fst_like_est = max(fst_like_estimates)
-		min_fst_like_est = min(fst_like_estimates)
+		median_fst_like_est = statistics.median(fst_like_estimates)
 		fisher_pval = "NA"
 		if len(fishers_pvals) > 0: fisher_pval = min(fishers_pvals)
 
@@ -2952,7 +2956,7 @@ def popgen_analysis_of_hg(inputs):
 							  median_tajimas_d, mad_tajimas_d,
 							  most_neg_taj_d + '|' + ','.join(most_negative_tajimas_d[0]),
 							  most_pos_taj_d + '|' + ','.join(most_positive_tajimas_d[0]),
-							  population_entropy, min_fst_like_est, max_fst_like_est,
+							  population_entropy, median_fst_like_est,
 							 '|'.join([str(x[0]) + '=' + str(float(x[1])/population_counts[x[0]]) for x in pop_count_with_hg.items()])]
 		hg_info += hg_population_info
 
