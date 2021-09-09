@@ -24,12 +24,10 @@ hc.labels <- mid.njt$tip.label
 results <- cbind(hc.labels, clusters)
 write.table(results, file=txt_output_file, col.names=F, row.names=F, quote=F, sep='\t')
 
-pdf(pdf_output_file, height=10, width=14)
 results.data.frame <- as.data.frame(cbind(hc.labels, clusters))
 colnames(results.data.frame) <- c("name", "type")
-rownames(results.data.frame) <- results.data.frame$name
-results.data.frame <-  results.data.frame[,2, drop=FALSE]
 
+pdf(pdf_output_file, height=10, width=14)
 p <- ggtree(tree, layout="circular")
 p <- p %<+% results.data.frame + geom_tippoint(aes(color=as.factor(type)))
 print(p)
