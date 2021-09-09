@@ -29,7 +29,7 @@ results.data.frame <- as.data.frame(cbind(hc.labels, clusters))
 colnames(results.data.frame) <- c("node", "type")
 rownames(results.data.frame) <- results.data.frame$node
 results.data.frame <-  results.data.frame[,2, drop=FALSE]
-p <- ggtree(phylo.tree, layout="circular")
+p <- ggtree(mid.njt, layout="circular")
 p <- p %<+% track_data + geom_tippoint(aes(color=type))
 print(p)
 dev.off()
