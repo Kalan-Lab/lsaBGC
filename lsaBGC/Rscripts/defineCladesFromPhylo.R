@@ -26,7 +26,7 @@ write.table(results, file=txt_output_file, col.names=F, row.names=F, quote=F, se
 
 pdf(pdf_output_file, height=10, width=14)
 results.data.frame <- as.data.frame(cbind(hc.labels, clusters))
-colnames(results.data.frame) <- c("node", "type")
+colnames(results.data.frame) <- c("name", "type")
 rownames(results.data.frame) <- results.data.frame$node
 results.data.frame <-  results.data.frame[,2, drop=FALSE]
 p <- ggtree(mid.njt, layout="circular")
