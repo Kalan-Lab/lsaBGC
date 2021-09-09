@@ -29,7 +29,8 @@ results.data.frame <- as.data.frame(cbind(hc.labels, clusters))
 colnames(results.data.frame) <- c("name", "type")
 rownames(results.data.frame) <- results.data.frame$node
 results.data.frame <-  results.data.frame[,2, drop=FALSE]
-p <- ggtree(mid.njt, layout="circular")
-p <- p %<+% results.data.frame + geom_tippoint(aes(color=type))
+
+p <- ggtree(tree, layout="circular")
+p <- p %<+% results.data.frame + geom_tippoint(aes(color=as.factor(type)))
 print(p)
 dev.off()
