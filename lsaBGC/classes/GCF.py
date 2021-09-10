@@ -817,7 +817,7 @@ class GCF(Pan):
 				self.logObject.error(traceback.format_exc())
 			raise RuntimeError(traceback.format_exc())
 
-	def runPopulationGeneticsAnalysis(self, outdir, cores=1, population=None, filter_outliers=False, population_analysis_on=False, gw_pairwise_similarities=None, comparem_used=False, species_phylogeny=None, sample_size=1024):
+	def runPopulationGeneticsAnalysis(self, outdir, cores=1, population=None, filter_outliers=False, population_analysis_on=False, gw_pairwise_similarities=None, comparem_used=False, species_phylogeny=None, sample_size=1000):
 		"""
 		Wrapper function which serves to parallelize population genetics analysis.
 
@@ -2739,17 +2739,17 @@ def popgen_analysis_of_hg(inputs):
 				high_ambiguity_sequences.add(rec.id)
 
 	sequences_filtered = defaultdict(lambda: '')
-	sequences_filtered_singleton_codons_allowed = defaultdict(lambda: '')
 	for cod_index in range(0, num_codons):
 		cod_count = defaultdict(int)
 		for bgc in bgc_codons:
+			if bgc in high_ambiguity_sequences: continue
 			cod = bgc_codons[bgc][cod_index].replace('N', '-')
 			if not '-' in cod:
 				cod_count[cod] += 1
 
-		singleton_codons = set([])
-		for cod in cod_count:
-			if cod_count[cod] == 1: singleton_codons.add(cod)
+		#singleton_codons = set([])
+		#for cod in cod_count:
+		#	if cod_count[cod] == 1: singleton_codons.add(cod)
 
 		aa_count = defaultdict(int)
 		cod_count = defaultdict(int)
@@ -2757,7 +2757,7 @@ def popgen_analysis_of_hg(inputs):
 		for bgc in bgc_codons:
 			if bgc in high_ambiguity_sequences: continue
 			cod = bgc_codons[bgc][cod_index].replace('N', '-')
-			if cod in singleton_codons or '-' in cod: cod = '---'
+			if '-' in cod: cod = '---'
 			aa = None
 			if '-' in cod: aa = '-'
 			else: cod_obj = Seq(cod); aa = str(cod_obj.translate())
@@ -2766,16 +2766,15 @@ def popgen_analysis_of_hg(inputs):
 			aa_count[aa] += 1
 		if len(cod_count) > 0:
 			major_codon_count = max(cod_count.values())
-			major_codon_freq = float(major_codon_count) / float(sum(cod_count.values()))
+			#major_codon_freq = float(major_codon_count) / float(sum(cod_count.values()))
 			gap_residue_freq = float(aa_count['-']) / float(sum(aa_count.values()))
-			if major_codon_freq < 0.95 and gap_residue_freq < 0.1:
+			if ((len(cod_count) >= 3) or (len(cod_count) >= 2 and gap_residue_freq == 0.0)) and gap_residue_freq < 0.1:
 				for bgc in bgc_codons:
 					if bgc in high_ambiguity_sequences: continue
 					cod = bgc_codons[bgc][cod_index].replace('N', '-')
 					if '-' in cod: cod = '---'
-					sequences_filtered_singleton_codons_allowed[bgc] += cod
-					if cod in singleton_codons: cod = '---'
 					sequences_filtered[bgc] += cod
+
 
 	median_dnds = "NA"
 	mad_dnds = "NA"
@@ -2822,7 +2821,7 @@ def popgen_analysis_of_hg(inputs):
 				mad_dnds = median_absolute_deviation(all_median_dnds)
 
 		# calculate Tajima's D
-		tajimas_d = util.calculateTajimasD(list(sequences_filtered_singleton_codons_allowed.values()))
+		tajimas_d = util.calculateTajimasD(list(sequences_filtered.values()))
 		if tajimas_d != 'NA':
 			tajimas_d = round(tajimas_d, 2)
 
@@ -2873,7 +2872,7 @@ def popgen_analysis_of_hg(inputs):
 			population_sequences = []
 			for seq_id in sequences_filtered:
 				if sample_population[seq_id.split('|')[0]] == p:
-					population_sequences.append(sequences_filtered_singleton_codons_allowed[seq_id])
+					population_sequences.append(sequences_filtered[seq_id])
 			if len(population_sequences) >= 4 and len(list(sequences_filtered.values())[0]) >= 21:
 				p_tajimas_d = util.calculateTajimasD(population_sequences)
 				if p_tajimas_d != 'NA':
