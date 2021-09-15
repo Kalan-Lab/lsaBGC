@@ -503,8 +503,8 @@ class GCF(Pan):
 					gene_sequences = util.determineOutliersByGeneLength(gene_sequences, self.logObject)
 				inputs.append([hg, gene_sequences, nucl_seq_dir, prot_seq_dir, prot_alg_dir, codo_alg_dir, cores, self.logObject])
 
-			#p = multiprocessing.Pool(pool_size)
-			#p.map(create_codon_msas, inputs)
+			p = multiprocessing.Pool(pool_size)
+			p.map(create_codon_msas, inputs)
 
 			if not filter_outliers:
 				self.nucl_seq_dir = nucl_seq_dir
