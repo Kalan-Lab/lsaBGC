@@ -64,13 +64,11 @@ def node_specific_hgs(node_id, ortho_info, col_to_sample, all_children, all_tree
 		pvalues.append(pval)
 	return([node_hgs, pvalues])
 
+LEAF_NAMES = set([])
+
 def is_innernode(i):
 	try:
-		if i.strip() == '':
-			return True
-		else:
-			float(i)
-			return True
+		assert(i  in LEAF_NAMES)
 	except:
 		return False
 
@@ -134,7 +132,8 @@ def crawlingFisher(tree, homolog_matrix, output, min_proportion):
 	all_tree_samples = set([])
 	for leaf in Tree(tree):
 		all_tree_samples.add(str(leaf).strip('\n').lstrip('-'))
-
+	LEAF_NAMES = all_tree_samples
+	
 	#print(all_tree_samples)
 	for par in direct_children:
 		print(par)
