@@ -134,7 +134,7 @@ def crawlingFisher(tree, homolog_matrix, output, min_proportion):
 		if len(all_children) >= 5:
 			node_hgs, pvalues = node_specific_hgs(par, homolog_info, col_to_sample, all_children, all_tree_samples)
 			all_node_hgs += node_hgs
-			all_pvalues += node_pvalues
+			all_pvalues += pvalues
 	out.close()
 
 	adj_pvalues = p_adjust_bh()
