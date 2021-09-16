@@ -37,14 +37,14 @@ def read_orthofile(homolog_matrix_file):
 		raise RuntimeError
 
 
-def determine_pvalue(node_id, ortho_info, col_to_sample, all_children):
+def determine_pvalue(node_id, ortho_info, col_to_sample, all_children, all_tree_samples):
 	node_hgs = []
 	pvalues = []
 	for hg in ortho_info:
 		node_hg_counts = sum([1 for i, v in enumerate(ortho_info[hg]) if col_to_sample[i] in all_children and v > 0])
 		node_no_hg_counts = sum([1 for i, v in enumerate(ortho_info[hg]) if col_to_sample[i] in all_children and v == 0])
-		other_hg_counts = sum([1 for i, v in enumerate(ortho_info[hg]) if not col_to_sample[i] in all_children and v > 0])
-		other_no_hg_counts = sum([1 for i, v in enumerate(ortho_info[hg]) if not col_to_sample[i] in all_children and v == 0])
+		other_hg_counts = sum([1 for i, v in enumerate(ortho_info[hg]) if not col_to_sample[i] in all_children and v > 0 and col_to_sample[i] in all_tree_samplesl])
+		other_no_hg_counts = sum([1 for i, v in enumerate(ortho_info[hg]) if not col_to_sample[i] in all_children and v == 0 and col_to_sample[i] in all_tree_samples])
 		odds, pval = stats.fisher_exact([[node_hg_counts, other_hg_counts], [node_no_hg_counts, other_no_hg_counts]])
 		node_prop = float(node_hg_counts)/float(node_hg_counts + node_no_hg_counts)
 		other_prop = float(other_hg_counts)/float(other_hg_counts + other_no_hg_counts)
@@ -109,10 +109,15 @@ def crawlingFisher(tree, homolog_matrix, output, min_proportion):
 
 	all_pvalues = []
 	all_node_hgs = []
+
+	all_tree_samples = set([])
+	for leaf in t:
+		all_tree_samples.add(str(leaf).strip('\n').lstrip('-'))
+
 	for par in direct_children:
 		all_children = recursively_get_children(direct_children, par)
 		if len(all_children) >= 5:
-			node_hgs, pvalues = node_specific_hgs(par, homolog_info, col_to_sample, all_children)
+			node_hgs, pvalues = node_specific_hgs(par, homolog_info, col_to_sample, all_children, all_tree_samples)
 			all_node_hgs += node_hgs
 			all_pvalues += node_pvalues
 	out.close()
