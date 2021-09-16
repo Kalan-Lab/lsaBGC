@@ -31,13 +31,13 @@ def read_orthofile(homolog_matrix_file):
 					col_to_sample[j] = val
 			else:
 				counts = []
-				for val in enumerate(ls[1:]):
+				for val in ls[1:]:
 					if val.strip() == '':
 						counts.append(0)
 					else:
 						counts.append(len(val.split(',')))
 				homolog_info[ls[0]] = counts
-				
+
 		return [col_to_sample, homolog_info]
 	except:
 		sys.stderr.write("Problem parsing homolog matrix! Please check for formatting. Exiting now ...")
