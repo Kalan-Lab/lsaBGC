@@ -146,10 +146,7 @@ def crawlingFisher(tree, homolog_matrix, output, min_proportion):
 			node_hgs, pvalues = node_specific_hgs(par, homolog_info, col_to_sample, all_children, all_tree_samples)
 			all_node_hgs += node_hgs
 			all_pvalues += pvalues
-	out.close()
-
 	adj_pvalues = p_adjust_bh(all_pvalues)
-
 	for i, data in enumerate(all_node_hgs):
 		if adj_pvalues[i] < 0.05 and data[3] >= min_proportion:
 			out.write('\t'.join([str(x) for x in [data[1], data[0], data[2], adj_pvalues[i], data[3], data[4]]]) + '\n')
