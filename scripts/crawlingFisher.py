@@ -52,6 +52,7 @@ def node_specific_hgs(node_id, ortho_info, col_to_sample, all_children, all_tree
 		node_no_hg_counts = sum([1 for i, v in enumerate(ortho_info[hg]) if col_to_sample[i] in all_children and v == 0])
 		other_hg_counts = sum([1 for i, v in enumerate(ortho_info[hg]) if not col_to_sample[i] in all_children and v > 0 and col_to_sample[i] in all_tree_samples])
 		other_no_hg_counts = sum([1 for i, v in enumerate(ortho_info[hg]) if not col_to_sample[i] in all_children and v == 0 and col_to_sample[i] in all_tree_samples])
+		print([node_hg_counts, other_hg_counts, node_no_hg_counts, other_no_hg_counts])
 		odds, pval = stats.fisher_exact([[node_hg_counts, other_hg_counts], [node_no_hg_counts, other_no_hg_counts]])
 		node_prop = 'NA'
 		other_prop = 'NA'
@@ -139,8 +140,6 @@ def crawlingFisher(tree, homolog_matrix, output, min_proportion):
 
 	adj_pvalues = p_adjust_bh(pvalues)
 
-	print(adj_pvalues)
-	print(pvalues)
 	for i, data in enumerate(all_node_hgs):
 		if adj_pvalues[i] < 0.05 and data[3] >= min_proportion:
 			out.write('\t'.join([str(x) for x in [data[1], data[0], data[2], adj_pvalues[i], data[3], data[4]]]) + '\n')
