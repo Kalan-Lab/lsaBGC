@@ -109,6 +109,7 @@ def crawlingFisher(tree, homolog_matrix, output, min_proportion):
 		sys.stderr.write("Either phylogeny or homolog matrix does not exist. Exiting now ..."); raise RuntimeError
 
 	direct_children = parse_phylogeny(tree)
+	print(direct_children)
 	col_to_sample, homolog_info = read_orthofile(homolog_matrix)
 
 	output = os.path.abspath(output)
@@ -128,13 +129,13 @@ def crawlingFisher(tree, homolog_matrix, output, min_proportion):
 	for leaf in Tree(tree):
 		all_tree_samples.add(str(leaf).strip('\n').lstrip('-'))
 
-	print(all_tree_samples)
+	#print(all_tree_samples)
 	for par in direct_children:
 		print(par)
 		all_children = recursively_get_children(direct_children, par)
 		if len(all_children) >= 5:
-			print('----------------')
-			print(all_children)
+			#print('----------------')
+			#print(all_children)
 			node_hgs, pvalues = node_specific_hgs(par, homolog_info, col_to_sample, all_children, all_tree_samples)
 			all_node_hgs += node_hgs
 			all_pvalues += pvalues
