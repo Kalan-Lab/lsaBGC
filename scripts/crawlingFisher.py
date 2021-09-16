@@ -116,6 +116,7 @@ def crawlingFisher(tree, homolog_matrix, output, min_proportion):
 	for leaf in Tree(tree):
 		all_tree_samples.add(str(leaf).strip('\n').lstrip('-'))
 
+	print(direct_children)
 	for par in direct_children:
 		print(par)
 		all_children = recursively_get_children(direct_children, par)
