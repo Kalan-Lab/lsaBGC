@@ -37,7 +37,7 @@ def read_orthofile(homolog_matrix_file):
 		raise RuntimeError
 
 
-def determine_pvalue(node_id, ortho_info, col_to_sample, all_children, all_tree_samples):
+def node_specific_hgs(node_id, ortho_info, col_to_sample, all_children, all_tree_samples):
 	node_hgs = []
 	pvalues = []
 	for hg in ortho_info:
