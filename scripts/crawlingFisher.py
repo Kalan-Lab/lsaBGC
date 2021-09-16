@@ -28,9 +28,16 @@ def read_orthofile(homolog_matrix_file):
 			ls = line.split('\t')
 			if i == 0:
 				for j, val in enumerate(ls[1:]):
-					col_to_sample[j] = len(val.split(','))
+					col_to_sample[j] = val
 			else:
-				homolog_info[ls[0]] = ls[1:]
+				counts = []
+				for val in enumerate(ls[1:]):
+					if val.strip() == '':
+						counts.append(0)
+					else:
+						counts.append(len(val.split(',')))
+				homolog_info[ls[0]] = counts
+				
 		return [col_to_sample, homolog_info]
 	except:
 		sys.stderr.write("Problem parsing homolog matrix! Please check for formatting. Exiting now ...")
