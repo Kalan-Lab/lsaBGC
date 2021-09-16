@@ -141,4 +141,4 @@ if __name__ == '__main__':
 	parser.add_argument('-p', '--min_proportion', type=float, help="Proportion of clade members which need to have at least one instance of the HG.", default=0.8, required=False)
 	args = parser.parse_args()
 
-	crawlingFisher(args.tree, args.homolog_matrix, args.output, min_proprtion)
+	crawlingFisher(args.tree, args.homolog_matrix, args.output, min_proportion)
