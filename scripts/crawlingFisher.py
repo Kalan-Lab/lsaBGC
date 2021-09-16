@@ -50,7 +50,7 @@ def node_specific_hgs(node_id, ortho_info, col_to_sample, all_children, all_tree
 	for hg in ortho_info:
 		node_hg_counts = sum([1 for i, v in enumerate(ortho_info[hg]) if col_to_sample[i] in all_children and v > 0])
 		node_no_hg_counts = sum([1 for i, v in enumerate(ortho_info[hg]) if col_to_sample[i] in all_children and v == 0])
-		other_hg_counts = sum([1 for i, v in enumerate(ortho_info[hg]) if not col_to_sample[i] in all_children and v > 0 and col_to_sample[i] in all_tree_samplesl])
+		other_hg_counts = sum([1 for i, v in enumerate(ortho_info[hg]) if not col_to_sample[i] in all_children and v > 0 and col_to_sample[i] in all_tree_samples])
 		other_no_hg_counts = sum([1 for i, v in enumerate(ortho_info[hg]) if not col_to_sample[i] in all_children and v == 0 and col_to_sample[i] in all_tree_samples])
 		odds, pval = stats.fisher_exact([[node_hg_counts, other_hg_counts], [node_no_hg_counts, other_no_hg_counts]])
 		node_prop = float(node_hg_counts)/float(node_hg_counts + node_no_hg_counts)
