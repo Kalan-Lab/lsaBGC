@@ -69,6 +69,7 @@ LEAF_NAMES = set([])
 def is_innernode(i):
 	try:
 		assert(not i  in LEAF_NAMES)
+		return True
 	except:
 		return False
 
