@@ -53,10 +53,12 @@ def determine_pvalue(node_id, ortho_info, col_to_sample, all_children, all_tree_
 	return([node_hgs, pvalues])
 
 def is_innernode(i):
-	if i.startswith("node"):
-		return True
 	try:
-		float(i); return True
+		if i.strip() == '':
+			return True
+		else:
+			float(i)
+			return True
 	except:
 		return False
 
