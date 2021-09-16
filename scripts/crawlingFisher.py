@@ -132,8 +132,9 @@ def crawlingFisher(tree, homolog_matrix, output, min_proportion):
 	all_tree_samples = set([])
 	for leaf in Tree(tree):
 		all_tree_samples.add(str(leaf).strip('\n').lstrip('-'))
+	global LEAF_NAMES
 	LEAF_NAMES = all_tree_samples
-	
+
 	#print(all_tree_samples)
 	for par in direct_children:
 		print(par)
@@ -146,7 +147,7 @@ def crawlingFisher(tree, homolog_matrix, output, min_proportion):
 			all_pvalues += pvalues
 	out.close()
 
-	adj_pvalues = p_adjust_bh(pvalues)
+	adj_pvalues = p_adjust_bh(all_pvalues)
 
 	for i, data in enumerate(all_node_hgs):
 		if adj_pvalues[i] < 0.05 and data[3] >= min_proportion:
