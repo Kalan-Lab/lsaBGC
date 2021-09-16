@@ -89,7 +89,13 @@ def recursively_get_children(direct_children_map, curr_node):
 
 def parse_phylogeny(tree):
 	try:
-		t = Tree(tree, format=1)
+		t = Tree(tree)
+		counter = 1
+		for node in t.traverse("postorder"):
+			if not node.is_leaf() and node.name.strip() == '':
+				node.name = str(counter)
+				counter += 1
+
 		direct_children = defaultdict(set)
 		for node in t.traverse("postorder"):
 			try:
