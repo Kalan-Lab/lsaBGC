@@ -115,6 +115,7 @@ def crawlingFisher(tree, homolog_matrix, output, min_proportion):
 		all_tree_samples.add(str(leaf).strip('\n').lstrip('-'))
 
 	for par in direct_children:
+		print(par)
 		all_children = recursively_get_children(direct_children, par)
 		if len(all_children) >= 5:
 			node_hgs, pvalues = node_specific_hgs(par, homolog_info, col_to_sample, all_children, all_tree_samples)
