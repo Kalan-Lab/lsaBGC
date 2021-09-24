@@ -104,7 +104,7 @@ def mktest(codon_alns, codon_table=None):
 	except:
 		pass
 	print([pval, syn_fix, nonsyn_fix, syn_poly, nonsyn_poly])
-	return([pval, syn_fix, nonsyn_fix, syn_poly, nonsyn_poly])
+	return([pval, codon_set, syn_fix, nonsyn_fix, syn_poly, nonsyn_poly])
 
 def p_adjust_bh(p):
 	"""
@@ -163,11 +163,11 @@ def comp_species(sp1, sp2, skin_species_samples, sample_seqs):
 			sp2_cod_alg_obj = CodonAlignment(sp2_seqs)
 			list_of_cod_algns = [sp1_cod_alg_obj, sp2_cod_alg_obj]
 			test = [sp2_cod_alg_obj, sp1_cod_alg_obj]
-			pval, syn_fix, nonsyn_fix, syn_poly, nonsyn_poly = mktest(list_of_cod_algns)
+			pval, codon_set_1, syn_fix, nonsyn_fix, syn_poly, nonsyn_poly = mktest(list_of_cod_algns)
 			pvalues.append(pval)
 			comp_hg_info.append([hg, sp1, sp2, sp1_prop_with_hg, sp2_prop_with_hg, syn_fix, nonsyn_fix, syn_poly, nonsyn_poly])
-			pval, syn_fix, nonsyn_fix, syn_poly, nonsyn_poly = mktest(test)
-
+			pval, codon_set_2, syn_fix, nonsyn_fix, syn_poly, nonsyn_poly = mktest(test)
+			assert(len(codon_set_1.symmetric_difference(codon_set_2)) == 0)
 	return([comp_hg_info, pvalues])
 
 def speciesComparisonMKTest(skin_associated, gcf_id, codon_alignment_file, output):
@@ -208,8 +208,9 @@ def speciesComparisonMKTest(skin_associated, gcf_id, codon_alignment_file, outpu
 					if spec in skin_species:
 						skin_species_samples[spec].add(sample)
 
-	for sp1 in sorted(skin_species):
-		for sp2 in sorted(skin_species):
+	for i, sp1 in enumerate(sorted(skin_species)):
+		for j, sp2 in enumerate(sorted(skin_species)):
+			if i >= j: continue
 			if sp1 == sp2: continue
 			comp_hg_info, pvalues = comp_species(sp1, sp2, skin_species_samples, sample_seqs)
 			all_comp_hgs += comp_hg_info
