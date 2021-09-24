@@ -106,7 +106,7 @@ def read_codalign_file(codon_alignment_listing_file):
 			with open(hg_codon_alignment_file) as ohcaf:
 				for rec in SeqIO.parse(ohcaf, 'fasta'):
 					sample = rec.id.split('|')[0]
-					sample_seqs[hg][sample] = str(rec.seq).upper().replace('N', '-')
+					sample_seqs[hg][sample].append(str(rec.seq).upper().replace('N', '-'))
 		return sample_seqs
 	except:
 		sys.stderr.write("Problem parsing codon alignment. Exiting now ...")
