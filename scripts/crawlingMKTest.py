@@ -49,6 +49,7 @@ def mktest(codon_alns, codon_table=None):
 		codon_lst.append([])
 		for i in codon_aln:
 			codon_lst[-1].append(_get_codon_list(i.seq))
+		print(codon_lst[-1])
 	codon_set = []
 	for i in range(codon_num):
 		uniq_codons = []
