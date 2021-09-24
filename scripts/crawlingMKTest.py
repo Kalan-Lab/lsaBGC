@@ -130,11 +130,11 @@ def node_mktesting(node_id, sample_seqs, all_children, all_tree_samples):
 			for seq in sample_seqs[hg][sample]:
 				other_cod_seqs.append(SeqRecord(CodonSeq(seq)))
 
-		node_cod_alg_obj = CodonAlignment(node_cod_seqs)
-		other_cod_alg_obj = CodonAlignment(other_cod_seqs)
-		list_of_cod_algns = [node_cod_alg_obj, other_cod_alg_obj]
-
-		if len(node_cod_alg_obj) >= 3 and len(other_cod_alg_obj) >= 3:
+		if len(node_cod_seqs) >= 3 and len(other_cod_seqs) >= 3:
+			node_cod_alg_obj = CodonAlignment(node_cod_seqs)
+			other_cod_alg_obj = CodonAlignment(other_cod_seqs)
+			list_of_cod_algns = [node_cod_alg_obj, other_cod_alg_obj]
+			
 			pval, syn_fix, nonsyn_fix, syn_poly, nonsyn_poly = mktest(list_of_cod_algns)
 			pvalues.append(pval)
 			node_hg_info.append(node_id, hg, '; '.join(all_children), syn_fix, nonsyn_fix, syn_poly, nonsyn_poly)
