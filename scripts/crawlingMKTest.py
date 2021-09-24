@@ -136,6 +136,7 @@ def comp_species(sp1, sp2, skin_species_samples, sample_seqs):
 				sp2_samples_with_hg.add(sample)
 				sp2_seqs.append(SeqRecord(CodonSeq(seq)))
 
+		if len(skin_species_samples[sp1]) == 0 or len(skin_species_samples[sp2]) == 0: continue
 		sp1_prop_with_hg = len(sp1_samples_with_hg)/float(len(skin_species_samples[sp1]))
 		sp2_prop_with_hg = len(sp2_samples_with_hg)/float(len(skin_species_samples[sp2]))
 
