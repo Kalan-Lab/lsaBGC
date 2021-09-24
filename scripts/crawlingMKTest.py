@@ -37,9 +37,7 @@ def mktest(codon_alns, codon_table=None):
 		raise TypeError("mktest accepts CodonAlignment list.")
 	codon_aln_len = [i.get_alignment_length() for i in codon_alns]
 	if len(set(codon_aln_len)) != 1:
-		raise RuntimeError(
-			"CodonAlignment object for mktest should be of equal length."
-		)
+		raise RuntimeError( "CodonAlignment object for mktest should be of equal length." )
 	codon_num = codon_aln_len[0] // 3
 	# prepare codon_dict (taking stop codon as an extra amino acid)
 	codon_dict = copy.deepcopy(codon_table.forward_table)
@@ -118,85 +116,47 @@ def read_codalign_file(codon_alignment_listing_file):
 		raise RuntimeError
 
 
-def node_mktesting(node_id, sample_seqs, all_children, all_tree_samples):
+def species_comparison(sp1, sp2, skin_species_samples, sample_seqs):
 	node_hg_info = []
 	pvalues = []
 
 	for hg in sample_seqs:
-		print(hg)
-		node_cod_seqs = []
-		other_cod_seqs = []
-		for sample in all_children:
-			for seq in sample_seqs[hg][sample]:
-				node_cod_seqs.append(SeqRecord(CodonSeq(seq)))
-		for sample in all_tree_samples.difference(all_children):
-			for seq in sample_seqs[hg][sample]:
-				other_cod_seqs.append(SeqRecord(CodonSeq(seq)))
+		sp1_seqs = []
+		sp2_seqs = []
+		sp1_samples_with_hg = set([])
+		sp2_samples_with_hg = set([])
 
-		if len(node_cod_seqs) >= 3 and len(other_cod_seqs) >= 3:
-			node_cod_alg_obj = CodonAlignment(node_cod_seqs)
-			other_cod_alg_obj = CodonAlignment(other_cod_seqs)
-			list_of_cod_algns = [node_cod_alg_obj, other_cod_alg_obj]
+		for sample in skin_species_samples[sp1]:
+			for seq in sample_seqs[hg][sample]:
+				sp1_samples_with_hg.add(sample)
+				sp1_seqs.append(SeqRecord(CodonSeq(seq)))
+
+		for sample in skin_species_samples[sp2]:
+			for seq in sample_seqs[hg][sample]:
+				sp2_samples_with_hg.add(sample)
+				sp2_seqs.append(SeqRecord(CodonSeq(seq)))
+
+		sp1_prop_with_hg = len(sp1_samples_with_hg)/float(len(skin_species_samples[sp1]))
+		sp2_prop_with_hg = len(sp2_samples_with_hg)/float(len(skin_species_samples[sp2]))
+
+		if sp1_prop_with_hg >= 0.25 and sp2_prop_with_hg >= 0.25:
+			sp1_cod_alg_obj = CodonAlignment(sp1_seqs)
+			sp2_cod_alg_obj = CodonAlignment(sp2_seqs)
+			list_of_cod_algns = [sp1_cod_alg_obj, sp2_cod_alg_obj]
 
 			pval, syn_fix, nonsyn_fix, syn_poly, nonsyn_poly = mktest(list_of_cod_algns)
 			pvalues.append(pval)
-			node_hg_info.append([node_id, hg, '; '.join(all_children), syn_fix, nonsyn_fix, syn_poly, nonsyn_poly])
+			comp_hg_info.append([hg, sp1, sp2, sp1_prop_with_hg, sp2_prop_with_hg, syn_fix, nonsyn_fix, syn_poly, nonsyn_poly])
 
-	return([node_hg_info, pvalues])
+	return([comp_hg_info, pvalues])
 
-LEAF_NAMES = set([])
-
-def is_innernode(i):
+def speciesComparisonMKTest(skin_associated, gcf_id, codon_alignment_file, output):
 	try:
-		assert(not i  in LEAF_NAMES)
-		return True
-	except:
-		return False
-
-
-def recursively_get_children(direct_children_map, curr_node):
-	""" feeling like fibonacci """
-	children = set([])
-	direct_children = direct_children_map[curr_node]
-	for child in direct_children:
-		if is_innernode(child):
-			children = children.union(recursively_get_children(direct_children_map, child))
-		else:
-			children.add(child)
-	return children
-
-
-def parse_phylogeny(tree):
-	try:
-		t = Tree(tree)
-		counter = 1
-		for node in t.traverse("postorder"):
-			if not node.is_leaf() and node.name.strip() == '':
-				node.name = str(counter)
-				counter += 1
-
-		direct_children = defaultdict(set)
-		for node in t.traverse("postorder"):
-			try:
-				parent_name = node.up.name
-				direct_children[parent_name].add(node.name)
-			except: pass
-		return direct_children
-	except:
-		sys.stderr.write("Problem parsing phylogeny! Please check input newick file. Exiting now ...")
-		raise RuntimeError
-
-
-def crawlingMKTest(tree, gcf_id, codon_alignment_file, output):
-	try:
-		assert (os.path.isfile(tree) and os.path.isfile(codon_alignment_file))
+		assert (os.path.isfile(input_listing) and os.path.isfile(skin_associated) and os.path.isfile(codon_alignment_file))
 	except:
 		sys.stderr.write("Either phylogeny or codon alignments listing file does not exist. Exiting now ..."); raise RuntimeError
 
-	direct_children = parse_phylogeny(tree)
-	#print(direct_children)
 	sample_seqs = read_codalign_file(codon_alignment_file)
-	print(sample_seqs['OG0000157'])
 	output = os.path.abspath(output)
 
 	try:
@@ -205,46 +165,52 @@ def crawlingMKTest(tree, gcf_id, codon_alignment_file, output):
 		sys.stderr.write("Output file already exists. Please remove/rename."); raise RuntimeError
 
 	out = open(output, 'w')
-	out.write('hg\tnode\tchildren\tadj_pvalue\tsyn_fix\tnonsyn_fix\tsyn_poly\tnonsyn_poly\n')
+	out.write('hg\tspecies_1\tspecies_2\tadj_pvalue\tprop_sp1_with_hg\tprop_sp2_with_hg\tsyn_fix\tnonsyn_fix\tsyn_poly\tnonsyn_poly\n')
 
 	all_pvalues = []
-	all_node_hgs = []
+	all_comp_hgs = []
 
-	all_tree_samples = set([])
-	for leaf in Tree(tree):
-		all_tree_samples.add(str(leaf).strip('\n').lstrip('-'))
-	global LEAF_NAMES
-	LEAF_NAMES = all_tree_samples
+	skin_species = set([])
+	with open(skin_associated) as osa:
+		for line in osa:
+			line = line.strip()
+			skin_species.add(line)
 
-	#print(all_tree_samples)
-	for par in direct_children:
-		#print(par)
-		all_children = recursively_get_children(direct_children, par)
-		if len(all_children) >= 5:
-			#print('----------------')
-			#print(all_children)
-			node_hgs, pvalues = node_mktesting(par, sample_seqs, all_children, all_tree_samples)
-			print(pvalues)
-			print(node_hgs)
-			all_node_hgs += node_hgs
+	skin_species_samples = defaultdict(set)
+	with open(codon_alignment_file) as ocaf:
+		for line in ocaf:
+			line = line.strip()
+			hg, hg_cod_alg_file = line.split('\t')
+			with open(hg_cod_alg_file) as ohcaf:
+				for rec in SeqIO.parse(ohcaf, 'fasta'):
+					sample = rec.id.split('|')[0]
+					spec = ' '.join(sample.split('_')[:2])
+					if spec in skin_species:
+						skin_species_samples[spec].add(sample)
+
+	for sp1 in sorted(skin_species):
+		for sp2 in sorted(skin_species):
+			if sp1 == sp2: continue
+			comp_hg_info, pvalues = comp_species_comparison(sp1, sp2, skin_species_samples, sample_seqs)
+			all_comp_hgs += comp_hg_info
 			all_pvalues += pvalues
 
 	adj_pvalues = p_adjust_bh(all_pvalues)
-	for i, data in enumerate(all_node_hgs):
+
+	for i, data in enumerate(all_comp_hgs):
 		if adj_pvalues[i] < 0.05:
-			out.write('\t'.join([str(x) for x in ([gcf_id, data[1], data[0]] + data[2:])]) + '\n')
+			out.write('\t'.join([str(x) for x in data[:3] + [adj_pvalues] + data[3:]]) + '\n')
 	out.close()
 
 if __name__ == '__main__':
 	# Pull out the arguments.
-	parser = argparse.ArgumentParser(description=""" This program crawls up a phylogenetic tree and runs the 
-	McDonald-Kreitman Test between the children of each innernode to the remaining sequneces/samples.""")
+	parser = argparse.ArgumentParser(description="""This program assesses directional selection based on the 
+	McDonald-Kreitman test.""")
 
-	parser.add_argument('-t', '--tree', help='Phylogenetic tree in Newick format. Inner nodes must be named!', required=True)
+	parser.add_argument('-s', '--skin_species', help='List of species associated with the skin.', required=True)
 	parser.add_argument('-i', '--gcf_id', help="GCF identifier.", required=False, default='GCF_X')
 	parser.add_argument('-a', '--codon_alignments', help="File listing the codon alignments for each homolog group in the GCF. Can be found as part of PopGene output.", required=True)
 	parser.add_argument('-o', '--output', help="Output iTol dataset file.", required=True)
 
 	args = parser.parse_args()
-
-	crawlingMKTest(args.tree, args.gcf_id, args.codon_alignments, args.output)
+	speciesComparisonMKTest(args.skin_species, args.gcf_id, args.codon_alignments, args.output)
