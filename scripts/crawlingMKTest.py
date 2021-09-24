@@ -86,8 +86,6 @@ def mktest(codon_alns, codon_table=None):
 			# fixed
 			nonsyn_subgraph = _get_subgraph(all_codon, nonsyn_G)
 			subgraph = _get_subgraph(all_codon, G)
-			print(subgraph)
-			print(nonsyn_subgraph)
 			this_non = _count_replacement(all_codon, nonsyn_subgraph)
 			this_syn = _count_replacement(all_codon, subgraph) - this_non
 			nonsyn_fix += this_non
@@ -96,6 +94,10 @@ def mktest(codon_alns, codon_table=None):
 			# not fixed
 			nonsyn_subgraph = _get_subgraph(all_codon, nonsyn_G)
 			subgraph = _get_subgraph(all_codon, G)
+			print(i)
+			print(subgraph)
+			print(nonsyn_subgraph)
+			print('---------------------------')
 			this_non = _count_replacement(all_codon, nonsyn_subgraph)
 			this_syn = _count_replacement(all_codon, subgraph) - this_non
 			nonsyn_poly += this_non
