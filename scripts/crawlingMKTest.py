@@ -77,7 +77,7 @@ def mktest(codon_alns, codon_table=None):
 	syn_fix, nonsyn_fix, syn_poly, nonsyn_poly = 0, 0, 0, 0
 	G, nonsyn_G = _get_codon2codon_matrix(codon_table=codon_table)
 	for i in codon_set:
-		if len(i[0]) == 0 or len(i[1]) == 0: continue
+		#if len(i[0]) == 0 or len(i[1]) == 0: continue
 		all_codon = i[0].union(i[1])
 		if len(all_codon) == 1: continue
 
@@ -167,7 +167,6 @@ def comp_species(sp1, sp2, skin_species_samples, sample_seqs):
 			pvalues.append(pval)
 			comp_hg_info.append([hg, sp1, sp2, sp1_prop_with_hg, sp2_prop_with_hg, syn_fix, nonsyn_fix, syn_poly, nonsyn_poly])
 			pval, codon_set_2, syn_fix, nonsyn_fix, syn_poly, nonsyn_poly = mktest(test)
-			assert(len(codon_set_1.symmetric_difference(codon_set_2)) == 0)
 	return([comp_hg_info, pvalues])
 
 def speciesComparisonMKTest(skin_associated, gcf_id, codon_alignment_file, output):
