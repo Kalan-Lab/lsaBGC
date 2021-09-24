@@ -53,8 +53,8 @@ def mktest(codon_alns, codon_table=None):
 		for i in codon_aln:
 			cod_lst = _get_codon_list(i.seq)
 			codon_lst[-1].append(cod_lst)
-			for i in range(codon_num):
-				codpos_allele_count[i][cod_lst[i]] += 1
+			for p in range(codon_num):
+				codpos_allele_count[p][cod_lst[p]] += 1
 
 	codon_set = []
 	for i in range(codon_num):
@@ -217,8 +217,8 @@ def speciesComparisonMKTest(skin_associated, gcf_id, codon_alignment_file, outpu
 	adj_pvalues = p_adjust_bh(all_pvalues)
 
 	for i, data in enumerate(all_comp_hgs):
-		if adj_pvalues[i] < 0.05:
-			out.write('\t'.join([str(x) for x in ([gcf_id] + data[:3] + [adj_pvalues] + data[3:])]) + '\n')
+		adj_pvalue = adj_pvalues[i]
+		out.write('\t'.join([str(x) for x in ([gcf_id] + data[:3] + [adj_pvalue] + data[3:])]) + '\n')
 	out.close()
 
 if __name__ == '__main__':
