@@ -128,13 +128,15 @@ def node_mktesting(node_id, sample_seqs, all_children, all_tree_samples):
 				node_cod_seqs.append(SeqRecord(CodonSeq(seq)))
 		for sample in all_tree_samples.difference(all_children):
 			for seq in sample_seqs[hg][sample]:
+				print(seq)
+				print(len(seq))
 				other_cod_seqs.append(SeqRecord(CodonSeq(seq)))
 
 		if len(node_cod_seqs) >= 3 and len(other_cod_seqs) >= 3:
 			node_cod_alg_obj = CodonAlignment(node_cod_seqs)
 			other_cod_alg_obj = CodonAlignment(other_cod_seqs)
 			list_of_cod_algns = [node_cod_alg_obj, other_cod_alg_obj]
-			
+
 			pval, syn_fix, nonsyn_fix, syn_poly, nonsyn_poly = mktest(list_of_cod_algns)
 			pvalues.append(pval)
 			node_hg_info.append(node_id, hg, '; '.join(all_children), syn_fix, nonsyn_fix, syn_poly, nonsyn_poly)
