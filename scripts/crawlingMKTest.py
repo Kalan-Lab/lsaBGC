@@ -61,10 +61,9 @@ def mktest(codon_alns, codon_table=None):
 	syn_fix, nonsyn_fix, syn_poly, nonsyn_poly = 0, 0, 0, 0
 	G, nonsyn_G = _get_codon2codon_matrix(codon_table=codon_table)
 	for i in codon_set:
-		all_codon = i[0].union(*i[1:])
-		print(all_codon)
-		if "---" in all_codon or len(all_codon) == 1:
-			continue
+		all_codon = set(i[0].union(*i[1:]))
+		all_codon = all_codon.difference(set(['---']))
+		if len(all_codon) <= 1: continue
 		fix_or_not = all(len(k) == 1 for k in i)
 		if fix_or_not:
 			# fixed
@@ -74,9 +73,10 @@ def mktest(codon_alns, codon_table=None):
 			this_syn = _count_replacement(all_codon, subgraph) - this_non
 			nonsyn_fix += this_non
 			syn_fix += this_syn
-		elif len(set(i[0])) != 1:
+		else:
 			# not fixed
-			all_codon = i[0]
+			all_codon = i[0].difference(set(['---']))
+			if len(all_codon) <= 1: continue
 			nonsyn_subgraph = _get_subgraph(all_codon, nonsyn_G)
 			subgraph = _get_subgraph(all_codon, G)
 			this_non = _count_replacement(all_codon, nonsyn_subgraph)
