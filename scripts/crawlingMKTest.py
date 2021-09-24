@@ -137,6 +137,8 @@ def node_mktesting(node_id, sample_seqs, all_children, all_tree_samples):
 			node_cod_alg_obj = CodonAlignment(node_cod_seqs)
 			print(len(other_cod_seqs))
 			print([len(x) for x in other_cod_seqs])
+			print([x for x in other_cod_seqs])
+			print(hg)
 			other_cod_alg_obj = CodonAlignment(other_cod_seqs)
 			list_of_cod_algns = [node_cod_alg_obj, other_cod_alg_obj]
 
