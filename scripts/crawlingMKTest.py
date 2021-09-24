@@ -39,31 +39,49 @@ def mktest(codon_alns, codon_table=None):
 	if len(set(codon_aln_len)) != 1:
 		raise RuntimeError( "CodonAlignment object for mktest should be of equal length." )
 	codon_num = codon_aln_len[0] // 3
+
 	# prepare codon_dict (taking stop codon as an extra amino acid)
 	codon_dict = copy.deepcopy(codon_table.forward_table)
 	for stop in codon_table.stop_codons:
 		codon_dict[stop] = "stop"
+
 	# prepare codon_lst
 	codon_lst = []
+	codpos_allele_count = defaultdict(lambda: defaultdict(int))
 	for codon_aln in codon_alns:
 		codon_lst.append([])
 		for i in codon_aln:
-			codon_lst[-1].append(_get_codon_list(i.seq))
-		print(codon_lst[-1])
+			cod_lst = _get_codon_list(i.seq)
+			codon_lst[-1].append(cod_lst)
+			for i in range(codon_num):
+				codpos_allele_count[i][cod_lst[i]] += 1
+
 	codon_set = []
 	for i in range(codon_num):
+		gap_count = codpos_allele_count[i]['---']
+		tot_count = sum(codpos_allele_count[i].values())
+		assert(tot_count > 0)
+		gap_prop = float(gap_count)/float(tot_count)
+		if gap_prop >= 0.1: continue
+
+		supported_codons = set([])
+		for cod in codpos_allele_count[i]:
+			if not '-' in cod and codpos_allele_count[cod] >= 2:
+				supported_codons.add(cod)
+
 		uniq_codons = []
 		for j in codon_lst:
 			uniq_codon = {k[i] for k in j}
-			uniq_codons.append(uniq_codon)
+			if uniq_codon in supported_codons:
+				uniq_codons.append(uniq_codon)
 		codon_set.append(uniq_codons)
+
 	syn_fix, nonsyn_fix, syn_poly, nonsyn_poly = 0, 0, 0, 0
 	G, nonsyn_G = _get_codon2codon_matrix(codon_table=codon_table)
 	for i in codon_set:
 		all_codon = set(i[0].union(*i[1:]))
-		all_codon = all_codon.difference(set(['---']))
 		if len(all_codon) <= 1: continue
-		fix_or_not = all(len(k.difference(set(['---']))) == 1 for k in i)
+		fix_or_not = all(len(k) == 1 for k in i)
 		if fix_or_not:
 			# fixed
 			nonsyn_subgraph = _get_subgraph(all_codon, nonsyn_G)
@@ -74,7 +92,7 @@ def mktest(codon_alns, codon_table=None):
 			syn_fix += this_syn
 		else:
 			# not fixed
-			all_codon = i[0].difference(set(['---']))
+			all_codon = i[0]
 			if len(all_codon) <= 1: continue
 			nonsyn_subgraph = _get_subgraph(all_codon, nonsyn_G)
 			subgraph = _get_subgraph(all_codon, G)
