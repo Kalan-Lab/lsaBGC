@@ -82,6 +82,7 @@ def mktest(codon_alns, codon_table=None):
 			nonsyn_poly += this_non
 			syn_poly += this_syn
 	pval = _G_testG_test([syn_fix, nonsyn_fix, syn_poly, nonsyn_poly])
+	print([pval, syn_fix, nonsyn_fix, syn_poly, nonsyn_poly])
 	return([pval, syn_fix, nonsyn_fix, syn_poly, nonsyn_poly])
 
 def p_adjust_bh(p):
