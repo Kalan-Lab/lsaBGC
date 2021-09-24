@@ -152,9 +152,9 @@ def species_comparison(sp1, sp2, skin_species_samples, sample_seqs):
 
 def speciesComparisonMKTest(skin_associated, gcf_id, codon_alignment_file, output):
 	try:
-		assert (os.path.isfile(input_listing) and os.path.isfile(skin_associated) and os.path.isfile(codon_alignment_file))
+		assert (os.path.isfile(skin_associated) and os.path.isfile(codon_alignment_file))
 	except:
-		sys.stderr.write("Either phylogeny or codon alignments listing file does not exist. Exiting now ..."); raise RuntimeError
+		sys.stderr.write("An input file does not exist. Exiting now ..."); raise RuntimeError
 
 	sample_seqs = read_codalign_file(codon_alignment_file)
 	output = os.path.abspath(output)
@@ -165,7 +165,7 @@ def speciesComparisonMKTest(skin_associated, gcf_id, codon_alignment_file, outpu
 		sys.stderr.write("Output file already exists. Please remove/rename."); raise RuntimeError
 
 	out = open(output, 'w')
-	out.write('hg\tspecies_1\tspecies_2\tadj_pvalue\tprop_sp1_with_hg\tprop_sp2_with_hg\tsyn_fix\tnonsyn_fix\tsyn_poly\tnonsyn_poly\n')
+	out.write('gcf_id\thg\tspecies_1\tspecies_2\tadj_pvalue\tprop_sp1_with_hg\tprop_sp2_with_hg\tsyn_fix\tnonsyn_fix\tsyn_poly\tnonsyn_poly\n')
 
 	all_pvalues = []
 	all_comp_hgs = []
@@ -199,7 +199,7 @@ def speciesComparisonMKTest(skin_associated, gcf_id, codon_alignment_file, outpu
 
 	for i, data in enumerate(all_comp_hgs):
 		if adj_pvalues[i] < 0.05:
-			out.write('\t'.join([str(x) for x in data[:3] + [adj_pvalues] + data[3:]]) + '\n')
+			out.write('\t'.join([str(x) for x in ([gcf_id] + data[:3] + [adj_pvalues] + data[3:])]) + '\n')
 	out.close()
 
 if __name__ == '__main__':
