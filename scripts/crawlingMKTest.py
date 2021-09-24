@@ -192,7 +192,7 @@ def crawlingMKTest(tree, gcf_id, codon_alignment_file, output):
 	direct_children = parse_phylogeny(tree)
 	#print(direct_children)
 	sample_seqs = read_codalign_file(codon_alignment_file)
-	print(sample_seqs)
+	print(sample_seqs['OG0000157'])
 	output = os.path.abspath(output)
 
 	try:
