@@ -140,7 +140,7 @@ def node_mktesting(node_id, sample_seqs, all_children, all_tree_samples):
 
 			pval, syn_fix, nonsyn_fix, syn_poly, nonsyn_poly = mktest(list_of_cod_algns)
 			pvalues.append(pval)
-			node_hg_info.append(node_id, hg, '; '.join(all_children), syn_fix, nonsyn_fix, syn_poly, nonsyn_poly)
+			node_hg_info.append([node_id, hg, '; '.join(all_children), syn_fix, nonsyn_fix, syn_poly, nonsyn_poly])
 
 	return([node_hg_info, pvalues])
 
