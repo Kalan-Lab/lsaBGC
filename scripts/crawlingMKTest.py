@@ -98,7 +98,7 @@ def mktest(codon_alns, codon_table=None):
 			this_syn = _count_replacement(all_codon, subgraph) - this_non
 			nonsyn_poly += this_non
 			syn_poly += this_syn
-	pval = "NA"
+	pval = np.nan
 	try:
 		pval = _G_test([syn_fix, nonsyn_fix, syn_poly, nonsyn_poly])
 	except:
