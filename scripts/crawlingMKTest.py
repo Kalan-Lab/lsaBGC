@@ -62,7 +62,7 @@ def mktest(codon_alns, codon_table=None):
 		all_codon = set(i[0].union(*i[1:]))
 		all_codon = all_codon.difference(set(['---']))
 		if len(all_codon) <= 1: continue
-		fix_or_not = all(len(k) == 1 for k in i)
+		fix_or_not = all(len(k.difference(set(['---']))) == 1 for k in i)
 		if fix_or_not:
 			# fixed
 			nonsyn_subgraph = _get_subgraph(all_codon, nonsyn_G)
