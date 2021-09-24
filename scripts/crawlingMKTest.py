@@ -63,7 +63,7 @@ def mktest(codon_alns, codon_table=None):
 	for i in codon_set:
 		all_codon = i[0].union(*i[1:])
 		print(all_codon)
-		if "-" in all_codon or len(all_codon) == 1:
+		if "---" in all_codon or len(all_codon) == 1:
 			continue
 		fix_or_not = all(len(k) == 1 for k in i)
 		if fix_or_not:
