@@ -66,7 +66,7 @@ def mktest(codon_alns, codon_table=None):
 
 		supported_codons = set([])
 		for cod in codpos_allele_count[i]:
-			if not '-' in cod and codpos_allele_count[cod] >= 2:
+			if not '-' in cod and codpos_allele_count[i][cod] >= 2:
 				supported_codons.add(cod)
 
 		uniq_codons = []
