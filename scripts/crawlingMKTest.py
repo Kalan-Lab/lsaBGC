@@ -219,8 +219,8 @@ def crawlingMKTest(tree, gcf_id, codon_alignment_file, output):
 			#print('----------------')
 			#print(all_children)
 			node_hgs, pvalues = node_mktesting(par, sample_seqs, all_children, all_tree_samples)
-			print(pvalues[-1])
-			print(node_hgs[-1])
+			print(pvalues)
+			print(node_hgs)
 			all_node_hgs += node_hgs
 			all_pvalues += pvalues
 
