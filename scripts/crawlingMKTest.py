@@ -72,15 +72,20 @@ def mktest(codon_alns, codon_table=None):
 		uniq_codons = []
 		for j in codon_lst:
 			uniq_codon = {k[i] for k in j}
-			if uniq_codon in supported_codons:
-				uniq_codons.append(uniq_codon)
+			uniq_codon_supported = set([])
+			for cod in uniq_codon:
+				if cod in supported_codons:
+					uniq_codon_supported.add(cod)
+			uniq_codons.add(uniq_codon_supported)
 		codon_set.append(uniq_codons)
 
 	syn_fix, nonsyn_fix, syn_poly, nonsyn_poly = 0, 0, 0, 0
 	G, nonsyn_G = _get_codon2codon_matrix(codon_table=codon_table)
 	for i in codon_set:
-		all_codon = i[0].union(*i[1:])
-		if len(all_codon) <= 1: continue
+		if len(i[0]) == 0 or len(i[1]) == 0: continue
+		all_codon = i[0].union(i[1])
+		if len(all_codon) == 1: continue
+
 		fix_or_not = all(len(k) == 1 for k in i)
 		if fix_or_not:
 			# fixed
