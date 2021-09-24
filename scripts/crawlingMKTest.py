@@ -97,8 +97,6 @@ def mktest(codon_alns, codon_table=None):
 			syn_fix += this_syn
 		else:
 			# not fixed
-			all_codon = i[0]
-			if len(all_codon) <= 1: continue
 			nonsyn_subgraph = _get_subgraph(all_codon, nonsyn_G)
 			subgraph = _get_subgraph(all_codon, G)
 			this_non = _count_replacement(all_codon, nonsyn_subgraph)
