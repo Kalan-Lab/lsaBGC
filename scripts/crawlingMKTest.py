@@ -163,6 +163,7 @@ def comp_species(sp1, sp2, skin_species_samples, sample_seqs):
 		sp2_prop_with_hg = len(sp2_samples_with_hg)/float(len(skin_species_samples[sp2]))
 
 		if sp1_prop_with_hg >= 0.25 and sp2_prop_with_hg >= 0.25:
+			print(hg + '\t' + sp1 + '\t' + sp2)
 			sp1_cod_alg_obj = CodonAlignment(sp1_seqs)
 			sp2_cod_alg_obj = CodonAlignment(sp2_seqs)
 			list_of_cod_algns = [sp1_cod_alg_obj, sp2_cod_alg_obj]
