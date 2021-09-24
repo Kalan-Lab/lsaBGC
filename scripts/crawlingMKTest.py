@@ -117,10 +117,11 @@ def node_mktesting(node_id, sample_seqs, all_children, all_tree_samples):
 	node_hg_info = []
 	pvalues = []
 
-	node_cod_seqs = []
-	other_cod_seqs = []
 	for hg in sample_seqs:
 		print(hg)
+
+		node_cod_seqs = []
+		other_cod_seqs = []
 		for sample in all_children:
 			for seq in sample_seqs[hg][sample]:
 				print(seq)
