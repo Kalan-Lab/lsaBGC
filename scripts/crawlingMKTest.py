@@ -56,7 +56,6 @@ def mktest(codon_alns, codon_table=None):
 			for p in range(codon_num):
 				codpos_allele_count[p][cod_lst[p]] += 1
 
-	print(codpos_allele_count)
 	codon_set = []
 	for i in range(codon_num):
 		gap_count = codpos_allele_count[i]['---']
@@ -75,12 +74,11 @@ def mktest(codon_alns, codon_table=None):
 			uniq_codons.append(uniq_codon_filt)
 		codon_set.append(uniq_codons)
 
-	print(sorted(codon_set))
 	syn_fix, nonsyn_fix, syn_poly, nonsyn_poly = 0, 0, 0, 0
 	G, nonsyn_G = _get_codon2codon_matrix(codon_table=codon_table)
 	for i in codon_set:
 		#if len(i[0]) == 0 or len(i[1]) == 0: continue
-		all_codon = sorted(i[0].union(i[1]))
+		all_codon = i[0].union(i[1])
 		if len(all_codon) == 1: continue
 
 		fix_or_not = all(len(k) == 1 for k in i)
@@ -88,6 +86,8 @@ def mktest(codon_alns, codon_table=None):
 			# fixed
 			nonsyn_subgraph = _get_subgraph(all_codon, nonsyn_G)
 			subgraph = _get_subgraph(all_codon, G)
+			print(subgraph)
+			print(nonsyn_subgraph)
 			this_non = _count_replacement(all_codon, nonsyn_subgraph)
 			this_syn = _count_replacement(all_codon, subgraph) - this_non
 			nonsyn_fix += this_non
@@ -159,7 +159,7 @@ def comp_species(sp1, sp2, skin_species_samples, sample_seqs):
 		sp1_prop_with_hg = len(sp1_samples_with_hg)/float(len(skin_species_samples[sp1]))
 		sp2_prop_with_hg = len(sp2_samples_with_hg)/float(len(skin_species_samples[sp2]))
 
-		if sp1_prop_with_hg >= 0.25 and sp2_prop_with_hg >= 0.25:
+		if len(sp1_seqs) >= 3 and len(sp2_seqs) >= 3 and sp1_prop_with_hg >= 0.25 and sp2_prop_with_hg >= 0.25:
 			print(hg + '\t' + sp1 + '\t' + sp2)
 			sp1_cod_alg_obj = CodonAlignment(sp1_seqs)
 			sp2_cod_alg_obj = CodonAlignment(sp2_seqs)
