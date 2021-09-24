@@ -76,7 +76,7 @@ def mktest(codon_alns, codon_table=None):
 			for cod in uniq_codon:
 				if cod in supported_codons:
 					uniq_codon_supported.add(cod)
-			uniq_codons.add(uniq_codon_supported)
+			uniq_codons.append(uniq_codon_supported)
 		codon_set.append(uniq_codons)
 
 	syn_fix, nonsyn_fix, syn_poly, nonsyn_poly = 0, 0, 0, 0
