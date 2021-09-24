@@ -9,6 +9,7 @@ from ete3 import Tree
 import numpy as np
 from Bio.SeqRecord import SeqRecord
 from Bio.codonalign.codonalignment import CodonAlignment
+from Bio import SeqIO
 
 from Bio.Align import MultipleSeqAlignment
 from Bio.SeqRecord import SeqRecord
