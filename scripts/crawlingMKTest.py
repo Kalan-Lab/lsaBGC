@@ -114,13 +114,11 @@ def read_codalign_file(codon_alignment_listing_file):
 
 
 def node_mktesting(node_id, sample_seqs, all_children, all_tree_samples):
-	node_hgs = []
+	node_hg_info = []
 	pvalues = []
 
 	node_cod_seqs = []
 	other_cod_seqs = []
-
-	node_hg_info = []
 	for hg in sample_seqs:
 		print(hg)
 		for sample in all_children:
@@ -193,7 +191,7 @@ def crawlingMKTest(tree, gcf_id, codon_alignment_file, output):
 
 	direct_children = parse_phylogeny(tree)
 	print(direct_children)
-	sample_seqs = read_codalign_file((codon_alignment_file))
+	sample_seqs = read_codalign_file(codon_alignment_file)
 	output = os.path.abspath(output)
 
 	try:
