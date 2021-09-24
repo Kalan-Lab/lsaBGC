@@ -80,8 +80,7 @@ def mktest(codon_alns, codon_table=None):
 	G, nonsyn_G = _get_codon2codon_matrix(codon_table=codon_table)
 	for i in codon_set:
 		#if len(i[0]) == 0 or len(i[1]) == 0: continue
-		assert(len(i) == 2)
-		all_codon = i[0].union(i[1])
+		all_codon = sorted(i[0].union(i[1]))
 		if len(all_codon) == 1: continue
 
 		fix_or_not = all(len(k) == 1 for k in i)
