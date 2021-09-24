@@ -119,27 +119,17 @@ def node_mktesting(node_id, sample_seqs, all_children, all_tree_samples):
 
 	for hg in sample_seqs:
 		print(hg)
-
 		node_cod_seqs = []
 		other_cod_seqs = []
 		for sample in all_children:
 			for seq in sample_seqs[hg][sample]:
-				print(seq)
-				print(len(seq))
 				node_cod_seqs.append(SeqRecord(CodonSeq(seq)))
 		for sample in all_tree_samples.difference(all_children):
 			for seq in sample_seqs[hg][sample]:
-				print(seq)
-				print(len(seq))
 				other_cod_seqs.append(SeqRecord(CodonSeq(seq)))
 
 		if len(node_cod_seqs) >= 3 and len(other_cod_seqs) >= 3:
-			print([len(x) for x in node_cod_seqs])
 			node_cod_alg_obj = CodonAlignment(node_cod_seqs)
-			print(len(other_cod_seqs))
-			print([len(x) for x in other_cod_seqs])
-			print([x for x in other_cod_seqs])
-			print(hg)
 			other_cod_alg_obj = CodonAlignment(other_cod_seqs)
 			list_of_cod_algns = [node_cod_alg_obj, other_cod_alg_obj]
 
@@ -229,6 +219,8 @@ def crawlingMKTest(tree, gcf_id, codon_alignment_file, output):
 			#print('----------------')
 			#print(all_children)
 			node_hgs, pvalues = node_mktesting(par, sample_seqs, all_children, all_tree_samples)
+			print(pvalues[-1])
+			print(node_hgs[-1])
 			all_node_hgs += node_hgs
 			all_pvalues += pvalues
 
