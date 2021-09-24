@@ -9,7 +9,6 @@ from ete3 import Tree
 import numpy as np
 from Bio.Alphabet import generic_dna
 from Bio.SeqRecord import SeqRecord
-from Bio.Alphabet import IUPAC, Gapped
 from Bio.codonalign.codonalignment import CodonAlignment
 
 from Bio.Align import MultipleSeqAlignment
