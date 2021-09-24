@@ -190,8 +190,9 @@ def crawlingMKTest(tree, gcf_id, codon_alignment_file, output):
 		sys.stderr.write("Either phylogeny or codon alignments listing file does not exist. Exiting now ..."); raise RuntimeError
 
 	direct_children = parse_phylogeny(tree)
-	print(direct_children)
+	#print(direct_children)
 	sample_seqs = read_codalign_file(codon_alignment_file)
+	print(sample_seqs)
 	output = os.path.abspath(output)
 
 	try:
@@ -213,7 +214,7 @@ def crawlingMKTest(tree, gcf_id, codon_alignment_file, output):
 
 	#print(all_tree_samples)
 	for par in direct_children:
-		print(par)
+		#print(par)
 		all_children = recursively_get_children(direct_children, par)
 		if len(all_children) >= 5:
 			#print('----------------')
