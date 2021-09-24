@@ -116,8 +116,8 @@ def read_codalign_file(codon_alignment_listing_file):
 		raise RuntimeError
 
 
-def species_comparison(sp1, sp2, skin_species_samples, sample_seqs):
-	node_hg_info = []
+def comp_species(sp1, sp2, skin_species_samples, sample_seqs):
+	comp_hg_info = []
 	pvalues = []
 
 	for hg in sample_seqs:
@@ -191,7 +191,7 @@ def speciesComparisonMKTest(skin_associated, gcf_id, codon_alignment_file, outpu
 	for sp1 in sorted(skin_species):
 		for sp2 in sorted(skin_species):
 			if sp1 == sp2: continue
-			comp_hg_info, pvalues = comp_species_comparison(sp1, sp2, skin_species_samples, sample_seqs)
+			comp_hg_info, pvalues = comp_species(sp1, sp2, skin_species_samples, sample_seqs)
 			all_comp_hgs += comp_hg_info
 			all_pvalues += pvalues
 
