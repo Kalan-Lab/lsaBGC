@@ -56,6 +56,7 @@ def mktest(codon_alns, codon_table=None):
 			for p in range(codon_num):
 				codpos_allele_count[p][cod_lst[p]] += 1
 
+	print(codpos_allele_count)
 	codon_set = []
 	for i in range(codon_num):
 		gap_count = codpos_allele_count[i]['---']
@@ -66,7 +67,7 @@ def mktest(codon_alns, codon_table=None):
 
 		uniq_codons = []
 		for j in codon_lst:
-			uniq_codon = {k[i] for k in j}
+			uniq_codon = set([k[i] for k in j])
 			uniq_codon_filt = set([])
 			for cod in uniq_codon:
 				if not '-' in cod:
@@ -74,6 +75,7 @@ def mktest(codon_alns, codon_table=None):
 			uniq_codons.append(uniq_codon_filt)
 		codon_set.append(uniq_codons)
 
+	print(sorted(codon_set))
 	syn_fix, nonsyn_fix, syn_poly, nonsyn_poly = 0, 0, 0, 0
 	G, nonsyn_G = _get_codon2codon_matrix(codon_table=codon_table)
 	for i in codon_set:
