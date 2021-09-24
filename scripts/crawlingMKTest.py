@@ -79,7 +79,7 @@ def mktest(codon_alns, codon_table=None):
 	syn_fix, nonsyn_fix, syn_poly, nonsyn_poly = 0, 0, 0, 0
 	G, nonsyn_G = _get_codon2codon_matrix(codon_table=codon_table)
 	for i in codon_set:
-		all_codon = set(i[0].union(*i[1:]))
+		all_codon = i[0].union(*i[1:])
 		if len(all_codon) <= 1: continue
 		fix_or_not = all(len(k) == 1 for k in i)
 		if fix_or_not:
