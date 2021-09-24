@@ -122,7 +122,7 @@ def node_mktesting(node_id, sample_seqs, all_children, all_tree_samples):
 
 	node_hg_info = []
 	for hg in sample_seqs:
-		print(sample_seqs)
+		print(hg)
 		for sample in all_children:
 			for seq in sample_seqs[hg][sample]:
 				node_cod_seqs.append(SeqRecord(CodonSeq(seq[1])))
@@ -132,6 +132,8 @@ def node_mktesting(node_id, sample_seqs, all_children, all_tree_samples):
 		node_cod_alg_obj = CodonAlignment(node_cod_seqs)
 		other_cod_alg_obj = CodonAlignment(other_cod_seqs)
 
+		print([len(x[1]) for x in node_cod_alg_obj])
+		print([len(x[1]) for x in other_cod_alg_obj])
 		list_of_cod_algns = [node_cod_alg_obj, other_cod_alg_obj]
 
 		pval, syn_fix, nonsyn_fix, syn_poly, nonsyn_poly = mktest(list_of_cod_algns)
