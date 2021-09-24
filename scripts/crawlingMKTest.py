@@ -124,10 +124,10 @@ def node_mktesting(node_id, sample_seqs, all_children, all_tree_samples):
 	for hg in sample_seqs:
 		for sample in all_children:
 			for seq in sample_seqs[hg][sample]:
-				node_cod_seqs.append(SeqRecord(CodonSeq(seq[1], alphabet=default_codon_alphabet), id=seq[0]))
+				node_cod_seqs.append(SeqRecord(CodonSeq(seq[1], id=seq[0])))
 		for sample in all_tree_samples.difference(all_children):
 			for seq in sample_seqs[hg][sample]:
-				other_cod_seqs.append(SeqRecord(CodonSeq(seq[1], alphabet=default_codon_alphabet), id=seq[0]))
+				other_cod_seqs.append(SeqRecord(CodonSeq(seq[1], id=seq[0])))
 		node_cod_alg_obj = CodonAlignment(node_cod_seqs)
 		other_cod_alg_obj = CodonAlignment(other_cod_seqs)
 
