@@ -64,19 +64,14 @@ def mktest(codon_alns, codon_table=None):
 		gap_prop = float(gap_count)/float(tot_count)
 		if gap_prop >= 0.1: continue
 
-		supported_codons = set([])
-		for cod in codpos_allele_count[i]:
-			if not '-' in cod and codpos_allele_count[i][cod] >= 2:
-				supported_codons.add(cod)
-
 		uniq_codons = []
 		for j in codon_lst:
 			uniq_codon = {k[i] for k in j}
-			uniq_codon_supported = set([])
+			uniq_codon_filt = set([])
 			for cod in uniq_codon:
-				if cod in supported_codons:
-					uniq_codon_supported.add(cod)
-			uniq_codons.append(uniq_codon_supported)
+				if not '-' in cod:
+					uniq_codon_filt.add(cod)
+			uniq_codons.append(uniq_codon_filt)
 		codon_set.append(uniq_codons)
 
 	syn_fix, nonsyn_fix, syn_poly, nonsyn_poly = 0, 0, 0, 0
