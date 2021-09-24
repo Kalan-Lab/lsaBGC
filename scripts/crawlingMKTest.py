@@ -113,7 +113,7 @@ def read_codalign_file(codon_alignment_listing_file):
 		raise RuntimeError
 
 
-def node_mkteting(node_id, sample_seqs, all_children, all_tree_samples):
+def node_mktesting(node_id, sample_seqs, all_children, all_tree_samples):
 	node_hgs = []
 	pvalues = []
 
