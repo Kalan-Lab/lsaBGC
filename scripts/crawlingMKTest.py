@@ -7,7 +7,6 @@ from scipy import stats
 from collections import defaultdict
 from ete3 import Tree
 import numpy as np
-from Bio.Alphabet import generic_dna
 from Bio.SeqRecord import SeqRecord
 from Bio.codonalign.codonalignment import CodonAlignment
 
