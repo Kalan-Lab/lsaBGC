@@ -53,7 +53,7 @@ def mktest(codon_alns, codon_table=None):
 		codon_lst.append([])
 		for i in codon_aln:
 			try:
-				cod_lst = _get_codon_list(i.seq)
+				cod_lst = _get_codon_list(str(i.seq))
 			except:
 				print(i.seq)
 				print(GCFID)
@@ -168,7 +168,6 @@ def comp_species(sp1, sp2, skin_species_samples, sample_seqs):
 			sp1_cod_alg_obj = CodonAlignment(sp1_seqs)
 			sp2_cod_alg_obj = CodonAlignment(sp2_seqs)
 			list_of_cod_algns = [sp1_cod_alg_obj, sp2_cod_alg_obj]
-			test = [sp2_cod_alg_obj, sp1_cod_alg_obj]
 			pval, syn_fix, nonsyn_fix, syn_poly, nonsyn_poly = mktest(list_of_cod_algns)
 			pvalues.append(pval)
 			comp_hg_info.append([hg, sp1, sp2, sp1_prop_with_hg, sp2_prop_with_hg, syn_fix, nonsyn_fix, syn_poly, nonsyn_poly])
