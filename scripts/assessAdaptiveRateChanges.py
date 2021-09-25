@@ -18,7 +18,7 @@ from Bio import BiopythonWarning
 from Bio.codonalign.codonseq import _get_codon_list, CodonSeq, cal_dn_ds
 from Bio.codonalign.chisq import chisqprob
 from Bio.codonalign.codonalignment import _get_codon2codon_matrix, _get_subgraph, _count_replacement
-from scipy.stats import chisquare
+from scipy.stats import power_divergence
 GCFID = None
 def mktest(codon_alns, codon_table=None):
 	"""McDonald-Kreitman test for neutrality.
@@ -106,7 +106,7 @@ def mktest(codon_alns, codon_table=None):
 	pval = np.nan
 	if syn_fix >= 5 and nonsyn_fix >= 5 and syn_poly >= 5 and nonsyn_poly >= 5:
 		try:
-			chisquare2, pval = chisquare([syn_fix, nonsyn_fix, syn_poly, nonsyn_poly])
+			stat, pval = power_divergence([syn_fix, nonsyn_fix], f_exp=[syn_poly, nonsyn_poly], lambda_='log-likelihood')
 		except:
 			pass
 	return([pval, syn_fix, nonsyn_fix, syn_poly, nonsyn_poly])
