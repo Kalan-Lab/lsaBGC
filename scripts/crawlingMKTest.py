@@ -134,7 +134,7 @@ def read_codalign_file(codon_alignment_listing_file):
 			with open(hg_codon_alignment_file) as ohcaf:
 				for rec in SeqIO.parse(ohcaf, 'fasta'):
 					sample = rec.id.split('|')[0]
-					sample_seqs[hg][sample].append(str(rec.seq).upper().replace('N', '-'))
+					sample_seqs[hg][sample].append(str(rec.seq).strip().upper().replace('N', '-'))
 		return sample_seqs
 	except:
 		sys.stderr.write("Problem parsing codon alignment. Exiting now ...")
@@ -154,12 +154,12 @@ def comp_species(sp1, sp2, skin_species_samples, sample_seqs):
 		for sample in skin_species_samples[sp1]:
 			for seq in sample_seqs[hg][sample]:
 				sp1_samples_with_hg.add(sample)
-				sp1_seqs.append(SeqRecord(CodonSeq(seq)))
+				sp1_seqs.append(CodonSeq(seq))
 
 		for sample in skin_species_samples[sp2]:
 			for seq in sample_seqs[hg][sample]:
 				sp2_samples_with_hg.add(sample)
-				sp2_seqs.append(SeqRecord(CodonSeq(seq)))
+				sp2_seqs.append(CodonSeq(seq))
 
 		if len(skin_species_samples[sp1]) == 0 or len(skin_species_samples[sp2]) == 0: continue
 		sp1_prop_with_hg = len(sp1_samples_with_hg)/float(len(skin_species_samples[sp1]))
