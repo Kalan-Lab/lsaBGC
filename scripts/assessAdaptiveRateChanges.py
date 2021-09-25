@@ -105,10 +105,7 @@ def mktest(codon_alns, codon_table=None):
 
 	pval = np.nan
 	if syn_fix >= 5 and nonsyn_fix >= 5 and syn_poly >= 5 and nonsyn_poly >= 5:
-		try:
-			stat, pval = power_divergence([syn_fix, nonsyn_fix], f_exp=[syn_poly, nonsyn_poly], lambda_='log-likelihood')
-		except:
-			pass
+		stat, pval = power_divergence([syn_poly, nonsyn_poly], f_exp=[syn_fix, nonsyn_fix], lambda_=0)
 	return([pval, syn_fix, nonsyn_fix, syn_poly, nonsyn_poly])
 
 def p_adjust_bh(p):
