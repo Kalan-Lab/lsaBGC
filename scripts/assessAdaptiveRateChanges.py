@@ -222,13 +222,13 @@ def speciesComparisonMKTest(skin_associated, gcf_id, codon_alignment_file, outpu
 	for i, data in enumerate(all_comp_hgs):
 		adj_pvalue = adj_pvalues[i]
 		sf = float(data[5])
-		nf = float(data[6])
+		nsf = float(data[6])
 		sp = float(data[7])
-		np = float(data[8])
+		nsp = float(data[8])
 		rate_fold_change = np.nan
 		if sf > 0 and sp > 0:
-			dn_ds = nf/sf
-			pn_ps = np/sp
+			dn_ds = nsf/sf
+			pn_ps = nsp/sp
 			if dn_ds > 0:
 				rate_fold_change = pn_ps/dn_ds
 			else:
