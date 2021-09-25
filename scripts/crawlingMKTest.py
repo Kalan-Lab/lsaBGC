@@ -17,7 +17,8 @@ from Bio.Data import CodonTable
 from Bio import BiopythonWarning
 from Bio.codonalign.codonseq import _get_codon_list, CodonSeq, cal_dn_ds
 from Bio.codonalign.chisq import chisqprob
-from Bio.codonalign.codonalignment import _get_codon2codon_matrix, _get_subgraph, _G_test, _count_replacement
+from Bio.codonalign.codonalignment import _get_codon2codon_matrix, _get_subgraph, _count_replacement
+from scipy.stats import chisquare
 
 def mktest(codon_alns, codon_table=None):
 	"""McDonald-Kreitman test for neutrality.
@@ -81,7 +82,7 @@ def mktest(codon_alns, codon_table=None):
 		all_codon = sorted(i[0].union(i[1]))
 		if len(all_codon) == 1: continue
 
-		fix_or_not = all(len(k) == 1 for k in i)
+		fix_or_not = ((len(i[0]) == 1) and (len(i[1]) == 1))
 		if fix_or_not:
 			# fixed
 			nonsyn_subgraph = _get_subgraph(all_codon, nonsyn_G)
@@ -90,23 +91,21 @@ def mktest(codon_alns, codon_table=None):
 			this_syn = _count_replacement(all_codon, subgraph) - this_non
 			nonsyn_fix += this_non
 			syn_fix += this_syn
-		else:
-			# not fixed
+		elif len(i[1]) == 1 and len(i[0]) > 1:
+			# only species B fixed
+			all_codon = sorted(i[0])
 			nonsyn_subgraph = _get_subgraph(all_codon, nonsyn_G)
 			subgraph = _get_subgraph(all_codon, G)
-			#print(i)
-			#print(subgraph)
-			#print(nonsyn_subgraph)
-			#print('---------------------------')
 			this_non = _count_replacement(all_codon, nonsyn_subgraph)
 			this_syn = _count_replacement(all_codon, subgraph) - this_non
 			nonsyn_poly += this_non
 			syn_poly += this_syn
 	pval = np.nan
-	try:
-		pval = _G_test([syn_fix, nonsyn_fix, syn_poly, nonsyn_poly])
-	except:
-		pass
+	if syn_fix >= 5 and nonsyn_fix >= 5 and syn_poly >= 5 and nonsyn_poly >= 5:
+		try:
+			chisquare2, pval = chisquare([syn_fix, nonsyn_fix, syn_poly, nonsyn_poly])
+		except:
+			pass
 	print([pval, syn_fix, nonsyn_fix, syn_poly, nonsyn_poly])
 	return([pval, codon_set, syn_fix, nonsyn_fix, syn_poly, nonsyn_poly])
 
@@ -213,7 +212,6 @@ def speciesComparisonMKTest(skin_associated, gcf_id, codon_alignment_file, outpu
 
 	for i, sp1 in enumerate(sorted(skin_species)):
 		for j, sp2 in enumerate(sorted(skin_species)):
-			if i >= j: continue
 			if sp1 == sp2: continue
 			comp_hg_info, pvalues = comp_species(sp1, sp2, skin_species_samples, sample_seqs)
 			all_comp_hgs += comp_hg_info
