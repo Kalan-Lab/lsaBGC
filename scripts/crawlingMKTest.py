@@ -70,7 +70,7 @@ def mktest(codon_alns, codon_table=None):
 			uniq_codon = set([k[i] for k in j])
 			uniq_codon_filt = set([])
 			for cod in uniq_codon:
-				if not '-' in cod:
+				if not '-' in cod and codpos_allele_count[i][cod] >= 2:
 					uniq_codon_filt.add(cod)
 			uniq_codons.append(uniq_codon_filt)
 		codon_set.append(uniq_codons)
@@ -106,8 +106,7 @@ def mktest(codon_alns, codon_table=None):
 			chisquare2, pval = chisquare([syn_fix, nonsyn_fix, syn_poly, nonsyn_poly])
 		except:
 			pass
-	print([pval, syn_fix, nonsyn_fix, syn_poly, nonsyn_poly])
-	return([pval, codon_set, syn_fix, nonsyn_fix, syn_poly, nonsyn_poly])
+	return([pval, syn_fix, nonsyn_fix, syn_poly, nonsyn_poly])
 
 def p_adjust_bh(p):
 	"""
@@ -169,7 +168,6 @@ def comp_species(sp1, sp2, skin_species_samples, sample_seqs):
 			pval, codon_set_1, syn_fix, nonsyn_fix, syn_poly, nonsyn_poly = mktest(list_of_cod_algns)
 			pvalues.append(pval)
 			comp_hg_info.append([hg, sp1, sp2, sp1_prop_with_hg, sp2_prop_with_hg, syn_fix, nonsyn_fix, syn_poly, nonsyn_poly])
-			pval, codon_set_2, syn_fix, nonsyn_fix, syn_poly, nonsyn_poly = mktest(test)
 	return([comp_hg_info, pvalues])
 
 def speciesComparisonMKTest(skin_associated, gcf_id, codon_alignment_file, output):
