@@ -221,7 +221,19 @@ def speciesComparisonMKTest(skin_associated, gcf_id, codon_alignment_file, outpu
 
 	for i, data in enumerate(all_comp_hgs):
 		adj_pvalue = adj_pvalues[i]
-		out.write('\t'.join([str(x) for x in ([gcf_id] + data[:3] + [all_pvalues[i], adj_pvalue] + data[3:])]) + '\n')
+		sf = float(data[5])
+		nf = float(data[6])
+		sp = float(data[7])
+		np = float(data[8])
+		rate_fold_change = np.nan
+		if sf > 0 and sp > 0:
+			dn_ds = nf/sf
+			pn_ps = np/sp
+			if dn_ds > 0:
+				rate_fold_change = pn_ps/dn_ds
+			else:
+				rate_fold_change = 'infinity'
+		out.write('\t'.join([str(x) for x in ([gcf_id] + data[:3] + [all_pvalues[i], adj_pvalue, rate_fold_change] + data[3:])]) + '\n')
 	out.close()
 
 if __name__ == '__main__':
