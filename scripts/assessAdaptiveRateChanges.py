@@ -52,13 +52,7 @@ def mktest(codon_alns, codon_table=None):
 	for codon_aln in codon_alns:
 		codon_lst.append([])
 		for i in codon_aln:
-			try:
-				cod_lst = _get_codon_list(i.seq)
-			except:
-				print(i.seq)
-				print(len(str(i.seq)))
-				print(GCFID)
-				raise RuntimeError()
+			cod_lst = [str(i.seq)[p:p + 3] for p in range(0, len(str(i.seq)), 3)]
 			codon_lst[-1].append(cod_lst)
 			for p in range(codon_num):
 				codpos_allele_count[p][cod_lst[p]] += 1
@@ -154,12 +148,12 @@ def comp_species(sp1, sp2, skin_species_samples, sample_seqs):
 		for sample in skin_species_samples[sp1]:
 			for seq in sample_seqs[hg][sample]:
 				sp1_samples_with_hg.add(sample)
-				sp1_seqs.append(CodonSeq(seq))
+				sp1_seqs.append(SeqRecord(CodonSeq(seq)))
 
 		for sample in skin_species_samples[sp2]:
 			for seq in sample_seqs[hg][sample]:
 				sp2_samples_with_hg.add(sample)
-				sp2_seqs.append(CodonSeq(seq))
+				sp2_seqs.append(SeqRecord(CodonSeq(seq)))
 
 		if len(skin_species_samples[sp1]) == 0 or len(skin_species_samples[sp2]) == 0: continue
 		sp1_prop_with_hg = len(sp1_samples_with_hg)/float(len(skin_species_samples[sp1]))
