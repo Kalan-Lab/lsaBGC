@@ -19,7 +19,7 @@ from Bio.codonalign.codonseq import _get_codon_list, CodonSeq, cal_dn_ds
 from Bio.codonalign.chisq import chisqprob
 from Bio.codonalign.codonalignment import _get_codon2codon_matrix, _get_subgraph, _count_replacement
 from scipy.stats import chisquare
-
+GCFID = None
 def mktest(codon_alns, codon_table=None):
 	"""McDonald-Kreitman test for neutrality.
 	Implement the McDonald-Kreitman test for neutrality (PMID: 1904993)
@@ -52,7 +52,12 @@ def mktest(codon_alns, codon_table=None):
 	for codon_aln in codon_alns:
 		codon_lst.append([])
 		for i in codon_aln:
-			cod_lst = _get_codon_list(i.seq)
+			try:
+				cod_lst = _get_codon_list(i.seq)
+			except:
+				print(i.seq)
+				print(GCFID)
+				raise RuntimeError()
 			codon_lst[-1].append(cod_lst)
 			for p in range(codon_num):
 				codpos_allele_count[p][cod_lst[p]] += 1
@@ -170,6 +175,8 @@ def comp_species(sp1, sp2, skin_species_samples, sample_seqs):
 	return([comp_hg_info, pvalues])
 
 def speciesComparisonMKTest(skin_associated, gcf_id, codon_alignment_file, output):
+	global GCFID
+	GCFID = gcf_id
 	try:
 		assert (os.path.isfile(skin_associated) and os.path.isfile(codon_alignment_file))
 	except:
