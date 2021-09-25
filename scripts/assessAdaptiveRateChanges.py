@@ -84,22 +84,25 @@ def mktest(codon_alns, codon_table=None):
 
 		fix_or_not = ((len(i[0]) == 1) and (len(i[1]) == 1))
 		if fix_or_not:
-			# fixed
+			# B and A fixed on different alleles
+			all_codon = [i[1][0], i[0][0]]
 			nonsyn_subgraph = _get_subgraph(all_codon, nonsyn_G)
 			subgraph = _get_subgraph(all_codon, G)
 			this_non = _count_replacement(all_codon, nonsyn_subgraph)
 			this_syn = _count_replacement(all_codon, subgraph) - this_non
 			nonsyn_fix += this_non
 			syn_fix += this_syn
-		elif len(i[1]) == 1 and len(i[0]) > 1 and list(i[1])[0] in i[0]:
-			# only species B fixed
-			all_codon = sorted(i[0])
+		elif len(i[1]) == 1 and len(i[0]) > 1 and list(i[1])[0] in i[0] and len(i[0]) == 2:
+			# only species B fixed, species A is bi-allelic at codon site with one allele matching the fixed
+			# allele in species B.
+			all_codon = [i[1][0], [x for x in i[0] if x != i[1][0]][0]]
 			nonsyn_subgraph = _get_subgraph(all_codon, nonsyn_G)
 			subgraph = _get_subgraph(all_codon, G)
 			this_non = _count_replacement(all_codon, nonsyn_subgraph)
 			this_syn = _count_replacement(all_codon, subgraph) - this_non
 			nonsyn_poly += this_non
 			syn_poly += this_syn
+
 	pval = np.nan
 	if syn_fix >= 5 and nonsyn_fix >= 5 and syn_poly >= 5 and nonsyn_poly >= 5:
 		try:
@@ -159,7 +162,7 @@ def comp_species(sp1, sp2, skin_species_samples, sample_seqs):
 		sp1_prop_with_hg = len(sp1_samples_with_hg)/float(len(skin_species_samples[sp1]))
 		sp2_prop_with_hg = len(sp2_samples_with_hg)/float(len(skin_species_samples[sp2]))
 
-		if len(sp1_seqs) >= 3 and len(sp2_seqs) >= 3 and sp1_prop_with_hg >= 0.25 and sp2_prop_with_hg >= 0.25:
+		if len(sp1_samples_with_hg) >= 3 and len(sp2_samples_with_hg) >= 3 and sp1_prop_with_hg >= 0.25 and sp2_prop_with_hg >= 0.25:
 			print(sp1 + '\t' + sp2 + '\t' + hg)
 			sp1_cod_alg_obj = CodonAlignment(sp1_seqs)
 			sp2_cod_alg_obj = CodonAlignment(sp2_seqs)
@@ -221,10 +224,10 @@ def speciesComparisonMKTest(skin_associated, gcf_id, codon_alignment_file, outpu
 
 	for i, data in enumerate(all_comp_hgs):
 		adj_pvalue = adj_pvalues[i]
-		sf = float(data[5])
-		nsf = float(data[6])
-		sp = float(data[7])
-		nsp = float(data[8])
+		sf = float(data[-4])
+		nsf = float(data[-3])
+		sp = float(data[-2])
+		nsp = float(data[-1])
 		rate_fold_change = np.nan
 		if sf > 0 and sp > 0:
 			dn_ds = nsf/sf
