@@ -53,7 +53,7 @@ def mktest(codon_alns, codon_table=None):
 		codon_lst.append([])
 		for i in codon_aln:
 			try:
-				cod_lst = _get_codon_list(str(i.seq))
+				cod_lst = _get_codon_list(i.seq)
 			except:
 				print(i.seq)
 				print(GCFID)
@@ -165,12 +165,14 @@ def comp_species(sp1, sp2, skin_species_samples, sample_seqs):
 		sp2_prop_with_hg = len(sp2_samples_with_hg)/float(len(skin_species_samples[sp2]))
 
 		if len(sp1_seqs) >= 3 and len(sp2_seqs) >= 3 and sp1_prop_with_hg >= 0.25 and sp2_prop_with_hg >= 0.25:
+			print(sp1 + '\t' + sp2 + '\t' + hg)
 			sp1_cod_alg_obj = CodonAlignment(sp1_seqs)
 			sp2_cod_alg_obj = CodonAlignment(sp2_seqs)
 			list_of_cod_algns = [sp1_cod_alg_obj, sp2_cod_alg_obj]
 			pval, syn_fix, nonsyn_fix, syn_poly, nonsyn_poly = mktest(list_of_cod_algns)
 			pvalues.append(pval)
 			comp_hg_info.append([hg, sp1, sp2, sp1_prop_with_hg, sp2_prop_with_hg, syn_fix, nonsyn_fix, syn_poly, nonsyn_poly])
+			print([pval, syn_fix, nonsyn_fix, syn_poly, nonsyn_poly])
 	return([comp_hg_info, pvalues])
 
 def speciesComparisonMKTest(skin_associated, gcf_id, codon_alignment_file, output):
