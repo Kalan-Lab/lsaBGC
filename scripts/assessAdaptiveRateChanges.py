@@ -85,7 +85,7 @@ def mktest(codon_alns, codon_table=None):
 		fix_or_not = ((len(i[0]) == 1) and (len(i[1]) == 1))
 		if fix_or_not:
 			# B and A fixed on different alleles
-			all_codon = [i[1][0], i[0][0]]
+			all_codon = [list(i[1])[0], list(i[0])[0]]
 			nonsyn_subgraph = _get_subgraph(all_codon, nonsyn_G)
 			subgraph = _get_subgraph(all_codon, G)
 			this_non = _count_replacement(all_codon, nonsyn_subgraph)
@@ -95,7 +95,7 @@ def mktest(codon_alns, codon_table=None):
 		elif len(i[1]) == 1 and len(i[0]) > 1 and list(i[1])[0] in i[0] and len(i[0]) == 2:
 			# only species B fixed, species A is bi-allelic at codon site with one allele matching the fixed
 			# allele in species B.
-			all_codon = [i[1][0], [x for x in i[0] if x != i[1][0]][0]]
+			all_codon = [list(i[1])[0], [x for x in i[0] if x != list(i[1])[0]][0]]
 			nonsyn_subgraph = _get_subgraph(all_codon, nonsyn_G)
 			subgraph = _get_subgraph(all_codon, G)
 			this_non = _count_replacement(all_codon, nonsyn_subgraph)
