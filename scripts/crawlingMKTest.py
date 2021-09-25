@@ -29,7 +29,7 @@ def _count_replacement(codon_set, G):
 		codons = list(codon_set)
 		ord1 = floor(G[codons[0]][codons[1]])
 		ord2 = floor(G[codons[1]][codons[0]])
-		return(floor([ord1, ord2]))
+		return(min([ord1, ord2]))
 	else:
 		codons = list(codon_set)
 		return _prim(G)
