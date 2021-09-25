@@ -91,7 +91,7 @@ def mktest(codon_alns, codon_table=None):
 			this_syn = _count_replacement(all_codon, subgraph) - this_non
 			nonsyn_fix += this_non
 			syn_fix += this_syn
-		elif len(i[1]) == 1 and len(i[0]) > 1:
+		elif len(i[1]) == 1 and len(i[0]) > 1 and list(i[1])[0] in i[0]:
 			# only species B fixed
 			all_codon = sorted(i[0])
 			nonsyn_subgraph = _get_subgraph(all_codon, nonsyn_G)
