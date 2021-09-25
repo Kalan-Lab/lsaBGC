@@ -17,7 +17,7 @@ from Bio.Data import CodonTable
 from Bio import BiopythonWarning
 from Bio.codonalign.codonseq import _get_codon_list, CodonSeq, cal_dn_ds
 from Bio.codonalign.chisq import chisqprob
-from Bio.codonalign.codonalignment import _get_codon2codon_matrix, _get_subgraph, _G_test, _prim(G)
+from Bio.codonalign.codonalignment import _get_codon2codon_matrix, _get_subgraph, _G_test, _prim
 
 def _count_replacement(codon_set, G):
 	"""Count replacement needed for a given codon_set (PRIVATE)."""
