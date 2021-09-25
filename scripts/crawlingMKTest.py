@@ -17,7 +17,22 @@ from Bio.Data import CodonTable
 from Bio import BiopythonWarning
 from Bio.codonalign.codonseq import _get_codon_list, CodonSeq, cal_dn_ds
 from Bio.codonalign.chisq import chisqprob
-from Bio.codonalign.codonalignment import _get_codon2codon_matrix, _get_subgraph, _count_replacement, _G_test
+from Bio.codonalign.codonalignment import _get_codon2codon_matrix, _get_subgraph, _G_test, _prim(G)
+
+def _count_replacement(codon_set, G):
+	"""Count replacement needed for a given codon_set (PRIVATE)."""
+	from math import floor
+
+	if len(codon_set) == 1:
+		return 0, 0
+	elif len(codon_set) == 2:
+		codons = list(codon_set)
+		ord1 = floor(G[codons[0]][codons[1]])
+		ord2 = floor(G[codons[1]][codons[0]])
+		return(floor([ord1, ord2]))
+	else:
+		codons = list(codon_set)
+		return _prim(G)
 
 def mktest(codon_alns, codon_table=None):
 	"""McDonald-Kreitman test for neutrality.
@@ -94,10 +109,10 @@ def mktest(codon_alns, codon_table=None):
 			# not fixed
 			nonsyn_subgraph = _get_subgraph(all_codon, nonsyn_G)
 			subgraph = _get_subgraph(all_codon, G)
-			print(i)
-			print(subgraph)
-			print(nonsyn_subgraph)
-			print('---------------------------')
+			#print(i)
+			#print(subgraph)
+			#print(nonsyn_subgraph)
+			#print('---------------------------')
 			this_non = _count_replacement(all_codon, nonsyn_subgraph)
 			this_syn = _count_replacement(all_codon, subgraph) - this_non
 			nonsyn_poly += this_non
