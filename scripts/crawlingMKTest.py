@@ -56,6 +56,7 @@ def mktest(codon_alns, codon_table=None):
 				cod_lst = _get_codon_list(i.seq)
 			except:
 				print(i.seq)
+				print(len(str(i.seq)))
 				print(GCFID)
 				raise RuntimeError()
 			codon_lst[-1].append(cod_lst)
