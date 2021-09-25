@@ -160,7 +160,6 @@ def comp_species(sp1, sp2, skin_species_samples, sample_seqs):
 		sp2_prop_with_hg = len(sp2_samples_with_hg)/float(len(skin_species_samples[sp2]))
 
 		if len(sp1_seqs) >= 3 and len(sp2_seqs) >= 3 and sp1_prop_with_hg >= 0.25 and sp2_prop_with_hg >= 0.25:
-			print(hg + '\t' + sp1 + '\t' + sp2)
 			sp1_cod_alg_obj = CodonAlignment(sp1_seqs)
 			sp2_cod_alg_obj = CodonAlignment(sp2_seqs)
 			list_of_cod_algns = [sp1_cod_alg_obj, sp2_cod_alg_obj]
@@ -185,7 +184,7 @@ def speciesComparisonMKTest(skin_associated, gcf_id, codon_alignment_file, outpu
 		sys.stderr.write("Output file already exists. Please remove/rename."); raise RuntimeError
 
 	out = open(output, 'w')
-	out.write('gcf_id\thg\tspecies_1\tspecies_2\tadj_pvalue\tprop_sp1_with_hg\tprop_sp2_with_hg\tsyn_fix\tnonsyn_fix\tsyn_poly\tnonsyn_poly\n')
+	out.write('gcf_id\thg\tspecies_1\tspecies_2\tpval\tadj_pvalue\tprop_sp1_with_hg\tprop_sp2_with_hg\tsyn_fix\tnonsyn_fix\tsyn_poly\tnonsyn_poly\n')
 
 	all_pvalues = []
 	all_comp_hgs = []
@@ -219,7 +218,7 @@ def speciesComparisonMKTest(skin_associated, gcf_id, codon_alignment_file, outpu
 
 	for i, data in enumerate(all_comp_hgs):
 		adj_pvalue = adj_pvalues[i]
-		out.write('\t'.join([str(x) for x in ([gcf_id] + data[:3] + [adj_pvalue] + data[3:])]) + '\n')
+		out.write('\t'.join([str(x) for x in ([gcf_id] + data[:3] + [all_pvalues[i], adj_pvalue] + data[3:])]) + '\n')
 	out.close()
 
 if __name__ == '__main__':
