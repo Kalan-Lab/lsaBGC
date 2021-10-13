@@ -688,7 +688,6 @@ class GCF(Pan):
 			for bgc in self.bgc_genes:
 					bgc_gene_counts[bgc] = len(self.bgc_genes[bgc])
 
-
 			following_hgs = defaultdict(lambda: defaultdict(int))
 			all_hgs = set(['start', 'end'])
 			direction_forward_support = defaultdict(int)
@@ -747,8 +746,8 @@ class GCF(Pan):
 
 			hg_best_score = defaultdict(int)
 			hg_all_scores = defaultdict(set)
-			for hg in all_hgs:
-				for fhg in following_hgs[hg]:
+			for hg in sorted(all_hgs):
+				for fhg in sorted(following_hgs[hg]):
 					if following_hgs[hg][fhg] > hg_best_score[fhg]:
 						hg_best_score[fhg] = following_hgs[hg][fhg]
 					hg_all_scores[fhg].add(following_hgs[hg][fhg])
@@ -793,7 +792,7 @@ class GCF(Pan):
 						break
 
 				if previous_ordered_hgs_list == ordered_hgs_list:
-					for hg in all_hgs.difference(visited_hgs):
+					for hg in sorted(all_hgs.difference(visited_hgs)):
 						for hgs in sorted(hg_all_scores[hg], reverse=True):
 							if hgs != hg_best_score[hg]:
 								hg_best_score[hg] = hgs
@@ -2928,7 +2927,7 @@ def popgen_analysis_of_hg(inputs):
 			if len(pds_within) > 0:
 				pi_within = statistics.median(pds_within)
 			for cpi, comp_pop in enumerate(pop_count_with_hg):
-				if pop != comp_pop and cpi > pi:
+				if pop != comp_pop:
 					pds_between = []
 					for si1, s1 in enumerate(sorted(population_samples[pop])):
 						for si2, s2 in enumerate(sorted(population_samples[comp_pop])):
@@ -2995,7 +2994,9 @@ def create_codon_msas(inputs):
 
 	hg_nucl_handle = open(hg_nucl_fasta, 'w')
 	hg_prot_handle = open(hg_prot_fasta, 'w')
-	for s in gene_sequences:
+	# sorted added because order of sequences might be influencing MAFFT alignment
+	# TODO: confirm this makes MAFFT results reproducible, no option for seeding apparent
+	for s in sorted(gene_sequences):
 		hg_nucl_handle.write('>' + s + '\n' + str(gene_sequences[s][0]) + '\n')
 		hg_prot_handle.write('>' + s + '\n' + str(gene_sequences[s][1]) + '\n')
 	hg_nucl_handle.close()
