@@ -807,7 +807,6 @@ class GCF(Pan):
 					self.hg_order_scores[hg] = [i, consensus_direction]
 					i+=1
 
-
 		except Exception as e:
 			if self.logObject:
 				self.logObject.error("Issues in attempting to calculate order score for each homolog group.")
