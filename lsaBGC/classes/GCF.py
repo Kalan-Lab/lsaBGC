@@ -797,7 +797,6 @@ class GCF(Pan):
 							if hgs != hg_best_score[hg]:
 								hg_best_score[hg] = hgs
 								break
-
 				previous_ordered_hgs_list = ordered_hgs_list
 
 			i = 1
@@ -807,7 +806,6 @@ class GCF(Pan):
 					if direction_forward_support[hg] >= direction_reverse_support[hg]: consensus_direction = '1'
 					self.hg_order_scores[hg] = [i, consensus_direction]
 					i+=1
-
 
 
 		except Exception as e:
