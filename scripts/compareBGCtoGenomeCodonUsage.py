@@ -61,9 +61,12 @@ def main():
     with open(prokka_ffn) as offn:
         for rec in SeqIO.parse(offn, 'fasta'):
             locus_tag = rec.id
+            if not len(str.rec.seq)%3 == 0:
+                print(locus_tag)
+                continue
             codon_seq = [str(rec.seq)[i:i + 3] for i in range(0, len(str(rec.seq)), 3)]
             for cod in list(codon_seq):
-                if not(cod[0] in valid_bases and cod[1] in valid_bases and cod[2] in valid_bases): continue
+                if not(len(cod) == 3 and cod[0] in valid_bases and cod[1] in valid_bases and cod[2] in valid_bases): continue
                 if locus_tag in gcf_lts:
                     cod_freq_dict_gcf[cod] += 1
                 else:
