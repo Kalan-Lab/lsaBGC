@@ -86,7 +86,7 @@ def main():
     output_handle = open(output, 'w')
     output_handle.write('Cosine_Distance\t%f\n' % round(cosine_distance, 3))
     output_handle.write('Spearman_Rho\t%f\n' % round(rho, 3))
-    output_handle.write('Spearman_Pvalue\t%f\n' % round(spmm_pval, 3))
+    output_handle.write('Spearman_Pvalue\t%f\n' % round(spm_pval, 3))
     output_handle.write('GCF_Codons\t%s\n' % ', '.join(cod_order))
     output_handle.write('GCF_Codon_Frequencies\t%s\n' % ', '.join([str(x) for x in gcf_cod_freqs]))
     output_handle.write('Background_Codon_Frequencies\t%s\n' % ', '.join([str(x) for x in gcf_cod_freqs]))
