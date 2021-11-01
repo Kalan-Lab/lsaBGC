@@ -34,7 +34,7 @@ def main():
     output = os.path.abspath(myargs.output)
 
     try:
-        assert(os.path.isfile(prokka_ffn) and os.path.isfile(bgc_genbanks))
+        assert(os.path.isfile(prokka_ffn) and sum([1 for x in bgc_genbanks if os.path.isfile(x)]) == len(bgc_genbanks))
     except:
         raise RuntimeError('One or more input files do not exist. Exiting now ...')
 
