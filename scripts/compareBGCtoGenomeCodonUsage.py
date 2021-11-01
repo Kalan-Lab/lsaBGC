@@ -33,6 +33,7 @@ def main():
     bgc_genbanks = myargs.bgc_genbanks
     output = os.path.abspath(myargs.output)
 
+    print(bgc_genbanks)
     try:
         assert(os.path.isfile(prokka_ffn) and sum([1 for x in bgc_genbanks if os.path.isfile(x)]) == len(bgc_genbanks))
     except:
