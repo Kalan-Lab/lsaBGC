@@ -36,7 +36,8 @@ def main():
     print(bgc_genbanks)
     try:
         assert(os.path.isfile(prokka_ffn))
-        print([1 for x in bgc_genbanks])
+        print([x for x in bgc_genbanks if os.path.isfile(x)])
+        print([x for x in bgc_genbanks])
         assert(sum([1 for x in bgc_genbanks if os.path.isfile(x)]) == len(bgc_genbanks))
     except:
         raise RuntimeError('One or more input files do not exist. Exiting now ...')
