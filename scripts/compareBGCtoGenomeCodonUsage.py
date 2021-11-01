@@ -34,7 +34,6 @@ def main():
     bgc_genbanks = myargs.bgc_genbanks
     output = os.path.abspath(myargs.output)
 
-    print(bgc_genbanks)
     try:
         assert(os.path.isfile(prokka_ffn))
         assert(sum([1 for x in bgc_genbanks if os.path.isfile(x)]) == len(bgc_genbanks))
@@ -50,7 +49,6 @@ def main():
     for gbk in bgc_genbanks:
         with open(gbk) as ogbk:
             for rec in SeqIO.parse(ogbk, 'genbank'):
-                scaffold = rec.id
                 for feature in rec.features:
                     if not feature.type == 'CDS': continue
                     locus_tag = feature.qualifiers.get('locus_tag')[0]
@@ -64,7 +62,7 @@ def main():
         for rec in SeqIO.parse(offn, 'fasta'):
             locus_tag = rec.id
             codon_seq = [str(rec.seq)[i:i + 3] for i in range(0, len(str(rec.seq)), 3)]
-            for cod in codon_seq:
+            for cod in list(codon_seq):
                 if not(cod[0] in valid_bases and cod[1] in valid_bases and cod[2] in valid_bases): continue
                 if locus_tag in gcf_lts:
                     cod_freq_dict_gcf[cod] += 1
@@ -89,7 +87,7 @@ def main():
     output_handle.write('Spearman_Pvalue\t%f\n' % round(spm_pval, 3))
     output_handle.write('GCF_Codons\t%s\n' % ', '.join(cod_order))
     output_handle.write('GCF_Codon_Frequencies\t%s\n' % ', '.join([str(x) for x in gcf_cod_freqs]))
-    output_handle.write('Background_Codon_Frequencies\t%s\n' % ', '.join([str(x) for x in gcf_cod_freqs]))
+    output_handle.write('Background_Codon_Frequencies\t%s\n' % ', '.join([str(x) for x in bkg_cod_freqs]))
     output_handle.close()
 
     sys.exit(0)
