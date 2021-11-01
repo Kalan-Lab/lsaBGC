@@ -61,7 +61,7 @@ def main():
     with open(prokka_ffn) as offn:
         for rec in SeqIO.parse(offn, 'fasta'):
             locus_tag = rec.id
-            if not len(str.rec.seq)%3 == 0:
+            if not len(str(rec.seq))%3 == 0:
                 print(locus_tag)
                 continue
             codon_seq = [str(rec.seq)[i:i + 3] for i in range(0, len(str(rec.seq)), 3)]
