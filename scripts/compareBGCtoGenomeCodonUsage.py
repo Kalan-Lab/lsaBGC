@@ -36,8 +36,6 @@ def main():
     print(bgc_genbanks)
     try:
         assert(os.path.isfile(prokka_ffn))
-        print([x for x in bgc_genbanks if os.path.isfile(x)])
-        print([x for x in bgc_genbanks])
         assert(sum([1 for x in bgc_genbanks if os.path.isfile(x)]) == len(bgc_genbanks))
     except:
         raise RuntimeError('One or more input files do not exist. Exiting now ...')
@@ -62,7 +60,7 @@ def main():
     cod_freq_dict_background = defaultdict(int)
     all_cods = set([])
     with open(prokka_ffn) as offn:
-        for rec in SeqIO.parse(off, 'fasta'):
+        for rec in SeqIO.parse(offn, 'fasta'):
             locus_tag = rec.id
             codon_seq = [str(rec.seq)[i:i + 3] for i in range(0, len(str(rec.seq)), 3)]
             for cod in codon_seq:
