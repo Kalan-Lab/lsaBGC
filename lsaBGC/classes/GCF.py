@@ -2953,8 +2953,8 @@ def popgen_analysis_of_hg(inputs):
 			fisher_pval = min(fishers_pvals)*len(fishers_pvals)
 
 		pop_rel_freqs = []
-		for p in pop_count_with_hg:
-			prf = float(population_counts[p])/float(sum(pop_count_with_hg.values()))
+		for p in population_counts:
+			prf = float(pop_count_with_hg[p])/float(sum(pop_count_with_hg.values()))
 			pop_rel_freqs.append(prf)
 
 		population_entropy = entropy(pop_rel_freqs, base=2)
