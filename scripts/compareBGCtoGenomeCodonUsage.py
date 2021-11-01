@@ -19,6 +19,7 @@ def create_parser():
     args = parser.parse_args()
     return args
 
+valid_bases = set(['A', 'C', 'G', 'T'])
 def main():
     """
     Void function which runs primary workflow for program.
