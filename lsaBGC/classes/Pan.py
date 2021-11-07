@@ -60,7 +60,7 @@ class Pan:
 		# Consensus sequence in fasta format of concatentated profile HMM file
 		self.consensus_sequence_HMM = None
 		self.consensus_sequence_HMM_db = None
-		self.hg_max_self_evalue = defaultdict(lambda: 100000.0)
+		self.hg_max_self_evalue = defaultdict(lambda: [100000.0, False])
 		self.lowerbound_hg_count = 100000
 		self.hg_differentiation_stats = {}
 
