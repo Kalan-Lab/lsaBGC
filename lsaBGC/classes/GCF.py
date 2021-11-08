@@ -82,7 +82,7 @@ class GCF(Pan):
 			initial_samples_with_at_least_one_gcf_hg = set([])
 			for hg in self.hg_genes:
 				for gene in self.hg_genes[hg]:
-					if len(gene.split('_')[0]) == 3:
+					if len(gene.split('_')[0]) == 3 and not gene.startswith('AAA_'): # TEMPORARY HACK FOR MICROBACTERIUM
 						gene_info = self.comp_gene_info[gene]
 						bgc_id = gene_info['bgc_name']
 						sample_id = self.bgc_sample[bgc_id]
@@ -92,7 +92,7 @@ class GCF(Pan):
 				sample_counts = defaultdict(int)
 				sample_with_hg_as_protocluster_core = 0
 				for gene in self.hg_genes[hg]:
-					if len(gene.split('_')[0]) == 3:
+					if len(gene.split('_')[0]) == 3 and not gene.startswith('AAA_'): # TEMPORARY HACK FOR MICROBACTERIUM
 						gene_info = self.comp_gene_info[gene]
 						bgc_id = gene_info['bgc_name']
 						sample_id = self.bgc_sample[bgc_id]
