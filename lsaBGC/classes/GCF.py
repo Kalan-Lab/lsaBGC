@@ -1759,9 +1759,7 @@ def phase_and_id_snvs(input_args):
 			return
 		median_of_medians = statistics.median(list(hg_median_depths.values()))
 		mad_of_medians = median_absolute_deviation(list(hg_median_depths.values()))
-
-		print('\t'.join([str(x) for x in [pe_sample, median_of_medians, mad_of_medians]]))
-
+		
 		outlier_homolog_groups = set([])
 		for hg in present_homolog_groups:
 			hg_median = hg_median_depths[hg]
@@ -1804,14 +1802,14 @@ def phase_and_id_snvs(input_args):
 						if pos in hg_hetero_sites[hg]:
 							hetero_sites += 1
 
-		hpr_handle.write('\n'.join(report_lines) + '\n')
+		#hpr_handle.write('\n'.join(report_lines) + '\n')
 
 		if (len(refined_present_homolog_groups) < 5) or (len(refined_present_homolog_groups.intersection(protocluster_core_homologs)) == 0) or (len(refined_present_homolog_groups.intersection(core_homologs))/float(len(core_homologs.difference(mge_hgs))) < 0.7 and len(refined_present_homolog_groups.intersection(specific_homolog_groups)) == 0):
 			no_handle.close()
 			hpr_handle.close()
 			return
 
-		#hpr_handle.write('\n'.join(report_lines) + '\n')
+		hpr_handle.write('\n'.join(report_lines) + '\n')
 
 		filt_result_file = snv_mining_outdir + pe_sample + '.filt.txt'
 		filt_result_handle = open(filt_result_file, 'w')
