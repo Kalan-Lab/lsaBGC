@@ -1760,6 +1760,8 @@ def phase_and_id_snvs(input_args):
 		median_of_medians = statistics.median(list(hg_median_depths.values()))
 		mad_of_medians = median_absolute_deviation(list(hg_median_depths.values()))
 
+		print('\t'.join([str(x) for x in [pe_sample, median_of_medians, mad_of_medians]]))
+
 		outlier_homolog_groups = set([])
 		for hg in present_homolog_groups:
 			hg_median = hg_median_depths[hg]
