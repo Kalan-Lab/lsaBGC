@@ -63,6 +63,7 @@ def create_parser():
     parser.add_argument('-m', '--orthofinder_matrix', help="OrthoFinder matrix.", required=True)
     parser.add_argument('-o', '--output_directory', help="Prefix for output files.", required=True)
     parser.add_argument('-a', '--codon_alignments', help="File listing the codon alignments for each homolog group in the GCF. Can be found as part of PopGene output.", required=True)
+    parser.add_argument('-ch', '--core_homologs', nargs="+", help="List of homolog group identifiers comprising the core of the BGC/GCF.", required=False, default=[])
     parser.add_argument('-c', '--cores', type=int, help="The number of cores to use.", required=False, default=1)
 
     args = parser.parse_args()
@@ -107,6 +108,7 @@ def lsaBGC_DiscoVary():
     """
 
     gcf_id = myargs.gcf_id
+    core_hg_set = myargs.core_homologs
     cores = myargs.cores
 
     """
@@ -119,9 +121,10 @@ def lsaBGC_DiscoVary():
     # Log input arguments and update reference and query FASTA files.
     logObject.info("Saving parameters for future provedance.")
     parameters_file = outdir + 'Parameter_Inputs.txt'
-    parameter_values = [gcf_listing_file, orthofinder_matrix_file, paired_end_sequencing_file, outdir, gcf_id, cores]
+    parameter_values = [gcf_listing_file, orthofinder_matrix_file, paired_end_sequencing_file, outdir, gcf_id,
+                        len(core_hg_set) > 0, cores]
     parameter_names = ["GCF Listing File", "OrthoFinder Orthogroups.csv File", "Paired-Sequencing Listing File",
-                       "Output Directory", "GCF Identifier", "Cores"]
+                       "Output Directory", "GCF Identifier", "Core Homologs Manually Provided", "Cores"]
     util.logParametersToFile(parameters_file, parameter_names, parameter_values)
     logObject.info("Done saving parameters!")
 
@@ -138,6 +141,8 @@ def lsaBGC_DiscoVary():
     gene_to_hg, hg_genes, hg_median_copy_count, hg_prop_multi_copy = util.parseOrthoFinderMatrix(orthofinder_matrix_file, GCF_Object.pan_genes)
     GCF_Object.inputHomologyInformation(gene_to_hg, hg_genes, hg_median_copy_count, hg_prop_multi_copy)
     GCF_Object.identifyKeyHomologGroups()
+    if len(core_hg_set) > 0:
+        GCF.core_homologs = set(core_hg_set)
     logObject.info("Successfully parsed homolog matrix.")
 
     # Step 3: Process annotation files related to input sample sets
@@ -164,14 +169,14 @@ def lsaBGC_DiscoVary():
     bowtie2_outdir = outdir + 'Bowtie2_Alignments/'
     if not os.path.isfile(bowtie2_outdir): os.system('mkdir %s' % bowtie2_outdir)
     logObject.info("Running Bowtie2 alignment of paired-end sequencing reads against database of GCF genes with surrounding flanking sequences.")
-    util.runBowtie2Alignments(bowtie2_db_prefix, paired_end_sequencing_file, bowtie2_outdir, logObject, cores=cores)
+    #util.runBowtie2Alignments(bowtie2_db_prefix, paired_end_sequencing_file, bowtie2_outdir, logObject, cores=cores)
     logObject.info("Bowtie2 alignments completed successfully!")
 
     # Step 7: Parse bowtie2 alignments found per sample and identify support for SNVs
     results_outdir = outdir + 'Alignment_Parsing/'
     if not os.path.isdir(results_outdir): os.system('mkdir %s' % results_outdir)
     logObject.info("Beginning typing of homolog group alleles and mining of novel SNVs.")
-    GCF_Object.runSNVMining(paired_end_sequencing_file, genes_representative_fasta, codon_alignments_file, bowtie2_outdir, results_outdir, cores=cores)
+    #GCF_Object.runSNVMining(paired_end_sequencing_file, genes_representative_fasta, codon_alignments_file, bowtie2_outdir, results_outdir, cores=cores)
     logObject.info("Successfully typed alleles and mined for novel SNVs.")
 
     # Step 8: Decide on GCF presence, determine consensus/haplotypes for homolog groups, and generate novelty report
