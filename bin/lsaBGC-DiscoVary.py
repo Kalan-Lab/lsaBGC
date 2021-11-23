@@ -142,7 +142,7 @@ def lsaBGC_DiscoVary():
     GCF_Object.inputHomologyInformation(gene_to_hg, hg_genes, hg_median_copy_count, hg_prop_multi_copy)
     GCF_Object.identifyKeyHomologGroups()
     if len(core_hg_set) > 0:
-        GCF.core_homologs = set(core_hg_set)
+        GCF_Object.core_homologs = set(core_hg_set)
     logObject.info("Successfully parsed homolog matrix.")
 
     # Step 3: Process annotation files related to input sample sets
