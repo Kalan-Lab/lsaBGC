@@ -2042,7 +2042,7 @@ def phase_and_id_snvs(input_args):
 						ref_aa = None
 						alt_codon = None
 						alt_aa = None
-						alt_aa_novel = False
+						alt_aa_novel = True
 						dn_or_ds = None
 						ts_or_tv = "transition"
 						if (ref_al in purine_alleles) != (alt_al in purine_alleles):
@@ -2063,7 +2063,7 @@ def phase_and_id_snvs(input_args):
 								if g == gene:
 									assert(gene_codon == ref_codon)
 								gene_aa = str(Seq(gene_codon).translate())
-								if alt_aa == gene_aa: alt_aa_novel = True
+								if alt_aa == gene_aa: alt_aa_novel = False
 						elif ref_pos % 3 == 2:
 							codon_position = 2
 							ref_codon = gene_pos_to_allele[hg][gene][ref_pos - 1] + ref_al + \
@@ -2080,7 +2080,7 @@ def phase_and_id_snvs(input_args):
 								if g == gene:
 									assert(gene_codon == ref_codon)
 								gene_aa = str(Seq(gene_codon).translate())
-								if alt_aa == gene_aa: alt_aa_novel = True
+								if alt_aa == gene_aa: alt_aa_novel = False
 						elif ref_pos % 3 == 0:
 							codon_position = 3
 							ref_codon = gene_pos_to_allele[hg][gene][ref_pos - 2] + \
@@ -2097,7 +2097,7 @@ def phase_and_id_snvs(input_args):
 								if g == gene:
 									assert(gene_codon == ref_codon)
 								gene_aa = str(Seq(gene_codon).translate())
-								if alt_aa == gene_aa: alt_aa_novel = True
+								if alt_aa == gene_aa: alt_aa_novel = False
 
 						if ref_aa != alt_aa:
 							dn_or_ds = "non-synonymous"
