@@ -1541,7 +1541,7 @@ class GCF(Pan):
 			gene_ignore_positions = defaultdict(set)
 			gene_core_positions = defaultdict(set)
 			gene_pos_to_msa_pos = defaultdict(lambda: defaultdict(dict))
-			msa_pos_to_gene_pos = defaultdict(lambda: defaultdict(dict))
+			msa_pos_to_gene_allele = defaultdict(lambda: defaultdict(dict))
 			gene_pos_to_allele = defaultdict(lambda: defaultdict(dict))
 			msa_pos_alleles = defaultdict(lambda: defaultdict(set))
 			msa_pos_ambiguous_freqs = defaultdict(lambda: defaultdict(float))
@@ -1573,11 +1573,11 @@ class GCF(Pan):
 							real_pos = 1
 							for msa_pos, bp in enumerate(str(rec.seq)):
 								msa_positions.add(msa_pos+1)
+								msa_pos_to_gene_allele[hg][gene_id][msa_pos + 1] = bp.upper()
 								if bp != '-':
 									msa_pos_non_ambiguous_counts[msa_pos + 1] += 1
 									gene_pos_to_allele[hg][gene_id][real_pos] = bp.upper()
 									gene_pos_to_msa_pos[hg][gene_id][real_pos] = msa_pos + 1
-									msa_pos_to_gene_pos[hg][gene_id][msa_pos+1] = real_pos
 									real_pos += 1
 									msa_pos_alleles[hg][msa_pos + 1].add(bp.upper())
 								else:
@@ -1613,7 +1613,7 @@ class GCF(Pan):
 					pe_sample_reads = line.strip().split('\t')[1:]
 					parallel_inputs.append([pe_sample, pe_sample_reads, snv_mining_outdir, phased_alleles_outdir,
 											dict(gene_ignore_positions), dict(gene_core_positions), dict(gene_pos_to_msa_pos),
-											dict(msa_pos_to_gene_pos), dict(gene_pos_to_allele), dict(msa_pos_alleles),
+											dict(msa_pos_to_gene_allele), dict(gene_pos_to_allele), dict(msa_pos_alleles),
 											dict(msa_pos_ambiguous_freqs), min_hetero_prop, min_allele_depth,
 											allow_phasing, metagenomic, specific_homolog_groups, set(self.core_homologs),
 											dict(self.hg_genes), dict(self.comp_gene_info),
@@ -1666,7 +1666,7 @@ class GCF(Pan):
 
 
 def phase_and_id_snvs(input_args):
-	pe_sample, pe_sample_reads, snv_mining_outdir, phased_alleles_outdir, gene_ignore_positions, gene_core_positions, gene_pos_to_msa_pos, msa_pos_to_gene_pos, gene_pos_to_allele, msa_pos_alleles, msa_pos_ambiguous_freqs, min_hetero_prop, min_allele_depth, allow_phasing, metagenomic, specific_homolog_groups, core_homologs, hg_genes, comp_gene_info, hg_prop_multi_copy, protocluster_core_homologs, rare_hgs_in_core_genomes, gcf_id, logObject = input_args
+	pe_sample, pe_sample_reads, snv_mining_outdir, phased_alleles_outdir, gene_ignore_positions, gene_core_positions, gene_pos_to_msa_pos, msa_pos_to_gene_allele, gene_pos_to_allele, msa_pos_alleles, msa_pos_ambiguous_freqs, min_hetero_prop, min_allele_depth, allow_phasing, metagenomic, specific_homolog_groups, core_homologs, hg_genes, comp_gene_info, hg_prop_multi_copy, protocluster_core_homologs, rare_hgs_in_core_genomes, gcf_id, logObject = input_args
 	try:
 		result_file = snv_mining_outdir + pe_sample + '.txt'
 		snv_file = snv_mining_outdir + pe_sample + '.snvs'
@@ -2056,12 +2056,13 @@ def phase_and_id_snvs(input_args):
 							ref_aa = str(Seq(ref_codon).translate())
 							alt_aa = str(Seq(alt_codon).translate())
 
-							for gene in gene_pos_to_allele[hg]:
-								gene_pos = msa_pos_to_gene_pos[hg][gene][msa_pos]
-								gene_cod = gene_pos_to_allele[hg][gene][gene_pos] + \
-										   gene_pos_to_allele[hg][gene][gene_pos + 1] + \
-										   gene_pos_to_allele[hg][gene][gene_pos + 2]
-								gene_aa = str(Seq(gene_cod).translate())
+							for g in gene_pos_to_allele[hg]:
+								gene_codon = msa_pos_to_gene_allele[hg][g][msa_pos] + \
+										   msa_pos_to_gene_allele[hg][g][msa_pos + 1] + \
+										   msa_pos_to_gene_allele[hg][g][msa_pos + 2]
+								if g == gene:
+									assert(gene_codon == ref_codon)
+								gene_aa = str(Seq(gene_codon).translate())
 								if alt_aa == gene_aa: alt_aa_novel = True
 						elif ref_pos % 3 == 2:
 							codon_position = 2
@@ -2072,12 +2073,13 @@ def phase_and_id_snvs(input_args):
 							ref_aa = str(Seq(ref_codon).translate())
 							alt_aa = str(Seq(alt_codon).translate())
 
-							for gene in gene_pos_to_allele[hg]:
-								gene_pos = msa_pos_to_gene_pos[hg][gene][msa_pos]
-								gene_cod = gene_pos_to_allele[hg][gene][gene_pos - 1] + \
-										   gene_pos_to_allele[hg][gene][gene_pos] + \
-										   gene_pos_to_allele[hg][gene][gene_pos + 1]
-								gene_aa = str(Seq(gene_cod).translate())
+							for g in gene_pos_to_allele[hg]:
+								gene_codon = msa_pos_to_gene_allele[hg][g][msa_pos - 1] + \
+										   msa_pos_to_gene_allele[hg][g][msa_pos] + \
+										   msa_pos_to_gene_allele[hg][g][msa_pos + 1]
+								if g == gene:
+									assert(gene_codon == ref_codon)
+								gene_aa = str(Seq(gene_codon).translate())
 								if alt_aa == gene_aa: alt_aa_novel = True
 						elif ref_pos % 3 == 0:
 							codon_position = 3
@@ -2088,12 +2090,13 @@ def phase_and_id_snvs(input_args):
 							ref_aa = str(Seq(ref_codon).translate())
 							alt_aa = str(Seq(alt_codon).translate())
 
-							for gene in gene_pos_to_allele[hg]:
-								gene_pos = msa_pos_to_gene_pos[hg][gene][msa_pos]
-								gene_cod = gene_pos_to_allele[hg][gene][gene_pos - 2] + \
-										   gene_pos_to_allele[hg][gene][gene_pos - 1] + \
-										   gene_pos_to_allele[hg][gene][gene_pos]
-								gene_aa = str(Seq(gene_cod).translate())
+							for g in gene_pos_to_allele[hg]:
+								gene_codon = msa_pos_to_gene_allele[hg][g][msa_pos - 2] + \
+										   msa_pos_to_gene_allele[hg][g][msa_pos - 1] + \
+										   msa_pos_to_gene_allele[hg][g][msa_pos]
+								if g == gene:
+									assert(gene_codon == ref_codon)
+								gene_aa = str(Seq(gene_codon).translate())
 								if alt_aa == gene_aa: alt_aa_novel = True
 
 						if ref_aa != alt_aa:
