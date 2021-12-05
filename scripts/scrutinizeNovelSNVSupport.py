@@ -156,3 +156,9 @@ def main():
             if len(retained_reads) >= minimum_depth:
                 output_handle.write('\t'.join(ls[:-1]) + '\t' + ', '.join(retained_reads) + '\n')
     output_handle.close()
+
+    # Exit program
+    sys.exit(0)
+    
+if __name__ == '__main__':
+    main()
