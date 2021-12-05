@@ -54,7 +54,7 @@ def main():
         raise RuntimeError('One or more input files do not exist. Exiting now ...')
 
     # parse novel_snvs_file for snv supporting reads
-    snv_supporting_reads = defaultdict(lambda: defaultdict(set))
+    snv_supporting_reads = defaultdict(set)
     with open(novel_snvs_file) as onsf:
         for i, line in enumerate(onsf):
             if i == 0: continue
