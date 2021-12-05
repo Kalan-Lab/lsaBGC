@@ -5,6 +5,7 @@ import argparse
 from collections import defaultdict
 from scipy import stats, spatial
 from operator import itemgetter
+import pysam
 
 def create_parser():
     """ Parse arguments """
