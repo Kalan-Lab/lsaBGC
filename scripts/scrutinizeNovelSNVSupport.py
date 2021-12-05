@@ -92,8 +92,6 @@ def main():
             if i == 0:
                 top_read_reflexive_alignment_scores[read_info[0]][read] = read_info[1]
 
-    print(top_read_reflexive_alignment_scores)
-    print(kraken_taxa)
     reads_with_conflicting_support = defaultdict(set)
     if os.path.isfile(comparator_bam_listings_file):
         # parse and check for read mapping
@@ -139,9 +137,9 @@ def main():
                             if not l[1] + '/1' in snv_supporting_reads[sample] and not ls[1] + '/2' in snv_supporting_reads[sample]:
                                 continue
                             if not l[2] in kraken_taxa:
-                                if l[1] + '/1' in snv_supporting_reads:
+                                if l[1] + '/1' in snv_supporting_reads[sample]:
                                     reads_with_conflicting_support[sample].add(l[1] + '/1')
-                                elif ls[1] + '/2' in snv_supporting_reads:
+                                elif ls[1] + '/2' in snv_supporting_reads[sample]:
                                     reads_with_conflicting_support[sample].add(l[1] + '/2')
         except:
             raise RuntimeError('Difficulty reading Kraken2 file %s.' % kraken_file)
