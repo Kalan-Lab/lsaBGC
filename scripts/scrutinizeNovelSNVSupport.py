@@ -33,7 +33,7 @@ def main():
     focal_alignment_dir = os.path.abspath(myargs.focal_alignment_dir) + '/'
     reference_genes_file = os.path.abspath(myargs.reference_genes)
     comparator_bam_listings_file = myargs.comparator_bam_listings
-    kraken_listings_file = myargs.kraken_listings_file
+    kraken_listings_file = myargs.kraken_listings
     kraken_taxa = myargs.kraken_taxa
     output_file = myargs.output
 
@@ -159,6 +159,6 @@ def main():
 
     # Exit program
     sys.exit(0)
-    
+
 if __name__ == '__main__':
     main()
