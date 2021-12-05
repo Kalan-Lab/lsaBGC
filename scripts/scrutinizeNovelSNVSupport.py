@@ -92,6 +92,7 @@ def main():
             if i == 0:
                 top_read_reflexive_alignment_scores[read_info[0]][read] = read_info[1]
 
+    print(top_read_reflexive_alignment_scores)
     reads_with_conflicting_support = defaultdict(set)
     if os.path.isfile(comparator_bam_listings_file):
         # parse and check for read mapping
@@ -123,7 +124,7 @@ def main():
                              (read_ascore == top_read_reflexive_alignment_scores[sample][read_name] and stringent)):
                             reads_with_conflicting_support[sample].add(read_name)
 
-    if os.path.isfile(kraken_listings_file) and len(kraken_taxa) == 0:
+    if os.path.isfile(kraken_listings_file) and len(kraken_taxa) > 0:
         kraken_taxa = set(kraken_taxa)
         # parse and check for read mapping
         try:
