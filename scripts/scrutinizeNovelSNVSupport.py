@@ -65,7 +65,7 @@ def main():
             reads = set([x.strip() for x in ls[-1].split(',')])
             ref_genome = ls[-7]
             ref_gene = ls[-6]
-            ref_id = ref_genome + '|' + ref_gene
+            #ref_id = ref_genome + '|' + ref_gene
             snv_supporting_reads[sample] = snv_supporting_reads[sample].union(reads)
 
     ref_gene_lens = {}
@@ -152,8 +152,9 @@ def main():
                 output_handle.write(line + '\n')
                 continue
             ls = line.split('\t')
+            sample = ls[1]
             reads = set([x.strip() for x in ls[-1].split(',')])
-            retained_reads = [r for r in reads if not r in reads_with_conflicting_support]
+            retained_reads = [r for r in reads if not r in reads_with_conflicting_support[sample]]
             if len(retained_reads) >= minimum_depth:
                 output_handle.write('\t'.join(ls[:-1]) + '\t' + ', '.join(retained_reads) + '\n')
     output_handle.close()
