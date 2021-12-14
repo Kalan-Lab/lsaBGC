@@ -79,7 +79,6 @@ def main():
         sample = f.split('_topaligns.sorted.bam')[0]
         bam_file_handle = pysam.AlignmentFile(focal_alignment_dir + f, "rb")
         for ref_gene in ref_gene_lens:
-            reference = '|'.join(ref_gene.split('|')[-2:])
             for read_alignment in bam_file_handle.fetch(ref_gene, 0, ref_gene_lens[ref_gene]):
                 read_name = read_alignment.query_name
                 read_ascore = float(read_alignment.tags[0][1])
@@ -118,7 +117,8 @@ def main():
                     for read_alignment in bam_file_handle.fetch(ref, 0, ref_seq_lens[ref]):
                         read_name = read_alignment.query_name
                         read_ascore = float(read_alignment.tags[0][1])
-                        if read_name in top_read_reflexive_alignment_scores.keys() and \
+                        if sample in top_read_reflexive_alignment_scores.keys() and \
+                            read_name in top_read_reflexive_alignment_scores[sample] and \
                             (read_ascore > top_read_reflexive_alignment_scores[sample][read_name] or
                              (read_ascore == top_read_reflexive_alignment_scores[sample][read_name] and stringent)):
                             reads_with_conflicting_support[sample].add(read_name)
