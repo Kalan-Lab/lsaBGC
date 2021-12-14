@@ -2160,8 +2160,7 @@ def phase_and_id_snvs(input_args):
 
 def snv_miner_single(input_args):
 	"""
-	Function to mine for novel SNVs and identify alleles of homolog groups for GCF present in paired-end sequencing
-	dataset.
+	Function to parse BAM alignment files (assumes reads aligned independently - not paired - CURRENT DEFAULT).
 	"""
 	sample, bam_alignment, ref_fasta, hg_gene_to_rep, res_dir, bgc_hg_genes, comp_gene_info, gene_pos_to_msa_pos, gene_pos_to_allele, codon_alignment_lengths, debug_mode, logObject = input_args
 	try:

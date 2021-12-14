@@ -99,21 +99,8 @@ def main():
                 line = line.strip('\n')
                 sample, alignment_bam_file, reference_fasta_file = line.split('\t')
 
-                ref_seq_lens = defaultdict(int)
-                try:
-                    with open(reference_fasta_file) as orff:
-                        for rec in SeqIO.parse(orff, 'fasta'):
-                            ref_seq_lens[rec.id] = len(str(rec.seq))
-                except:
-                    raise RuntimeError('Difficulty reading in reference FASTA file %s on line %d.' % (reference_fasta_file, i))
-
-                bam_file_handle = None
                 try:
                     bam_file_handle = pysam.AlignmentFile(alignment_bam_file, "rb")
-                except:
-                    raise RuntimeError('Difficulty reading in reference BAM alignment file %s on line %d.' % (alignment_bam_file, i))
-
-                for ref in ref_seq_lens:
                     for read_alignment in bam_file_handle.fetch():
                         read_name = read_alignment.query_name
                         read_ascore = float(read_alignment.tags[0][1])
@@ -122,6 +109,8 @@ def main():
                             (read_ascore > top_read_reflexive_alignment_scores[sample][read_name] or
                              (read_ascore == top_read_reflexive_alignment_scores[sample][read_name] and stringent)):
                             reads_with_conflicting_support[sample].add(read_name)
+                except:
+                    raise RuntimeError('Difficulty reading in reference BAM alignment file %s on line %d.' % (alignment_bam_file, i))
 
     if kraken_listings_file and os.path.isfile(kraken_listings_file) and len(kraken_taxa) > 0:
         kraken_taxa = set(kraken_taxa)

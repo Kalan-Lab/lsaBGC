@@ -54,6 +54,8 @@ def create_parser():
 	it will map raw paired-end Illumina sequencing data to each non-redundant instance of a homolog group and 
 	report: (i) support for different alleles of homolog groups being present in the reads and (ii) identify any
 	novel SNVs.
+	
+	TODO: add option to print out individual jobs for parallelization on HPC.
 	""", formatter_class=argparse.RawTextHelpFormatter)
 
     parser.add_argument('-g', '--gcf_listing', help='BGC specifications file. Tab delimited: 1st column contains path to AntiSMASH BGC Genbank and 2nd column contains sample name.', required=True)
