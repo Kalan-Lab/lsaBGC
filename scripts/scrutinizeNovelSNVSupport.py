@@ -114,7 +114,7 @@ def main():
                     raise RuntimeError('Difficulty reading in reference BAM alignment file %s on line %d.' % (alignment_bam_file, i))
 
                 for ref in ref_seq_lens:
-                    for read_alignment in bam_file_handle.fetch(ref, 0, ref_seq_lens[ref]):
+                    for read_alignment in bam_file_handle.fetch():
                         read_name = read_alignment.query_name
                         read_ascore = float(read_alignment.tags[0][1])
                         if sample in top_read_reflexive_alignment_scores.keys() and \
