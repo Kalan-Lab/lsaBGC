@@ -761,8 +761,8 @@ class Pan:
 						sample_fasta = fasta_dir + sample + '.fasta'
 						sample_handle = open(sample_fasta, 'a+')
 						with open(gbk) as ogbk:
-							for rec in SeqIO.parse(ogbk, 'genbank'):
-								sample_handle.write('>' + bgc_id + '\n' + str(rec.seq) + '\n')
+							for ri, rec in enumerate(SeqIO.parse(ogbk, 'genbank')):
+								sample_handle.write('>' + bgc_id + '|' + str(ri) + '\n' + str(rec.seq) + '\n')
 						sample_handle.close()
 						all_samples.add(sample)
 						if self.logObject:
