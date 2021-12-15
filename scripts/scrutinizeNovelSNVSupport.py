@@ -119,7 +119,7 @@ def main():
         with open(comparator_bam_listings_file) as ocblf:
             for i, line in enumerate(ocblf):
                 line = line.strip('\n')
-                sample, alignment_bam_file, reference_fasta_file = line.split('\t')
+                sample, alignment_bam_file = line.split('\t')
 
                 try:
                     bam_file_handle = pysam.AlignmentFile(alignment_bam_file, "rb")
