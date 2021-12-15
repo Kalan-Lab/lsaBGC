@@ -123,6 +123,7 @@ def main():
 
                 try:
                     bam_file_handle = pysam.AlignmentFile(alignment_bam_file, "rb")
+
                     for read_alignment in bam_file_handle.fetch():
                         read_name = read_alignment.query_name
                         read_ascore = float(read_alignment.tags[0][1])
@@ -135,11 +136,12 @@ def main():
                                 bgc_ref_seq = top_read_reflexive_alignment_scores[sample][read_name][2].upper()
                                 bgc_ref_seq_rc = str(Seq(bgc_ref_seq).reverse_complement())
 
-                                print(bgc_ref_seq)
                                 ref_seq = ""
                                 for b in read_alignment.get_aligned_pairs(with_seq=True):
                                     if b[2]: ref_seq += b[2].upper()
-                                if bgc_ref_seq in ref_seq or bgc_ref_seq_rc in ref_seq: continue
+                                if bgc_ref_seq in ref_seq or bgc_ref_seq_rc in ref_seq:
+                                    print(ref_seq)
+                                    continue
                                 reads_with_conflicting_support[sample].add(read_name)
                             else:
                                 reads_with_conflicting_support[sample].add(read_name)
