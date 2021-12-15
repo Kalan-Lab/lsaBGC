@@ -127,11 +127,11 @@ def main():
                         read_name = read_alignment.query_name
                         read_ascore = float(read_alignment.tags[0][1])
                         if sample in top_read_reflexive_alignment_scores.keys() and \
-                            read_name in top_read_reflexive_alignment_scores[sample] and \
-                            (read_ascore > top_read_reflexive_alignment_scores[sample][read_name] or
-                             (read_ascore == top_read_reflexive_alignment_scores[sample][read_name] and stringent)):
+                            read_name in top_read_reflexive_alignment_scores[sample][0] and \
+                            (read_ascore > top_read_reflexive_alignment_scores[sample][read_name][0] or
+                             (read_ascore == top_read_reflexive_alignment_scores[sample][read_name][0] and stringent)):
 
-                            if top_read_reflexive_alignment_scores[sample][read_name][2]:
+                            if top_read_reflexive_alignment_scores[sample][read_name][1]:
                                 bgc_ref_seq = top_read_reflexive_alignment_scores[sample][read_name][2].upper()
                                 bgc_ref_seq_rc = str(Seq(bgc_ref_seq).reverse_complement())
 
