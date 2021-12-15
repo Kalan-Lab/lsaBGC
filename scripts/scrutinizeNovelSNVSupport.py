@@ -124,6 +124,7 @@ def main():
                 try:
                     bam_file_handle = pysam.AlignmentFile(alignment_bam_file, "rb")
 
+                    top_alignments = defaultdict(list)
                     for read_alignment in bam_file_handle.fetch():
                         read_name = read_alignment.query_name
                         read_ascore = float(read_alignment.tags[0][1])
@@ -133,16 +134,22 @@ def main():
                              (read_ascore == top_read_reflexive_alignment_scores[sample][read_name][0] and stringent)):
 
                             if top_read_reflexive_alignment_scores[sample][read_name][1]:
-                                bgc_ref_seq = top_read_reflexive_alignment_scores[sample][read_name][2].upper()
-                                bgc_ref_seq_rc = str(Seq(bgc_ref_seq).reverse_complement())
-
                                 ref_seq = ""
                                 for b in read_alignment.get_aligned_pairs(with_seq=True):
                                     if b[2]: ref_seq += b[2].upper()
                                 if not (bgc_ref_seq in ref_seq or bgc_ref_seq_rc in ref_seq):
                                     reads_with_conflicting_support[sample].add(read_name)
+                                top_alignments[read_name].append([read_ascore, ref_seq])
                             else:
                                 reads_with_conflicting_support[sample].add(read_name)
+
+                    for r in top_alignments:
+                        for i, ta in enumerate(sorted(top_alignments[r], key=itemgetter(0), reverse=True)):
+                            if i == 0:
+                                bgc_ref_seq = top_read_reflexive_alignment_scores[sample][r][2].upper()
+                                bgc_ref_seq_rc = str(Seq(bgc_ref_seq).reverse_complement())
+                                if not (bgc_ref_seq in top_alignments[r][1] or bgc_ref_seq_rc in top_alignments[r][1]):
+                                    reads_with_conflicting_support[sample].add(read_name)
                 except:
                     raise RuntimeError('Difficulty reading in reference BAM alignment file %s on line %d.' % (alignment_bam_file, i))
 
