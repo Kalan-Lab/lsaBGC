@@ -146,7 +146,7 @@ def main():
                             if i == 0:
                                 bgc_ref_seq = top_read_reflexive_alignment_scores[sample][r][2].upper()
                                 bgc_ref_seq_rc = str(Seq(bgc_ref_seq).reverse_complement())
-                                if not (bgc_ref_seq in top_alignments[r][1] or bgc_ref_seq_rc in top_alignments[r][1]):
+                                if not (bgc_ref_seq in ta[1] or bgc_ref_seq_rc in ta[1]):
                                     reads_with_conflicting_support[sample].add(read_name)
                 except:
                     raise RuntimeError('Difficulty reading in reference BAM alignment file %s on line %d.' % (alignment_bam_file, i))

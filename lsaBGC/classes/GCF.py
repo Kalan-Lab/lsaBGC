@@ -1624,7 +1624,7 @@ class GCF(Pan):
 			p.map(phase_and_id_snvs, parallel_inputs)
 			p.close()
 
-			novelty_report_file = outdir + 'Potentially_Novel_SNVSs.txt'
+			novelty_report_file = outdir + 'Potentially_Novel_SNVs.txt'
 			homolog_presence_report_file = outdir + 'Sample_Homolog_Group_Coverage.txt'
 			no_handle = open(novelty_report_file, 'w')
 			hpr_handle = open(homolog_presence_report_file, 'w')
