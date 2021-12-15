@@ -1,6 +1,7 @@
 import os
 import sys
 from Bio import SeqIO
+from Bio.Seq import Seq
 import argparse
 from collections import defaultdict
 from scipy import stats, spatial
@@ -19,9 +20,10 @@ def create_parser():
     parser.add_argument('-f', '--focal_alignment_dir', help="Path to DiscoVary Result output subdirectory Alignment_Results/ for focal GCF of interest.", required=True, default=None)
     parser.add_argument('-r', '--reference_genes', help="Path to GCF_Genes_Representatives.fasta file in focal GCF's DiscoVary Results Directory")
     parser.add_argument('-o', '--output', help="Path to output file - filtered novel SNVs report.", required=True, default=None)
-    parser.add_argument('-b', '--comparator_bam_listings', help="File where each line has three columns: (1) sample name, (2) path to a BAM file, and (3) path to a reference FASTA.", required=False, default=None)
+    parser.add_argument('-b', '--comparator_bam_listings', help="File where each line has three columns: (1) sample name, and (2) path to a BAM file.", required=False, default=None)
     parser.add_argument('-k', '--kraken_listings', help="File where each line has two columns: (1) sample name and (2) path to Kraken2 results file.", required=False, default=None)
     parser.add_argument('-t', '--kraken_taxa', nargs="+", help="List of taxa id in Kraken database to retain. Should be surrounded by quotes to avoid issues.", required=False, default=[])
+    parser.add_argument('-l', '--max_read_length', help="Max read length.", default=150, required=False)
     parser.add_argument('-m', '--minimum_depth', type=int, help="Minimum number of reads needed for reporting a novel SNV.", required=False, default=5)
     parser.add_argument('-s', '--stringent', action='store_true', help="Perform more stringent assessment, also tosses out reads which align equally-well by score to a comparator BAM (requires more careful thinking about comparator set of BAMs).", required=False, default=False)
     args = parser.parse_args()
@@ -40,6 +42,7 @@ def main():
 
     minimum_depth = myargs.minimum_depth
     stringent = myargs.stringent
+    max_read_length = myargs.max_read_length
 
     output = os.path.abspath(myargs.output)
 
@@ -69,9 +72,11 @@ def main():
             snv_supporting_reads[sample] = snv_supporting_reads[sample].union(reads)
 
     ref_gene_lens = {}
+    ref_gene_seqs = {}
     with open(reference_genes_file) as orgf:
         for rec in SeqIO.parse(orgf, 'fasta'):
             ref_gene_lens[rec.id] = len(str(rec.seq))
+            ref_gene_seqs[rec.id] = str(rec.seq)
 
     focal_read_alignment_scores = defaultdict(list)
     for f in os.listdir(focal_alignment_dir):
@@ -83,13 +88,30 @@ def main():
                 read_name = read_alignment.query_name
                 read_ascore = float(read_alignment.tags[0][1])
                 if read_name in snv_supporting_reads[sample]:
-                    focal_read_alignment_scores[read_name].append([sample, read_ascore])
+
+                    ref_positions = set([])
+                    for b in read_alignment.get_aligned_pairs(with_seq=False):
+                        if b[1] == None or b[0] == None: continue
+                        ref_pos = b[1] + 1
+                        ref_positions.add(ref_pos)
+
+                    min_ref_pos = min(ref_positions)
+                    max_ref_pos = max(ref_positions)
+                    on_reference_edge = False
+                    ref_seq = None
+                    if min_ref_pos == 1 or max_ref_pos == ref_gene_lens[ref_gene]:
+                            on_reference_edge = True
+                            if max_ref_pos == ref_gene_lens[ref_gene]:
+                                ref_seq = ref_gene_seqs[ref_gene][min_ref_pos-1:]
+                            else:
+                                ref_seq = ref_gene_seqs[ref_gene][min_ref_pos-1:max_ref_pos]
+                    focal_read_alignment_scores[read_name].append([sample, read_ascore, on_reference_edge, ref_seq])
 
     top_read_reflexive_alignment_scores = defaultdict(lambda: defaultdict(float))
     for read in focal_read_alignment_scores:
         for i, read_info in enumerate(sorted(focal_read_alignment_scores[read], key=itemgetter(1), reverse=True)):
             if i == 0:
-                top_read_reflexive_alignment_scores[read_info[0]][read] = read_info[1]
+                top_read_reflexive_alignment_scores[read_info[0]][read] = [read_info[1], read_info[2], read_info[3]]
 
     reads_with_conflicting_support = defaultdict(set)
     if os.path.isfile(comparator_bam_listings_file):
@@ -108,7 +130,18 @@ def main():
                             read_name in top_read_reflexive_alignment_scores[sample] and \
                             (read_ascore > top_read_reflexive_alignment_scores[sample][read_name] or
                              (read_ascore == top_read_reflexive_alignment_scores[sample][read_name] and stringent)):
-                            reads_with_conflicting_support[sample].add(read_name)
+
+                            if top_read_reflexive_alignment_scores[sample][read_name][2]:
+                                bgc_ref_seq = top_read_reflexive_alignment_scores[sample][read_name][2].upper()
+                                bgc_ref_seq_rc = str(Seq(bgc_ref_seq).reverse_complement())
+
+                                ref_seq = ""
+                                for b in read_alignment.get_aligned_pairs(with_seq=True):
+                                    if b[2]: ref_seq += b[2].upper()
+                                if bgc_ref_seq in ref_seq or bgc_ref_seq_rc in ref_seq: continue
+                                reads_with_conflicting_support[sample].add(read_name)
+                            else:
+                                reads_with_conflicting_support[sample].add(read_name)
                 except:
                     raise RuntimeError('Difficulty reading in reference BAM alignment file %s on line %d.' % (alignment_bam_file, i))
 
