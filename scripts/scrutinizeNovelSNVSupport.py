@@ -137,8 +137,6 @@ def main():
                                 ref_seq = ""
                                 for b in read_alignment.get_aligned_pairs(with_seq=True):
                                     if b[2]: ref_seq += b[2].upper()
-                                if not (bgc_ref_seq in ref_seq or bgc_ref_seq_rc in ref_seq):
-                                    reads_with_conflicting_support[sample].add(read_name)
                                 top_alignments[read_name].append([read_ascore, ref_seq])
                             else:
                                 reads_with_conflicting_support[sample].add(read_name)
