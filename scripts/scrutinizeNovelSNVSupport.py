@@ -135,6 +135,7 @@ def main():
                                 bgc_ref_seq = top_read_reflexive_alignment_scores[sample][read_name][2].upper()
                                 bgc_ref_seq_rc = str(Seq(bgc_ref_seq).reverse_complement())
 
+                                print(bgc_ref_seq)
                                 ref_seq = ""
                                 for b in read_alignment.get_aligned_pairs(with_seq=True):
                                     if b[2]: ref_seq += b[2].upper()
