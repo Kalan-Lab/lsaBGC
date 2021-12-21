@@ -183,13 +183,11 @@ class Pan:
 				sf_handle.write(
 					'\t'.join(['GCF id', 'number of BGCs', 'number of samples', 'samples with multiple BGCs in GCF',
 							   'size of the SCC', 'mean number of OGs', 'stdev for number of OGs',
-							   'number of core gene aggregates',
-							   'min difference', 'max difference', 'annotations']) + '\n')
+							   'min difference', 'max difference', 'number of core gene aggregates', 'annotations']) + '\n')
 				sfes_handle.write(
 					'\t'.join(['GCF id', 'number of BGCs', 'number of samples', 'samples with multiple BGCs in GCF',
 							   'size of the SCC', 'mean number of OGs', 'stdev for number of OGs',
-							   'number of core gene aggregates',
-							   'min difference', 'max difference', 'annotations']) + '\n')
+							   'min difference', 'max difference', 'number of core gene aggregates', 'annotations']) + '\n')
 				sfes_handle.close()
 
 			sf_handle.close()
