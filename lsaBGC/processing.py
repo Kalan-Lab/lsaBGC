@@ -251,8 +251,8 @@ def runOrthoFinder(prokka_proteomes_dir, orthofinder_outdir, orthofinder_load_co
 	else:
 		try:
 			logObject.info('Running the following command: %s' % ' '.join(orthofinder_cmd))
-			#subprocess.call(' '.join(orthofinder_cmd), shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-			#				executable='/bin/bash')
+			subprocess.call(' '.join(orthofinder_cmd), shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+							executable='/bin/bash')
 			logObject.info('Successfully ran OrthoFinder!')
 			tmp_orthofinder_dir = os.path.abspath(
 				[prokka_proteomes_dir + 'OrthoFinder/' + f for f in os.listdir(prokka_proteomes_dir + 'OrthoFinder/') if f.startswith('Results')][0]) + '/'
