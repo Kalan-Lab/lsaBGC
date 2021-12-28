@@ -173,8 +173,8 @@ def lsaBGC_Process():
 		raise RuntimeError("Can't create Prokka results directories. Exiting now ...")
 
 	logObject.info("Running/setting-up Prokka for all samples!")
-	processing.runProkka(sample_assemblies, prokka_outdir, prokka_proteomes_dir, prokka_genbanks_dir, prokka_load_code,
-					 lineage, cores, locus_tag_length, logObject, dry_run_flag=dry_run_flag, skip_annotation_flag=fast_annotation_flag)
+	#processing.runProkka(sample_assemblies, prokka_outdir, prokka_proteomes_dir, prokka_genbanks_dir, prokka_load_code,
+	#				 lineage, cores, locus_tag_length, logObject, dry_run_flag=dry_run_flag, skip_annotation_flag=fast_annotation_flag)
 
 	prokka_results_listing_file = outdir + 'Sample_Annotation_Files.txt'
 	prlf_handle = open(prokka_results_listing_file, 'w')
@@ -199,8 +199,8 @@ def lsaBGC_Process():
 			raise RuntimeError("Can't create AntiSMASH results directories. Exiting now ...")
 
 		logObject.info("Running/setting-up AntiSMASH for all samples!")
-		processing.runAntiSMASH(prokka_genbanks_dir, antismash_outdir, antiSMASH_load_code, cores, logObject,
-								dry_run_flag=dry_run_flag)
+		#processing.runAntiSMASH(prokka_genbanks_dir, antismash_outdir, antiSMASH_load_code, cores, logObject,
+		#						dry_run_flag=dry_run_flag)
 		logObject.info("Successfully ran/set-up AntiSMASH.")
 
 		refined_proteomes_outdir = outdir + 'AntiSMASH_Sample_Proteomes/'
@@ -235,12 +235,12 @@ def lsaBGC_Process():
 		logObject.info("Successfully ran/set-up OrthoFinder.")
 
 		# Move select result files from OrthoFinder to main directory to make more easy to access/find
-		orthofinder_homolog_matrix = orthofinder_outdir + 'Orthogroups.csv'
+		orthofinder_homolog_matrix = orthofinder_outdir + 'Orthogroups/Orthogroups.csv'
 		orthofinder_species_tree = [orthofinder_outdir + od for od in os.listdir(orthofinder_outdir) if od.startswith("Orthologues_")][0] + '/SpeciesTree_rooted.txt'
 		if os.path.isfile(orthofinder_species_tree):
 			os.system('mv %s %s' % (orthofinder_species_tree, outdir))
 		if os.path.isfile(orthofinder_homolog_matrix) and append_singleton_hgs_flag:
-			unassigned_orthofinder_homolog_matrix = orthofinder_outdir + 'Orthogroups_UnassignedGenes.csv'
+			unassigned_orthofinder_homolog_matrix = orthofinder_outdir + 'Orthogroups/Orthogroups_UnassignedGenes.csv'
 			result_file = outdir + 'Orthogroups.csv'
 			processing.appendSingletonHGsToPresenceMatrix(orthofinder_homolog_matrix, unassigned_orthofinder_homolog_matrix, result_file, logObject)
 		elif os.path.isfile(orthofinder_homolog_matrix):
