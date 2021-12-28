@@ -240,8 +240,8 @@ def lsaBGC_Process():
 		if os.path.isfile(orthofinder_species_tree):
 			os.system('mv %s %s' % (orthofinder_species_tree, outdir))
 		if os.path.isfile(orthofinder_homolog_matrix) and append_singleton_hgs_flag:
-			unassigned_orthofinder_homolog_matrix = orthofinder_outdir + 'Orthogroups/Orthogroups_UnassignedGenes.csv'
-			result_file = outdir + 'Orthogroups.csv'
+			unassigned_orthofinder_homolog_matrix = orthofinder_outdir + 'Orthogroups/Orthogroups_UnassignedGenes.tsv'
+			result_file = outdir + 'Orthogroups.tsv'
 			processing.appendSingletonHGsToPresenceMatrix(orthofinder_homolog_matrix, unassigned_orthofinder_homolog_matrix, result_file, logObject)
 		elif os.path.isfile(orthofinder_homolog_matrix):
 			os.system('mv %s %s' % (orthofinder_homolog_matrix, outdir))
