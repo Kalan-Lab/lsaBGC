@@ -220,7 +220,7 @@ def lsaBGC_Process():
 					sample_bgcs.add(bgc_genbank)
 					antismash_bgc_listing_handle.write(s + '\t' + bgc_genbank + '\n')
 				else:
-					os.system('rm -f %s' % sample_antismash_outdir + f)
+					os.system('rm -fr %s' % sample_antismash_outdir + f)
 			if refined_orthofinder:
 				util.writeRefinedProteomes(s, sample_bgcs, refined_proteomes_outdir, logObject)
 		antismash_bgc_listing_handle.close()
@@ -235,7 +235,7 @@ def lsaBGC_Process():
 		logObject.info("Successfully ran/set-up OrthoFinder.")
 
 		# Move select result files from OrthoFinder to main directory to make more easy to access/find
-		orthofinder_homolog_matrix = orthofinder_outdir + 'Orthogroups/Orthogroups.csv'
+		orthofinder_homolog_matrix = orthofinder_outdir + 'Orthogroups/Orthogroups.tsv'
 		orthofinder_species_tree = orthofinder_outdir + 'Species_Tree/SpeciesTree_rooted.txt'
 		if os.path.isfile(orthofinder_species_tree):
 			os.system('mv %s %s' % (orthofinder_species_tree, outdir))
