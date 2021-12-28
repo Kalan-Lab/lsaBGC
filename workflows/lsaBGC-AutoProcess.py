@@ -173,8 +173,8 @@ def lsaBGC_Process():
 		raise RuntimeError("Can't create Prokka results directories. Exiting now ...")
 
 	logObject.info("Running/setting-up Prokka for all samples!")
-	#processing.runProkka(sample_assemblies, prokka_outdir, prokka_proteomes_dir, prokka_genbanks_dir, prokka_load_code,
-	#				 lineage, cores, locus_tag_length, logObject, dry_run_flag=dry_run_flag, skip_annotation_flag=fast_annotation_flag)
+	processing.runProkka(sample_assemblies, prokka_outdir, prokka_proteomes_dir, prokka_genbanks_dir, prokka_load_code,
+					 lineage, cores, locus_tag_length, logObject, dry_run_flag=dry_run_flag, skip_annotation_flag=fast_annotation_flag)
 
 	prokka_results_listing_file = outdir + 'Sample_Annotation_Files.txt'
 	prlf_handle = open(prokka_results_listing_file, 'w')
@@ -199,8 +199,8 @@ def lsaBGC_Process():
 			raise RuntimeError("Can't create AntiSMASH results directories. Exiting now ...")
 
 		logObject.info("Running/setting-up AntiSMASH for all samples!")
-		#processing.runAntiSMASH(prokka_genbanks_dir, antismash_outdir, antiSMASH_load_code, cores, logObject,
-		#						dry_run_flag=dry_run_flag)
+		processing.runAntiSMASH(prokka_genbanks_dir, antismash_outdir, antiSMASH_load_code, cores, logObject,
+								dry_run_flag=dry_run_flag)
 		logObject.info("Successfully ran/set-up AntiSMASH.")
 
 		refined_proteomes_outdir = outdir + 'AntiSMASH_Sample_Proteomes/'
@@ -228,10 +228,10 @@ def lsaBGC_Process():
 		# Step 4: Run OrthoFinder for de novo ortholog construction
 		orthofinder_outdir = outdir + 'OrthoFinder_Results/'
 		logObject.info("Running/setting-up OrthoFinder!")
-		#if not refined_orthofinder:
-		#	processing.runOrthoFinder(prokka_proteomes_dir, orthofinder_outdir, orthofinder_load_code, cores, logObject, dry_run_flag=dry_run_flag)
-		#else:
-		#	processing.runOrthoFinder(refined_proteomes_outdir, orthofinder_outdir, orthofinder_load_code, cores, logObject, dry_run_flag=dry_run_flag)
+		if not refined_orthofinder:
+			processing.runOrthoFinder(prokka_proteomes_dir, orthofinder_outdir, orthofinder_load_code, cores, logObject, dry_run_flag=dry_run_flag)
+		else:
+			processing.runOrthoFinder(refined_proteomes_outdir, orthofinder_outdir, orthofinder_load_code, cores, logObject, dry_run_flag=dry_run_flag)
 		logObject.info("Successfully ran/set-up OrthoFinder.")
 
 		# Move select result files from OrthoFinder to main directory to make more easy to access/find
