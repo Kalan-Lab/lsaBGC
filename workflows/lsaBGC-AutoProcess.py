@@ -228,15 +228,15 @@ def lsaBGC_Process():
 		# Step 4: Run OrthoFinder for de novo ortholog construction
 		orthofinder_outdir = outdir + 'OrthoFinder_Results/'
 		logObject.info("Running/setting-up OrthoFinder!")
-		if not refined_orthofinder:
-			processing.runOrthoFinder(prokka_proteomes_dir, orthofinder_outdir, orthofinder_load_code, cores, logObject, dry_run_flag=dry_run_flag)
-		else:
-			processing.runOrthoFinder(refined_proteomes_outdir, orthofinder_outdir, orthofinder_load_code, cores, logObject, dry_run_flag=dry_run_flag)
+		#if not refined_orthofinder:
+		#	processing.runOrthoFinder(prokka_proteomes_dir, orthofinder_outdir, orthofinder_load_code, cores, logObject, dry_run_flag=dry_run_flag)
+		#else:
+		#	processing.runOrthoFinder(refined_proteomes_outdir, orthofinder_outdir, orthofinder_load_code, cores, logObject, dry_run_flag=dry_run_flag)
 		logObject.info("Successfully ran/set-up OrthoFinder.")
 
 		# Move select result files from OrthoFinder to main directory to make more easy to access/find
 		orthofinder_homolog_matrix = orthofinder_outdir + 'Orthogroups/Orthogroups.csv'
-		orthofinder_species_tree = [orthofinder_outdir + od for od in os.listdir(orthofinder_outdir) if od.startswith("Orthologues_")][0] + '/SpeciesTree_rooted.txt'
+		orthofinder_species_tree = orthofinder_outdir + 'Species_Tree/SpeciesTree_rooted.txt'
 		if os.path.isfile(orthofinder_species_tree):
 			os.system('mv %s %s' % (orthofinder_species_tree, outdir))
 		if os.path.isfile(orthofinder_homolog_matrix) and append_singleton_hgs_flag:
