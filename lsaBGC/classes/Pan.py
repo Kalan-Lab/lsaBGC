@@ -349,7 +349,7 @@ class Pan:
 		try:
 			subprocess.call(' '.join(mcxdump_cmd), shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
 							executable='/bin/bash')
-			assert (os.path.isfile(mcxdump_out_file) and os.path.getsize(mcxdump_out_file) > 100)
+			assert (os.path.isfile(mcxdump_out_file) and os.path.getsize(mcxdump_out_file) > 50)
 			if self.logObject:
 				self.logObject.info('Successfully ran: %s' % ' '.join(mcl_cmd))
 		except Exception as e:

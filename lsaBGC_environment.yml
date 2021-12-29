@@ -28,6 +28,7 @@ dependencies:
   - conda-forge::r-gggenes=0.4.1
   - bioconda::bioconductor-ggtree=2.4.0
   - conda-forge::r-ggalluvial=0.12.3
+  - conda-forge::r-rvcheck=0.1.8
   - conda-forge::pomegranate=0.13.3
   - conda-forge::r-data.table=1.14.0
   - bioconda:comparem=0.1.2
