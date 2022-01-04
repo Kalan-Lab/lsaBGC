@@ -236,15 +236,21 @@ def lsaBGC_Process():
 
 		# Move select result files from OrthoFinder to main directory to make more easy to access/find
 		orthofinder_homolog_matrix = orthofinder_outdir + 'Orthogroups/Orthogroups.tsv'
-		orthofinder_species_tree = orthofinder_outdir + 'Species_Tree/SpeciesTree_rooted.txt'
-		if os.path.isfile(orthofinder_species_tree):
-			os.system('mv %s %s' % (orthofinder_species_tree, outdir))
+		flag = False
 		if os.path.isfile(orthofinder_homolog_matrix) and append_singleton_hgs_flag:
 			unassigned_orthofinder_homolog_matrix = orthofinder_outdir + 'Orthogroups/Orthogroups_UnassignedGenes.tsv'
 			result_file = outdir + 'Orthogroups.tsv'
 			processing.appendSingletonHGsToPresenceMatrix(orthofinder_homolog_matrix, unassigned_orthofinder_homolog_matrix, result_file, logObject)
+			flag = True
 		elif os.path.isfile(orthofinder_homolog_matrix):
 			os.system('mv %s %s' % (orthofinder_homolog_matrix, outdir))
+			flag = True
+			
+		if not flag:
+			raise RuntimeWarning("Orthofinder did not run successfully, please check logs in output directory.")
+		orthofinder_species_tree = orthofinder_outdir + 'Species_Tree/SpeciesTree_rooted.txt'
+		if os.path.isfile(orthofinder_species_tree):
+			os.system('mv %s %s' % (orthofinder_species_tree, outdir))
 
 	# Close logging object and exit
 	util.closeLoggerObject(logObject)

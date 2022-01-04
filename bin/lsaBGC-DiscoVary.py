@@ -171,14 +171,14 @@ def lsaBGC_DiscoVary():
     bowtie2_outdir = outdir + 'Bowtie2_Alignments/'
     if not os.path.isfile(bowtie2_outdir): os.system('mkdir %s' % bowtie2_outdir)
     logObject.info("Running Bowtie2 alignment of paired-end sequencing reads against database of GCF genes with surrounding flanking sequences.")
-    #util.runBowtie2Alignments(bowtie2_db_prefix, paired_end_sequencing_file, bowtie2_outdir, logObject, cores=cores)
+    util.runBowtie2Alignments(bowtie2_db_prefix, paired_end_sequencing_file, bowtie2_outdir, logObject, cores=cores)
     logObject.info("Bowtie2 alignments completed successfully!")
 
     # Step 7: Parse bowtie2 alignments found per sample and identify support for SNVs
     results_outdir = outdir + 'Alignment_Parsing/'
     if not os.path.isdir(results_outdir): os.system('mkdir %s' % results_outdir)
     logObject.info("Beginning typing of homolog group alleles and mining of novel SNVs.")
-    #GCF_Object.runSNVMining(paired_end_sequencing_file, genes_representative_fasta, codon_alignments_file, bowtie2_outdir, results_outdir, cores=cores)
+    GCF_Object.runSNVMining(paired_end_sequencing_file, genes_representative_fasta, codon_alignments_file, bowtie2_outdir, results_outdir, cores=cores)
     logObject.info("Successfully typed alleles and mined for novel SNVs.")
 
     # Step 8: Decide on GCF presence, determine consensus/haplotypes for homolog groups, and generate novelty report

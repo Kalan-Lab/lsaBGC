@@ -336,7 +336,7 @@ class Pan:
 		try:
 			subprocess.call(' '.join(mcl_cmd), shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
 							executable='/bin/bash')
-			assert (os.path.isfile(relations_mcl_file) and os.path.getsize(relations_mcl_file) > 100)
+			assert (os.path.isfile(relations_mcl_file) and os.path.getsize(relations_mcl_file) > 50)
 			self.logObject.info('Successfully ran: %s' % ' '.join(mcl_cmd))
 		except Exception as e:
 			if self.logObject:

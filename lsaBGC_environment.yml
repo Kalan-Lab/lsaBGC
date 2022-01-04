@@ -31,5 +31,6 @@ dependencies:
   - conda-forge::r-rvcheck=0.1.8
   - conda-forge::pomegranate=0.13.3
   - conda-forge::r-data.table=1.14.0
+  - conda-forge::r-plyr=1.8.6
   - bioconda:comparem=0.1.2
   - bioconda:entrez-direct
