@@ -686,7 +686,7 @@ class GCF(Pan):
 			ref_hg_directions = {}
 			bgc_gene_counts = defaultdict(int)
 			for bgc in self.bgc_genes:
-					bgc_gene_counts[bgc] = len(self.bgc_genes[bgc])
+				bgc_gene_counts[bgc] = len(self.bgc_genes[bgc])
 
 			following_hgs = defaultdict(lambda: defaultdict(int))
 			all_hgs = set(['start', 'end'])
@@ -751,6 +751,9 @@ class GCF(Pan):
 					if following_hgs[hg][fhg] > hg_best_score[fhg]:
 						hg_best_score[fhg] = following_hgs[hg][fhg]
 					hg_all_scores[fhg].add(following_hgs[hg][fhg])
+
+			print(hg_best_score)
+			print(hg_all_scores)
 
 			# iterative approach to get homolog group orders
 			curr_hg = 'start'

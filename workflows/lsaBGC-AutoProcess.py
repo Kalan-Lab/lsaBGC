@@ -245,7 +245,7 @@ def lsaBGC_Process():
 		elif os.path.isfile(orthofinder_homolog_matrix):
 			os.system('mv %s %s' % (orthofinder_homolog_matrix, outdir))
 			flag = True
-			
+
 		if not flag:
 			raise RuntimeWarning("Orthofinder did not run successfully, please check logs in output directory.")
 		orthofinder_species_tree = orthofinder_outdir + 'Species_Tree/SpeciesTree_rooted.txt'
