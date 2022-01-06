@@ -755,6 +755,8 @@ class GCF(Pan):
 					except:
 						hg_after = 'end'
 						following_hgs[hg][hg_after] += 1
+			print(ref_bgc)
+			print(following_hgs)
 
 			hg_best_score = defaultdict(int)
 			hg_all_scores = defaultdict(set)
