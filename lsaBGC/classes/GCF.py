@@ -683,17 +683,26 @@ class GCF(Pan):
 		a homolog group is best positioned.
 		"""
 		try:
-			ref_hg_directions = {}
 			bgc_gene_counts = defaultdict(int)
+			core_bgcs = set([])
 			for bgc in self.bgc_genes:
 				bgc_gene_counts[bgc] = len(self.bgc_genes[bgc])
+				if len(list(self.bgc_genes[bgc])[0].split('_')[0]) == 3:
+					core_bgcs.add(bgc)
+			ref_bgc = None
+			for i, item in enumerate(sorted(bgc_gene_counts.items(), key=itemgetter(1), reverse=True)):
+				if item[0] in core_bgcs:
+					ref_bgc = item[0]
+					break
+			assert(ref_bgc != None)
+			bgcs_ref_first = [ref_bgc] + list(set(bgc_genes.keys()).difference(set([ref_bgc])))
 
+			ref_hg_directions = {}
 			following_hgs = defaultdict(lambda: defaultdict(int))
 			all_hgs = set(['start', 'end'])
 			direction_forward_support = defaultdict(int)
 			direction_reverse_support = defaultdict(int)
-			for i, item in enumerate(sorted(bgc_gene_counts.items(), key=itemgetter(1), reverse=True)):
-				bgc = item[0]
+			for i, bgc in enumerate(bgcs_ref_first):
 				curr_bgc_genes = self.bgc_genes[bgc]
 				hg_directions = {}
 				hg_lengths = defaultdict(list)
@@ -799,7 +808,7 @@ class GCF(Pan):
 
 				if previous_ordered_hgs_list == ordered_hgs_list:
 					for hg in sorted(all_hgs.difference(visited_hgs)):
-						for hgs in sorted(hg_all_scores[hg], reverse=True):
+						for hgs in sorted(hg_all_scores[hg], key=itemgetter(1), reverse=True):
 							if hgs != hg_best_score[hg]:
 								hg_best_score[hg] = hgs
 								break
