@@ -739,7 +739,10 @@ class GCF(Pan):
 
 					try:
 						hg_after = hgs[j+1]
-						following_hgs[hg][hg_after] += 1
+						# make sure you don't get lost with broken/fragmented genes in BGCs that might be
+						# in the process being lost.
+						if hg != hg_after:
+							following_hgs[hg][hg_after] += 1
 					except:
 						hg_after = 'end'
 						following_hgs[hg][hg_after] += 1
@@ -796,7 +799,7 @@ class GCF(Pan):
 
 				if previous_ordered_hgs_list == ordered_hgs_list:
 					for hg in sorted(all_hgs.difference(visited_hgs)):
-						for hgs in sorted(hg_all_scores[hg], reverse=True):
+						for hgs in sorted(hg_all_scores[hg], key=itemgetter(1), reverse=True):
 							if hgs != hg_best_score[hg]:
 								hg_best_score[hg] = hgs
 								break
