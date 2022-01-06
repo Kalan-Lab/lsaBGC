@@ -808,7 +808,7 @@ class GCF(Pan):
 
 				if previous_ordered_hgs_list == ordered_hgs_list:
 					for hg in sorted(all_hgs.difference(visited_hgs)):
-						for hgs in sorted(hg_all_scores[hg], key=itemgetter(1), reverse=True):
+						for hgs in sorted(hg_all_scores[hg], reverse=True):
 							if hgs != hg_best_score[hg]:
 								hg_best_score[hg] = hgs
 								break
