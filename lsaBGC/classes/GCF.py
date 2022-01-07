@@ -822,26 +822,28 @@ class GCF(Pan):
 					best_score = 0
 					relative_pos = None
 					neighboriest_hg = None
-					for i, fhg in enumerate(sorted(hg_following_scores[hg].items(), key=itemgetter(1), reverse=True)):
-						if i == 0:
-							if best_score < fhg[1] and fhg[0] in accounted_hgs:
-								best_score = fhg[1]
-								relative_pos = 'before'
-								neighboriest_hg = fhg[0]
 
 					for i, fhg in enumerate(sorted(hg_preceding_scores[hg].items(), key=itemgetter(1), reverse=True)):
-						if i == 0:
-							if best_score < fhg[1] and fhg[0] in accounted_hgs:
-								best_score = fhg[1]
-								relative_pos = 'after'
-								neighboriest_hg = fhg[0]
+						if best_score < fhg[1] and fhg[0] in accounted_hgs:
+							best_score = fhg[1]
+							relative_pos = 'after'
+							neighboriest_hg = fhg[0]
+							break
+
+					for i, fhg in enumerate(sorted(hg_following_scores[hg].items(), key=itemgetter(1), reverse=True)):
+						if best_score < fhg[1] and fhg[0] in accounted_hgs:
+							best_score = fhg[1]
+							relative_pos = 'before'
+							neighboriest_hg = fhg[0]
+							break
 
 					if best_score > 0:
 						neighboriest_hg_index = ordered_hgs_list.index(neighboriest_hg)
 						if relative_pos == 'before':
-							ordered_hgs_list.insert(neighboriest_hg_index-1, hg)
+							ordered_hgs_list.insert(neighboriest_hg_index, hg)
 						elif relative_pos == 'after':
 							ordered_hgs_list.insert(neighboriest_hg_index+1, hg)
+
 						accounted_hgs.add(hg)
 						progress_made = True
 				if not progress_made:
