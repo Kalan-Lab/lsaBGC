@@ -698,7 +698,9 @@ class GCF(Pan):
 			bgcs_ref_first = [ref_bgc] + list(set(self.bgc_genes.keys()).difference(set([ref_bgc])))
 
 			ref_hg_directions = {}
-			following_hgs = defaultdict(lambda: defaultdict(int))
+			hg_pair_scores = defaultdict(int)
+			hg_preceding_scores = defaultdict(lambda: defaultdict(int))
+			hg_following_scores = defaultdict(lambda: defaultdict(int))
 			all_hgs = set(['start', 'end'])
 			direction_forward_support = defaultdict(int)
 			direction_reverse_support = defaultdict(int)
@@ -736,6 +738,7 @@ class GCF(Pan):
 					# reverse ordering
 					if flip_support > keep_support:
 						reverse_flag = True
+
 				hgs = []
 				for c in sorted(hg_starts.items(), key=itemgetter(1), reverse=reverse_flag):
 					hgs.append(c[0])
@@ -744,73 +747,109 @@ class GCF(Pan):
 					all_hgs.add(hg)
 					if j == 0:
 						hg_previ = "start"
-						following_hgs[hg_previ][hg] += 1
-
+						hg_preceding_scores[hg][hg_previ] += 1
+						hg_following_scores[hg_previ][hg] += 1
+						hg_pair_scores[tuple([hg_previ, hg])] += 1
 					try:
 						hg_after = hgs[j+1]
 						# make sure you don't get lost with broken/fragmented genes in BGCs that might be
 						# in the process being lost.
 						if hg != hg_after:
-							following_hgs[hg][hg_after] += 1
+							hg_preceding_scores[hg_after][hg] += 1
+							hg_following_scores[hg][hg_after] += 1
+							hg_pair_scores[tuple([hg, hg_after])] += 1
 					except:
 						hg_after = 'end'
-						following_hgs[hg][hg_after] += 1
+						hg_preceding_scores[hg_after][hg] += 1
+						hg_following_scores[hg][hg_after] += 1
+						hg_pair_scores[tuple([hg, hg_after])] += 1
 
-			print(following_hgs)
-			hg_best_score = defaultdict(int)
-			hg_all_scores = defaultdict(set)
-			for hg in sorted(all_hgs):
-				for fhg in sorted(following_hgs[hg]):
-					if following_hgs[hg][fhg] > hg_best_score[fhg]:
-						hg_best_score[fhg] = following_hgs[hg][fhg]
-					hg_all_scores[fhg].add(following_hgs[hg][fhg])
+			anchor_edge = None
+			for hps in sorted(hg_pair_scores.items(), key=itemgetter(1), reverse=True):
+				if hps[0][0] in self.protocluster_core_homologs or hps[0][1] in self.protocluster_core_homologs:
+					anchor_edge = hps[0]
+			try:
+				assert(anchor_edge != None)
+			except:
+				raise RuntimeError("Unexpected error, no anchor edge found, could be because no protocore homolog group exists, which shouldn't be the case!")
+				sys.exit(1)
 
-			# iterative approach to get homolog group orders
-			curr_hg = 'start'
-			visited_hgs = set([curr_hg])
-			ordered_hgs_list = [curr_hg]
-			while curr_hg != 'end':
-				next_hg = None
-				for fhg in sorted(following_hgs[curr_hg].items(), key=itemgetter(1), reverse=True):
-					if fhg[1] == hg_best_score[fhg[0]] and not fhg[0] in visited_hgs:
-						next_hg = fhg[0]
+			# use to keep track of which HGs have been accounted for already at different steps of assigning order
+			accounted_hgs = set([])
+
+			# primary expansion left
+			curr_hg = anchor_edge[0]
+			left_expansion = [curr_hg]
+			while not curr_hg == 'start':
+				new_hg = None
+				for i, hg in enumerate(sorted(hg_preceding_scores[curr_hg].items(), key=itemgetter(1), reverse=True)):
+					if not hg[0] in hgs_accounted:
+						new_hg = hg[0]
+						left_expansion = [new_hg] + left_expansion
+						accounted_hgs.add(new_hg)
 						break
-				if next_hg == None:
-					for fhg in sorted(following_hgs[curr_hg].items(), key=itemgetter(1), reverse=True):
-						if not fhg[0] in visited_hgs:
-							next_hg = fhg[0]
-							break
-				if next_hg == None:
-					next_hg = 'end'
-				ordered_hgs_list.append(next_hg)
-				visited_hgs.add(next_hg)
-				curr_hg = next_hg
+				if new_hg != None:
+					curr_hg = new_hg
+				else:
+					# shouldn't ever be the case, but breaking just in case
+					break
 
-			print(ordered_hgs_list)
-
-			previous_ordered_hgs_list = ordered_hgs_list
-			while len(all_hgs.difference(visited_hgs)) > 0:
-				for i, curr_hg in enumerate(ordered_hgs_list):
-					next_hg = None
-					for fhg in sorted(following_hgs[curr_hg].items(), key=itemgetter(1), reverse=True):
-						if fhg[1] == hg_best_score[fhg[0]] and not fhg[0] in visited_hgs:
-							next_hg = fhg[0]
-							break
-
-					#print('Second loop:\t' + '\t'.join(ordered_hgs_list))
-					if next_hg != None:
-						ordered_hgs_list.insert(i+1, next_hg)
-						visited_hgs.add(next_hg)
+			# primary expansion right
+			curr_hg = anchor_edge[1]
+			right_expansion = [curr_hg]
+			while not curr_hg == 'end':
+				new_hg = None
+				for i, hg in enumerate(sorted(hg_following_scores[curr_hg].items(), key=itemgetter(1), reverse=True)):
+					if not hg[0] in hgs_accounted:
+						new_hg = hg[0]
+						right_expansion.append(new_hg)
+						accounted_hgs.add(new_hg)
 						break
+				if new_hg != None:
+					curr_hg = new_hg
+				else:
+					# shouldn't ever be the case, but breaking just in case
+					break
 
-				if previous_ordered_hgs_list == ordered_hgs_list:
-					for hg in sorted(all_hgs.difference(visited_hgs)):
-						for hgs in sorted(hg_all_scores[hg], reverse=True):
-							if hgs != hg_best_score[hg]:
-								hg_best_score[hg] = hgs
-								break
-				previous_ordered_hgs_list = ordered_hgs_list
-			ordered_hgs_list = previous_ordered_hgs_list
+			primary_path_ordered = left_expansion + right_expansion
+			ordered_hgs_list = primary_path_ordered
+
+			# figure out where non-accounted for HGs belong best in the primary path.
+			not_accounted_hgs = all_hgs.difference(accounted_hgs)
+			while len(not_accounted_hgs) > 0:
+				progress_made = False
+				for hg in not_accounted_hgs:
+					best_score = 0
+					relative_pos = None
+					neighboriest_hg = None
+					for i, fhg in enumerate(sorted(hg_following_scores[hg].items(), key=itemgetter(1), reverse=True)):
+						if i == 0:
+							if best_score < fhg[1] and fhg[0] in accounted_hgs:
+								best_score = fhg[1]
+								relative_pos = 'before'
+								neighboriest_hg = fhg[0]
+
+					for i, fhg in enumerate(sorted(hg_preceding_scores[hg].items(), key=itemgetter(1), reverse=True)):
+						if i == 0:
+							if best_score < fhg[1] and fhg[0] in accounted_hgs:
+								best_score = 'after'
+								neighboriest_hg = fhg[0]
+
+					if best_score > 0:
+						neighboriest_hg_index = ordered_hgs_list.index(neighboriest_hg)
+						if relative_pos == 'before':
+							ordered_hgs_list.insert(neighboriest_hg_index-1, hg)
+						elif relative_pos == 'after':
+							ordered_hgs_list.insert(neighboriest_hg_index+1, hg)
+						accounted_hgs.add(hg)
+						progress_made = True
+				if not progress_made:
+					break
+				not_accounted_hgs = all_hgs.difference(accounted_hgs)
+
+			# these shouldn't really exist but just append them to the end if they do
+			unaccountable_hgs = all_hgs.difference(accounted_hgs)
+			ordered_hgs_list += list(sorted(unaccountable_hgs))
 
 			i = 1
 			for hg in ordered_hgs_list:
