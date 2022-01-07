@@ -783,7 +783,7 @@ class GCF(Pan):
 			while not curr_hg == 'start':
 				new_hg = None
 				for i, hg in enumerate(sorted(hg_preceding_scores[curr_hg].items(), key=itemgetter(1), reverse=True)):
-					if not hg[0] in hgs_accounted:
+					if not hg[0] in accounted_hgs:
 						new_hg = hg[0]
 						left_expansion = [new_hg] + left_expansion
 						accounted_hgs.add(new_hg)
@@ -800,7 +800,7 @@ class GCF(Pan):
 			while not curr_hg == 'end':
 				new_hg = None
 				for i, hg in enumerate(sorted(hg_following_scores[curr_hg].items(), key=itemgetter(1), reverse=True)):
-					if not hg[0] in hgs_accounted:
+					if not hg[0] in accounted_hgs:
 						new_hg = hg[0]
 						right_expansion.append(new_hg)
 						accounted_hgs.add(new_hg)
