@@ -756,6 +756,7 @@ class GCF(Pan):
 						hg_after = 'end'
 						following_hgs[hg][hg_after] += 1
 
+			print(following_hgs)
 			hg_best_score = defaultdict(int)
 			hg_all_scores = defaultdict(set)
 			for hg in sorted(all_hgs):
