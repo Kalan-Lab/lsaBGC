@@ -832,7 +832,8 @@ class GCF(Pan):
 					for i, fhg in enumerate(sorted(hg_preceding_scores[hg].items(), key=itemgetter(1), reverse=True)):
 						if i == 0:
 							if best_score < fhg[1] and fhg[0] in accounted_hgs:
-								best_score = 'after'
+								best_score = fhg[1]
+								relative_pos = 'after'
 								neighboriest_hg = fhg[0]
 
 					if best_score > 0:
