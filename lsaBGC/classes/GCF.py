@@ -823,11 +823,11 @@ class GCF(Pan):
 					relative_pos = None
 					neighboriest_hg = None
 
-					for i, fhg in enumerate(sorted(hg_preceding_scores[hg].items(), key=itemgetter(1), reverse=True)):
-						if best_score < fhg[1] and fhg[0] in accounted_hgs:
-							best_score = fhg[1]
+					for i, phg in enumerate(sorted(hg_preceding_scores[hg].items(), key=itemgetter(1), reverse=True)):
+						if best_score < phg[1] and phg[0] in accounted_hgs:
+							best_score = phg[1]
 							relative_pos = 'after'
-							neighboriest_hg = fhg[0]
+							neighboriest_hg = phg[0]
 							break
 
 					for i, fhg in enumerate(sorted(hg_following_scores[hg].items(), key=itemgetter(1), reverse=True)):
@@ -843,9 +843,9 @@ class GCF(Pan):
 							ordered_hgs_list.insert(neighboriest_hg_index, hg)
 						elif relative_pos == 'after':
 							ordered_hgs_list.insert(neighboriest_hg_index+1, hg)
-
 						accounted_hgs.add(hg)
 						progress_made = True
+
 				if not progress_made:
 					break
 				not_accounted_hgs = all_hgs.difference(accounted_hgs)
