@@ -755,8 +755,6 @@ class GCF(Pan):
 					except:
 						hg_after = 'end'
 						following_hgs[hg][hg_after] += 1
-			print(ref_bgc)
-			print(following_hgs)
 
 			hg_best_score = defaultdict(int)
 			hg_all_scores = defaultdict(set)
@@ -766,9 +764,6 @@ class GCF(Pan):
 						hg_best_score[fhg] = following_hgs[hg][fhg]
 					hg_all_scores[fhg].add(following_hgs[hg][fhg])
 
-			print(hg_best_score)
-			print(hg_all_scores)
-
 			# iterative approach to get homolog group orders
 			curr_hg = 'start'
 			visited_hgs = set([curr_hg])
@@ -776,12 +771,9 @@ class GCF(Pan):
 			while curr_hg != 'end':
 				next_hg = None
 				for fhg in sorted(following_hgs[curr_hg].items(), key=itemgetter(1), reverse=True):
-					#print(fhg)
-					#print(hg_best_score[fhg[0]])
 					if fhg[1] == hg_best_score[fhg[0]] and not fhg[0] in visited_hgs:
 						next_hg = fhg[0]
 						break
-				#print(ordered_hgs_list)
 				if next_hg == None:
 					for fhg in sorted(following_hgs[curr_hg].items(), key=itemgetter(1), reverse=True):
 						if not fhg[0] in visited_hgs:
@@ -792,6 +784,8 @@ class GCF(Pan):
 				ordered_hgs_list.append(next_hg)
 				visited_hgs.add(next_hg)
 				curr_hg = next_hg
+
+			print(ordered_hgs_list)
 
 			previous_ordered_hgs_list = ordered_hgs_list
 			while len(all_hgs.difference(visited_hgs)) > 0:
@@ -815,6 +809,7 @@ class GCF(Pan):
 								hg_best_score[hg] = hgs
 								break
 				previous_ordered_hgs_list = ordered_hgs_list
+			ordered_hgs_list = previous_ordered_hgs_list
 
 			i = 1
 			for hg in ordered_hgs_list:
