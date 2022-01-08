@@ -19,6 +19,7 @@ from Bio.codonalign.codonseq import _get_codon_list, CodonSeq, cal_dn_ds
 from Bio.codonalign.chisq import chisqprob
 from Bio.codonalign.codonalignment import _get_codon2codon_matrix, _get_subgraph, _count_replacement
 from scipy.stats import power_divergence
+
 GCFID = None
 def mktest(codon_alns, codon_table=None):
 	"""McDonald-Kreitman test for neutrality.
