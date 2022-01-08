@@ -776,7 +776,7 @@ class GCF(Pan):
 				sys.exit(1)
 
 			# use to keep track of which HGs have been accounted for already at different steps of assigning order
-			accounted_hgs = set([])
+			accounted_hgs = set([anchor_edge[0], anchor_edge[1]])
 
 			# primary expansion left
 			curr_hg = anchor_edge[0]
