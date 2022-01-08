@@ -105,7 +105,7 @@ def mktest(codon_alns, codon_table=None):
 			syn_poly += this_syn
 
 	pval = np.nan
-	if syn_fix >= 5 and nonsyn_fix >= 5 and syn_poly >= 5 and nonsyn_poly >= 5:
+	if (syn_fix + nonsyn_fix) >= 20) and (syn_poly + nonsyn_poly) >= 20:
 		stat, pval = power_divergence([100.0*(float(syn_poly)/(syn_poly+nonsyn_poly)), 100.0*(float(nonsyn_poly)/(syn_poly+nonsyn_poly))],
 									  f_exp=[100.0*(float(syn_fix)/(syn_fix + nonsyn_fix)), 100.0*(float(nonsyn_fix)/(syn_fix + nonsyn_fix))],
 									  lambda_=0)
