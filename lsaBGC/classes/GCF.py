@@ -768,6 +768,7 @@ class GCF(Pan):
 			for hps in sorted(hg_pair_scores.items(), key=itemgetter(1), reverse=True):
 				if hps[0][0] in self.protocluster_core_homologs or hps[0][1] in self.protocluster_core_homologs:
 					anchor_edge = hps[0]
+					break
 			try:
 				assert(anchor_edge != None)
 			except:
@@ -853,7 +854,7 @@ class GCF(Pan):
 			# these shouldn't really exist but just append them to the end if they do
 			unaccountable_hgs = all_hgs.difference(accounted_hgs)
 			ordered_hgs_list += list(sorted(unaccountable_hgs))
-
+			print(unaccountable_hgs)
 			i = 1
 			for hg in ordered_hgs_list:
 				if not hg in set(['start', 'end']):
