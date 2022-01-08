@@ -694,7 +694,11 @@ class GCF(Pan):
 				if item[0] in core_bgcs:
 					ref_bgc = item[0]
 					break
-			assert(ref_bgc != None)
+			if ref_bgc == None:
+				for i, item in enumerate(sorted(bgc_gene_counts.items(), key=itemgetter(1), reverse=True)):
+					ref_bgc = item[0]
+					break
+
 			bgcs_ref_first = [ref_bgc] + list(set(self.bgc_genes.keys()).difference(set([ref_bgc])))
 
 			ref_hg_directions = {}
