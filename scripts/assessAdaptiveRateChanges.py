@@ -209,7 +209,7 @@ def speciesComparisonMKTest(skin_associated, gcf_id, codon_alignment_file, outpu
 			with open(hg_cod_alg_file) as ohcaf:
 				for rec in SeqIO.parse(ohcaf, 'fasta'):
 					sample = rec.id.split('|')[0]
-					spec = ' '.join(sample.split('_')[:2])
+					spec = sample.split("_RS_")[0].split("_GB_")[0]
 					if spec in skin_species:
 						skin_species_samples[spec].add(sample)
 
