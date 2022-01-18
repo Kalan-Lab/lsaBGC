@@ -44,7 +44,7 @@ gg_gn <- ggplot(heatmap.data, aes(xmin = hg_start, xmax = hg_end, y = label, fil
 	     xlab("")
 gg_br <- ggplot(species.gcf.count.data, aes(y = label, x = log(isolates_with_gcf, 10))) + theme_classic() +
 	     geom_col(stat='identity', fill='black') + xlab("Isolates with GCF") + ylab("") +
-	     + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+	     theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
 gg_gn %>% insert_left(gg_tr, width=0.4) %>% insert_right(gg_br, width=0.1)
 dev.off()
 
