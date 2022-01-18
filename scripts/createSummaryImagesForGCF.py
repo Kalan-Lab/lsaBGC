@@ -141,6 +141,7 @@ def main():
 
     phylogeny_pdf_file = output_dir + 'Phylogeny_and_Consensus_Differences.pdf'
     popgen_pdf_file = output_dir + 'PopGen_Bargraphs.pdf'
-    print(' '.join(['Rscript', PLOTTING_RSCRIPT_PATH, species_tree_file, consens_heatmap_file, species_count_file, popgen_stats_file, annotation_file, phylogeny_pdf_file, popgen_pdf]))
+    print(' '.join(['Rscript', PLOTTING_RSCRIPT_PATH, species_tree_file, consens_heatmap_file, species_count_file,
+                    popgen_stats_file, annotation_file, phylogeny_pdf_file, popgen_pdf_file]))
 
 main()
