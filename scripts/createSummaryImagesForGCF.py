@@ -127,18 +127,6 @@ def main():
     scf_handle.close()
     af_handle.close()
 
-    phylo.tree_file < - args[1]
-    heatmap_file < - args[2]
-    # 'hg', 'hg_order', 'hg_start', 'hg_end', 'hg_direction', 'label', 'median_consensus_difference'
-    species.gcf.count_file < - args[3]
-    # 'label', 'isolates_with_gcf'
-    popgen_file < - args[4]
-    # 'hg', 'hg_order', 'hg_start', 'hg_end', 'samples_with_hg', 'tajimas_d', 'beta_rd'
-    annotation_file < - args[5]
-    # 'hg', 'hg_order', 'hg_start', 'hg_end', 'manual_annotation'
-    pdf_file_phylogeny < - args[6]
-    pdf_file_popgen < - args[7]
-
     phylogeny_pdf_file = output_dir + 'Phylogeny_and_Consensus_Differences.pdf'
     popgen_pdf_file = output_dir + 'PopGen_Bargraphs.pdf'
     print(' '.join(['Rscript', PLOTTING_RSCRIPT_PATH, species_tree_file, consens_heatmap_file, species_count_file,
