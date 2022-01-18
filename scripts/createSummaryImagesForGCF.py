@@ -8,6 +8,7 @@ from operator import itemgetter
 from ete3 import Tree
 import statistics
 
+lsaBGC_main_directory = '/'.join(os.path.realpath(__file__).split('/')[:-2])
 PLOTTING_RSCRIPT_PATH = lsaBGC_main_directory + '/scripts/createPlotsForGCFSummary.R'
 
 def create_parser():
