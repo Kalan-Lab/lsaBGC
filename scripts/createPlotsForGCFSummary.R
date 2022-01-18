@@ -44,8 +44,8 @@ gg_gn <- ggplot(heatmap.data, aes(xmin = hg_start, xmax = hg_end, y = label, fil
 	     xlab("")
 gg_br <- ggplot(species.gcf.count.data, aes(y = label, x = log(isolates_with_gcf, 10))) + theme_classic() +
 	     geom_col(stat='identity', fill='black') + xlab("Isolates with GCF") + ylab("") +
-	     geom_tile(color='white', show.legend=F) + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
-gg_br %>% insert_left(gg_tr, width=0.4) %>% insert_right(gg_gn, width=0.2)
+	     + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+gg_gn %>% insert_left(gg_tr, width=0.4) %>% insert_right(gg_br, width=0.1)
 dev.off()
 
 colors <- c('#f03a3a', '#b80f0f', '#702f2f', '#636262', '#1a77ad', '#1c7534', '#d49c11')
@@ -53,13 +53,13 @@ names(colors) <- c('MGE', 'MGE - Phage', 'Addiction System', 'Other', 'Other - R
 				   'Overlaps Protocore Biosynthesis Region')
 
 pdf(pdf_file_popgen, height=20, width=20)
-gg_annot <- ggplot(annotation.data, aes(x = hg_start, xend = hg_end, y = 0, yend = 0, fill = manual_annotation)) +
+gg_annot <- ggplot(annotation.data, aes(xmin = hg_start, xmax = hg_end, ymin = 0, ymax = 0, fill = manual_annotation)) +
 	        geom_segment(color='black') + theme_classic()
-gg_br_ns <- ggplot(popgen.data, aes(x = hg_start, xend = hg_end, y = 0, yend = samples_with_hg)) + theme_classic() +
+gg_br_ns <- ggplot(popgen.data, aes(xmin = hg_start, xmax = hg_end, ymin = 0, ymax = samples_with_hg)) + theme_classic() +
 			geom_segment(fill='black')
-gg_br_rd <- ggplot(popgen.data, aes(x = hg_start, xend = hg_end, y = 0, yend = beta_rd)) + theme_classic() +
+gg_br_rd <- ggplot(popgen.data, aes(xmin = hg_start, xmax = hg_end, ymin = 0, ymax = beta_rd)) + theme_classic() +
 			geom_segment(fill='black')
-gg_br_td <- ggplot(popgen.data, aes(x = hg_start, xend = hg_end, y = 0, yend = tajimas_d)) + theme_classic() +
+gg_br_td <- ggplot(popgen.data, aes(xmin = hg_start, xmax = hg_end, ymin = 0, ymax = tajimas_d)) + theme_classic() +
 			geom_segment(fill='black')
 plot_grid(gg_annot, gg_br_ns, gg_br_rd, gg_br_td, ncol=1, align = 'v', axis = 'l', rel_heights=c(1,2,2,2))
 dev.off()
