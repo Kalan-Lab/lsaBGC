@@ -54,12 +54,12 @@ names(colors) <- c('MGE', 'MGE - Phage', 'Addiction System', 'Other', 'Other - R
 
 pdf(pdf_file_popgen, height=20, width=20)
 gg_annot <- ggplot(annotation.data, aes(x = hg_start, xend = hg_end, y = 0, yend = 0, fill = manual_annotation)) +
-	        ggsegment(color='black') + theme_classic()
+	        geom_segment(color='black') + theme_classic()
 gg_br_ns <- ggplot(popgen.data, aes(x = hg_start, xend = hg_end, y = 0, yend = samples_with_hg)) + theme_classic() +
-			ggsegment(fill='black')
+			geom_segment(fill='black')
 gg_br_rd <- ggplot(popgen.data, aes(x = hg_start, xend = hg_end, y = 0, yend = beta_rd)) + theme_classic() +
-			ggsegment(fill='black')
+			geom_segment(fill='black')
 gg_br_td <- ggplot(popgen.data, aes(x = hg_start, xend = hg_end, y = 0, yend = tajimas_d)) + theme_classic() +
-			ggsegment(fill='black')
+			geom_segment(fill='black')
 plot_grid(gg_annot, gg_br_ns, gg_br_rd, gg_br_td, ncol=1, align = 'v', axis = 'l', rel_heights=c(1,2,2,2))
 dev.off()
