@@ -48,14 +48,13 @@ gg_br <- ggplot(species.gcf.count.data, aes(y = label, x = log(isolates_with_gcf
 gg_br %>% insert_left(gg_tr, width=0.4) %>% insert_right(gg_gn, width=0.2)
 dev.off()
 
-colors <- c('#f03a3a', '#b80f0f', '#702f2f')
+colors <- c('#f03a3a', '#b80f0f', '#702f2f', '#636262', '#1a77ad', '#1c7534', '#d49c11')
 names(colors) <- c('MGE', 'MGE - Phage', 'Addiction System', 'Other', 'Other - Regulatory', 'Transport',
 				   'Overlaps Protocore Biosynthesis Region')
 
 pdf(pdf_file_popgen, height=20, width=20)
 gg_annot <- ggplot(annotation.data, aes(x = hg_start, xend = hg_end, y = 0, yend = 0, fill = manual_annotation)) +
 	        ggsegment(color='black') + theme_classic()
-
 gg_br_ns <- ggplot(popgen.data, aes(x = hg_start, xend = hg_end, y = 0, yend = samples_with_hg)) + theme_classic() +
 			ggsegment(fill='black')
 gg_br_rd <- ggplot(popgen.data, aes(x = hg_start, xend = hg_end, y = 0, yend = beta_rd)) + theme_classic() +
