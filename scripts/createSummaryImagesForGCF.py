@@ -100,7 +100,7 @@ def main():
     for i, hgi in enumerate(sorted(data, key=itemgetter(4))):
         end = start + hgi[6]
         psf_handle.write('\t'.join([str(x) for x in ([hgi[0], hgi[4], start, end] + hgi[-3:])]) + '\n')
-        af_handle.write('\t'.join([hgi[0], hgi[4], start, end, 'XXXX', '#' + hgi[1:4]]) + '\n')
+        af_handle.write('\t'.join([hgi[0], hgi[4], start, end, 'XXXX', '#' + hgi[1], hgi[2], hgi[3]]) + '\n')
         for species in species_of_interest:
             hg_spec_consensus_differences = consensus_similarity[hgi[0]][species]
             if len(hg_spec_consensus_differences) > 0:
