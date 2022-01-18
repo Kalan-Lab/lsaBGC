@@ -44,6 +44,8 @@ def main():
     try:
         assert(os.path.isfile(gcf_input_listing_file) and os.path.isdir(gcf_popgene_result_dir) and os.path.isfile(species_tree_file))
         output_dir = os.path.abspath(output_dir) + '/'
+        if not os.path.isdir(output_dir):
+            os.system('mkdir %s' % output_dir)
     except:
         raise RuntimeError()
 
