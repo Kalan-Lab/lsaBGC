@@ -17,7 +17,6 @@ def create_parser():
     parser.add_argument('-g', '--gcf_input_listing', help="Path to GCF listing file.", required=True)
     parser.add_argument('-p', '--gcf_popgene_result', help="Path to Population Genetics result directory.", required=True)
     parser.add_argument('-t', '--species_tree', help="Species phylogeny.", required=True)
-    parser.add_argument('-m', '--orthofinder_matrix', help="Path to homolog group by sample matrix.", required=True)
     parser.add_argument('-o', '--output_dir', help="Path to result directory.", required=True)
     args = parser.parse_args()
     return args
@@ -38,13 +37,11 @@ def main():
     myargs = create_parser()
     gcf_input_listing_file = myargs.gcf_input_listing
     gcf_popgene_result_dir = myargs.gcf_popgene_result
-    orthoinder_matrix_file = myargs.orthofinder_matrix
     species_tree_file = myargs.species_tree
     output_dir = myargs.output_dir
 
     try:
-        assert(os.path.isfile(gcf_input_listing_file) and os.path.isdir(gcf_popgene_result_dir) and
-               os.path.isfile(orthoinder_matrix_file) and os.path.isfile(species_tree_file))
+        assert(os.path.isfile(gcf_input_listing_file) and os.path.isdir(gcf_popgene_result_dir) and os.path.isfile(species_tree_file))
         output_dir = os.path.abspath(output_dir) + '/'
     except:
         raise RuntimeError()
