@@ -48,10 +48,9 @@ def main():
         raise RuntimeError()
 
     species_of_interest = set([])
-    with open(species_tree_file) as ostf:
-        t = Tree(ostf)
-        for leaf in t:
-            species_of_interest.add(str(leaf).strip('\n').lstrip('-'))
+    t = Tree(species_tree_file)
+    for leaf in t:
+        species_of_interest.add(str(leaf).strip('\n').lstrip('-'))
 
     popgen_cod_dir = gcf_popgene_result_dir + 'Codon_PopGen_Analyses/'
 
