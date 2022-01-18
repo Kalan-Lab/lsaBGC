@@ -6,6 +6,7 @@ import argparse
 from collections import defaultdict
 from operator import itemgetter
 from ete3 import Tree
+import statistics
 
 def create_parser():
     """ Parse arguments """
