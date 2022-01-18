@@ -35,6 +35,7 @@ def main():
     of life (iTol)
     """
 
+    myargs = create_parser()
     gcf_input_listing_file = myargs.gcf_input_listing
     gcf_popgene_result_dir = myargs.gcf_popgene_result
     orthoinder_matrix_file = myargs.orthofinder_matrix
