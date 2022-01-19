@@ -37,11 +37,11 @@ annotation.data <- read.table(annotation_file, header=T, sep='\t')
 tree.labels <- phylo.tree$tip.label
 
 pdf(pdf_file_phylogeny, height=10, width=30)
-gg_tr <- ggtree(phylo.tree) + geom_tiplab()
+gg_tr <- ggtree(phylo.tree)
 gg_gn <- ggplot(heatmap.data, aes(xmin = hg_start, xmax = hg_end, y = label, fill = median_consensus_difference,
 								forward = hg_direction)) +
-	     geom_gene_arrow(show.legend=F) + theme_void() + scale_fill_gradient(low='black', high='white') + ylab("") +
-	     xlab("")
+	     geom_gene_arrow(show.legend=F) + theme_classic() + scale_fill_gradient(low='black', high='white') + ylab("") +
+	     xlab("") + theme(panel.background = element_blank(), axis.text.x = element_blank())
 gg_br <- ggplot(species.gcf.count.data, aes(y = label, x = log(isolates_with_gcf, 10))) + theme_classic() +
 	     geom_col(stat='identity', fill='black') + xlab("Isolates with GCF") + ylab("") +
 	     theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) + theme(axis.title.y=element_blank(),
@@ -56,13 +56,13 @@ names(annot_colors) <- c('MGE', 'MGE - Phage', 'Addiction System', 'Other', 'Oth
 
 pdf(pdf_file_popgen, height=20, width=20)
 gg_annot <- ggplot(annotation.data, aes(xmin = hg_start, xmax = hg_end, ymin = 0, ymax = 1, fill = manual_annotation)) +
-	        geom_rect(color='black', show.legend=F) + theme_classic() + scale_fill_manual(values=annot_colors) +
-	        ggtitle("Annotation")
-gg_br_ns <- ggplot(popgen.data, aes(xmin = hg_start, xmax = hg_end, ymin = 0, ymax = samples_with_hg)) + theme_classic() +
-			geom_rect(color='black', fill='#add149') + ggtitle("Number of Samples")
-gg_br_rd <- ggplot(popgen.data, aes(xmin = hg_start, xmax = hg_end, ymin = 0, ymax = beta_rd)) + theme_classic() +
-			geom_rect(color='black', fill='#28b88a') + ggtitle("Beta-RD")
-gg_br_td <- ggplot(popgen.data, aes(xmin = hg_start, xmax = hg_end, ymin = 0, ymax = tajimas_d)) + theme_classic() +
-			geom_rect(color='black', fill='#9c0e71') + ggtitle("Tajima's D")
+	        geom_rect(color='black', show.legend=F) + theme_void() + scale_fill_manual(values=annot_colors) +
+	        ggtitle("Annotation") + theme(text = element_text(size=20))
+gg_br_ns <- ggplot(popgen.data, aes(xmin = hg_start, xmax = hg_end, ymin = 0, ymax = samples_with_hg)) + theme_void() +
+			geom_rect(color='black', fill='#add149') + ggtitle("Number of Samples") + theme(text = element_text(size=20))
+gg_br_rd <- ggplot(popgen.data, aes(xmin = hg_start, xmax = hg_end, ymin = 0, ymax = beta_rd)) + theme_void() +
+			geom_rect(color='black', fill='#28b88a') + ggtitle("Beta-RD") + theme(text = element_text(size=20))
+gg_br_td <- ggplot(popgen.data, aes(xmin = hg_start, xmax = hg_end, ymin = 0, ymax = tajimas_d)) + theme_void() +
+			geom_rect(color='black', fill='#9c0e71') + ggtitle("Tajima's D") + theme(text = element_text(size=20))
 plot_grid(gg_annot, gg_br_ns, gg_br_rd, gg_br_td, ncol=1, align = 'v', axis = 'l', rel_heights=c(1,2,2,2))
 dev.off()
