@@ -54,7 +54,7 @@ annot_colors <- c('#f03a3a', '#b80f0f', '#702f2f', '#636262', '#1a77ad', '#1c753
 names(annot_colors) <- c('MGE', 'MGE - Phage', 'Addiction System', 'Other', 'Other - Regulatory', 'Transport',
 				   'Overlaps Protocore Biosynthesis Region')
 
-pdf(pdf_file_popgen, height=20, width=20)
+pdf(pdf_file_popgen, height=10, width=20)
 gg_annot <- ggplot(annotation.data, aes(xmin = hg_start, xmax = hg_end, ymin = 0, ymax = 1, fill = manual_annotation)) +
 	        geom_rect(color='black', show.legend=F) + theme_void() + scale_fill_manual(values=annot_colors) +
 	        ggtitle("Annotation") + theme(text = element_text(size=20))
@@ -64,5 +64,5 @@ gg_br_rd <- ggplot(popgen.data, aes(xmin = hg_start, xmax = hg_end, ymin = 0, ym
 			geom_rect(color='black', fill='#28b88a') + ggtitle("Beta-RD") + theme(text = element_text(size=20))
 gg_br_td <- ggplot(popgen.data, aes(xmin = hg_start, xmax = hg_end, ymin = 0, ymax = tajimas_d)) + theme_void() +
 			geom_rect(color='black', fill='#9c0e71') + ggtitle("Tajima's D") + theme(text = element_text(size=20))
-plot_grid(gg_annot, gg_br_ns, gg_br_rd, gg_br_td, ncol=1, align = 'v', axis = 'l', rel_heights=c(0.25,2,2,2))
+plot_grid(gg_annot, gg_br_ns, gg_br_rd, gg_br_td, ncol=1, align = 'v', axis = 'l', rel_heights=c(0.5,2,2,2))
 dev.off()
