@@ -62,16 +62,16 @@ gg_annot <- ggplot(annotation.data, aes(xmin = hg_start, xmax = hg_end, ymin = 0
          axis.ticks.y=element_blank(), axis.text.x=element_blank(),
          axis.ticks.x=element_blank())
 gg_br_ns <- ggplot(popgen.data, aes(xmin = hg_start, xmax = hg_end, ymin = 0, ymax = samples_with_hg)) + theme_classic() +
-			geom_rect(color='black', fill='#add149') + ggtitle("Number of Samples") + theme(text = element_text(size=20), axis.title.y=element_blank(),
+			geom_rect(color='black', fill='black') + ggtitle("Number of Samples") + theme(text = element_text(size=20), axis.title.y=element_blank(),
          axis.text.x=element_blank(), axis.line=element_blank(),
          axis.ticks.x=element_blank())
 gg_br_rd <- ggplot(popgen.data, aes(xmin = hg_start, xmax = hg_end, ymin = 0, ymax = beta_rd)) + theme_classic() +
-			geom_rect(color='black', fill='#28b88a') + ggtitle("Beta-RD") + theme(text = element_text(size=20), axis.title.y=element_blank(),
+			geom_rect(color='black', fill='#5bbda9') + ggtitle("Beta-RD") + theme(text = element_text(size=20), axis.title.y=element_blank(),
          axis.text.x=element_blank(), axis.line=element_blank(),
-         axis.ticks.x=element_blank())
+         axis.ticks.x=element_blank()) + geom_hline(yintercept=1.0, linetype='dashed', color='red')
 gg_br_td <- ggplot(popgen.data, aes(xmin = hg_start, xmax = hg_end, ymin = 0, ymax = tajimas_d)) + theme_classic() +
-			geom_rect(color='black', fill='#9c0e71') + ggtitle("Tajima's D") +  theme(text = element_text(size=20), axis.title.y=element_blank(),
+			geom_rect(color='black', fill='#c76bc5') + ggtitle("Tajima's D") +  theme(text = element_text(size=20), axis.title.y=element_blank(),
          axis.text.x=element_blank(), axis.line=element_blank(),
          axis.ticks.x=element_blank())
-plot_grid(gg_annot, gg_br_ns, gg_br_rd, gg_br_td, ncol=1, align = 'v', axis = 'l', rel_heights=c(0.5,2,2,2))
+plot_grid(gg_annot, gg_br_ns, gg_br_rd, gg_br_td, ncol=1, align = 'v', axis = 'l', rel_heights=c(0.5,1,2,2))
 dev.off()
