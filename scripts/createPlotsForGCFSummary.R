@@ -46,7 +46,7 @@ gg_br <- ggplot(species.gcf.count.data, aes(y = label, x = isolates_with_gcf)) +
 	     geom_col(stat='identity', fill='black') + xlab("Isolates with GCF") + ylab("") +
 	     theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) + theme(axis.title.y=element_blank(),
          axis.text.y=element_blank(),
-         axis.ticks.y=element_blank())
+         axis.ticks.y=element_blank()) + scale_x_log10()
 gg_gn %>% insert_left(gg_tr, width=0.4) %>% insert_right(gg_br, width=0.05)
 dev.off()
 
