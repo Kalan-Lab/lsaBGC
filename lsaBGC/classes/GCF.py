@@ -822,6 +822,7 @@ class GCF(Pan):
 			ordered_hgs_list = primary_path_ordered
 
 			print(primary_path_ordered)
+			assert(len(primary_path_ordered) == len(set(primary_path_ordered)))
 			# figure out where non-accounted for HGs belong best in the primary path.
 			not_accounted_hgs = all_hgs.difference(accounted_hgs)
 			print(sorted(not_accounted_hgs))
@@ -832,17 +833,19 @@ class GCF(Pan):
 					relative_pos = None
 					neighboriest_hg = None
 					print(hg)
-					for i, phg in enumerate(sorted(hg_preceding_scores[hg].items(), key=itemgetter(1,0), reverse=True)):
+					for phg in sorted(hg_preceding_scores[hg].items(), key=itemgetter(1,0), reverse=True):
 						if best_score < phg[1] and phg[0] in accounted_hgs:
 							best_score = phg[1]
 							relative_pos = 'after'
 							neighboriest_hg = phg[0]
+							break
 
-					for i, fhg in enumerate(sorted(hg_following_scores[hg].items(), key=itemgetter(1,0), reverse=True)):
+					for fhg in sorted(hg_following_scores[hg].items(), key=itemgetter(1,0), reverse=True):
 						if best_score < fhg[1] and fhg[0] in accounted_hgs:
 							best_score = fhg[1]
 							relative_pos = 'before'
 							neighboriest_hg = fhg[0]
+							break
 
 					if best_score > 0:
 						neighboriest_hg_index = ordered_hgs_list.index(neighboriest_hg)
