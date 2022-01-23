@@ -861,7 +861,7 @@ class GCF(Pan):
 			unaccountable_hgs = all_hgs.difference(accounted_hgs)
 			ordered_hgs_list += list(sorted(unaccountable_hgs))
 
-			print('UNACCOUNTED\t' + unaccountable_hgs)
+			print('UNACCOUNTED\t' + str(unaccountable_hgs))
 			i = 1
 			for hg in ordered_hgs_list:
 				if not hg in set(['start', 'end']):
