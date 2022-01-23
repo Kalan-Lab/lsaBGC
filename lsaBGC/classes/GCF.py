@@ -853,6 +853,7 @@ class GCF(Pan):
 							ordered_hgs_list.insert(neighboriest_hg_index+1, hg)
 						accounted_hgs.add(hg)
 						progress_made = True
+						break
 
 				if not progress_made:
 					break
