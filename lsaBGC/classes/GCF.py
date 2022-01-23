@@ -700,7 +700,6 @@ class GCF(Pan):
 					break
 
 			bgcs_ref_first = [ref_bgc] + sorted(list(set(self.bgc_genes.keys()).difference(set([ref_bgc]))))
-			print('INPUT LIST: ' + str(bgcs_ref_first))
 			ref_hg_directions = {}
 			hg_pair_scores = defaultdict(int)
 			hg_preceding_scores = defaultdict(lambda: defaultdict(int))
@@ -780,7 +779,6 @@ class GCF(Pan):
 				sys.exit(1)
 
 
-			print(anchor_edge)
 			# use to keep track of which HGs have been accounted for already at different steps of assigning order
 			accounted_hgs = set([anchor_edge[0], anchor_edge[1]])
 
@@ -821,9 +819,6 @@ class GCF(Pan):
 			primary_path_ordered = left_expansion + right_expansion
 			ordered_hgs_list = primary_path_ordered
 
-			print(primary_path_ordered)
-			print(hg_preceding_scores)
-			print(hg_following_scores)
 			# figure out where non-accounted for HGs belong best in the primary path.
 			not_accounted_hgs = all_hgs.difference(accounted_hgs)
 			while len(not_accounted_hgs) > 0:
@@ -859,11 +854,10 @@ class GCF(Pan):
 
 				if not progress_made:
 					break
-			print('----')
 			# these shouldn't really exist but just append them to the end if they do
 			unaccountable_hgs = all_hgs.difference(accounted_hgs)
 			ordered_hgs_list += list(sorted(unaccountable_hgs))
-			#print(ordered_hgs_list)
+
 			i = 1
 			for hg in ordered_hgs_list:
 				if not hg in set(['start', 'end']):
