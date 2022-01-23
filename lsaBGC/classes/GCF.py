@@ -824,7 +824,7 @@ class GCF(Pan):
 			print(primary_path_ordered)
 			# figure out where non-accounted for HGs belong best in the primary path.
 			not_accounted_hgs = all_hgs.difference(accounted_hgs)
-			print(not_accounted_hgs)
+			print(sorted(not_accounted_hgs))
 			while len(not_accounted_hgs) > 0:
 				progress_made = False
 				for hg in sorted(not_accounted_hgs):
