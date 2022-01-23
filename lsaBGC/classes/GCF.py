@@ -699,7 +699,6 @@ class GCF(Pan):
 					ref_bgc = item[0]
 					break
 
-			print(ref_bgc)
 			bgcs_ref_first = [ref_bgc] + sorted(list(set(self.bgc_genes.keys()).difference(set([ref_bgc]))))
 
 			ref_hg_directions = {}
@@ -825,7 +824,8 @@ class GCF(Pan):
 			print(primary_path_ordered)
 			# figure out where non-accounted for HGs belong best in the primary path.
 			not_accounted_hgs = all_hgs.difference(accounted_hgs)
-			print(sorted(not_accounted_hgs))
+			print(sorted(hg_preceding_scores[hg].items(), key=itemgetter(1,0), reverse=True))
+			print(sorted(hg_following_scores[hg].items(), key=itemgetter(1,0), reverse=True))
 			while len(not_accounted_hgs) > 0:
 				progress_made = False
 				for hg in sorted(not_accounted_hgs):
