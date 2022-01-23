@@ -830,7 +830,7 @@ class GCF(Pan):
 					best_score = 0
 					relative_pos = None
 					neighboriest_hg = None
-
+					print(hg)
 					for i, phg in enumerate(sorted(hg_preceding_scores[hg].items(), key=itemgetter(1,0), reverse=True)):
 						if best_score < phg[1] and phg[0] in accounted_hgs:
 							best_score = phg[1]
@@ -861,7 +861,7 @@ class GCF(Pan):
 			# these shouldn't really exist but just append them to the end if they do
 			unaccountable_hgs = all_hgs.difference(accounted_hgs)
 			ordered_hgs_list += list(sorted(unaccountable_hgs))
-			print(ordered_hgs_list)
+			#print(ordered_hgs_list)
 			i = 1
 			for hg in ordered_hgs_list:
 				if not hg in set(['start', 'end']):
