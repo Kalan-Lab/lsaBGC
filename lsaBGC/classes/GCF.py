@@ -744,7 +744,7 @@ class GCF(Pan):
 						reverse_flag = True
 
 				hgs = []
-				for c in sorted(hg_starts.items(), key=itemgetter(1,0), reverse=reverse_flag):
+				for c in sorted(list(hg_starts.items()), key=itemgetter(1,0), reverse=reverse_flag):
 					hgs.append(c[0])
 
 				for j, hg in enumerate(hgs):
@@ -789,7 +789,7 @@ class GCF(Pan):
 			left_expansion = [curr_hg]
 			while not curr_hg == 'start':
 				new_hg = None
-				for i, hg in enumerate(sorted(hg_preceding_scores[curr_hg].items(), key=itemgetter(1,0), reverse=True)):
+				for i, hg in enumerate(sorted(list(hg_preceding_scores[curr_hg].items()), key=itemgetter(1,0), reverse=True)):
 					if not hg[0] in accounted_hgs:
 						new_hg = hg[0]
 						left_expansion = [new_hg] + left_expansion
@@ -806,7 +806,7 @@ class GCF(Pan):
 			right_expansion = [curr_hg]
 			while not curr_hg == 'end':
 				new_hg = None
-				for i, hg in enumerate(sorted(hg_following_scores[curr_hg].items(), key=itemgetter(1,0), reverse=True)):
+				for i, hg in enumerate(sorted(list(hg_following_scores[curr_hg].items()), key=itemgetter(1,0), reverse=True)):
 					if not hg[0] in accounted_hgs:
 						new_hg = hg[0]
 						right_expansion.append(new_hg)
@@ -856,12 +856,12 @@ class GCF(Pan):
 						elif relative_pos == 'after':
 							ordered_hgs_list.insert(neighboriest_hg_index+1, hg)
 						accounted_hgs.add(hg)
+						not_accounted_hgs = all_hgs.difference(accounted_hgs)
 						progress_made = True
 						break
 
 				if not progress_made:
 					break
-				not_accounted_hgs = all_hgs.difference(accounted_hgs)
 			print('----')
 			# these shouldn't really exist but just append them to the end if they do
 			unaccountable_hgs = all_hgs.difference(accounted_hgs)
