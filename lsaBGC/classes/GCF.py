@@ -690,12 +690,12 @@ class GCF(Pan):
 				if len(list(self.bgc_genes[bgc])[0].split('_')[0]) == 3:
 					core_bgcs.add(bgc)
 			ref_bgc = None
-			for i, item in enumerate(sorted(bgc_gene_counts.items(), key=itemgetter(1,0), reverse=True)):
+			for i, item in enumerate(sorted(bgc_gene_counts.items(), key=itemgetter(1), reverse=True)):
 				if item[0] in core_bgcs:
 					ref_bgc = item[0]
 					break
 			if ref_bgc == None:
-				for i, item in enumerate(sorted(bgc_gene_counts.items(), key=itemgetter(1,0), reverse=True)):
+				for i, item in enumerate(sorted(bgc_gene_counts.items(), key=itemgetter(1), reverse=True)):
 					ref_bgc = item[0]
 					break
 
@@ -713,7 +713,7 @@ class GCF(Pan):
 				hg_directions = {}
 				hg_lengths = defaultdict(list)
 				hg_starts = {}
-				for g in curr_bgc_genes:
+				for g in sorted(curr_bgc_genes):
 					ginfo = self.comp_gene_info[g]
 					gstart = ginfo['start']
 					gend = ginfo['end']
@@ -744,7 +744,7 @@ class GCF(Pan):
 						reverse_flag = True
 
 				hgs = []
-				for c in sorted(list(hg_starts.items()), key=itemgetter(1,0), reverse=reverse_flag):
+				for c in sorted(hg_starts.items(), key=itemgetter(1), reverse=reverse_flag):
 					hgs.append(c[0])
 
 				for j, hg in enumerate(hgs):
@@ -769,7 +769,7 @@ class GCF(Pan):
 						hg_pair_scores[tuple([hg, hg_after])] += 1
 
 			anchor_edge = None
-			for hps in sorted(hg_pair_scores.items(), key=itemgetter(1,0), reverse=True):
+			for hps in sorted(hg_pair_scores.items(), key=itemgetter(1), reverse=True):
 				if hps[0][0] in self.protocluster_core_homologs or hps[0][1] in self.protocluster_core_homologs:
 					anchor_edge = hps[0]
 					break
@@ -789,7 +789,7 @@ class GCF(Pan):
 			left_expansion = [curr_hg]
 			while not curr_hg == 'start':
 				new_hg = None
-				for i, hg in enumerate(sorted(list(hg_preceding_scores[curr_hg].items()), key=itemgetter(1,0), reverse=True)):
+				for i, hg in enumerate(sorted(hg_preceding_scores[curr_hg].items(), key=itemgetter(1), reverse=True)):
 					if not hg[0] in accounted_hgs:
 						new_hg = hg[0]
 						left_expansion = [new_hg] + left_expansion
@@ -806,7 +806,7 @@ class GCF(Pan):
 			right_expansion = [curr_hg]
 			while not curr_hg == 'end':
 				new_hg = None
-				for i, hg in enumerate(sorted(list(hg_following_scores[curr_hg].items()), key=itemgetter(1,0), reverse=True)):
+				for i, hg in enumerate(sorted(hg_following_scores[curr_hg].items(), key=itemgetter(1), reverse=True)):
 					if not hg[0] in accounted_hgs:
 						new_hg = hg[0]
 						right_expansion.append(new_hg)
@@ -832,23 +832,18 @@ class GCF(Pan):
 					best_score = 0
 					relative_pos = None
 					neighboriest_hg = None
-					print(hg)
-					for phg in sorted(list(hg_preceding_scores[hg].items()), key=itemgetter(1,0), reverse=True):
+					for phg in sorted(hg_preceding_scores[hg].items(), key=itemgetter(1), reverse=True):
 						if best_score < phg[1] and phg[0] in accounted_hgs:
 							best_score = phg[1]
 							relative_pos = 'after'
 							neighboriest_hg = phg[0]
 							break
-					print(hg + '\t' + str(best_score) + '\t' + str(relative_pos) + '\t' + str(neighboriest_hg))
-					print('******')
-					for fhg in sorted(list(hg_following_scores[hg].items()), key=itemgetter(1,0), reverse=True):
+					for fhg in sorted(hg_following_scores[hg].items(), key=itemgetter(1), reverse=True):
 						if best_score < fhg[1] and fhg[0] in accounted_hgs:
 							best_score = fhg[1]
 							relative_pos = 'before'
 							neighboriest_hg = fhg[0]
 							break
-					print(hg + '\t' + str(best_score) + '\t' + str(relative_pos) + '\t' + str(neighboriest_hg))
-					print('******')
 					if best_score > 0:
 						neighboriest_hg_index = ordered_hgs_list.index(neighboriest_hg)
 						print(hg + '\t' + str(best_score) + '\t'+ relative_pos + '\t' + str(neighboriest_hg) + '\t' + str(neighboriest_hg_index))
