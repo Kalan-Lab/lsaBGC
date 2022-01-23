@@ -857,7 +857,7 @@ class GCF(Pan):
 				if not progress_made:
 					break
 				not_accounted_hgs = all_hgs.difference(accounted_hgs)
-
+			print('----')
 			# these shouldn't really exist but just append them to the end if they do
 			unaccountable_hgs = all_hgs.difference(accounted_hgs)
 			ordered_hgs_list += list(sorted(unaccountable_hgs))
