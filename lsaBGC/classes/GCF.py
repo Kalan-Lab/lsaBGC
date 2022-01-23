@@ -849,7 +849,7 @@ class GCF(Pan):
 
 					if best_score > 0:
 						neighboriest_hg_index = ordered_hgs_list.index(neighboriest_hg)
-						print(hg + '\t' + str(best_score) + '\t'+ relative_pos + '\t' + str(neighboriest_hg_index) + '\t' + str(neighboriest_hg_index))
+						print(hg + '\t' + str(best_score) + '\t'+ relative_pos + '\t' + str(neighboriest_hg) + '\t' + str(neighboriest_hg_index))
 
 						if relative_pos == 'before':
 							ordered_hgs_list.insert(neighboriest_hg_index, hg)
