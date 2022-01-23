@@ -823,7 +823,7 @@ class GCF(Pan):
 			not_accounted_hgs = all_hgs.difference(accounted_hgs)
 			while len(not_accounted_hgs) > 0:
 				progress_made = False
-				for hg in not_accounted_hgs:
+				for hg in sorted(not_accounted_hgs):
 					best_score = 0
 					relative_pos = None
 					neighboriest_hg = None
