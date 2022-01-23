@@ -700,7 +700,7 @@ class GCF(Pan):
 					break
 
 			bgcs_ref_first = [ref_bgc] + sorted(list(set(self.bgc_genes.keys()).difference(set([ref_bgc]))))
-
+			print('INPUT LIST: ' + str(bgcs_ref_first))
 			ref_hg_directions = {}
 			hg_pair_scores = defaultdict(int)
 			hg_preceding_scores = defaultdict(lambda: defaultdict(int))
@@ -720,7 +720,7 @@ class GCF(Pan):
 					if g in self.gene_to_hg:
 						hg = self.gene_to_hg[g]
 						hg_directions[hg] = ginfo['direction']
-						hg_lengths[hg].append(gend - gstart)
+						hg_lengths[hg].append(abs(gend - gstart))
 						hg_starts[hg] = ginfo['start']
 						if ginfo['direction'] == '+': direction_forward_support[hg] += 1
 						elif ginfo['direction'] == '-': direction_reverse_support[hg] += 1
