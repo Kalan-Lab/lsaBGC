@@ -837,7 +837,7 @@ class GCF(Pan):
 							relative_pos = 'after'
 							neighboriest_hg = phg[0]
 							break
-					print(hg + '\t' + str(best_score) + '\t' + relative_pos + '\t' + str(neighboriest_hg))
+					print(hg + '\t' + str(best_score) + '\t' + str(relative_pos) + '\t' + str(neighboriest_hg))
 					print('******')
 					for fhg in sorted(list(hg_following_scores[hg].items()), key=itemgetter(1,0), reverse=True):
 						if best_score < fhg[1] and fhg[0] in accounted_hgs:
@@ -845,7 +845,7 @@ class GCF(Pan):
 							relative_pos = 'before'
 							neighboriest_hg = fhg[0]
 							break
-					print(hg + '\t' + str(best_score) + '\t' + relative_pos + '\t' + str(neighboriest_hg))
+					print(hg + '\t' + str(best_score) + '\t' + str(relative_pos) + '\t' + str(neighboriest_hg))
 					print('******')
 					if best_score > 0:
 						neighboriest_hg_index = ordered_hgs_list.index(neighboriest_hg)
