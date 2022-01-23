@@ -828,14 +828,14 @@ class GCF(Pan):
 					relative_pos = None
 					neighboriest_hg = None
 
-					for i, phg in enumerate(sorted(hg_preceding_scores[hg].items(), key=itemgetter(1), reverse=True)):
+					for i, phg in enumerate(sorted(hg_preceding_scores[hg].items(), key=itemgetter(1,0), reverse=True)):
 						if best_score < phg[1] and phg[0] in accounted_hgs:
 							best_score = phg[1]
 							relative_pos = 'after'
 							neighboriest_hg = phg[0]
 							break
 
-					for i, fhg in enumerate(sorted(hg_following_scores[hg].items(), key=itemgetter(1), reverse=True)):
+					for i, fhg in enumerate(sorted(hg_following_scores[hg].items(), key=itemgetter(1,0), reverse=True)):
 						if best_score < fhg[1] and fhg[0] in accounted_hgs:
 							best_score = fhg[1]
 							relative_pos = 'before'
