@@ -699,8 +699,7 @@ class GCF(Pan):
 					ref_bgc = item[0]
 					break
 
-			second_part = list(set(self.bgc_genes.keys()).difference(set([ref_bgc]))).sort()
-			bgcs_ref_first = [ref_bgc] + second_part
+			bgcs_ref_first = [ref_bgc] + sorted(list(set(self.bgc_genes.keys()).difference(set([ref_bgc]))))
 
 			ref_hg_directions = {}
 			hg_pair_scores = defaultdict(int)
