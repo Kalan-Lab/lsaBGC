@@ -699,7 +699,8 @@ class GCF(Pan):
 					ref_bgc = item[0]
 					break
 
-			bgcs_ref_first = [ref_bgc] + sorted(list(set(self.bgc_genes.keys()).difference(set([ref_bgc]))))
+			second_part = list(set(self.bgc_genes.keys()).difference(set([ref_bgc]))).sort()
+			bgcs_ref_first = [ref_bgc] + second_part
 
 			ref_hg_directions = {}
 			hg_pair_scores = defaultdict(int)
@@ -779,6 +780,8 @@ class GCF(Pan):
 				raise RuntimeError("Unexpected error, no anchor edge found, could be because no protocore homolog group exists, which shouldn't be the case!")
 				sys.exit(1)
 
+
+			print(anchor_edge)
 			# use to keep track of which HGs have been accounted for already at different steps of assigning order
 			accounted_hgs = set([anchor_edge[0], anchor_edge[1]])
 
@@ -858,7 +861,8 @@ class GCF(Pan):
 			# these shouldn't really exist but just append them to the end if they do
 			unaccountable_hgs = all_hgs.difference(accounted_hgs)
 			ordered_hgs_list += list(sorted(unaccountable_hgs))
-			print(unaccountable_hgs)
+
+			print('UNACCOUNTED\t' + unaccountable_hgs)
 			i = 1
 			for hg in ordered_hgs_list:
 				if not hg in set(['start', 'end']):
