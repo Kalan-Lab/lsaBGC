@@ -504,7 +504,7 @@ class GCF(Pan):
 				inputs.append([hg, gene_sequences, nucl_seq_dir, prot_seq_dir, prot_alg_dir, codo_alg_dir, cores, self.logObject])
 
 			p = multiprocessing.Pool(pool_size)
-			#p.map(create_codon_msas, inputs)
+			p.map(create_codon_msas, inputs)
 
 			if not filter_outliers:
 				self.nucl_seq_dir = nucl_seq_dir
@@ -841,7 +841,7 @@ class GCF(Pan):
 							break
 					if best_score > 0:
 						neighboriest_hg_index = ordered_hgs_list.index(neighboriest_hg)
-						print(hg + '\t' + str(best_score) + '\t'+ relative_pos + '\t' + str(neighboriest_hg) + '\t' + str(neighboriest_hg_index))
+						#print(hg + '\t' + str(best_score) + '\t'+ relative_pos + '\t' + str(neighboriest_hg) + '\t' + str(neighboriest_hg_index))
 
 						if relative_pos == 'before':
 							ordered_hgs_list.insert(neighboriest_hg_index, hg)
@@ -2074,7 +2074,7 @@ def phase_and_id_snvs(input_args):
 									break
 							if first_stop_codon is not None:
 								seq = seq[:first_stop_codon] + ''.join(['-']*len(seq[first_stop_codon:]))
-								print(hg + '\t' + pe_sample)
+								#print(hg + '\t' + pe_sample)
 							bgc_fasta_handle.write('>' + pe_sample + '_|_' + str(hi+1) + '\n' + seq + '\n')
 						bgc_fasta_handle.close()
 				except:
@@ -2212,9 +2212,12 @@ def phase_and_id_snvs(input_args):
 					lines = []
 
 			fastq_handle.close()
+
+		"""
 		for r in all_snv_supporting_reads:
 			if not r in visited:
 				print(pe_sample + '\t' + r)
+		"""
 		snv_support_fastq_handle.close()
 		os.system('gzip %s' % snv_support_fastq_file)
 		no_handle.close()
@@ -2602,7 +2605,7 @@ def snv_miner_paired(input_args):
 					support_info.append(read + '_|_' + str(max(supported_snvs[snv][read])))
 				snv_outf.write('\t'.join([snv, str(len(support_info))] + support_info) + '\n')
 
-			print('\t'.join([hg, str(len(total_reads)), str(len(accounted_reads))]))
+			#print('\t'.join([hg, str(len(total_reads)), str(len(accounted_reads))]))
 
 		snv_outf.close()
 		res_outf.close()
@@ -2963,8 +2966,6 @@ def popgen_analysis_of_hg(inputs):
 		most_negative_tajimas_d = [['NA'], 0.0]
 		all_tajimas_d = []
 
-		tmp_output = open('population_tajimas_d.txt', 'a+')
-
 		for p in population_counts:
 			if population_counts[p] < 4: continue
 			population_sequences = []
@@ -2973,7 +2974,6 @@ def popgen_analysis_of_hg(inputs):
 					population_sequences.append(sequences_filtered[seq_id])
 			if len(population_sequences) >= 4 and len(list(sequences_filtered.values())[0]) >= 21:
 				p_tajimas_d = util.calculateTajimasD(population_sequences)
-				tmp_output.write('\t'.join([str(x) for x in [hg, p, p_tajimas_d]]) + '\n')
 				if p_tajimas_d != 'NA':
 					p_tajimas_d = round(p_tajimas_d, 3)
 					all_tajimas_d.append(p_tajimas_d)
@@ -2986,7 +2986,7 @@ def popgen_analysis_of_hg(inputs):
 						most_negative_tajimas_d = [[p], p_tajimas_d]
 					elif p_tajimas_d == most_negative_tajimas_d[1]:
 						most_negative_tajimas_d[0].append(p)
-		tmp_output.close()
+
 		median_tajimas_d = "NA"
 		mad_tajimas_d = "NA"
 		if len(all_tajimas_d) > 0:
