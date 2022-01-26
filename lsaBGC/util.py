@@ -194,13 +194,6 @@ def determineNonUniqueRegionsAlongCodonAlignment(outdir, initial_sample_prokka_d
 			logObject.error(traceback.format_exc())
 		raise RuntimeError(traceback.format_exc())
 
-
-"""
-def performAncestralReconstructionCFML(codon_alignment_fasta, result_phylogeny, result_prefix, logObject=None):
-	pass
-"""
-
-
 def determineSeqSimCodonAlignment(codon_alignment_file, use_translation=False):
 	gene_sequences = {}
 	with open(codon_alignment_file) as ocaf:

@@ -86,7 +86,7 @@ def main():
     af_handle.write('\t'.join(['hg', 'hg_order', 'hg_start', 'hg_end', 'manual_annotation', '#core', 'annotation', 'domains']) + '\n')
 
     data = []
-    with open(gcf_popgene_result_dir + 'Ortholog_Group_Information.txt') as ogprf:
+    with open(gcf_popgene_result_dir + 'Ortholog_Group_Information.updated.txt') as ogprf:
         for i, line in enumerate(ogprf):
             if i == 0: continue
             line = line.strip('\n')

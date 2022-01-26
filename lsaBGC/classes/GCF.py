@@ -2962,6 +2962,9 @@ def popgen_analysis_of_hg(inputs):
 		most_positive_tajimas_d = [['NA'], 0.0]
 		most_negative_tajimas_d = [['NA'], 0.0]
 		all_tajimas_d = []
+
+		tmp_output = open('population_tajimas_d.txt', 'a+')
+
 		for p in population_counts:
 			if population_counts[p] < 4: continue
 			population_sequences = []
@@ -2970,6 +2973,7 @@ def popgen_analysis_of_hg(inputs):
 					population_sequences.append(sequences_filtered[seq_id])
 			if len(population_sequences) >= 4 and len(list(sequences_filtered.values())[0]) >= 21:
 				p_tajimas_d = util.calculateTajimasD(population_sequences)
+				tmp_output.write('\t'.join([str(x) for x in [hg, p, p_tajimas_d]]) + '\n')
 				if p_tajimas_d != 'NA':
 					p_tajimas_d = round(p_tajimas_d, 3)
 					all_tajimas_d.append(p_tajimas_d)
@@ -2982,7 +2986,7 @@ def popgen_analysis_of_hg(inputs):
 						most_negative_tajimas_d = [[p], p_tajimas_d]
 					elif p_tajimas_d == most_negative_tajimas_d[1]:
 						most_negative_tajimas_d[0].append(p)
-
+		tmp_output.close()
 		median_tajimas_d = "NA"
 		mad_tajimas_d = "NA"
 		if len(all_tajimas_d) > 0:
