@@ -117,7 +117,7 @@ def main():
         for line in ogilf:
             line = line.strip()
             ls = line.split('\t')
-            species = ls[0].split('_RS_')[0].split('_GB_')[0]
+            species = ls[0] #.split('_RS_')[0].split('_GB_')[0]
             species_iso_with_gcf[species] += 1
 
     for species in species_of_interest:
