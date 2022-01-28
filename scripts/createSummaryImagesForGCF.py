@@ -97,8 +97,8 @@ def main():
             tajimas_d = ls[13]
             median_beta_rd = ls[16]
             domains = ls[-1]
-            if int(num_samples) >= 3:
-                data.append([hg, core, annot, domains, int(hg_order), hg_dir, float(hg_med_len), num_samples, tajimas_d, median_beta_rd])
+            # if int(num_samples) >= 3:  # NOTE this was used for Corynebacterium NRPS analysis
+            data.append([hg, core, annot, domains, int(hg_order), hg_dir, float(hg_med_len), num_samples, tajimas_d, median_beta_rd])
 
     start = 1
     for i, hgi in enumerate(sorted(data, key=itemgetter(4))):
