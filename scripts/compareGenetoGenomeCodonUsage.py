@@ -14,7 +14,7 @@ def create_parser():
 	""", formatter_class=argparse.RawTextHelpFormatter)
 
     parser.add_argument('-g', '--prokka_ffn', help="Path to predicted transcriptome for isolate's genome.", required=True, default=None)
-    parser.add_argument('-i', '--gene_id', nargs='+', help="Path to BGC Genbanks for isolate. Each Genbank should reference CDS locus tag IDs matching predicted transcriptome file.", required=True, default=None)
+    parser.add_argument('-i', '--gene_id', help="Path to BGC Genbanks for isolate. Each Genbank should reference CDS locus tag IDs matching predicted transcriptome file.", required=True, default=None)
     parser.add_argument('-o', '--output', help="Path to output file.", required=True, default=None)
     args = parser.parse_args()
     return args
@@ -56,7 +56,7 @@ def main():
             codon_seq = [str(rec.seq)[i:i + 3] for i in range(0, len(str(rec.seq)), 3)]
             for cod in list(codon_seq):
                 if not(len(cod) == 3 and cod[0] in valid_bases and cod[1] in valid_bases and cod[2] in valid_bases): continue
-                if locus_tag == gene_id:
+                if locus_tag == gene_id.strip():
                     cod_freq_dict_gcf[cod] += 1
                 else:
                     cod_freq_dict_background[cod] += 1
