@@ -34,7 +34,6 @@ def main():
 
     try:
         assert(os.path.isfile(novel_snvs_file))
-        assert(os.path.isdir(focal_alignment_dir))
         assert(os.path.isfile(comparator_bam_listings_file))
     except:
         raise RuntimeError('One or more input files do not exist. Exiting now ...')
