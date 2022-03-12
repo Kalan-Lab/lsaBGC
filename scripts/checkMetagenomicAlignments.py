@@ -73,7 +73,7 @@ def main():
             for r in reads:
                 if r in reads_perfectly_mapping[sample]:
                     ma_found_flag = True
-            if ma_found_flag:
+            if not ma_found_flag:
                 output_handle.write(line + '\n')
     output_handle.close()
 
