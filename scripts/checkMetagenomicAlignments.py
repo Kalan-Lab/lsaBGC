@@ -74,7 +74,7 @@ def main():
                 if r in reads_perfectly_mapping[sample]:
                     ma_found_flag = True
             if ma_found_flag:
-                output_handle.write('\t'.join(ls[:-1]) + '\t' + ', '.join(retained_reads) + '\n')
+                output_handle.write(line + '\n')
     output_handle.close()
 
     # Exit program

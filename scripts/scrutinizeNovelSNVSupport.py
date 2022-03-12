@@ -184,7 +184,7 @@ def main():
             reads = set([x.strip() for x in ls[-1].split(',')])
             retained_reads = [r for r in reads if not r in reads_with_conflicting_support[sample]]
             if len(retained_reads) >= minimum_depth:
-                output_handle.write('\t'.join(ls[:-1]) + '\t' + ', '.join(retained_reads) + '\n')
+                output_handle.write('\t'.join(ls[:-2]) + '\t' + str(len(retained_reads)) + '\t' + ', '.join(retained_reads) + '\n')
     output_handle.close()
 
     # Exit program
