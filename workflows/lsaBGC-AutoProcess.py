@@ -254,10 +254,10 @@ def lsaBGC_Process():
 		if os.path.isfile(orthofinder_species_tree):
 			os.system('mv %s %s' % (orthofinder_species_tree, outdir))
 
-		logObject.write('Main Resulting Files:')
-		logObject.write('Homolog Group Presence Absence/Matrix OrthoFinder2: ' + orthofinder_homolog_matrix)
-		logObject.write('Listing of BGCs predicted by AntiSMASH: ' + antismash_bgc_listing_file)
-		logObject.write('Listing of Sample Proteome and Genbanks from Prokka: ' + prokka_results_listing_file)
+		logObject.info('Main Resulting Files:')
+		logObject.info('Homolog Group Presence Absence/Matrix OrthoFinder2: ' + orthofinder_homolog_matrix)
+		logObject.info('Listing of BGCs predicted by AntiSMASH: ' + antismash_bgc_listing_file)
+		logObject.info('Listing of Sample Proteome and Genbanks from Prokka: ' + prokka_results_listing_file)
 
 	# Close logging object and exit
 	util.closeLoggerObject(logObject)
