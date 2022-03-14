@@ -177,17 +177,17 @@ class Pan:
 					 'number of samples',
 					 'samples with multiple BGCs in GCF', 'size of the SCC', 'mean number of OGs',
 					 'stdev for number of OGs', 'number of core gene aggregates',
-					 'min similarity', 'max similarity', 'annotations']) + '\n')
+					 'min pairwise Jaccard similarity', 'max pairwise Jaccard similarity', 'annotations']) + '\n')
 			else:
 				sfes_handle = open(final_stats_expanded_singletons_file, 'w')
 				sf_handle.write(
 					'\t'.join(['GCF id', 'number of BGCs', 'number of samples', 'samples with multiple BGCs in GCF',
 							   'size of the SCC', 'mean number of OGs', 'stdev for number of OGs',
-							   'min difference', 'max difference', 'number of core gene aggregates', 'annotations']) + '\n')
+							   'min pairwise Jaccard similarity', 'max pairwise Jaccard similarity', 'number of core gene aggregates', 'annotations']) + '\n')
 				sfes_handle.write(
 					'\t'.join(['GCF id', 'number of BGCs', 'number of samples', 'samples with multiple BGCs in GCF',
 							   'size of the SCC', 'mean number of OGs', 'stdev for number of OGs',
-							   'min difference', 'max difference', 'number of core gene aggregates', 'annotations']) + '\n')
+							   'min pairwise Jaccard similarity', 'max pairwise Jaccard similarity', 'number of core gene aggregates', 'annotations']) + '\n')
 				sfes_handle.close()
 
 			sf_handle.close()
