@@ -258,7 +258,7 @@ def lsaBGC_Process():
 		logObject.write('Homolog Group Presence Absence/Matrix OrthoFinder2: ' + orthofinder_homolog_matrix)
 		logObject.write('Listing of BGCs predicted by AntiSMASH: ' + antismash_bgc_listing_file)
 		logObject.write('Listing of Sample Proteome and Genbanks from Prokka: ' + prokka_results_listing_file)
-		
+
 	# Close logging object and exit
 	util.closeLoggerObject(logObject)
 	sys.exit(0)

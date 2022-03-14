@@ -1068,7 +1068,7 @@ def createLoggerObject(log_file):
 	fh.setLevel(logging.DEBUG)
 	# create console handler with a higher log level
 	ch = logging.StreamHandler()
-	ch.setLevel(logging.ERROR)
+	ch.setLevel(logging.DEBUG)
 	# create formatter and add it to the handlers
 	formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s', "%Y-%m-%d %H:%M")
 	fh.setFormatter(formatter)
