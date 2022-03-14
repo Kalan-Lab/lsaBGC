@@ -41,7 +41,8 @@ def readInAnnotationFilesForExpandedSampleSet(expansion_listing_file, logObject=
 				except Exception as e:
 					if logObject:
 						logObject.warning('Ignoring sample %s, because at least one of two Prokka annotation files does not seem to exist or be in the expected format.' % sample)
-					sys.stderr.write('Ignoring sample %s, because at least one of two Prokka annotation files does not seem to exist or be in the expected format.' % sample)
+					else:
+						sys.stderr.write('Ignoring sample %s, because at least one of two Prokka annotation files does not seem to exist or be in the expected format.' % sample)
 		assert (len(sample_prokka_data) >= 2)
 		return (sample_prokka_data)
 	except Exception as e:

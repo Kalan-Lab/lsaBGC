@@ -63,7 +63,7 @@ class BGC:
 			bgc_info = [
 				{'detection_rule': 'NA', 'product': 'NA', 'contig_edge': 'NA', 'full_sequence': full_sequence}]
 
-		sys.stderr.write('Processing %s\n' % self.bgc_genbank)
+		#sys.stderr.write('Processing %s\n' % self.bgc_genbank)
 		genes = {}
 		core_genes = set([])
 		gene_order = {}

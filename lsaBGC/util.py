@@ -1076,12 +1076,8 @@ def createLoggerObject(log_file):
 	# add the handlers to the logger
 	logger.addHandler(fh)
 	logger.addHandler(ch)
+	logger.addHandler(logging.StreamHandler())
 
-	# q = multiprocessing.Queue()
-	# queue_listner = QueueListener(q, ch)
-	# queue_listner.start()
-
-	# logger.handlers[0].stream = sys.stderr
 	return logger
 
 def closeLoggerObject(logObject):

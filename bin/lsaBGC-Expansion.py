@@ -45,7 +45,7 @@ from lsaBGC.classes.GCF import GCF
 def create_parser():
     """ Parse arguments """
     parser = argparse.ArgumentParser(description="""
-	Program: lsaBGC-HMMExpansion.py
+	Program: lsaBGC-Expansion.py
 	Author: Rauf Salamzade
 	Affiliation: Kalan Lab, UW Madison, Department of Medical Microbiology and Immunology
 

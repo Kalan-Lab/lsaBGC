@@ -156,7 +156,7 @@ def lsaBGC_Process():
 	logObject.info("Done saving parameters!")
 
 	# Step 1: Parse sample assemblies
-	logObject.info("Parse sample assemblies from listing file.")
+	logObject.info("Beginning to parse sample assemblies from listing file.")
 	sample_assemblies = processing.readInAssemblyListing(assembly_listing_file, logObject)
 	logObject.info("Successfully parsed sample assemblies.")
 
@@ -234,6 +234,8 @@ def lsaBGC_Process():
 			processing.runOrthoFinder(refined_proteomes_outdir, orthofinder_outdir, orthofinder_load_code, cores, logObject, dry_run_flag=dry_run_flag)
 		logObject.info("Successfully ran/set-up OrthoFinder.")
 
+		logObject.info("Organizing results directory.")
+
 		# Move select result files from OrthoFinder to main directory to make more easy to access/find
 		orthofinder_homolog_matrix = orthofinder_outdir + 'Orthogroups/Orthogroups.tsv'
 		flag = False
@@ -252,6 +254,11 @@ def lsaBGC_Process():
 		if os.path.isfile(orthofinder_species_tree):
 			os.system('mv %s %s' % (orthofinder_species_tree, outdir))
 
+		logObject.write('Main Resulting Files:')
+		logObject.write('Homolog Group Presence Absence/Matrix OrthoFinder2: ' + orthofinder_homolog_matrix)
+		logObject.write('Listing of BGCs predicted by AntiSMASH: ' + antismash_bgc_listing_file)
+		logObject.write('Listing of Sample Proteome and Genbanks from Prokka: ' + prokka_results_listing_file)
+		
 	# Close logging object and exit
 	util.closeLoggerObject(logObject)
 	sys.exit(0)
