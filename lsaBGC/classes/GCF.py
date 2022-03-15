@@ -405,11 +405,12 @@ class GCF(Pan):
 					dummy_hg = hg
 					heatmap_track_handle.write('\t'.join([bgc, hg, bgc_hg_presence[bgc][hg], str(hg_counts[hg])]) + '\n')
 
-			for bgc in all_bgcs_in_tree:
+			for i, bgc in enumerate(all_bgcs_in_tree):
 				if not bgc in bgc_gene_counts.keys():
 					gggenes_track_handle.write('\t'.join([bgc] + ['NA']*4 + ['Absent', '"#FFFFFF"']) + '\n')
 					heatmap_track_handle.write('\t'.join([bgc, dummy_hg, 'Absent', '1']) + '\n')
-			heatmap_track_handle.write('\t'.join(['NA', 'NA', 'Absent', '1']) + '\n')
+				elif i == 0:
+					gggenes_track_handle.write('\t'.join([bgc] + ['NA']*4 + ['Absent', '"#FFFFFF"']) + '\n')
 
 			gggenes_track_handle.close()
 			heatmap_track_handle.close()
