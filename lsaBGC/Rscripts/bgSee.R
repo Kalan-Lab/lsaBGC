@@ -21,8 +21,9 @@ heatmap.data <- read.table(heatmap.data_file, header=T, sep='\t')
 tree.labels <- phylo.tree$tip.label
 
 genes.sub.data <- distinct(genes.data[c("og", "og_color")])
-og_colors <- na.omit(c(genes.sub.data$og_color))#, #'#FFFFFF'))
-names(og_colors) <- c(na.omit(c(genes.sub.data$og)))#,# 'Absent')
+og_colors <- na.omit(c(genes.sub.data$og_color))
+names(og_colors) <- c(na.omit(c(genes.sub.data$og)))
+
 print(og_colors)
 
 pdf(pdf_file, height=70, width=30)

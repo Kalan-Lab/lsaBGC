@@ -409,6 +409,7 @@ class GCF(Pan):
 				if not bgc in bgc_gene_counts.keys():
 					gggenes_track_handle.write('\t'.join([bgc] + ['NA']*4 + ['Absent', '"#FFFFFF"']) + '\n')
 					heatmap_track_handle.write('\t'.join([bgc, dummy_hg, 'Absent', '1']) + '\n')
+			heatmap_track_handle.write('\t'.join(['NA', 'NA', 'Absent', '1']) + '\n')
 
 			gggenes_track_handle.close()
 			heatmap_track_handle.close()
@@ -1143,7 +1144,7 @@ class GCF(Pan):
 						for j, prot in enumerate(ls[1:]):
 							sample_hg_proteins[original_samples[j]][hg] = sample_hg_proteins[original_samples[j]][hg].union(set(prot.split(', ')))
 
-			expanded_orthofinder_matrix_file = outdir + 'Orthogroups.expanded.csv'
+			expanded_orthofinder_matrix_file = outdir + 'Orthogroups.expanded.tsv'
 			expanded_orthofinder_matrix_handle = open(expanded_orthofinder_matrix_file, 'w')
 
 			header = [''] + [s for s in sorted(all_samples)]

@@ -323,7 +323,7 @@ def lsaBGC_AutoExpansion():
 				for j, prot in enumerate(ls[1:]):
 					sample_hg_lts[original_samples[j]][hg] = sample_hg_lts[original_samples[j]][hg].union(set(prot.split(', ')))
 
-	expanded_orthofinder_matrix_file = outdir + 'Orthogroups.expanded.csv'
+	expanded_orthofinder_matrix_file = outdir + 'Orthogroups.expanded.tsv'
 	expanded_orthofinder_matrix_handle = open(expanded_orthofinder_matrix_file, 'w')
 
 	header = [''] + [s for s in sorted(all_samples)]
