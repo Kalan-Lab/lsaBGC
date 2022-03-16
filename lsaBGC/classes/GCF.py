@@ -2659,7 +2659,7 @@ def popgen_analysis_of_hg(inputs):
 	with open(codon_alignment_fasta) as ocaf:
 		for rec in SeqIO.parse(ocaf, 'fasta'):
 			sample_id, gene_id = rec.id.split('|')
-			if population != sample_population[sample_id] and population != None: continue
+			if sample_population != None and population != None and population != sample_population[sample_id]: continue
 			sample_leaf_names[sample_id].append(rec.id)
 			if len(gene_id.split('_')[0]) == 3:
 				if comp_gene_info[gene_id]['core_overlap']:
