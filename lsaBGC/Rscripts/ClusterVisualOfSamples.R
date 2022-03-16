@@ -13,6 +13,7 @@ d <- as.dist(xtabs(pwdist_data[, 4] ~ pwdist_data[, 3] + pwdist_data[, 2]))
 pdf(pdf_file, height=10, width=10)
 
 mds.cmdscale <- as.data.frame(cmdscale(as.matrix(d)))
+print(mds.cmdscale)
 mds.cmdscale$names <- rownames(mds.cmdscale)
 
 plot.df <- merge(mds.cmdscale, sainfo_data, by.x="names", by.y="sample_id")
