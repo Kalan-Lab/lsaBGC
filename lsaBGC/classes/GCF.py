@@ -2790,9 +2790,10 @@ def popgen_analysis_of_hg(inputs):
 			domain_range = range(relative_start, relative_end+1)
 			for pos in domain_range:
 				msa_pos = gene_locs[gene][pos + 1]
-				domain_positions_msa[domain_name].add(msa_pos)
-				if domain_min_position_msa[domain_name] > msa_pos and domain['type'] == 'PFAM_domain':
-					domain_min_position_msa[domain_name] = msa_pos
+				if domain['type'] == 'PFAM_domain':
+					domain_positions_msa[domain_name].add(msa_pos)
+					if domain_min_position_msa[domain_name] > msa_pos:
+						domain_min_position_msa[domain_name] = msa_pos
 			all_domains.add(domain['type'] + '_|_' + domain['aSDomain'] + '_|_' + domain['description'])
 
 	domain_plot_handle.write('\t'.join(['domain', 'domain_index', 'min_pos', 'max_pos']) + '\n')
