@@ -884,10 +884,10 @@ class GCF(Pan):
 
 		popgen_dir = outdir + 'Codon_PopGen_Analyses'
 		plots_dir = outdir + 'Codon_MSA_Plots'
-		final_output_file = outdir + 'Ortholog_Group_Information'
+		final_output_file = outdir + 'Homolog_Group_Information'
 
 		if filter_outliers:
-			final_output_file = outdir + 'Ortholog_Group_Information_MAD_Refined'
+			final_output_file = outdir + 'Homolog_Group_Information_MAD_Refined'
 			popgen_dir = outdir + 'Codon_PopGen_Analyses_MAD_Refined'
 			plots_dir = outdir + 'Codon_MSA_Plots_MAD_Refined'
 

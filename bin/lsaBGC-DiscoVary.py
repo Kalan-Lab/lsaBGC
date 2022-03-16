@@ -66,6 +66,7 @@ def create_parser():
     parser.add_argument('-o', '--output_directory', help="Prefix for output files.", required=True)
     parser.add_argument('-a', '--codon_alignments', help="File listing the codon alignments for each homolog group in the GCF. Can be found as part of PopGene output.", required=True)
     parser.add_argument('-ch', '--core_homologs', nargs="+", help="List of homolog group identifiers comprising the core of the BGC/GCF.", required=False, default=[])
+    parser.add_argument('-ap', '--allow_phasing', action='store_true', help="Allow phasing with DESMAN. Requires manual installation of DESMAN (not through conda).", default=False)
     parser.add_argument('-c', '--cores', type=int, help="The number of cores to use.", required=False, default=1)
 
     args = parser.parse_args()
@@ -110,6 +111,7 @@ def lsaBGC_DiscoVary():
     """
 
     gcf_id = myargs.gcf_id
+    allow_phasing = myargs.allow_phasing
     core_hg_set = myargs.core_homologs
     cores = myargs.cores
 
@@ -186,7 +188,7 @@ def lsaBGC_DiscoVary():
     phased_alleles_outdir = outdir + 'Phased_Homolog_Group_Sequences/'
     if not os.path.isdir(phased_alleles_outdir): os.system('mkdir %s' % phased_alleles_outdir)
     logObject.info("Phasing or determining consensus allele and reporting of novel SNVs.")
-    GCF_Object.phaseAndSummarize(paired_end_sequencing_file, codon_alignments_file, results_outdir, phased_alleles_outdir, outdir, hg_nonunique_positions, cores=cores)
+    GCF_Object.phaseAndSummarize(paired_end_sequencing_file, codon_alignments_file, results_outdir, phased_alleles_outdir, outdir, hg_nonunique_positions, cores=cores, allow_phasing=allow_phasing)
     logObject.info("Successfully constructed matrices of allele typings.")
 
     # Step 9: Filter low coverage gene instances and construct gene-phylogenies
