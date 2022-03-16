@@ -17,10 +17,10 @@ print(mds.cmdscale)
 mds.cmdscale$names <- rownames(mds.cmdscale)
 
 plot.df <- merge(mds.cmdscale, sainfo_data, by.x="names", by.y="sample_id")
-
-ggplot(plot.df, aes(V1, V2, color=sample_depth, label=names)) +
-  geom_text(aes(label=names), check_overlap = TRUE, size=2.2,
-            hjust = "center", vjust = "bottom", nudge_x = 0) +
-  labs(x="", y="", title="") + scale_fill_gradient() + theme_bw()
+print(plot.df)
+#ggplot(plot.df, aes(V1, V2, color=sample_depth, label=names)) +
+#  geom_text(aes(label=names), check_overlap = TRUE, size=2.2,
+#            hjust = "center", vjust = "bottom", nudge_x = 0) +
+#  labs(x="", y="", title="") + scale_fill_gradient() + theme_bw()
 
 dev.off()
