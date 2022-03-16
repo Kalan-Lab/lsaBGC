@@ -10,7 +10,8 @@ pwdist_data <- read.table(pairwise_distance_file, header=T, sep='\t', row.names=
 sainfo_data <- read.table(sample_info_file, header=T, sep='\t')
 
 print(pwdist_data)
-d <- as.dist(xtabs(pw_distance ~ sample2 + sample1, data=pwdist_data))
+d <- as.dist(pwdist_data[])
+#d <- as.dist(xtabs(pw_distance ~ sample2 + sample1, data=pwdist_data))
 pdf(pdf_file, height=10, width=10)
 
 print(d)

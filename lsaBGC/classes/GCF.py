@@ -1411,8 +1411,8 @@ class GCF(Pan):
 			pairwise_distance_handle = open(pairwise_distance_file, 'w')
 			sample_information_handle = open(sample_information_file, 'w')
 
-			pairwise_distance_handle.write('\t'.join(['pair_id', 'sample1', 'sample2', 'pw_distance', 'total_intersect_positions']) + '\n')
 			sample_information_handle.write('\t'.join(['sample_id', 'sample_depth']) + '\n')
+			pairwise_distances_storage = defaultdict(lambda: defaultdict(lambda: 0.0))
 
 			for si1, s1 in enumerate(sample_profiles):
 				s1_hps = set(sample_profiles[s1].keys())
@@ -1420,7 +1420,7 @@ class GCF(Pan):
 				if s1_depth < 10.0: continue
 				sample_information_handle.write('\t'.join([s1, str(s1_depth)]) + '\n')
 				for si2, s2 in enumerate(sample_profiles):
-					if si1 >= si2: continue
+					if si1 == si2: continue
 					s2_depth = sum(sample_depths[s2].values()) / float(len(sample_depths[s2].keys()))
 					if s2_depth < 10.0: continue
 					s2_hps = set(sample_profiles[s2].keys())
@@ -1434,13 +1434,16 @@ class GCF(Pan):
 					distance_stat = 1.0
 					if total_intersect_positions > 0:
 						distance_stat = float(stat_pos)/float(total_intersect_positions)
-					#else:
-					#	print(s1 + '\t' + s2)
-
-					pair_id = s1 + ' vs. ' + s2
-					pairwise_distance_handle.write('\t'.join([str(x) for x in [pair_id, s1, s2, distance_stat, total_intersect_positions]]) + '\n')
-			pairwise_distance_handle.close()
+					pairwise_distances_storage[s1][s2] = distance_stat
 			sample_information_handle.close()
+
+			pairwise_distance_handle.write('samples\t' + '\t'.join(sorted(sample_profiles)) + '\n')
+			for s1 in sorted(sample_profiles):
+				printlist = [s1]
+				for s2 in sorted(sample_profiles):
+					printlist.append(str(pairwise_distances_storage[s1][s2]))
+				pairwise_distance_handle.write('\t'.join(printlist) + '\n')
+			pairwise_distance_handle.close()
 
 			# use Rscript to plot phylogeny and showcase how new sequences identified ("Query") relate to known ones
 			# ("Database")
