@@ -1903,6 +1903,7 @@ def phase_and_id_snvs(input_args):
 		homolog_variable_positions = defaultdict(set)
 		haplotype_allele_at_position = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: None)))
 		number_of_haplotypes = 0
+
 		if float(hetero_sites)/total_sites >= min_hetero_prop and allow_phasing and metagenomic:
 			# perform phasing using desman
 			cwd = os.getcwd()
@@ -2020,71 +2021,72 @@ def phase_and_id_snvs(input_args):
 										haplotype_allele_at_position[hg][haplotype_num][position] = allele_base
 									else:
 										haplotype_allele_at_position[hg][haplotype_num][position] = '-'
-
-					haplotype_sequences = defaultdict(lambda: defaultdict(lambda: ""))
-					with open(filt_result_file) as ofrf:
-						for linenum, line in enumerate(ofrf):
-							if linenum == 0: continue
-							line = line.strip()
-							ls = line.split(',')
-							hg, position = ls[:2]
-							position = int(position)
-
-							ambiguity_region_flag = False
-							if position in gene_ignore_positions[hg]: ambiguity_region_flag = True
-							haplotype_calls = [int(x) for x in ls[2:]]
-
-							total_depth = pos_allele_support[hg][position]['TOTAL']
-							depth_above_expectation = False
-							depth_below_expectation = False
-							if total_depth > (trimmed_depth_median + (2 * trimmed_depth_mad)):
-								depth_above_expectation = True
-							if total_depth < (trimmed_depth_median - (3 * trimmed_depth_mad)):
-								depth_below_expectation = True
-
-							max_allele_depth = max(haplotype_calls)
-
-							tie_exists = len([x for x in haplotype_calls if x == max_allele_depth]) > 1
-
-							for i, allele_depth in enumerate(haplotype_calls):
-								if allele_depth == max_allele_depth:
-									if i == 0: allele_base = 'A'
-									elif i == 1: allele_base = 'C'
-									elif i == 2: allele_base = 'G'
-									elif i == 3: allele_base = 'T'
-
-									allele_call = '-'
-									if allele_depth >= min_allele_depth and not depth_below_expectation and not depth_above_expectation and \
-											not ambiguity_region_flag and not tie_exists:
-										allele_call = allele_base
-
-									for hi in range(0, number_of_haplotypes+1):
-										if position in homolog_variable_positions[hg]:
-											haplotype_sequences[hg][hi] += haplotype_allele_at_position[hg][hi][position]
-										else:
-											haplotype_sequences[hg][hi] += allele_call
-									break
-
-					for hg in haplotype_sequences:
-						bgc_fasta_file = phased_alleles_outdir + hg + '.fasta'
-						bgc_fasta_handle = open(bgc_fasta_file, 'a+')
-						for hi in haplotype_sequences[hg]:
-							seq = haplotype_sequences[hg][hi]
-							codons = [str(seq)[i:i + 3] for i in range(0, len(str(seq)), 3)]
-							first_stop_codon = None
-							for cod_i, cod in enumerate(codons):
-								if cod in set(['TAG', 'TGA', 'TAA']):
-									first_stop_codon = 3*(cod_i+1)
-									break
-							if first_stop_codon is not None:
-								seq = seq[:first_stop_codon] + ''.join(['-']*len(seq[first_stop_codon:]))
-								#print(hg + '\t' + pe_sample)
-							bgc_fasta_handle.write('>' + pe_sample + '_|_' + str(hi+1) + '\n' + seq + '\n')
-						bgc_fasta_handle.close()
 				except:
 					if logObject:
 						logObject.error('Had an issue with parsing DESMAN results.')
 						logObject.error(traceback.format_exc())
+
+
+		haplotype_sequences = defaultdict(lambda: defaultdict(lambda: ""))
+		with open(filt_result_file) as ofrf:
+			for linenum, line in enumerate(ofrf):
+				if linenum == 0: continue
+				line = line.strip()
+				ls = line.split(',')
+				hg, position = ls[:2]
+				position = int(position)
+
+				ambiguity_region_flag = False
+				if position in gene_ignore_positions[hg]: ambiguity_region_flag = True
+				haplotype_calls = [int(x) for x in ls[2:]]
+
+				total_depth = pos_allele_support[hg][position]['TOTAL']
+				depth_above_expectation = False
+				depth_below_expectation = False
+				if total_depth > (trimmed_depth_median + (2 * trimmed_depth_mad)):
+					depth_above_expectation = True
+				if total_depth < (trimmed_depth_median - (3 * trimmed_depth_mad)):
+					depth_below_expectation = True
+
+				max_allele_depth = max(haplotype_calls)
+
+				tie_exists = len([x for x in haplotype_calls if x == max_allele_depth]) > 1
+
+				for i, allele_depth in enumerate(haplotype_calls):
+					if allele_depth == max_allele_depth:
+						if i == 0: allele_base = 'A'
+						elif i == 1: allele_base = 'C'
+						elif i == 2: allele_base = 'G'
+						elif i == 3: allele_base = 'T'
+
+						allele_call = '-'
+						if allele_depth >= min_allele_depth and not depth_below_expectation and not depth_above_expectation and \
+								not ambiguity_region_flag and not tie_exists:
+							allele_call = allele_base
+
+						for hi in range(0, number_of_haplotypes+1):
+							if position in homolog_variable_positions[hg]:
+								haplotype_sequences[hg][hi] += haplotype_allele_at_position[hg][hi][position]
+							else:
+								haplotype_sequences[hg][hi] += allele_call
+						break
+
+		for hg in haplotype_sequences:
+			bgc_fasta_file = phased_alleles_outdir + hg + '.fasta'
+			bgc_fasta_handle = open(bgc_fasta_file, 'a+')
+			for hi in haplotype_sequences[hg]:
+				seq = haplotype_sequences[hg][hi]
+				codons = [str(seq)[i:i + 3] for i in range(0, len(str(seq)), 3)]
+				first_stop_codon = None
+				for cod_i, cod in enumerate(codons):
+					if cod in set(['TAG', 'TGA', 'TAA']):
+						first_stop_codon = 3*(cod_i+1)
+						break
+				if first_stop_codon is not None:
+					seq = seq[:first_stop_codon] + ''.join(['-']*len(seq[first_stop_codon:]))
+				bgc_fasta_handle.write('>' + pe_sample + '_|_' + str(hi+1) + '\n' + seq + '\n')
+			bgc_fasta_handle.close()
+
 
 		all_snv_supporting_reads = set([])
 		with open(snv_file) as of:
