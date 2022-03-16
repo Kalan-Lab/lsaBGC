@@ -935,12 +935,14 @@ class GCF(Pan):
 		for f in os.listdir(input_codon_dir):
 			hg = f.split('.msa.fna')[0]
 			codon_alignment_fasta = input_codon_dir + f
-			if gw_pairwise_similarities:
+			if gw_pairwise_similarities != None:
 				gw_pairwise_similarities = dict(gw_pairwise_similarities)
-
+			sample_population_local = self.sample_population
+			if sample_population_local != None:
+				sample_population_local = dict(sample_population_local)
 			inputs.append([self.gcf_id, gcf_product_summary, hg, codon_alignment_fasta, popgen_dir, plots_dir, self.comp_gene_info,
 						   self.hg_genes, self.bgc_sample, self.hg_prop_multi_copy, dict(self.hg_order_scores),
-						   gw_pairwise_similarities, comparem_used, dict(self.sample_population), population,
+						   gw_pairwise_similarities, comparem_used, sample_population_local, population,
 						   species_phylogeny, sample_size, self.logObject])
 
 		p = multiprocessing.Pool(cores)
@@ -2657,13 +2659,13 @@ def popgen_analysis_of_hg(inputs):
 	with open(codon_alignment_fasta) as ocaf:
 		for rec in SeqIO.parse(ocaf, 'fasta'):
 			sample_id, gene_id = rec.id.split('|')
+			if population != sample_population[sample_id] and population != None: continue
 			sample_leaf_names[sample_id].append(rec.id)
 			if len(gene_id.split('_')[0]) == 3:
 				if comp_gene_info[gene_id]['core_overlap']:
 					core_counts['core'] += 1
 				else:
 					core_counts['auxiliary'] += 1
-			if population != sample_population[sample_id] and population != None: continue
 			updated_codon_alignment_handle.write('>' + rec.description + '\n' + str(rec.seq) + '\n')
 			products.add(comp_gene_info[gene_id]['product'])
 			real_pos = 1
@@ -2685,21 +2687,22 @@ def popgen_analysis_of_hg(inputs):
 	if len(seqs) == 0: return
 
 	median_beta_rd = "NA"
-	if gw_pairwise_similarities:
-		beta_rd_stats = []
-		hg_pairwise_similarities = util.determineSeqSimCodonAlignment(codon_alignment_fasta, use_translation=comparem_used)
-		for i, s1 in enumerate(sorted(samples)):
-			for j, s2 in enumerate(sorted(samples)):
-				if i >= j: continue
-				if s1 in hg_pairwise_similarities and s2 in hg_pairwise_similarities:
-					hg_seq_sim = hg_pairwise_similarities[s1][s2]
-					gw_seq_sim = gw_pairwise_similarities[s1][s2]
-					if gw_seq_sim != 0.0:
-						beta_rd = hg_seq_sim / float(gw_seq_sim)
-						beta_rd_stats.append(beta_rd)
-		median_beta_rd = "NA"
-		if len(beta_rd_stats) >= 1:
-			median_beta_rd = round(statistics.median(beta_rd_stats), 2)
+	if comparem_used != None:
+		if gw_pairwise_similarities:
+			beta_rd_stats = []
+			hg_pairwise_similarities = util.determineSeqSimCodonAlignment(codon_alignment_fasta, use_translation=comparem_used)
+			for i, s1 in enumerate(sorted(samples)):
+				for j, s2 in enumerate(sorted(samples)):
+					if i >= j: continue
+					if s1 in hg_pairwise_similarities and s2 in hg_pairwise_similarities:
+						hg_seq_sim = hg_pairwise_similarities[s1][s2]
+						gw_seq_sim = gw_pairwise_similarities[s1][s2]
+						if gw_seq_sim != 0.0:
+							beta_rd = hg_seq_sim / float(gw_seq_sim)
+							beta_rd_stats.append(beta_rd)
+			median_beta_rd = "NA"
+			if len(beta_rd_stats) >= 1:
+				median_beta_rd = round(statistics.median(beta_rd_stats), 2)
 
 	is_core = False
 	if (sum(core_counts.values()) > 0.0):
@@ -2765,14 +2768,26 @@ def popgen_analysis_of_hg(inputs):
 	for gene in gene_locs:
 		gene_start = comp_gene_info[gene]['start']
 		gene_end = comp_gene_info[gene]['end']
+		gene_direction = comp_gene_info[gene]['direction']
 		for domain in comp_gene_info[gene]['gene_domains']:
-			domain_start = max(domain['start'], gene_start)
-			domain_end = min(domain['end'], gene_end)
+			domain_info = domain
+			if gene_direction == '-':
+				for dom in domain_info:
+					dom_start = domain_info['start']
+					dom_end = domain_info['end']
+					dom_length = dom_end - dom_start
+					dist_to_dom_start = max(dom_start - gene_start, 0)
+					flip_dom_end = gene_end - dist_to_dom_start
+					flip_dom_start = flip_dom_end - dom_length
+					domain_info['start'] = flip_dom_start
+					domain_info['end'] = flip_dom_end
+			domain_start = max(domain_info['start'], gene_start)
+			domain_end = min(domain_info['end'], gene_end)
 			domain_name = domain['aSDomain'] + '_|_' + domain['description']
 			relative_start = domain_start - gene_start
 			assert (len(gene_locs[gene]) + 3 >= (domain_end - gene_start))
 			relative_end = min([len(gene_locs[gene]), domain_end - gene_start])
-			domain_range = range(relative_start, relative_end)
+			domain_range = range(relative_start, relative_end+1)
 			for pos in domain_range:
 				msa_pos = gene_locs[gene][pos + 1]
 				domain_positions_msa[domain_name].add(msa_pos)
