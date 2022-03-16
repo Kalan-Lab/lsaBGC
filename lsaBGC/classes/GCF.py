@@ -2838,7 +2838,7 @@ def popgen_analysis_of_hg(inputs):
 	high_ambiguity_sequences = set([])
 	with open(codon_alignment_fasta) as ocaf:
 		for rec in SeqIO.parse(ocaf, 'fasta'):
-			if population != sample_population[sample_id] and population != None: continue
+			if sample_population != None and population != None and population != sample_population[sample_id]: continue
 			total_nonambiguous_positions = 0
 			gap_nonambiguous_positions = 0
 			for msa_pos, bp in enumerate(str(rec.seq)):
