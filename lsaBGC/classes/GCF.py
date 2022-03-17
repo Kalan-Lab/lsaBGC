@@ -1128,7 +1128,7 @@ class GCF(Pan):
 				for line in obhef:
 					line = line.strip()
 					gbk, sample, lt, hg, eval, hg_is_functionally_core = line.split('\t')
-					if hg in sample_lt_to_hg[sample].keys():
+					if lt in sample_lt_to_hg[sample].keys():
 						sample_hg_proteins[sample][hg].add(lt)
 					all_samples.add(sample)
 
