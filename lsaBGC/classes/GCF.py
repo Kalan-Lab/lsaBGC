@@ -11,7 +11,6 @@ import gzip
 import multiprocessing
 from scipy.stats import f_oneway, fisher_exact, pearsonr, median_absolute_deviation, entropy
 from ete3 import Tree
-from decimal import Decimal
 import numpy as np
 from operator import itemgetter
 import itertools
@@ -1128,15 +1127,6 @@ class GCF(Pan):
 				for line in oghef:
 					line = line.strip()
 					bgc_gbk_path, sample, lt, hg, eval, hg_is_functionally_core = line.split('\t')
-					eval = float(eval)
-					d = Decimal(eval + 1e-300)
-					bgc_lt_evals[sample][gcf_id][bgc_gbk_path][lt] = float(max([d.log10(), -300]))
-					if quick_mode:
-						d = Decimal(eval + 1e-500)
-						bgc_lt_evals[sample][gcf_id][bgc_gbk_path][lt] = float(max([d.log10(), -500]))
-					bgc_lts[sample][gcf_id][bgc_gbk_path].add(lt)
-					if hg_is_functionally_core == 'True':
-						bgcs_with_func_core_lt.add(bgc_gbk_path)
 					bgc_lt_to_hg[bgc_gbk_path][lt] = hg
 
 			sample_hg_proteins = defaultdict(lambda: defaultdict(set))
