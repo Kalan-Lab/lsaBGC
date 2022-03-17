@@ -26,6 +26,18 @@ with open(gcf_det_file) as ogdf:
             annots.remove('NRPS-like')
         if len(annots) >= 2:
             gcf_annots[ls[0]] = 'hybrid'
+
+            
+            an_dict = {}
+            tot_count = 0
+            for an in ls[-1].split('; '):
+                ans = [x.strip() for x in an.split(':')]
+                an_dict[ans[0]] = float(ans[1])
+                tot_count += float(ans[1])
+
+            for an in an_dict:
+                if an_dict[an]/float(tot_count) >= 0.90:
+                    gcf_annots[ls[0]] = an 
         else:
             gcf_annots[ls[0]] = list(annots)[0]
 
