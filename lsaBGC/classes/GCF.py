@@ -26,6 +26,7 @@ from Bio import SeqIO, Align
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 from Bio.codonalign.codonseq import CodonSeq, cal_dn_ds
+from lsaBGC.classes.BGC import BGC
 
 warnings.filterwarnings("ignore")
 mges = set(['transp', 'integrase'])
