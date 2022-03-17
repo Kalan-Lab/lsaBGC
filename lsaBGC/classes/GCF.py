@@ -1121,6 +1121,7 @@ class GCF(Pan):
 		os.system('find %s -type f -name "*.hg_evalues.txt" -exec cat {} + >> %s' % (bgc_info_dir, bgc_hmm_evalues_file))
 		if not os.path.isfile(bgc_hmm_evalues_file): os.system('touch %s' % bgc_hmm_evalues_file)
 
+		"""
 		if not no_orthogroup_matrix:
 			sample_hg_proteins = defaultdict(lambda: defaultdict(set))
 			all_samples = set([])
@@ -1158,7 +1159,7 @@ class GCF(Pan):
 					printlist.append(', '.join(sample_hg_proteins[s][hg]))
 				expanded_orthofinder_matrix_handle.write('\t'.join(printlist) + '\n')
 			expanded_orthofinder_matrix_handle.close()
-
+		"""
 	def extractGenesAndCluster(self, genes_representative_fasta, genes_fasta, codon_alignments_file, bowtie2_db_prefix):
 		"""
 		Function to cluster gene sequences for each homolog group using codon alignments and then select representative

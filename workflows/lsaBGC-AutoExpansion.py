@@ -167,7 +167,7 @@ def lsaBGC_AutoExpansion():
 		if not os.path.isdir(gcf_exp_outdir):
 			cmd = ['lsaBGC-Expansion.py', '-g', gcf_listing_file, '-m', orthofinder_matrix_file, '-l',
 				   initial_listing_file, '-e', expansion_listing_file, '-o', gcf_exp_outdir, '-i', gcf_id,
-			   	   '-c', str(cores), '-no']
+			   	   '-c', str(cores)]
 			if quick_mode:
 				cmd += ['-q']
 			if pickle_expansion_annotation_data_file:
