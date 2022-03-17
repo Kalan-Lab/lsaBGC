@@ -121,8 +121,10 @@ def lsaBGC_Expansion():
     transition_from_gcf_to_gcf = myargs.transition_from_gcf_to_gcf
     transition_from_bg_to_bg = myargs.transition_from_bg_to_bg
     quick_mode = myargs.quick_mode
-    no_orthogroup_matrix = myargs.no_orthogroup_matrix
     pickle_expansion_annotation_data_file = myargs.pickle_expansion_annotation_data
+
+    # set to true by default for now
+    no_orthogroup_matrix = True 
 
     """
     START WORKFLOW
