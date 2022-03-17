@@ -1127,7 +1127,7 @@ class GCF(Pan):
 			with open(bgc_hmm_evalues_file) as obhef:
 				for line in obhef:
 					line = line.strip()
-					gbk, sample, lt, hg, eval = line.split('\t')
+					gbk, sample, lt, hg, eval, hg_is_functionally_core = line.split('\t')
 					if hg in sample_lt_to_hg[sample].keys():
 						sample_hg_proteins[sample][hg].add(lt)
 					all_samples.add(sample)
