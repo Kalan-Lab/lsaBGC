@@ -72,6 +72,7 @@ def create_parser():
     parser.add_argument('-tb', '--transition_from_bg_to_bg', type=float, help="Background to background state transition probability for HMM. Should be between 0.0 and 1.0. Default is 0.9.", required=False, default=0.9)
     parser.add_argument('-c', '--cores', type=int, help="The number of cores to use.", required=False, default=1)
     parser.add_argument('-q', '--quick_mode', action='store_true', help="Run in quick-mode. Instead of running HMMScan for each homolog group, a consensus sequence is emitted and Diamond is used for searching instead. Method inspired by Melnyk et al. 2019", required=False, default=False)
+    parser.add_argument('-no', '--no_orthogroup_matrix', action='store_true', help="Avoid writing the updated OrthoFinder matrix at the end.", required=False, default=False)
     parser.add_argument('-z', '--pickle_expansion_annotation_data', help="Pickle file with serialization of annotation data in the expansion listing file.", required=False, default=None)
 
     args = parser.parse_args()
@@ -121,10 +122,8 @@ def lsaBGC_Expansion():
     transition_from_gcf_to_gcf = myargs.transition_from_gcf_to_gcf
     transition_from_bg_to_bg = myargs.transition_from_bg_to_bg
     quick_mode = myargs.quick_mode
+    no_orthogroup_matrix = myargs.no_orthogroup_matrix
     pickle_expansion_annotation_data_file = myargs.pickle_expansion_annotation_data
-
-    # set to true by default for now
-    no_orthogroup_matrix = True 
 
     """
     START WORKFLOW

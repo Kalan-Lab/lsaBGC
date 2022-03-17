@@ -1121,17 +1121,37 @@ class GCF(Pan):
 		os.system('find %s -type f -name "*.hg_evalues.txt" -exec cat {} + >> %s' % (bgc_info_dir, bgc_hmm_evalues_file))
 		if not os.path.isfile(bgc_hmm_evalues_file): os.system('touch %s' % bgc_hmm_evalues_file)
 
-		"""
 		if not no_orthogroup_matrix:
+			bgc_lt_to_hg = defaultdict(lambda: defaultdict(dict))
+			with open(bgc_hmm_evalues_file) as oghef:
+				for line in oghef:
+					line = line.strip()
+					bgc_gbk_path, sample, lt, hg, eval, hg_is_functionally_core = line.split('\t')
+					eval = float(eval)
+					d = Decimal(eval + 1e-300)
+					bgc_lt_evals[sample][gcf_id][bgc_gbk_path][lt] = float(max([d.log10(), -300]))
+					if quick_mode:
+						d = Decimal(eval + 1e-500)
+						bgc_lt_evals[sample][gcf_id][bgc_gbk_path][lt] = float(max([d.log10(), -500]))
+					bgc_lts[sample][gcf_id][bgc_gbk_path].add(lt)
+					if hg_is_functionally_core == 'True':
+						bgcs_with_func_core_lt.add(bgc_gbk_path)
+					bgc_lt_to_hg[bgc_gbk_path][lt] = hg
+
 			sample_hg_proteins = defaultdict(lambda: defaultdict(set))
 			all_samples = set([])
-			with open(bgc_hmm_evalues_file) as obhef:
+			with open(expanded_gcf_list_file) as obhef:
 				for line in obhef:
 					line = line.strip()
-					gbk, sample, lt, hg, eval, hg_is_functionally_core = line.split('\t')
-					if lt in sample_lt_to_hg[sample].keys():
-						sample_hg_proteins[sample][hg].add(lt)
-					all_samples.add(sample)
+					sample, bgc_gbk_path = line.split('\t')
+					BGC_Object = BGC(bgc_gbk_path, bgc_gbk_path)
+					BGC_Object.parseGenbanks(comprehensive_parsing=False)
+					curr_bgc_lts = set(BGC_Object.gene_information.keys())
+					sample = util.cleanUpSampleName(sample)
+					for lt in curr_bgc_lts:
+						if lt in bgc_lt_to_hg[bgc_gbk_path]:
+							hg = bgc_lt_to_hg[bgc_gbk_path][lt]
+							sample_hg_proteins[sample][hg].add(lt)
 
 			original_samples = []
 			all_hgs = set([])
@@ -1159,7 +1179,7 @@ class GCF(Pan):
 					printlist.append(', '.join(sample_hg_proteins[s][hg]))
 				expanded_orthofinder_matrix_handle.write('\t'.join(printlist) + '\n')
 			expanded_orthofinder_matrix_handle.close()
-		"""
+
 	def extractGenesAndCluster(self, genes_representative_fasta, genes_fasta, codon_alignments_file, bowtie2_db_prefix):
 		"""
 		Function to cluster gene sequences for each homolog group using codon alignments and then select representative
