@@ -308,7 +308,7 @@ def lsaBGC_AutoAnalyze():
 
 		# 2. Run lsaBGC-PopGene.py
 		gcf_pop_outdir = pop_outdir + gcf_id + '/'
-		if True: #not os.path.isdir(gcf_pop_outdir):
+		if not os.path.isdir(gcf_pop_outdir):
 			os.system('mkdir %s' % gcf_pop_outdir)
 			cmd = ['lsaBGC-PopGene.py', '-g', gcf_listing_file, '-m', orthofinder_matrix_file, '-o', gcf_pop_outdir,
 				   '-i', gcf_id, '-c', str(cores), '-f', gw_result_cleaned_file]
@@ -340,7 +340,7 @@ def lsaBGC_AutoAnalyze():
 		# 4. Run lsaBGC-DiscoVary.py
 		if discovary_analysis_id and discovary_input_listing:
 			gcf_dis_outdir = dis_outdir + gcf_id + '/'
-			if True: #not os.path.isdir(gcf_dis_outdir):
+			if not os.path.isdir(gcf_dis_outdir):
 				os.system('mkdir %s' % gcf_dis_outdir)
 				cmd = ['lsaBGC-DiscoVary.py', '-g', gcf_listing_file, '-m', orthofinder_matrix_file, '-o',
 					   gcf_dis_outdir, '-i', gcf_id, '-c', str(cores), '-p', discovary_input_listing, '-a',
