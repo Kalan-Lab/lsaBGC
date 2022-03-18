@@ -395,9 +395,9 @@ def lsaBGC_AutoAnalyze():
 		for tupls in sorted(data, key=itemgetter(0)):
 			ls = tupls[1]
 			if population_analysis:
-				combined_gene_plotting_input_handle.write('\t'.join(ls[:3] + ls[4:7] + [str(previous_end), str(previous_end + int(float(ls[6])))] + ls[7:-2]) + '\n')
+				combined_gene_plotting_input_handle.write('\t'.join(ls[:3] + ls[4:7] + [str(previous_end), str(previous_end + int(float(ls[7])))] + ls[7:-2]) + '\n')
 			else:
-				combined_gene_plotting_input_handle.write('\t'.join(ls[:3] + ls[4:7] + [str(previous_end), str(previous_end + int(float(ls[6])))] + ls[7:-1]) + '\n')
+				combined_gene_plotting_input_handle.write('\t'.join(ls[:3] + ls[4:7] + [str(previous_end), str(previous_end + int(float(ls[7])))] + ls[7:-1]) + '\n')
 			previous_end = previous_end + int(float(ls[6])) + 1
 
 		hg_ordering = defaultdict(lambda: 'NA')
