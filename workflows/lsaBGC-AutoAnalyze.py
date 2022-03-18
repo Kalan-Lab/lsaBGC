@@ -61,7 +61,7 @@ def create_parser():
 	Author: Rauf Salamzade
 	Affiliation: Kalan Lab, UW Madison, Department of Medical Microbiology and Immunology
 
-	Program to parallelize most of lsaBGC programs across each GCF. 
+	Program to parallelize most of lsaBGC analytical programs across each GCF. 
 	
 	""", formatter_class=argparse.RawTextHelpFormatter)
 
@@ -75,8 +75,8 @@ def create_parser():
 	parser.add_argument('-cm', '--comparem', action='store_true', help='Use compareM (to perform AAI analysis) instead of FastANI (to perform ANI analysis). This is recommended if the "lineage" in question is a genus.')
 	parser.add_argument('-ps', '--num_populations', type=int, help='Overwritten if manual_populations is specified. If population analysis specified, what is the number of populations to infer from cutting the neighbor joining tree constructed by FastANI/CompareM inference. Use the script determinePopulationK.py to see how populations will look with k set to different values.', required=False, default=4)
 	parser.add_argument('-mp', '--manual_populations', help='Path to user defined populations file.', required=False, default=None)
-	parser.add_argument('-i', '--discovary_analysis_id', help="Identifier for novelty SNV mining analysis. Not providing this parameter will avoid running lsaBGC-DiscoVary step.", required=False, default=None)
-	parser.add_argument('-n', '--discovary_input_listing', help="Path to tab delimited file listing: (1) sample name (2) path to forward reads and (3) path to reverse reads.", required=False, default=None)
+	parser.add_argument('-i', '--discovary_input_listing', help="Sequencing readsets for DiscoVary analysis. Tab delimited file listing: (1) sample name, (2) forward readset, (3) reverse readset for metagenomic/isolate sequencing data.", required=False, default=None)
+	parser.add_argument('-n', '--discovary_analysis_name', help="Identifier/name for DiscoVary. Not providing this parameter will avoid running lsaBGC-DiscoVary step.", required=False, default=None)
 	parser.add_argument('-c', '--cores', type=int, help="Total number of cores to use.", required=False, default=1)
 
 	args = parser.parse_args()
@@ -126,7 +126,7 @@ def lsaBGC_AutoAnalyze():
 	comparem = myargs.comparem
 	num_populations = myargs.num_populations
 	manual_populations_file = myargs.manual_populations
-	discovary_analysis_id = myargs.discovary_analysis_id
+	discovary_analysis_id = myargs.discovary_analysis_name
 	discovary_input_listing = myargs.discovary_input_listing
 	cores = myargs.cores
 
@@ -352,12 +352,12 @@ def lsaBGC_AutoAnalyze():
 					sys.stderr.write("Warning: lsaBGC-DiscoVary.py was unsuccessful for GCF %s\n" % gcf_id)
 
 	combined_gene_plotting_input_file = outdir + 'GCF_Gene_Plotting_Input.txt'
-	combined_consensus_similarity_file = outdir + 'GCF_Ortholog_Group_Consensus_Sequence_Similarity.txt'
+	combined_consensus_similarity_file = outdir + 'GCF_Homolog_Group_Consensus_Sequence_Similarity.txt'
 	combined_divergence_results_file = outdir + 'GCF_Divergences.txt'
 
 	combined_gene_plotting_input_handle = open(combined_gene_plotting_input_file, 'w')
 	combined_consensus_similarity_handle = open(combined_consensus_similarity_file, 'w')
-	combined_orthoresults_unrefined_handle = open(outdir + 'GCF_Ortholog_Group_Information.txt', 'w')
+	combined_orthoresults_unrefined_handle = open(outdir + 'GCF_Homolog_Group_Information.txt', 'w')
 	combined_divergence_results_handle = open(combined_divergence_results_file, 'w')
 
 	if sample_retention_set == None:
@@ -369,7 +369,7 @@ def lsaBGC_AutoAnalyze():
 		gcf_pop_outdir = pop_outdir + gcf_id + '/'
 		gcf_div_outdir = div_outdir + gcf_id + '/'
 
-		gcf_pop_results_unrefined = gcf_pop_outdir + 'Ortholog_Group_Information.txt'
+		gcf_pop_results_unrefined = gcf_pop_outdir + 'Homolog_Group_Information.txt'
 		gcf_div_results = gcf_div_outdir + 'Relative_Divergence_Report.txt'
 
 		include_header = False

@@ -1145,7 +1145,7 @@ class GCF(Pan):
 							hg = bgc_lt_to_hg[bgc_gbk_path][lt]
 							sample_hg_proteins[sample][hg].add(lt)
 					all_samples.add(sample)
-					
+
 			original_samples = []
 			all_hgs = set([])
 			with open(orthofinder_matrix_file) as omf:
