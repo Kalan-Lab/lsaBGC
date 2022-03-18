@@ -398,7 +398,7 @@ def lsaBGC_AutoAnalyze():
 				combined_gene_plotting_input_handle.write('\t'.join(ls[:3] + ls[4:7] + [str(previous_end), str(previous_end + int(float(ls[7])))] + ls[7:-2]) + '\n')
 			else:
 				combined_gene_plotting_input_handle.write('\t'.join(ls[:3] + ls[4:7] + [str(previous_end), str(previous_end + int(float(ls[7])))] + ls[7:-1]) + '\n')
-			previous_end = previous_end + int(float(ls[6])) + 1
+			previous_end = previous_end + int(float(ls[7])) + 1
 
 		hg_ordering = defaultdict(lambda: 'NA')
 		with open(gcf_pop_results_unrefined) as ogpru:
