@@ -17,9 +17,9 @@ for g in os.listdir(disco_dir):
         bam_file = g_out_dir + s + '.bam'
         bam_file_sorted = g_out_dir + s + '.sorted.bam'
 
-        bowtie2_cmd = ['bowtie2', '--very-sensitive-local', '--no-unal', '-a', '-x', bowtie2_ref, '-U', alg_dir + f, '-S', sam_file, '-p', '40']
+        bowtie2_cmd = ['bowtie2', '--very-sensitive-local', '--no-unal', '-a', '-x', bowtie2_ref, '-U', alg_dir + f, '-S', sam_file, '-p', '50']
         samtools_view_cmd = ['samtools', 'view', '-h', '-Sb', sam_file, '>', bam_file]
-        samtools_sort_cmd = ['samtools', 'sort', '-@', '40', bam_file, '-o', bam_file_sorted]
+        samtools_sort_cmd = ['samtools', 'sort', '-@', '50', bam_file, '-o', bam_file_sorted]
         samtools_index_cmd = ['samtools', 'index', bam_file_sorted]
         
         os.system(' '.join(bowtie2_cmd))

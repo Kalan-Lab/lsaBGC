@@ -1,0 +1,3 @@
+[submodule "lsaBGC_Ckefir_Testing_Cases"]
+	path = lsaBGC_Ckefir_Testing_Cases
+	url = git@github.com:Kalan-Lab/lsaBGC_Ckefir_Testing_Cases.git

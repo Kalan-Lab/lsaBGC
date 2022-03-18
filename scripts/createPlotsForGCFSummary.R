@@ -40,7 +40,7 @@ pdf(pdf_file_phylogeny, height=10, width=30)
 gg_tr <- ggtree(phylo.tree)
 gg_gn <- ggplot(heatmap.data, aes(xmin = hg_start, xmax = hg_end, y = label, fill = median_consensus_difference,
 								forward = hg_direction)) +
-	     geom_gene_arrow(show.legend=F) + theme_classic() + scale_fill_gradient(low='black', high='white') + ylab("") +
+	     geom_gene_arrow(show.legend=T) + theme_classic() + scale_fill_gradient(low='black', high='white') + ylab("") +
 	     xlab("") + theme(panel.background = element_blank(), axis.text.x = element_blank(), axis.line=element_blank(), text = element_text(size=14))
 gg_br <- ggplot(species.gcf.count.data, aes(y = label, x = isolates_with_gcf)) + theme_classic() +
 	     geom_col(stat='identity', fill='black') + xlab("Isolates with GCF") + ylab("") +
