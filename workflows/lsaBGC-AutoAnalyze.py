@@ -61,7 +61,7 @@ def create_parser():
 	Author: Rauf Salamzade
 	Affiliation: Kalan Lab, UW Madison, Department of Medical Microbiology and Immunology
 
-	Program to parallelize most of lsaBGC analytical programs across each GCF. 
+	Program to automate most of lsaBGC analytical programs across each GCF. 
 	
 	""", formatter_class=argparse.RawTextHelpFormatter)
 
