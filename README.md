@@ -24,7 +24,7 @@ To install, please take the following steps:
 ```conda env create -f lsaBGC_environment.yml -p /path/to/conda_environment/```
 
 3. Activate the environment and perform setup and pip installation in the git repository:
-```console
+```bash
 # activate the conda environment for lsaBGC just created
 conda activate /path/to/conda_environment/
 
