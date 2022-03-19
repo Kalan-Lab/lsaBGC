@@ -31,7 +31,7 @@ conda activate /path/to/conda_environment/
 # change directories to where the Git repo for lsaBGC was downloaded
 cd /path/to/lsaBGC/
 
-# run python install (for now using -e argument because local install being done in conda)
+# perform python install within conda environment
 python setup.py install
 pip install .
 ```
