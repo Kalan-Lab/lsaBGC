@@ -747,15 +747,15 @@ class GCF(Pan):
 				for c in sorted(hg_starts.items(), key=itemgetter(1), reverse=reverse_flag):
 					hgs.append(c[0])
 					if reverse_flag == False:
-						if hg_directions[c] == '+':
-							direction_forward_support[hg] += 1
-						elif hg_direction[c] == '-':
-							direction_reverse_support[hg] += 1
+						if hg_directions[c[0]] == '+':
+							direction_forward_support[c[0]] += 1
+						elif hg_direction[c[0]] == '-':
+							direction_reverse_support[c[0]] += 1
 					else:
-						if hg_directions[c] == '+':
-							direction_reverse_support[hg] += 1
-						elif hg_direction[c] == '-':
-							direction_forward_support[hg] += 1
+						if hg_directions[c[0]] == '+':
+							direction_reverse_support[c[0]] += 1
+						elif hg_direction[c[0]] == '-':
+							direction_forward_support[c[0]] += 1
 
 				for j, hg in enumerate(hgs):
 					all_hgs.add(hg)
