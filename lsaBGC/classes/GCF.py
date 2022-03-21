@@ -724,8 +724,6 @@ class GCF(Pan):
 						hg_directions[hg] = ginfo['direction']
 						hg_lengths[hg].append(abs(gend - gstart))
 						hg_starts[hg] = ginfo['start']
-						if ginfo['direction'] == '+': direction_forward_support[hg] += 1
-						elif ginfo['direction'] == '-': direction_reverse_support[hg] += 1
 
 				reverse_flag = False
 				if i == 0:
@@ -748,6 +746,16 @@ class GCF(Pan):
 				hgs = []
 				for c in sorted(hg_starts.items(), key=itemgetter(1), reverse=reverse_flag):
 					hgs.append(c[0])
+					if reverse_flag == False:
+						if hg_directions[c] == '+':
+							direction_forward_support[hg] += 1
+						elif hg_direction[c] == '-':
+							direction_reverse_support[hg] += 1
+					else:
+						if hg_directions[c] == '+':
+							direction_reverse_support[hg] += 1
+						elif hg_direction[c] == '-':
+							direction_forward_support[hg] += 1
 
 				for j, hg in enumerate(hgs):
 					all_hgs.add(hg)
