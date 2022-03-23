@@ -86,7 +86,7 @@ def main():
     af_handle.write('\t'.join(['hg', 'hg_order', 'hg_start', 'hg_end', 'manual_annotation', '#core', 'annotation', 'domains']) + '\n')
 
     data = []
-    with open(gcf_popgene_result_dir + 'Ortholog_Group_Information.updated.txt') as ogprf:
+    with open(gcf_popgene_result_dir + 'Ortholog_Group_Information.updated_v2.txt') as ogprf:
         for i, line in enumerate(ogprf):
             if i == 0: continue
             line = line.strip('\n')
@@ -97,8 +97,8 @@ def main():
             tajimas_d = ls[13]
             median_beta_rd = ls[16]
             domains = ls[-1]
-            # if int(num_samples) >= 3:  # NOTE this was used for Corynebacterium NRPS analysis
-            data.append([hg, core, annot, domains, int(hg_order), hg_dir, float(hg_med_len), num_samples, tajimas_d, median_beta_rd])
+            if int(num_samples) >= 2:  # NOTE this was used for Corynebacterium NRPS analysis
+                data.append([hg, core, annot, domains, int(hg_order), hg_dir, float(hg_med_len), num_samples, tajimas_d, median_beta_rd])
 
     start = 1
     for i, hgi in enumerate(sorted(data, key=itemgetter(4))):
