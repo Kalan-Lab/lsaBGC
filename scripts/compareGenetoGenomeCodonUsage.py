@@ -11,6 +11,10 @@ def create_parser():
 	Program: compareBGCtoGenomeCodonUsage.py
 	Author: Rauf Salamzade
 	Affiliation: Kalan Lab, UW Madison, Department of Medical Microbiology and Immunology
+	
+	This program compares the codon-usage distribution of a BGC (provided as a Genbank) to the codon usage of the 
+	background genome (predicted gene/ORF sequences - e.g. *.ffn ending files from Prokka annotation). It will report
+	the cosine distance and Spearman correlation between the two profiles.
 	""", formatter_class=argparse.RawTextHelpFormatter)
 
     parser.add_argument('-g', '--prokka_ffn', help="Path to predicted transcriptome for isolate's genome.", required=True, default=None)

@@ -57,6 +57,12 @@ def create_parser():
 	Program: popSizeAndSampleSelector.py
 	Author: Rauf Salamzade
 	Affiliation: Kalan Lab, UW Madison, Department of Medical Microbiology and Immunology
+	
+	This program has a lot of functionalities to investigate population structure amongst isolates.
+	
+	For Salamzade et al. 2022, we mainly used it to perform FastANI analysis and subsequently perform single linkage 
+	clustering to identify clusters of samples presumed to belong to the same strain-group. This was done using the 
+	arguments '-f', '-ic 0.98', '-sh 0.8'.
 	""", formatter_class=argparse.RawTextHelpFormatter)
 
     parser.add_argument('-l', '--input_listing', help="Path to tab delimited file listing: (1) sample name (2) path to Prokka Genbank and (3) path to Prokka predicted proteome. This file is produced by lsaBGC-Process.py.", required=True, default=None)

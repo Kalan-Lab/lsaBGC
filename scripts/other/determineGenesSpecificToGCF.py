@@ -2,9 +2,9 @@ import os
 import sys
 from collections import defaultdict
 
-gcf_popgene_file = 'GCF_Ortholog_Group_Information.txt'
-hg_matrix_file = '../../Processing/Process_Core_Genomes/Orthogroups.csv'
-cluster_listings_dir = '../../Clustering/Cluster_i14j00r60/GCF_Listings/'
+gcf_popgene_file = sys.argv[1]
+hg_matrix_file = sys.argv[2]
+cluster_listings_dir = sys.argv[3]
 
 hg_samples = defaultdict(set)
 samples = []

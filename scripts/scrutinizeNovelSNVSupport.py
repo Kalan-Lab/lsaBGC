@@ -14,6 +14,9 @@ def create_parser():
 	Program: scrutinizeNovelSNVSupport.py
 	Author: Rauf Salamzade
 	Affiliation: Kalan Lab, UW Madison, Department of Medical Microbiology and Immunology
+	
+	Program to further scrutunize support for novel SNVs found by lsaBGC-DiscoVary through using results from
+	additional alignment (e.g. to whole-genome database) mappings and Kraken2 taxonomic read classification. 
 	""", formatter_class=argparse.RawTextHelpFormatter)
 
     parser.add_argument('-i', '--novel_snvs', help="Final Potentially_Novel_SNVs report.", required=True, default=None)

@@ -241,12 +241,11 @@ def speciesComparisonMKTest(skin_associated, gcf_id, codon_alignment_file, outpu
 
 if __name__ == '__main__':
 	# Pull out the arguments.
-	parser = argparse.ArgumentParser(description="""This program assesses directional selection based on the 
-	McDonald-Kreitman test.""")
+	parser = argparse.ArgumentParser(description="""This program assesses directional selection based on a modified / simplified version of the McDonald-Kreitman test.""")
 
 	parser.add_argument('-s', '--skin_species', help='List of species associated with the skin.', required=True)
 	parser.add_argument('-i', '--gcf_id', help="GCF identifier.", required=False, default='GCF_X')
-	parser.add_argument('-a', '--codon_alignments', help="File listing the codon alignments for each homolog group in the GCF. Can be found as part of PopGene output.", required=True)
+	parser.add_argument('-a', '--codon_alignments', help="File listing the codon alignments for each homolog group in the GCF (First column homolog group name, Second column path to codon aligment in FASTA format). Can be found as part of PopGene output.", required=True)
 	parser.add_argument('-o', '--output', help="Output iTol dataset file.", required=True)
 
 	args = parser.parse_args()

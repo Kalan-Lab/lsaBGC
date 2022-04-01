@@ -1,8 +1,8 @@
 import os
 import sys
 
-sample_list = set([x.strip() for x in open(sys.argv[1]).readlines()])
-prokka_dirs = sys.argv[2:]
+sample_list = set([x.strip() for x in open(sys.argv[1]).readlines()]) # text file with each line corresponding to sample name
+prokka_dirs = sys.argv[2:] # a list of arguments which list the prokka subdirectories from lsaBGC-AutoProcess.py analysis (provided in order of preference)
 
 proteome_dir = os.path.abspath('Proteomes') + '/'
 prokka_dir = os.path.abspath('Prokka') + '/'

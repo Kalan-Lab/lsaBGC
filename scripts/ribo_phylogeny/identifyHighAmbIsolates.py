@@ -7,4 +7,4 @@ for rec in SeqIO.parse(sys.argv[1], 'fasta'):
     total = len(str(rec.seq))
     
     if float(gaps)/float(total) > 0.25:
-        print(rec.id)#+ '\t' + str(float(gaps)/float(total)))
+        print(rec.id)

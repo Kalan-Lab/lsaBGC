@@ -18,6 +18,9 @@ def create_parser():
 	Program: createPickleOfSampleAnnotationListingFile.py
 	Author: Rauf Salamzade
 	Affiliation: Kalan Lab, UW Madison, Department of Medical Microbiology and Immunology
+	
+	This program creates a Pickle object representation of Sample_Annotation_Files.txt produced by lsaBGC-AutoProcess.py
+	which basically allows for faster processing by lsaBGC-Expansion.py/lsaBGC-AutoExpansion.py.
 	""", formatter_class=argparse.RawTextHelpFormatter)
 
     parser.add_argument('-l', '--annotation_listing',
