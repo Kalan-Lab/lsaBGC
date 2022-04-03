@@ -162,7 +162,7 @@ def lsaBGC_AutoExpansion():
 				original_gcfs.add(line.split('\t')[1])
 
 		# Run lsaBGC-Expansion.py for GCF
-		### TODO add options to auto-expansion
+		### TODO add additional options in expansion to auto-expansion
 		gcf_exp_outdir = exp_outdir + gcf_id + '/'
 		if not os.path.isdir(gcf_exp_outdir):
 			cmd = ['lsaBGC-Expansion.py', '-g', gcf_listing_file, '-m', orthofinder_matrix_file, '-l',

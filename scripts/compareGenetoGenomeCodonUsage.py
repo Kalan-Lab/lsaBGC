@@ -12,9 +12,10 @@ def create_parser():
 	Author: Rauf Salamzade
 	Affiliation: Kalan Lab, UW Madison, Department of Medical Microbiology and Immunology
 	
-	This program compares the codon-usage distribution of a BGC (provided as a Genbank) to the codon usage of the 
+	This program compares the codon distribution of a single gene (provided as a Genbank) to the codon usage of the 
 	background genome (predicted gene/ORF sequences - e.g. *.ffn ending files from Prokka annotation). It will report
-	the cosine distance and Spearman correlation between the two profiles.
+	the cosine distance and Spearman correlation between the two profiles. Only ORFs which are of length divisible 
+	by 3 will be considered.
 	""", formatter_class=argparse.RawTextHelpFormatter)
 
     parser.add_argument('-g', '--prokka_ffn', help="Path to predicted transcriptome for isolate's genome.", required=True, default=None)
