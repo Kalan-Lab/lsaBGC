@@ -33,7 +33,7 @@ cd /path/to/lsaBGC/
 
 # perform python install within conda environment
 python setup.py install
-pip install .
+pip install -e .
 ```
 
 ## Dependencies
