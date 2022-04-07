@@ -85,7 +85,7 @@ def lsaBGC_DiscoVary():
 
     gcf_listing_file = os.path.abspath(myargs.gcf_listing)
     input_listing_file = os.path.abspath(myargs.input_listing)
-    paired_end_sequencing_file = os.path.abspath(myargs.paired_end_sequencing)
+    paired_end_sequencing_file = os.path.abspath(myargs.sequencing_readsets_listing)
     orthofinder_matrix_file = os.path.abspath(myargs.orthofinder_matrix)
     codon_alignments_file = os.path.abspath(myargs.codon_alignments)
     outdir = os.path.abspath(myargs.output_directory) + '/'
