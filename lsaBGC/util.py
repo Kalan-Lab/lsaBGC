@@ -289,7 +289,7 @@ def determineBGCSequenceSimilarityFromCodonAlignments(codon_alignments_file, cor
 	for i, s1 in enumerate(sorted(sample_hgs)):
 		for j, s2 in enumerate(sorted(sample_hgs)):
 			if i >= j: continue
-			common_hgs =  sample_hgs[s1].intersection(sample_hgs[s2])
+			common_hgs = sample_hgs[s1].intersection(sample_hgs[s2])
 			total_hgs = sample_hgs[s1].union(sample_hgs[s2])
 			sum_pair_seq_matching = 0.0
 			for hg in common_hgs:

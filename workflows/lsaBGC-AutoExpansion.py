@@ -191,6 +191,7 @@ def lsaBGC_AutoExpansion():
 				for line in oghef:
 					line = line.strip()
 					bgc_gbk_path, sample, lt, hg, eval, hg_is_functionally_core = line.split('\t')
+					## TODO: Remove unnecessary cast in future release
 					eval = float(eval)
 					d = Decimal(eval + 1e-300)
 					bgc_lt_evals[sample][gcf_id][bgc_gbk_path][lt] = float(max([d.log10(), -300]))

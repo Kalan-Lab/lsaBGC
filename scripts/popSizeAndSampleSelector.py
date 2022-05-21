@@ -216,6 +216,10 @@ def main():
                             similar_samples.append(sorted([s1, s2]))
                             similar_sample_set.add(s1)
                             similar_sample_set.add(s2)
+                    else:
+                        similar_samples.append(sorted([s1, s2]))
+                        similar_sample_set.add(s1)
+                        similar_sample_set.add(s2)
                     s2_n50 = sample_assembly_n50s[s2]
                     if s1_n50 >= s2_n50:
                         redundant_samples.add(s2)
