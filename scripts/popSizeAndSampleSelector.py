@@ -218,7 +218,8 @@ def main():
                             similar_sample_set.add(s2)
                     # re-remove following 4 lines: note clustering not performed with MASH analysis but sample
                     # selection performed based on N50 for dynamic determination of which representative to keep from
-                    # each population.
+                    # each population. Note this could lead to slight differences and expanded results because
+                    # a linking sample might not be dynamically kept track off.
                     #else:
                     #    similar_samples.append(sorted([s1, s2]))
                     #    similar_sample_set.add(s1)
