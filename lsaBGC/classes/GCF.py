@@ -966,8 +966,8 @@ class GCF(Pan):
 			with open(popgen_dir + f) as opf:
 				for line in opf:
 					line = line.rstrip('\n')
+					ls = line.split('\t')
 					if population_analysis_on:
-						ls = line.split('\t')
 						pvals.append(float(ls[-9]))
 						data.append(ls)
 					else:
