@@ -959,23 +959,27 @@ class GCF(Pan):
 
 		final_output_handle = open(final_output_file, 'a+')
 		data = []
+		data_for_sorting = []
 		pvals = []
 		for f in os.listdir(popgen_dir):
 			if not f.endswith('_stats.txt'): continue
 			with open(popgen_dir + f) as opf:
 				for line in opf:
-					line = line
+					line = line.rstrip('\n')
 					if population_analysis_on:
 						ls = line.split('\t')
 						pvals.append(float(ls[-9]))
 						data.append(ls)
 					else:
-						final_output_handle.write(line)
+						data_for_sorting.append([int(ls[4]), line])
 		adj_pvals = util.p_adjust_bh(pvals)
 
 		for i, ls in enumerate(data):
 			newline = '\t'.join(ls[:-9]) + '\t' + str(adj_pvals[i]) + '\t' + '\t'.join(ls[-8:])
-			final_output_handle.write(newline)
+			data_for_sorting.append([int(ls[4]), newline])
+
+		for ls in sorted(data_for_sorting, key=itemgetter(0)):
+			final_output_handle.write(ls[1] + '\n')
 		final_output_handle.close()
 
 	def identifyGCFInstances(self, outdir, sample_prokka_data, orthofinder_matrix_file, min_size=5, min_core_size=3,
