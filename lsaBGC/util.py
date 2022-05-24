@@ -22,6 +22,7 @@ import subprocess
 import argparse
 import math
 import numpy as np
+from pathlib import Path
 
 valid_alleles = set(['A', 'C', 'G', 'T'])
 curr_dir = os.path.abspath(pathlib.Path(__file__).parent.resolve()) + '/'
