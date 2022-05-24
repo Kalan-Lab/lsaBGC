@@ -21,7 +21,6 @@ project = 'lsaBGC'
 copyright = '2022, Rauf Salamzade, Lindsay Kalan'
 author = 'Rauf Salamzade, Lindsay Kalan'
 
-
 # -- General configuration ---------------------------------------------------
 
 # Add any Sphinx extension module names here, as strings. They can be
