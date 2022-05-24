@@ -5,7 +5,7 @@ biosynthetic gene clusters across a single focal lineage or taxa (recommended/te
 understand the allelic variability observed for BGC genes, and mine for novel SNVs within such genes representative
 of previously unidentified allelic variants.
 
-![](https://github.com/Kalan-Lab/lsaBGC/blob/main/docs/images/lsaBGC_Overview.png)
+![](./images/lsaBGC_Overview.png)
 
 ## Installation
 
