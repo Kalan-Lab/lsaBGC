@@ -1013,7 +1013,7 @@ def multiProcess(input):
 		sys.stderr.write(traceback.format_exc())
 
 
-def processGenomesLsa(sample_genomes, prodigal_outdir, prodigal_proteomes, prodigal_genbanks, logObject, cores=1, locus_tag_length=3):
+def processGenomes(sample_genomes, prodigal_outdir, prodigal_proteomes, prodigal_genbanks, logObject, cores=1, locus_tag_length=3):
 	"""
 	Void function to run Prokka based gene-calling and annotations.
 
