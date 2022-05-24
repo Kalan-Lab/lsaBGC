@@ -42,7 +42,7 @@ from Bio import SeqIO
 from Bio.SeqRecord import SeqRecord
 from Bio.SeqFeature import SeqFeature, FeatureLocation
 from collections import defaultdict
-import util
+from lsaBGC import util
 import subprocess
 from operator import itemgetter
 
