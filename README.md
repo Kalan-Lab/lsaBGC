@@ -5,11 +5,13 @@
 *lsa*BGC is a software suite designed to provide a comprehensive set of functions for investigating and mining for 
 biosynthetic gene cluster diversity across a focal lineage/taxa of interest using AntiSMASH based annotation.
 
-## Documentation
+## Major Updates:
+
+* 05/24/2022 - `lsaBGC-Ready.py` is now available and can take pre-computed antiSMASH BGC predictions, along with optional BiG-SCAPE clustering results, to produce the required inputs for major lsaBGC analytical programs (`lsaBGC-See.py`, `lsaBGC-Refine.py`, `lsaBGC-PopGene.py`, `lsaBGC-DiscoVary.py`). 
+
+## Documentation:
 
 Documentation can currently be found on this Github repo's wiki: https://github.com/Kalan-Lab/lsaBGC/wiki
-
-Starting from Precomputed antiSMASH (with without BiG SCAPE) Results using lsaBGC-Ready:
 
 1. [Background on lsaBGC - what it does and does not do](https://github.com/Kalan-Lab/lsaBGC/wiki/00.-Background)
 2. [Details on Installation](https://github.com/Kalan-Lab/lsaBGC/wiki/01.-Installation)
@@ -24,9 +26,9 @@ Starting from Precomputed antiSMASH (with without BiG SCAPE) Results using lsaBG
 11. [The lsaBGC AutoAnalyze Workflow](https://github.com/Kalan-Lab/lsaBGC/wiki/13.-The-lsaBGC-AutoAnalyze-Workflow)
 12. [Benchmarking Gene Detection through Expansion vs. DiscoVary](https://github.com/Kalan-Lab/lsaBGC/wiki/14.-Benchmarking-Gene-Detection-through-Expansion-vs.-DiscoVary)
 
-*Documentation moving to "Read the Docs" setup soon!*
+*Documentation moving to "Read the Docs" soon!*
 
-## Installation
+## Installation:
 
 Should take < 10 minutes.
 
@@ -53,18 +55,18 @@ python setup.py install
 pip install -e .
 ```
 
-## Dependencies
+## Dependencies:
 As described in the Installation section above, dependencies can be set up easily through the use of a Conda environment and the provided yaml file.
 
 The set of dependencies for the core lsaBGC programs and auxiliary scripts, along with versions used for testing are listed on the wiki in the Installation page.
 
 lsaBGC was developed and tested on UNIX systems; however, there are no apprent reasons users would have difficulty running on OS X or Windows.
 
-## Acknowledgements
+## Acknowledgements:
 
 We would like to thank members of the Kalan lab, Currie lab, Kwan lab, and Anantharaman lab at UW Madison for feedback on the development of lsaBGC.
 
-## License
+## License:
 
 ```
 BSD 3-Clause License
