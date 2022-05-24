@@ -1037,7 +1037,7 @@ def processGenomes(sample_genomes, prodigal_outdir, prodigal_proteomes, prodigal
 			sample_assembly = sample_genomes[sample]
 			sample_locus_tag = ''.join(list(possible_locustags[i]))
 
-			prodigal_cmd = [main_dir + 'scripts/runProdigalAndMakeProperGenbank.py', '-i', sample_assembly, '-s', sample,
+			prodigal_cmd = ['runProdigalAndMakeProperGenbank.py', '-i', sample_assembly, '-s', sample,
 							'-l', sample_locus_tag, '-o', prodigal_outdir]
 			prodigal_cmds.append(prodigal_cmd + [logObject])
 
