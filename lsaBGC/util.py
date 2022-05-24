@@ -1144,6 +1144,91 @@ def extractProteins(sample_genomes, proteomes_directory, logObject):
 	return sample_proteomes
 
 
+def processAntiSMASHGenbanks(antismash_listing_file, antismash_bgcs_directory, proteomes_directory, logObject):
+	"""
+	Creates local versions of AntiSMASH BGC Genbanks where proteins have locus tags updated.
+
+	:param antismash_listing_file:
+	:param antismash_bgcs_directory:
+	:param proteomes_directory:
+	:param logObject:
+	:return:
+	"""
+
+	sample_bgcs = defaultdict(set)
+	bgc_to_sample = {}
+	sample_protein_iter = defaultdict(lambda: 10000)
+	try:
+		with open(antismash_listing_file) as oalf:
+			for line in oalf:
+				line = line.strip()
+				sample, og_bgc_genbank = line.split('\t')
+				prot_fasta = proteomes_directory + sample + '.faa'
+
+				if not os.path.isfile(prot_fasta):
+					logObject.warning("Issues with finding proteome for sample %s, thus skipping inclusion of BGCs belonging to this sample." % sample)
+					continue
+
+				loc_to_tag = {}
+				seq_to_tag = {}
+				sample_lt = None
+				with open(prot_fasta) as opf:
+					for rec in SeqIO.parse(opf, 'fasta'):
+						location_tuple = tuple(list(rec.description.split()[1:-1]))
+						loc_to_tag[location_tuple] = rec.id
+						seq_to_tag[str(rec.seq).replace('*', '')] = rec.id
+						sample_lt = rec.id.split('_')[0]
+
+				cp_bgc_sample_dir = antismash_bgcs_directory + sample + '/'
+				if not os.path.isdir(cp_bgc_sample_dir):
+					os.system('mkdir %s' % cp_bgc_sample_dir)
+
+				cp_bgc_genbank = cp_bgc_sample_dir + og_bgc_genbank.split('/')[-1]
+				sample_bgcs[sample].add(cp_bgc_genbank)
+				bgc_to_sample[cp_bgc_genbank] = sample
+				cp_bgc_genbank_handle = open(cp_bgc_genbank, 'w')
+
+				scaff_id, scaff_start = [None]*2
+				with open(og_bgc_genbank) as obgf:
+					for i, line in enumerate(obgf):
+						line = line.strip()
+						ls = line.split()
+						if i == 0:
+							scaff_id = ls[1]
+						if line.startswith("Orig. start"):
+							scaff_start = int(ls[3])
+
+				with open(og_bgc_genbank) as obgf:
+					for rec in SeqIO.parse(obgf, 'genbank'):
+						updated_rec = copy.deepcopy(rec)
+						updated_features = []
+						for feature in rec.features:
+							if feature.type == 'CDS':
+								try:
+									start = scaff_start + min([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')]) + 1
+									end = scaff_start + max([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')])
+									loc_tuple = tuple([scaff_id, str(start), str(end)])
+									prot_seq = str(feature.qualifiers.get('translation')[0]).replace('*', '')
+									prot_id = loc_to_tag[loc_tuple]
+									prot_id_by_seq = seq_to_tag[prot_seq]
+									assert(prot_id_by_seq == prot_id)
+									feature.qualifiers.get('locus_tag')[0] = prot_id
+								except:
+									feature.qualifiers.get('locus_tag')[0] = sample_lt + '_' + str(sample_protein_iter[sample_lt])
+									sample_protein_iter[sample_lt] += 1
+								updated_features.append(feature)
+							else:
+								updated_features.append(feature)
+						updated_rec.features = updated_features
+						SeqIO.write(updated_rec, cp_bgc_genbank_handle, 'genbank')
+				cp_bgc_genbank_handle.close()
+	except Exception as e:
+		logObject.error("Problem with parsing antiSMASH BGC listings.")
+		logObject.error(traceback.format_exc())
+		raise RuntimeError(traceback.format_exc())
+	return([sample_bgcs, bgc_to_sample])
+
+
 def extractProteinsFromAntiSMASHBGCs(sample_bgcs, bgc_prot_directory, logObject):
 	sample_bgc_prots = defaultdict(lambda: defaultdict(set))
 	try:
