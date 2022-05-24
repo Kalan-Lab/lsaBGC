@@ -1,39 +1,47 @@
-# *lsa*BGC Suite Overview
+=====
+*lsa*BGC Suite Overview
+=====
 
-lsaBGC consists of several individual programs which provide a broad suite of functions for comparative analysis of 
+*lsa*BGC consists of several individual programs which provide a broad suite of functions for comparative analysis of 
 biosynthetic gene clusters across a single focal lineage or taxa (recommended/tested at species or genus levels), to 
 understand the allelic variability observed for BGC genes, and mine for novel SNVs within such genes representative
 of previously unidentified allelic variants.
 
 ![](./images/lsaBGC_Overview.png)
 
-## Installation
+Installation
+--------
 
 To learn more about the installation of *lsa*BGC and its dependencies, please take a look at the [Installation](https://github.com/Kalan-Lab/lsaBGC/wiki/01.-Installation) wiki page.
 
-## Background / Introduction
+Background / Introduction
+--------
 
 What functionalities does *lsa*BGC offer to users? Learn more about the suite's intended usages and where it should not be used, along with recommendations to other great software for exploring and wrangling comparative analysis of secondary metabolite genetic architectures [Background](https://github.com/Kalan-Lab/lsaBGC/wiki/00.-Background) wiki page!
 
-## 
-
-
-## Detailed Walkthrough and Test Cases
+Detailed Walkthrough and Test Cases
+--------
 
 A detailed walkthrough for using the lsaBGC suite as intended can be found on the [third Wiki page](https://github.com/Kalan-Lab/lsaBGC/wiki/[03.-Detailed-Walkthrough](https://github.com/Kalan-Lab/lsaBGC/wiki/03.-Quick-Start-and-Detailed-Walkthrough)).
 
 We found that the *Corynebacterium kefirresidentii* is a common species complex of the skin microbiome and harbor several BGCs across their compact genome. We use the publicly available genomes from the complex as a small and simple test set to demonstrate the exploratory power of *lsa*BGC. Please have a look at the [lsaBGC_Ckefir_Testing_Cases Github repo](https://github.com/Kalan-Lab/lsaBGC_Ckefir_Testing_Cases) for further details.
 
-## Main Programs
+Main Programs
+--------
 
 *lsa*BGC comprises of 8 primary programs:
 
 Many of the main programs utilize an object oriented infrastructure for processing and analysis. More information on this infrastructure can be found on the wiki page [OOP Framework](https://github.com/Kalan-Lab/lsaBGC/wiki/02.-The-Object-Oriented-Core-of-lsaBGC).
 
++------------+------------+-----------+-----------+
 | Program | Description | Input | Output |
-| ----------------------------------| ----------- | ------------ |------|
-| [lsaBGC-Ready.py](https://github.com/Kalan-Lab/lsaBGC/wiki/03.-Quick-Start-and-Detailed-Walkthrough) |  Takes existing antiSMASH results (and optionally BiG-SCAPE) and creates inputs necessary to run downstream lsaBGC analyses (reformats BGC genbanks, groups orthologs, finds genome-wide paralogs etc.). | <ul><li>antiSMASH Results Directory</li><li>(optional) BiG-SCAPE Results Directory</li></ul> | <ul><li>OrthoFinder Homolog Group vs. Sample Matrix</li><li>Listing of antiSMASH BGCs</li><li>Listing of Sample Predicted Proteomes/Genbanks</li><li>(if BiG-SCAPE results provided) GCF Listings Directory</li><ul> |
-| [lsaBGC-Cluster.py](https://github.com/Kalan-Lab/lsaBGC/wiki/05.-Clustering-BGCs-into-GCFs) |  Takes the comprehensive list of BGCs and clusters them using MCL into GCFs | <ul><li>Comprehensive listing of AntiSMASH BGC predictions in Genbank format (from completed/high-quality genomes)</li><li>OrthoFinder Homolog Group vs. Sample Matrix</li></ul> | <ul><li>Summary of GCFs</li><li>Automated report to inform on best clustering parameter choices (if requested)</li><li>List for each GCF of BGC members</li><ul> |
++============+============+============+============+
+| [lsaBGC-Ready.py](https://github.com/Kalan-Lab/lsaBGC/wiki/03.-Quick-Start-and-Detailed-Walkthrough) |  Takes existing antiSMASH results (and optionally BiG-SCAPE) and creates inputs necessary to run downstream lsaBGC analyses. | - antiSMASH Results Directory
+|                                                                                                      | (optional) BiG-SCAPE Results Directory</li></ul> | <ul><li>OrthoFinder Homolog Group vs. Sample Matrix</li><li>Listing of antiSMASH BGCs</li><li>Listing of Sample Predicted Proteomes/Genbanks - (if BiG-SCAPE results provided) GCF Listings Directory |
+|
+|
++------------+------------+-----------+-----------+
+| [lsaBGC-Cluster.py](https://github.com/Kalan-Lab/lsaBGC/wiki/05.-Clustering-BGCs-into-GCFs) |  Takes the comprehensive list of BGCs and clusters them using MCL into GCFs | - Comprehensive listing of AntiSMASH BGC predictions in Genbank format (from completed/high-quality genomes)</li><li>OrthoFinder Homolog Group vs. Sample Matrix</li></ul> | <ul><li>Summary of GCFs</li><li>Automated report to inform on best clustering parameter choices (if requested)</li><li>List for each GCF of BGC members</li><ul> |
 | [lsaBGC-Refiner.py](https://github.com/Kalan-Lab/lsaBGC/wiki/06.-Refinement-of-BGCs-Belonging--to-GCF) | Refines boundaries of BGCs belonging to a single GCF according to user specifications. | <ul><li>BGC instances for focal GCF in Genbank format</li><li>OrthoFinder Homolog Group vs. Sample Matrix</li><li>Boundary Homolog Group ID #1</li><li>Boundary Homolog Group ID #2</li></ul>| <ul><li>BGC instances for focal GCF in Genbank format edited for requested refinement.</li></ul> |
 | [lsaBGC-Expansion.py](https://github.com/Kalan-Lab/lsaBGC/wiki/08.-High-throughput-Detection-of-New-GCF-Instances-Across-Draft-Genome-Assemblies) | Uses an HMM based approach to quickly find homologous instances of GCF in draft-quality genomes. | <ul><li>BGC instances for focal GCF in Genbank format</li><li>Additional genomic assemblies listing (post gene-calling)</li></ul> | <ul><li>Expanded list of BGCs belonging to GCF</li><li>Expanded OrthoFinder Homolog Group vs Sample Matrix</li></ul>|
 | [lsaBGC-See.py](https://github.com/Kalan-Lab/lsaBGC/wiki/07.-Visualizing-GCFs-Across-Phylogenies) | Visualizes BGC instances of a GCF across a phylogeny |  <ul><li>BGC instances for focal GCF in Genbank format</li><li>(Optional) Species phylogeny</li></ul> | <ul><li>Modified species phylogeny to expand samples which feature multiple BGCs for the GCF (if species phylogeny was provided)</li><li>(Optional) Single-copy-core phylogeny of GCF</li><li>Automated visualization of BGC gene architectures across species or BGC phylogeny in PDF format</li><li>Track file for visualization of gene architecture for BGCs in GCF to be input into iTol.</li></ul>|

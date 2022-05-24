@@ -19,7 +19,7 @@
 
 project = 'lsaBGC'
 copyright = '2022, Rauf Salamzade, Lindsay Kalan'
-author = 'Rauf Salamzade, Lindsay'
+author = 'Rauf Salamzade, Lindsay Kalan'
 
 
 # -- General configuration ---------------------------------------------------

@@ -24,7 +24,8 @@ import math
 import numpy as np
 
 valid_alleles = set(['A', 'C', 'G', 'T'])
-
+curr_dir = os.path.abspath(pathlib.Path(__file__).parent.resolve()) + '/'
+main_dir = '/'.join(curr_dir.split('/')[:-2]) + '/'
 
 def writeRefinedProteomes(s, sample_bgcs, refined_proteomes_outdir, logObject):
 	try:
@@ -993,7 +994,6 @@ def run_cmd(cmd, logObject, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
 		logObject.error(traceback.format_exc())
 		raise RuntimeError('Had an issue running: %s' % ' '.join(cmd))
 
-
 def multiProcess(input):
 	"""
 	Genralizable function to be used with multiprocessing to parallelize list of commands. Inputs should correspond
@@ -1010,6 +1010,567 @@ def multiProcess(input):
 		logObject.warning('Had an issue running: %s' % ' '.join(input_cmd))
 		logObject.warning(traceback.format_exc())
 		sys.stderr.write(traceback.format_exc())
+
+
+def processGenomesLsaBGCReady(sample_genomes, prodigal_outdir, prodigal_proteomes, prodigal_genbanks, logObject, cores=1, locus_tag_length=3):
+	"""
+	Void function to run Prokka based gene-calling and annotations.
+
+	:param sample_genomes: dictionary with keys as sample names and values as genomic assembly paths.
+	:param prodigal_outdir: full path to directory where Prokka results will be written.
+	:param prodigal_proteomes: full path to directory where Prokka generated predicted-proteome FASTA files will be moved after Prokka has run.
+	:param prodigal_genbanks: full path to directory where Prokka generated Genbank (featuring predicted CDS) files will be moved after Prokka has run.
+	:param taxa: name of the taxonomic clade of interest.
+	:param logObject: python logging object handler.
+	:param cores: number of cores to use in multiprocessing Prokka cmds.
+	:param locus_tag_length: length of locus tags to generate using unique character combinations.
+
+	Note length of locus tag must be 3 beause this is substituting for base lsaBGC analysis!!
+	"""
+
+	prodigal_cmds = []
+	try:
+		alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+		possible_locustags = list(itertools.product(alphabet, repeat=locus_tag_length))
+		for i, sample in enumerate(sample_genomes):
+			sample_assembly = sample_genomes[sample]
+			sample_locus_tag = ''.join(list(possible_locustags[i]))
+
+			prodigal_cmd = [main_dir + 'scripts/runProdigalAndMakeProperGenbank.py', '-i', sample_assembly, '-s', sample,
+							'-l', sample_locus_tag, '-o', prodigal_outdir]
+			prodigal_cmds.append(prodigal_cmd + [logObject])
+
+		p = multiprocessing.Pool(cores)
+		p.map(multiProcess, prodigal_cmds)
+		p.close()
+
+		for sample in sample_genomes:
+			try:
+				assert(os.path.isfile(prodigal_outdir + sample + '.faa') and os.path.isfile(prodigal_outdir + sample + '.gbk'))
+				os.system('mv %s %s' % (prodigal_outdir + sample + '.gbk', prodigal_genbanks))
+				os.system('mv %s %s' % (prodigal_outdir + sample + '.faa', prodigal_proteomes))
+			except:
+				raise RuntimeError("Unable to validate successful genbank/predicted-proteome creation for sample %s" % sample)
+	except Exception as e:
+		logObject.error("Problem with creating commands for running Prokka. Exiting now ...")
+		logObject.error(traceback.format_exc())
+		raise RuntimeError(traceback.format_exc())
+
+def parseSampleGenomes(genome_listing_file, input_listing_file, logObject):
+	try:
+		selected_samples = set([])
+		if input_listing_file:
+			with open(input_listing_file) as oilf:
+				for line in oilf:
+					line = line.strip()
+					selected_samples.add(line)
+
+		sample_genomes = {}
+		all_genbanks = True
+		all_fastas = True
+		with open(genome_listing_file) as oglf:
+			for line in oglf:
+				line = line.strip()
+				ls = line.split('\t')
+				sample, genome_file = ls
+
+				if not input_listing_file == None and not sample in selected_samples: continue
+				selected_samples.add(sample)
+				try:
+					assert(os.path.isfile(genome_file))
+				except:
+					logObject.warning("Problem with finding genome file %s for sample %s, skipping" % (genome_file, sample))
+					continue
+				if sample in sample_genomes:
+					logObject.warning('Skipping genome %s for sample %s because a genome file was already provided for this sample' % (genome_file, sample))
+					continue
+
+				sample_genomes[sample] = genome_file
+				if not is_fasta(genome_file):
+					all_fastas = False
+				if not is_genbank(genome_file):
+					all_genbanks = False
+
+		format_prediction = 'mixed'
+		if all_genbanks:
+			format_prediction = 'genbank'
+		elif all_fastas:
+			format_prediction = 'fasta'
+
+
+		for sample in selected_samples:
+			if not sample in sample_genomes:
+				logObject.warning('Skipping sample %s, provided in the input listing but not present in genome listings.')
+
+		return([sample_genomes, format_prediction])
+
+	except Exception as e:
+		logObject.error("Problem with creating commands for running Prodigal. Exiting now ...")
+		logObject.error(traceback.format_exc())
+		raise RuntimeError(traceback.format_exc())
+
+
+def extractProteins(sample_genomes, proteomes_directory, logObject):
+	"""
+	Extracts CDS/proteins from existing Genbank files.
+
+	:param sample_genomes:
+	:param proteomes_directory:
+	:param lobObject:
+	:return:
+	"""
+
+	sample_proteomes = {}
+	for sample in sample_genomes:
+		sample_gbk = sample_genomes[sample]
+		sample_faa = proteomes_directory + sample + '.faa'
+		sample_faa_handle = open(sample_faa, 'w')
+		try:
+			with open(sample_gbk) as osgf:
+				for rec in SeqIO.parse(osgf, 'genbank'):
+					for feature in rec.features:
+						if feature.type == "CDS":
+							lt = feature.qualifiers.get('locus_tag')[0]
+							product = feature.qualifiers.get('product')[0]
+							sample_faa_handle.write('>' + lt + '\n' + product + '\n')
+		except Exception as e:
+			logObject.error("Problem with parsing Genbank for sample %s, likely at least one CDS feature does not have both a locus_tag or product sequence." % sample)
+			logObject.error(traceback.format_exc())
+			raise RuntimeError(traceback.format_exc())
+		sample_faa_handle.close()
+		sample_proteomes[sample] = sample_faa
+
+	return sample_proteomes
+
+
+def extractProteinsFromAntiSMASHBGCs(sample_bgcs, bgc_prot_directory, logObject):
+	sample_bgc_prots = defaultdict(lambda: defaultdict(set))
+	try:
+		for sample in sample_bgcs:
+			samp_bgc_prot_file = bgc_prot_directory + sample + '.faa'
+			samp_bgc_prot_handle = open(samp_bgc_prot_file, 'w')
+			for bgc in sample_bgcs[sample]:
+				scaff_id, scaff_start = [None]*2
+				with open(bgc) as obgf:
+					for i, line in enumerate(obgf):
+						line = line.strip()
+						ls = line.split()
+						if i == 0:
+							scaff_id = ls[1]
+						if line.startswith("Orig. start"):
+							scaff_start = int(ls[3])
+
+				with open(bgc) as obf:
+					for rec in SeqIO.parse(obf, 'genbank'):
+						for feature in rec.features:
+							if feature.type=='CDS':
+								prot_lt = feature.qualifiers.get('locus_tag')[0]
+								prot_seq = str(feature.qualifiers.get('translation')[0]).replace('*', '')
+								start = scaff_start + min([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')]) + 1
+								end = scaff_start + max([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')])
+								direction = str(feature.location).split('(')[1].split(')')[0]
+								sample_bgc_prots[sample][bgc].add(prot_lt)
+								samp_bgc_prot_handle.write('>' + ' '.join([str(x) for x in [prot_lt, scaff_id, start, end, direction]]) + '\n' + prot_seq + '\n')
+			samp_bgc_prot_handle.close()
+	except Exception as e:
+		logObject.error("Issues with parsing out protein sequences from BGC Genbanks.")
+		logObject.error(traceback.format_exc())
+		raise RuntimeError(traceback.format_exc())
+	return sample_bgc_prots
+
+
+def runOrthoFinder2(bgc_prot_directory, orthofinder_outdir, logObject, cores=1):
+		result_file = orthofinder_outdir + 'Orthogroups_BGC_Comprehensive.tsv'
+		try:
+			orthofinder_cmd = ['orthofinder', '-f', bgc_prot_directory, '-t', str(cores), '-og']
+			logObject.info('Running the following command: %s' % ' '.join(orthofinder_cmd))
+			subprocess.call(' '.join(orthofinder_cmd), shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+							executable='/bin/bash')
+			logObject.info('Successfully ran OrthoFinder!')
+			tmp_orthofinder_dir = os.path.abspath([bgc_prot_directory + 'OrthoFinder/' + f for f in os.listdir(bgc_prot_directory + 'OrthoFinder/') if f.startswith('Results')][0]) + '/'
+			os.system('mv %s %s' % (tmp_orthofinder_dir, orthofinder_outdir))
+			main_file = orthofinder_outdir + 'Orthogroups/Orthogroups.tsv'
+			singletons_file = orthofinder_outdir + 'Orthogroups/Orthogroups_UnassignedGenes.tsv'
+			result_handle = open(result_file, 'w')
+			with open(main_file) as omf:
+				for line in omf:
+					result_handle.write(line)
+			with open(singletons_file) as osf:
+				for i, line in enumerate(osf):
+					if i == 0: continue
+					result_handle.write(line)
+			result_handle.close()
+			assert(os.path.isfile(result_file))
+		except Exception as e:
+			logObject.error("Problem with running OrthoFinder2 cmd: %s." % ' '.join(orthofinder_cmd))
+			logObject.error(traceback.format_exc())
+			raise RuntimeError(traceback.format_exc())
+		return result_file
+
+def determineParalogyThresholds(orthofinder_bgc_matrix_file, bgc_prot_directory, blast_directory, logObject, cores=1):
+
+	paralogy_thresholds = defaultdict(lambda: [90.0, 90.0]) # item 1 : percent identiy threshold; item 2 : query coverage threshold
+	samp_hg_lts = defaultdict(lambda: defaultdict(set))
+	lt_to_hg = {}
+	# create homolog group fasta files
+	try:
+		tmp_hg_seq_dir = blast_directory + 'HG_FASTAs_tmp/'
+		if not os.path.isdir(tmp_hg_seq_dir):
+			os.system('mkdir %s' % tmp_hg_seq_dir)
+
+		prot_lt_to_seq = {}
+		for f in os.listdir(bgc_prot_directory):
+			if not f.endswith('.faa'): continue
+			with open(bgc_prot_directory + f) as obpdf:
+				for rec in SeqIO.parse(obpdf, 'fasta'):
+					prot_lt_to_seq[rec.id] = str(rec.seq)
+
+		samples = []
+		with open(orthofinder_bgc_matrix_file) as oobmf:
+			for i, line in enumerate(oobmf):
+				line = line.strip('\n')
+				ls = line.split('\t')
+				if i == 0:
+					samples = ls[1:]
+				else:
+					hg = ls[0]
+					hg_fasta_file = tmp_hg_seq_dir + hg + '.faa'
+					hg_fasta_handle = open(hg_fasta_file, 'w')
+					for j, lts in enumerate(ls[1:]):
+						for lt in lts.split(','):
+							lt = lt.strip()
+							if lt == '': continue
+							samp = samples[j]
+							samp_hg_lts[samp][hg].add(lt)
+							lt_to_hg[lt] = hg
+							hg_fasta_handle.write('>' + lt + '\n' + prot_lt_to_seq[lt] + '\n')
+					hg_fasta_handle.close()
+	except Exception as e:
+		logObject.error("Problem with processing OrthoFinder matrix: %s." % orthofinder_bgc_matrix_file)
+		logObject.error(traceback.format_exc())
+		raise RuntimeError(traceback.format_exc())
+
+	# run diamond self alignment of HG FASTAs
+	try:
+		tmp_hg_dia_dir = blast_directory + 'HG_Self_Alignment/'
+		if not os.path.isdir(tmp_hg_dia_dir):
+			os.system('mkdir %s' % tmp_hg_dia_dir)
+
+		diamond_db_cmds = []
+		diamond_bp_cmds = []
+		for f in os.listdir(tmp_hg_seq_dir):
+			hg = f.split('.faa')[0]
+			hg_fasta_file = tmp_hg_seq_dir + f
+			hg_diamond_db = tmp_hg_seq_dir + hg
+			hg_diamond_tsv = tmp_hg_dia_dir + hg + '.tsv'
+
+			diamond_makedb_cmd = ['diamond', 'makedb', '--in', hg_fasta_file, '-d', hg_diamond_db, logObject]
+			diamond_blastp_cmd = ['diamond', 'blastp', '-p', '1', '-d', hg_diamond_db, '-q', hg_fasta_file, '-o', hg_diamond_tsv,
+								  '-f', '6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore qcovhsp', logObject]
+
+			diamond_db_cmds.append(diamond_makedb_cmd)
+			diamond_bp_cmds.append(diamond_blastp_cmd)
+
+		p = multiprocessing.Pool(cores)
+		p.map(multiProcess, diamond_db_cmds)
+		p.close()
+
+		p = multiprocessing.Pool(cores)
+		p.map(multiProcess, diamond_bp_cmds)
+		p.close()
+
+	except Exception as e:
+		logObject.error("Problem with running Diamond self-alignment of homolog group protein instance FASTAs.")
+		logObject.error(traceback.format_exc())
+		raise RuntimeError(traceback.format_exc())
+
+	try:
+		for f in os.listdir(tmp_hg_dia_dir):
+			hg = f.split('.tsv')[0]
+			hg_diamond_tsv = tmp_hg_dia_dir + f
+			assert(os.path.isfile(hg_diamond_tsv))
+			best_alignments_between_proteins = defaultdict(lambda: [0.0, None, None])
+			with open(hg_diamond_tsv) as ohdt:
+				for line in ohdt:
+					line = line.strip()
+					ls = line.split('\t')
+					query = ls[0]
+					subject = ls[1]
+					if query == subject: continue
+					pair = '|'.join(sorted([query, subject]))
+					pident = float(ls[2])
+					qcovhsp = float(ls[-1])
+					bitscore = float(ls[-2])
+					if bitscore > best_alignments_between_proteins[pair][0]:
+						best_alignments_between_proteins[pair] = [bitscore, pident, qcovhsp]
+
+			min_bitscore = 100000.0
+			for pair in best_alignments_between_proteins:
+				bitscore, pident, qcovhsp = best_alignments_between_proteins[pair]
+				if bitscore < min_bitscore:
+					min_bitscore = bitscore
+					paralogy_thresholds[hg] = [pident, qcovhsp]
+	except Exception as e:
+		logObject.error("Problem with parsing self alignment results." % orthofinder_bgc_matrix_file)
+		logObject.error(traceback.format_exc())
+		raise RuntimeError(traceback.format_exc())
+
+	os.system('rm -rf %s %s' % (tmp_hg_seq_dir, tmp_hg_dia_dir))
+	return [samp_hg_lts, lt_to_hg, paralogy_thresholds]
+
+def identifyParalogsAndCreateResultFiles(samp_hg_lts, lt_to_hg, sample_bgc_proteins, paralogy_thresholds, bgc_prot_directory,
+							  blast_directory, proteomes_directory, genbanks_directory, final_proteomes_directory,
+							  final_genbanks_directory, main_output_directory, logObject, cores=1):
+	sample_listing_file = main_output_directory + 'Sample_Annotation_Files.txt'
+	bgc_listing_file = main_output_directory + 'All_AntiSMASH_BGCs.txt'
+
+	sample_listing_handle = open(sample_listing_file, 'w')
+	bgc_listing_handle = open(bgc_listing_file, 'w')
+	try:
+		tmp_diamond_dir = blast_directory + 'Diamond_BGC_to_GenomeWide_Proteomes_tmp/'
+		if not os.path.isdir(tmp_diamond_dir): os.system('mkdir %s' % tmp_diamond_dir)
+		diamond_db_cmds = []
+		diamond_bp_cmds = []
+		for f in os.listdir(proteomes_directory):
+			if not f.endswith('.faa'): continue
+			sample = f.split('.faa')[0]
+			gw_prot_file = proteomes_directory + f
+			bgc_prot_file = bgc_prot_directory + sample + '.faa'
+			diamond_db = tmp_diamond_dir + sample
+			diamond_tsv = tmp_diamond_dir + sample + '.tsv'
+
+			diamond_makedb_cmd = ['diamond', 'makedb', '--in', gw_prot_file, '-d', diamond_db, logObject]
+			diamond_blastp_cmd = ['diamond', 'blastp', '-p', '1', '-d', diamond_db, '-q', bgc_prot_file, '-o', diamond_tsv, '-f',
+								  '6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore qcovhsp',
+								  logObject]
+
+			diamond_db_cmds.append(diamond_makedb_cmd)
+			diamond_bp_cmds.append(diamond_blastp_cmd)
+
+		p = multiprocessing.Pool(cores)
+		p.map(multiProcess, diamond_db_cmds)
+		p.close()
+
+		p = multiprocessing.Pool(cores)
+		p.map(multiProcess, diamond_bp_cmds)
+		p.close()
+
+	except Exception as e:
+		logObject.error("Problem with running diamond alignments between BGC proteins and genome-wide proteomes for samples.")
+		logObject.error(traceback.format_exc())
+		raise RuntimeError(traceback.format_exc())
+
+	try:
+
+		for f in os.listdir(tmp_diamond_dir):
+			if not f.endswith('.tsv'): continue
+			sample = f.split('.tsv')[0]
+			diamond_tsv_file = tmp_diamond_dir + f
+			hg_queries = defaultdict(set)
+			hg_subjects = defaultdict(set)
+			with open(diamond_tsv_file) as odtf:
+				for line in odtf:
+					line = line.strip()
+					ls = line.split('\t')
+					query = ls[0]
+					query_hg = lt_to_hg[query]
+					subject = ls[1]
+					pident = float(ls[2])
+					qcovhsp = float(ls[-1])
+					hg_queries[query_hg].add(query)
+					if pident >= paralogy_thresholds[query_hg][0] and qcovhsp >= paralogy_thresholds[query_hg][1]:
+						hg_subjects[query_hg].add(subject)
+
+			gw_prot_file = proteomes_directory + sample + '.faa'
+			gw_prot_to_location = {}
+			with open(gw_prot_file) as ogpf:
+				for rec in SeqIO.parse(ogpf, 'fasta'):
+					gw_prot_to_location[rec.id] = [rec.description.split()[1], int(rec.description.split()[2]),
+												   int(rec.description.split()[3])]
+
+			sample_lts_to_prune = set([])
+			sample_lts_to_add_protein_sequences = {}
+			sample_lts_to_add_genbank_features = defaultdict(list)
+			for bgc in sample_bgc_proteins[sample]:
+
+				bgc_listing_handle.write(sample + '\t' + bgc + '\n')
+
+				bgc_prots = sample_bgc_proteins[sample][bgc]
+				bgc_prots_1x = set([x for x in bgc_prots if x.split('_')[1][0] == '1'])
+
+				bgc_prot_file = bgc_prot_directory + sample + '.faa'
+				bgc_prot_to_location = {}
+				with open(bgc_prot_file) as obpf:
+					for rec in SeqIO.parse(obpf, 'fasta'):
+						bgc_prot_to_location[rec.id] = [rec.description.split()[1],
+														int(rec.description.split()[2]),
+														int(rec.description.split()[3])]
+						if rec.id in bgc_prots_1x:
+							sample_lts_to_add_protein_sequences[rec.id] = [rec.description, str(rec.seq)]
+
+				scaff_id, scaff_start = [None]*2
+				with open(bgc) as obgf:
+					for i, line in enumerate(obgf):
+						line = line.strip()
+						ls = line.split()
+						if i == 0: scaff_id = ls[1]
+						if line.startswith("Orig. start"): scaff_start = int(ls[3])
+				with open(bgc) as obf:
+					for rec in SeqIO.parse(obf, 'genbank'):
+						for feature in rec.features:
+							if feature.type=='CDS':
+								prot_lt = feature.qualifiers.get('locus_tag')[0]
+								start = scaff_start + min([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')]) + 1
+								end = scaff_start + max([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')])
+								direction = str(feature.location).split('(')[1].split(')')[0]
+								dir = 1
+								if direction == '-': dir = -1
+								if prot_lt in bgc_prots_1x:
+									feature.location = FeatureLocation(start - 1, end, strand=dir)
+									sample_lts_to_add_genbank_features[scaff_id].append(feature)
+
+				for hg in hg_queries:
+					bgc_hg_lts = hg_queries[hg].intersection(bgc_prots)
+					gw_hg_lts = hg_subjects[hg].difference(hg_queries[hg])
+					for glt in gw_hg_lts:
+						glt_scaff, glt_start, glt_end = gw_prot_to_location[glt]
+						glt_range = set(range(glt_start, glt_end+1))
+						for blt in bgc_hg_lts:
+							if blt.split('_')[1][0] == '0': continue
+							blt_scaff, blt_start, blt_end = bgc_prot_to_location[blt]
+							blt_range = set(range(blt_start, blt_end+1))
+							if glt_scaff == blt_scaff and float(len(blt_range.intersection(glt_range)))/float(len(glt_range)) >= 0.25:
+								sample_lts_to_prune.add(glt)
+
+			final_gw_sample_faa = final_proteomes_directory + sample + '.faa'
+			final_gw_sample_gbk = final_genbanks_directory + sample + '.gbk'
+
+			sample_listing_handle.write(sample + '\t' + final_gw_sample_gbk + '\t' + final_gw_sample_faa + '\n')
+
+			faa_handle = open(final_gw_sample_faa, 'w')
+			with open(proteomes_directory + sample + '.faa') as of:
+				for rec in SeqIO.parse(of, 'fasta'):
+					if not rec.id in sample_lts_to_prune:
+						faa_handle.write('>' + rec.description + '\n' + str(rec.seq) + '\n')
+			for rec in sample_lts_to_add_protein_sequences.items():
+				faa_handle.write('>' + rec[1][0] + '\n' + str(rec[1][1]) + '\n')
+			faa_handle.close()
+
+			gbk_handle = open(final_gw_sample_gbk, 'w')
+			with open(genbanks_directory + sample + '.gbk') as og:
+				for rec in SeqIO.parse(og, 'genbank'):
+					updated_features = []
+					cds_iter = 0
+					starts = []
+					for feature in rec.features:
+						if feature.type == 'CDS':
+							prot_lt = feature.qualifiers.get('locus_tag')[0]
+							if prot_lt in sample_lts_to_prune: continue
+							updated_features.append(feature)
+							start = min([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')])
+							starts.append([cds_iter, start])
+							cds_iter += 1
+					for feature in sample_lts_to_add_genbank_features[rec.id]:
+						if feature.type == 'CDS':
+							updated_features.append(feature)
+							start = min([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')])
+							starts.append([cds_iter, start])
+							cds_iter += 1
+					sorted_updated_features = []
+					for sort_i in sorted(starts, key=itemgetter(1)):
+						sorted_updated_features.append(updated_features[sort_i[0]])
+					rec.features = sorted_updated_features
+					SeqIO.write(rec, gbk_handle, 'genbank')
+			gbk_handle.close()
+
+			for hg in samp_hg_lts[sample]:
+				updated_lts = set(samp_hg_lts[sample][hg])
+				for lt in hg_subjects[hg].difference(hg_queries[hg]):
+					if not lt in sample_lts_to_prune:
+						updated_lts.add(lt)
+				samp_hg_lts[sample][hg] = updated_lts
+
+	except Exception as e:
+		logObject.error("Problem with creating updated.")
+		logObject.error(traceback.format_exc())
+		raise RuntimeError(traceback.format_exc())
+
+	try:
+		all_hgs = set([])
+		for s in samp_hg_lts:
+			for h in samp_hg_lts[s]:
+				all_hgs.add(h)
+
+		orthofinder_matrix_file = main_output_directory + 'Orthogroups.tsv'
+		orthofinder_matrix_handle = open(orthofinder_matrix_file, 'w')
+		orthofinder_matrix_handle.write('Orthogroup\t' + '\t'.join([sample for sample in sorted(samp_hg_lts)]) + '\n')
+		for hg in sorted(all_hgs):
+			hg_row = [hg]
+			for sample in sorted(samp_hg_lts):
+				hg_row.append(', '.join(samp_hg_lts[sample][hg]))
+			orthofinder_matrix_handle.write('\t'.join(hg_row) + '\n')
+		orthofinder_matrix_handle.close()
+
+	except Exception as e:
+		logObject.error("Problem with updating OrthoFinder2 sample vs. homolog group matrix.")
+		logObject.error(traceback.format_exc())
+		raise RuntimeError(traceback.format_exc())
+
+	sample_listing_handle.close()
+	bgc_listing_handle.close()
+
+def createGCFListingsDirectory(sample_bgcs, bigscape_results_dir, gcf_listings_directory, logObject):
+	try:
+		bgc_paths = {}
+		for sample in sample_bgcs:
+			for bgc in sample_bgcs[sample]:
+				bgc_paths[bgc.split('/')[-1].split('.gbk')[0]] = [sample, bgc]
+
+		nf_bigscape_results_dir = bigscape_results_dir + 'network_files/'
+		assert(os.path.isdir(nf_bigscape_results_dir))
+		newest_date = [0, 0, 0]
+		newest_time = [0, 0, 0]
+		most_recent_results_dir = None
+		for sd in os.listdir(nf_bigscape_results_dir):
+			full_sd_dir = nf_bigscape_results_dir + sd + '/'
+			if not os.path.isdir(full_sd_dir): continue
+			date = [int(x) for x in sd.split('_')[0].split('-')]
+			time = [int(x) for x in sd.split('_')[1].split('-')]
+			if date[0] > newest_date[0] or (date[0] == newest_date[0] and date[1] > newest_date[1]) or (date[0] == newest_date[0] and date[1] == newest_date[1] and date[2] > newest_date[2]):
+				newest_date = date
+				newest_time = time
+				most_recent_results_dir = full_sd_dir
+			elif date[0] == newest_date[0] and date[1] == newest_date[1] and date[2] == newest_date[2]:
+				if time[0] > newest_time[0] or (time[0] == newest_time[0] and time[1] > newest_time[1]) or (time[0] == newest_time[0] and time[1] == newest_time[1] and time[2] > newest_time[2]):
+					newest_date = date
+					newest_time = time
+					most_recent_results_dir = full_sd_dir
+		assert(os.path.isdir(most_recent_results_dir))
+		for sd in os.listdir(most_recent_results_dir):
+			class_sd = most_recent_results_dir + sd + '/'
+			if not os.path.isdir(class_sd): continue
+			for f in os.listdir(class_sd):
+				if not(f.endswith('.tsv') and '_clustering_' in f): continue
+				class_gcf_file = class_sd + f
+				gcfs = defaultdict(set)
+				with open(class_gcf_file) as ocgf:
+					for i, line in enumerate(ocgf):
+						if i == 0: continue
+						line = line.strip()
+						ls = line.split('\t')
+						if ls[0] in bgc_paths and os.path.isfile(bgc_paths[ls[0]][1]):
+							gcfs[ls[1]].add(ls[0])
+				for gcf in gcfs:
+					gcf_file = gcf_listings_directory + 'GCF_' + gcf + '.txt'
+					gcf_handle = open(gcf_file, 'w')
+					for b in gcfs[gcf]:
+						gcf_handle.write(bgc_paths[b][0] + '\t' + bgc_paths[b][1] + '\n')
+					gcf_handle.close()
+
+	except Exception as e:
+		logObject.error("Problem with parsing BiG-SCAPE results directory provided.")
+		logObject.error(traceback.format_exc())
+		raise RuntimeError(traceback.format_exc())
 
 def p_adjust_bh(p):
 	"""
