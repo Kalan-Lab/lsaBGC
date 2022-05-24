@@ -7,10 +7,6 @@ lsaBGC is a software suite designed to provide a comprehensive set of functions
 for investigating and mining for biosynthetic gene cluster diversity across a
 focal lineage/taxa of interest using AntiSMASH based annotation.
 
-
-Check out the :doc:`usage` section for further information, including
-how to :ref:`installation` the project.
-
 Contents
 --------
 
