@@ -14,7 +14,7 @@ biosynthetic gene cluster diversity across a focal lineage/taxa of interest usin
 Documentation can currently be found on this Github repo's wiki: https://github.com/Kalan-Lab/lsaBGC/wiki
 
 1. [Background on lsaBGC - what it does and does not do](https://github.com/Kalan-Lab/lsaBGC/wiki/00.-Background)
-2. [Details on Installation](https://github.com/Kalan-Lab/lsaBGC/wiki/01.-Installation)
+2. [Extended Installation Guide (see below for more concise version of installation)](https://github.com/Kalan-Lab/lsaBGC/wiki/01.-Installation)
 3. [The Object Oriented Core of lsaBGC](https://github.com/Kalan-Lab/lsaBGC/wiki/02.-The-Object-Oriented-Core-of-lsaBGC)
 4. [Detailed Walkthrough](https://github.com/Kalan-Lab/lsaBGC/wiki/03.-Detailed-Walkthrough)
 5. [Generating Required Inputs for lsaBGC](https://github.com/Kalan-Lab/lsaBGC/wiki/04.-Generating-Required-Inputs-for-lsaBGC)
@@ -25,12 +25,15 @@ Documentation can currently be found on this Github repo's wiki: https://github.
 10. [Assessing Evolutionary Linkage of BGCs with their Genome wide Contexts](https://github.com/Kalan-Lab/lsaBGC/wiki/09.-Assessing-Evolutionary-Linkage-of-BGCs-with-their-Genome-wide-Contexts)
 11. [The lsaBGC AutoAnalyze Workflow](https://github.com/Kalan-Lab/lsaBGC/wiki/13.-The-lsaBGC-AutoAnalyze-Workflow)
 12. [Benchmarking Gene Detection through Expansion vs. DiscoVary](https://github.com/Kalan-Lab/lsaBGC/wiki/14.-Benchmarking-Gene-Detection-through-Expansion-vs.-DiscoVary)
+13. [Running test datasets for core lsaBGC programs](https://github.com/Kalan-Lab/lsaBGC_Ckefir_Testing_Cases)
 
 *Documentation moving to "Read the Docs" soon!*
 
 ## Installation:
 
-Should take < 10 minutes.
+Should take ~10 minutes.
+
+#### Note, through these steps, please make sure to change the dummy paths `/path/to/conda_env/` and `/path/to/lsaBGC` with the desired location of the conda environment on your computing system and the location of where you clone the lsaBGC git repository on your system, respectively!!!
 
 To install, please take the following steps:
 
@@ -40,12 +43,14 @@ To install, please take the following steps:
 
 2. Setup the conda environment using the yml file.
 
-```conda env create -f lsaBGC_environment.yml -p /path/to/conda_environment/```
+```
+conda env create -f lsaBGC_environment.yml -p /path/to/conda_env/
+```
 
 3. Activate the environment and perform setup and pip installation in the git repository:
-```bash
+```
 # activate the conda environment for lsaBGC just created
-conda activate /path/to/conda_environment/
+conda activate /path/to/conda_env/
 
 # change directories to where the Git repo for lsaBGC was downloaded
 cd /path/to/lsaBGC/
@@ -53,6 +58,24 @@ cd /path/to/lsaBGC/
 # perform python install within conda environment
 python setup.py install
 pip install -e .
+```
+
+4. lsaBGC uses OrthoFinder (v2.5.4) to cluster proteins in BGCs into homolog groups, 
+this process can require lots of files to be written and these limits are often
+controlled by certain settings on servers. In my experience, the soft limit is often 
+the problem. For more insight into such constraints see: 
+https://github.com/davidemms/OrthoFinder/issues/384
+
+While other ortholog grouping software are available, OrthoFinder2 offers several
+benefits to ensure the most high quality ortholog grouping.
+
+```
+# To automatically set your soft limit to be 1 million files everytime you 
+# load the conda environment for , please run the following commands (again
+# make sure to replace the dummy paths!):
+mkdir -p /path/to/conda_env/etc/conda/activate.d
+touch /path/to/conda_env/etc/conda/activate.d/env_vars.sh
+echo $'#!/bin/sh\n\ulimit -n 1000000' > /path/to/conda_env/etc/conda/activate.d/env_vars.sh
 ```
 
 ## Dependencies:
