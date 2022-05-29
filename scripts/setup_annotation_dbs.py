@@ -38,7 +38,7 @@ def setup_annot_dbs():
     try:
         assert(os.path.isdir(download_path))
     except:
-        sys.stderr('Error: Provided directory for downloading annotation files does not exist!')
+        sys.stderr.write('Error: Provided directory for downloading annotation files does not exist!\n')
 
     # download files in requested directory
     try:
@@ -61,7 +61,7 @@ def setup_annot_dbs():
         listing_handle.write(ko_annot_info_file + '\t' + ko_phmm_file + '\n')
         linding_handle.close()
     except:
-        sys.stderr('Error: issues with downloading or seting up annotation database files! Please post to Github issues if unable to figure out!')
+        sys.stderr.write('Error: issues with downloading or seting up annotation database files! Please post to Github issues if unable to figure out!\n')
 
     sys.exit(0)
 
