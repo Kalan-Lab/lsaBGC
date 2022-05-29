@@ -45,7 +45,8 @@ def setup_annot_dbs():
         os.chdir(download_path)
         os.system('wget ftp://ftp.genome.jp/pub/db/kofam/ko_list.gz')
         os.system('wget ftp://ftp.genome.jp/pub/db/kofam/profiles.tar.gz')
-        os.system('gunzip *.gz')
+        os.system('gunzip ko_list.gz')
+        os.system('tar -zxvf profiles.tar.gz')
         ko_annot_info_file = download_path + 'ko_list'
         ko_phmm_file = download_path + 'profile.hmm'
         assert(os.path.isfile(ko_annot_info_file))
