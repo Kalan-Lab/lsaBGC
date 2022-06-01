@@ -5,7 +5,7 @@
 *lsa*BGC is a software suite designed to provide a comprehensive set of functions for investigating and mining for 
 biosynthetic gene cluster diversity across a focal lineage/taxa of interest using AntiSMASH based annotation.
 
-**_Note - Jun 01, 2022 While everything has passed testing cases (using the example Corynebacterium datasets linked in the repo), we are actively updating the early steps of the framework to be easier to use, require fewer dependency and integrate better with prior clusteirng results from programs such as BiG-SCAPE and BiG-SLICE. We hope to have updated documentation detailing recommendations for setting up lsaBGC analyses and an improved `lsaBGC-Ready.py` version in the next week._** 
+**_Note - Jun 01, 2022 - While everything has passed testing cases (using the example Corynebacterium datasets linked in the repo), we are actively updating the early steps of the framework to be easier to use, require fewer dependency and integrate better with prior clusteirng results from programs such as BiG-SCAPE and BiG-SLICE. We hope to have updated documentation detailing recommendations for setting up lsaBGC analyses and an improved `lsaBGC-Ready.py` version in the next week._** 
 ## Major Updates:
 
 * May 24, 2022 - `lsaBGC-Ready.py` is now available and can take pre-computed antiSMASH BGC predictions, along with optional BiG-SCAPE clustering results, to produce the required inputs for major lsaBGC analytical programs (`lsaBGC-See.py`, `lsaBGC-Refine.py`, `lsaBGC-PopGene.py`, `lsaBGC-DiscoVary.py`). 
@@ -70,10 +70,10 @@ https://github.com/davidemms/OrthoFinder/issues/384
 While other ortholog grouping software are available, OrthoFinder2 offers several
 benefits to ensure the most high quality ortholog grouping.
 
+To automatically set your soft limit to be 1 million files everytime you 
+load the conda environment for lsaBGC, please run the following commands (again
+make sure to replace the dummy paths!):
 ```
-# To automatically set your soft limit to be 1 million files everytime you 
-# load the conda environment for , please run the following commands (again
-# make sure to replace the dummy paths!):
 mkdir -p /path/to/conda_env/etc/conda/activate.d
 touch /path/to/conda_env/etc/conda/activate.d/env_vars.sh
 echo $'#!/bin/sh\n\ulimit -n 1000000' > /path/to/conda_env/etc/conda/activate.d/env_vars.sh
