@@ -80,12 +80,9 @@ touch /path/to/conda_env/etc/conda/activate.d/env_vars.sh
 echo $'#!/bin/sh\n\ulimit -n 1000000' > /path/to/conda_env/etc/conda/activate.d/env_vars.sh
 ```
 
-## Dependencies:
-As described in the Installation section above, dependencies can be set up easily through the use of a Conda environment and the provided yaml file.
+## Overview:
 
-The set of dependencies for the core lsaBGC programs and auxiliary scripts, along with versions used for testing are listed on the wiki in the Installation page.
-
-lsaBGC was developed and tested on UNIX systems; however, there are no apprent reasons users would have difficulty running on OS X or Windows.
+![](https://github.com/Kalan-Lab/lsaBGC/blob/main/docs/images/lsaBGC1.1_Overview.jpg)
 
 ## Acknowledgements:
 
