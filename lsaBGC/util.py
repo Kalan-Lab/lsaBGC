@@ -1246,31 +1246,32 @@ def extractProteinsFromAntiSMASHBGCs(sample_bgcs, bgc_prot_directory, logObject)
 def performKOFamAnnotation(sample_bgc_proteins, bgc_prot_directory, ko_annot_directory, kofam_hmm_file, kofam_pro_list, logObject, cores=1):
 	sample_protein_annotations = defaultdict(lambda: defaultdict(lambda: dict))
 	try:
-		ko_bitscore_cutoffs = {}
-		ko_profile_types = {}
+		ko_score_cutoffs = {}
+		ko_score_types = {}
 		ko_descriptions = {}
 		with open(kofam_pro_list) as okpl:
 			for line in okpl:
 				line = line.strip()
 				ls = line.split('\t')
 				ko = ls[0]
-				bitscore_cutoff = float(ls[1])
+				score_cutoff = float(ls[1])
 				profile_type = ls[2]
 				description = ls[-1]
-				ko_bitscore_cutoffs[ko] = bitscore_cutoff
-				ko_profile_types[ko] = profile_type
+				ko_score_cutoffs[ko] = score_cutoff
+				ko_score_types[ko] = profile_type
 				ko_descriptions[ko] = description
-		hmmscan_cmds = []
+
+		hmmsearch_cmds = []
 		for f in os.listdir(bgc_prot_directory):
 			sample = f.split('.faa')[0]
 			prot_file = bgc_prot_directory + f
 			annot_result = ko_annot_directory + sample + '.txt'
-			hmmscan_cmd = ['hmmscan', '--max', '--cpu', '2', '--tblout', annot_result, kofam_hmm_file,
+			hmmsearch_cmd = ['hmmsearch', '--cpu', '2', '--tblout', annot_result, kofam_hmm_file,
 						   prot_file, logObject]
-			hmmscan_cmds.append(hmmscan_cmd)
+			hmmsearch_cmds.append(hmmsearch_cmd)
 
 		p = multiprocessing.Pool(math.floor(cores/2))
-		p.map(multiProcess, hmmscan_cmds)
+		p.map(multiProcess, hmmsearch_cmds)
 		p.close()
 
 		for sample in sample_bgc_proteins:
@@ -1283,9 +1284,12 @@ def performKOFamAnnotation(sample_bgc_proteins, bgc_prot_directory, ko_annot_dir
 					ls = line.split()
 					ko = ls[0]
 					prot_id = ls[2]
-					bitscore = float(ls[4]) # TODO: Update array index
-					if bitscore > ko_bitscore_cutoffs[ko]:
-						hits_per_prot[prot_id].append([ko, bitscore])
+					full_score = float(ls[5])
+					dom_score = float(ls[8])
+					if ko_score_types[ko] == 'full' and full_score >= ko_score_cutoffs[ko]:
+						hits_per_prot[prot_id].append([ko, full_score])
+					elif ko_score_types[ko] == 'domain' and dom_score >= ko_score_cutoffs[ko]:
+						hits_per_prot[prot_id].append(ko, dom_score)
 
 			best_hits = defaultdict(lambda: 'NA: hypothetical protein')
 			for pi in hits_per_prot:
@@ -1331,8 +1335,6 @@ def runOrthoFinder2(bgc_prot_directory, orthofinder_outdir, logObject, cores=1):
 			logObject.error(traceback.format_exc())
 			raise RuntimeError(traceback.format_exc())
 		return result_file
-
-
 
 def determineParalogyThresholds(orthofinder_bgc_matrix_file, bgc_prot_directory, blast_directory, logObject, cores=1):
 
@@ -1647,7 +1649,7 @@ def identifyParalogsAndCreateResultFiles(samp_hg_lts, lt_to_hg, sample_bgc_prote
 	sample_listing_handle.close()
 	bgc_listing_handle.close()
 
-def createGCFListingsDirectory(sample_bgcs, bigscape_results_dir, gcf_listings_directory, logObject):
+def createGCFListingsDirectory(sample_bgcs, bgc_to_sample, bigscape_results_dir, gcf_listings_directory, logObject):
 	try:
 		final_stats_file = '/'.join(gcf_listings_directory.split('/')[:-2]) + 'GCF_Details.txt'
 		sf_handle = open(final_stats_file, 'w')
@@ -1698,13 +1700,68 @@ def createGCFListingsDirectory(sample_bgcs, bigscape_results_dir, gcf_listings_d
 				for gcf in gcfs:
 					gcf_file = gcf_listings_directory + 'GCF_' + gcf + '.txt'
 					gcf_handle = open(gcf_file, 'w')
+					samples_with_gcf = defaultdict(int)
 					for b in gcfs[gcf]:
+						bs = bgc_to_sample[bgc_paths[b][1]]
+						samples_with_gcf[bs] += 1
 						gcf_handle.write(bgc_paths[b][0] + '\t' + bgc_paths[b][1] + '\n')
 					gcf_handle.close()
-
+					samples_with_multiple_bgcs = 0
+					for s in samples_with_gcf:
+						if samples_with_gcf[s] > 1:
+							samples_with_multiple_bgcs += 1
+					"""
+					'GCF id', 'number of BGCs', 'number of samples', 'samples with multiple BGCs in GCF',
+							   'size of the SCC', 'mean number of OGs', 'stdev for number of OGs',
+							   'min pairwise Jaccard similarity', 'max pairwise Jaccard similarity',
+							   'number of core gene aggregates', 'annotations']) + '\n')
+					"""
+					sf_handle.write('\t'.join([str(x) for x in ['GCF_' + gcf, len(gcfs[gcf]), len(samples_with_gcf),
+																samples_with_multiple_bgcs, 'NA', 'NA', 'NA', 'NA', 'NA',
+																'NA', bgc_class]]) + '\n')
+		sf_handle.close()
 	except Exception as e:
 		logObject.error("Problem with parsing BiG-SCAPE results directory provided.")
 		logObject.error(traceback.format_exc())
+		raise RuntimeError(traceback.format_exc())
+
+def updateAntiSMASHGenbanksToIncludeAnnotations(protein_annotations, antismash_bgcs_directory, antismash_bgcs_directory_updated, logObject):
+	try:
+		sample_bgcs_updated = defaultdict(set)
+		bgc_to_sample_updated = {}
+		for s in os.listdir(antismash_bgcs_directory):
+			for f in os.listdir(antismash_bgcs_directory + s + '/'):
+				if not f.endswith('.gbk'): continue
+				sample = f.split('.gbk')[0]
+				update_gbk_file = antismash_bgcs_directory_updated + f
+				ugf_handle = open(update_gbk_file, 'w')
+				with open(antismash_bgcs_directory + f) as oabduf:
+					for rec in SeqIO.parse(oabduf, 'genbank'):
+						updated_features = []
+						for feature in rec.features:
+							if feature.type == "CDS":
+								prot_lt = feature.qualifiers.get('locus_tag')[0]
+								feature.qualifiers.get('product')[0] = protein_annotations[sample][prot_lt]
+								updated_features.append(feature)
+							else:
+								updated_features.append(feature)
+						rec.features = updated_features
+						SeqIO.write(rec, ugf_handle, 'genbank')
+				ugf_handle.close()
+				sample_bgcs_updated[s].add(update_gbk_file)
+				bgc_to_sample_updated[update_gbk_file] = s
+	except Exception as e:
+		logObject.error("Problem with updating AntiSMASH BGC Genbanks to feature KOfam annotations.")
+		logObject.error(traceback.format_exc())
+		raise RuntimeError(traceback.format_exc())
+
+def setupReadyDirectory(directories):
+	try:
+		for d in directories:
+			if os.path.isdir(d):
+				os.system('rm -rf %s' % d)
+			os.system('mkdir %s' % d)
+	except Exception as e:
 		raise RuntimeError(traceback.format_exc())
 
 def p_adjust_bh(p):
