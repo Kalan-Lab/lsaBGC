@@ -37,3 +37,4 @@ dependencies:
   - bioconda::orthofinder=2.5.4
   - bioconda::prodigal=2.6.3
   - conda-forge::pandas=1.4.2
+  - bioconda:trimal=1.4.1

@@ -60,7 +60,7 @@ def setup_annot_dbs():
         listing_file = lsaBGC_main_directory + 'db/kofam_location_paths.txt'
         listing_handle = open(listing_file, 'w')
         listing_handle.write(ko_annot_info_file + '\t' + ko_phmm_file + '\n')
-        linding_handle.close()
+        listing_handle.close()
     except:
         sys.stderr.write('Error: issues with downloading or seting up annotation database files! Please post to Github issues if unable to figure out!\n')
 
