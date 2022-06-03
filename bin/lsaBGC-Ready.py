@@ -137,8 +137,8 @@ def lsaBGC_Ready():
     genomes_as_genbanks = myargs.genomes_as_genbanks
     bigscape_results_dir = myargs.bigscape_results
     annotate = myargs.annotate
-    run_lsabgc_cluster = myargs.cluster
-    run_lsabgc_expansion = myargs.expansion
+    run_lsabgc_cluster = myargs.lsabgc_cluster
+    run_lsabgc_expansion = myargs.lsabgc_expansion
     keep_intermediates = myargs.keep_intermediates
 
     try:
@@ -337,7 +337,7 @@ def lsaBGC_Ready():
             raise RuntimeError('Had an issue running: %s' % ' '.join(lsabgc_expansion_cmd))
 
     # Step 11: Create Final Results Directory
-    util.selectFinalResultsAndCleanUp(outdir, fin_outdir, logObject)
+    #util.selectFinalResultsAndCleanUp(outdir, fin_outdir, logObject)
 
     # Close logging object and exit
     util.closeLoggerObject(logObject)
