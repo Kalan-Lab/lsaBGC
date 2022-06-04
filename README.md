@@ -5,9 +5,10 @@
 *lsa*BGC is a software suite designed to provide a comprehensive set of functions for investigating and mining for 
 biosynthetic gene cluster diversity across a focal lineage/taxa of interest using AntiSMASH based annotation.
 
+**_Note - Jun 01, 2022 - We are actively updating the early steps of the framework to be easier to use, require fewer dependencies and integrate better with prior clusteirng results from programs such as BiG-SCAPE and BiG-SLICE. We hope to have updated documentation detailing recommendations for setting up input for lsaBGC analyses and a much improved version of the new program `lsaBGC-Ready.py` version in the next week._** 
 ## Major Updates:
 
-* 05/24/2022 - `lsaBGC-Ready.py` is now available and can take pre-computed antiSMASH BGC predictions, along with optional BiG-SCAPE clustering results, to produce the required inputs for major lsaBGC analytical programs (`lsaBGC-See.py`, `lsaBGC-Refine.py`, `lsaBGC-PopGene.py`, `lsaBGC-DiscoVary.py`). 
+* May 24, 2022 - `lsaBGC-Ready.py` is now available and can take pre-computed antiSMASH BGC predictions, along with optional BiG-SCAPE clustering results, to produce the required inputs for major lsaBGC analytical programs (`lsaBGC-See.py`, `lsaBGC-Refine.py`, `lsaBGC-PopGene.py`, `lsaBGC-DiscoVary.py`). 
 
 ## Documentation:
 
@@ -23,9 +24,10 @@ Documentation can currently be found on this Github repo's wiki: https://github.
 8. [Visualizing GCFs Across Phylogenies](https://github.com/Kalan-Lab/lsaBGC/wiki/07.-Visualizing-GCFs-Across-Phylogenies)
 9. [High throughput Detection of New GCF Instances Across Draft Genome Assemblies](https://github.com/Kalan-Lab/lsaBGC/wiki/08.-High-throughput-Detection-of-New-GCF-Instances-Across-Draft-Genome-Assemblies)
 10. [Assessing Evolutionary Linkage of BGCs with their Genome wide Contexts](https://github.com/Kalan-Lab/lsaBGC/wiki/09.-Assessing-Evolutionary-Linkage-of-BGCs-with-their-Genome-wide-Contexts)
-11. [The lsaBGC AutoAnalyze Workflow](https://github.com/Kalan-Lab/lsaBGC/wiki/13.-The-lsaBGC-AutoAnalyze-Workflow)
-12. [Benchmarking Gene Detection through Expansion vs. DiscoVary](https://github.com/Kalan-Lab/lsaBGC/wiki/14.-Benchmarking-Gene-Detection-through-Expansion-vs.-DiscoVary)
-13. [Running test datasets for core lsaBGC programs](https://github.com/Kalan-Lab/lsaBGC_Ckefir_Testing_Cases)
+11. [Population Genetics Analysis of Genes Found in a GCF](https://github.com/Kalan-Lab/lsaBGC/wiki/10.-Population-Genetics-Analysis-of-Genes-Found-in-a-GCF)
+12. [The lsaBGC AutoAnalyze Workflow](https://github.com/Kalan-Lab/lsaBGC/wiki/13.-The-lsaBGC-AutoAnalyze-Workflow)
+13. [Benchmarking Gene Detection through Expansion vs. DiscoVary](https://github.com/Kalan-Lab/lsaBGC/wiki/14.-Benchmarking-Gene-Detection-through-Expansion-vs.-DiscoVary)
+14. [Running test datasets for core lsaBGC programs](https://github.com/Kalan-Lab/lsaBGC_Ckefir_Testing_Cases)
 
 *Documentation moving to "Read the Docs" soon!*
 
@@ -69,21 +71,18 @@ https://github.com/davidemms/OrthoFinder/issues/384
 While other ortholog grouping software are available, OrthoFinder2 offers several
 benefits to ensure the most high quality ortholog grouping.
 
+To automatically set your soft limit to be 1 million files everytime you 
+load the conda environment for lsaBGC, please run the following commands (again
+make sure to replace the dummy paths!):
 ```
-# To automatically set your soft limit to be 1 million files everytime you 
-# load the conda environment for , please run the following commands (again
-# make sure to replace the dummy paths!):
 mkdir -p /path/to/conda_env/etc/conda/activate.d
 touch /path/to/conda_env/etc/conda/activate.d/env_vars.sh
 echo $'#!/bin/sh\n\ulimit -n 1000000' > /path/to/conda_env/etc/conda/activate.d/env_vars.sh
 ```
 
-## Dependencies:
-As described in the Installation section above, dependencies can be set up easily through the use of a Conda environment and the provided yaml file.
+## Overview:
 
-The set of dependencies for the core lsaBGC programs and auxiliary scripts, along with versions used for testing are listed on the wiki in the Installation page.
-
-lsaBGC was developed and tested on UNIX systems; however, there are no apprent reasons users would have difficulty running on OS X or Windows.
+![](https://github.com/Kalan-Lab/lsaBGC/blob/main/docs/images/lsaBGC1.1_Overview.jpg)
 
 ## Acknowledgements:
 
