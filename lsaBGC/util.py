@@ -1260,6 +1260,7 @@ def performKOFamAnnotation(sample_bgc_proteins, bgc_prot_directory, ko_annot_dir
 				if i == 0: continue
 				line = line.strip()
 				ls = line.split('\t')
+				print(ls)
 				ko = ls[0]
 				score_cutoff = float(ls[1])
 				profile_type = ls[2]
