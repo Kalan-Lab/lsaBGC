@@ -1314,7 +1314,7 @@ def performKOFamAnnotation(sample_bgc_proteins, bgc_prot_directory, ko_annot_dir
 		logObject.error("Issues with performing KOfam based annotations.")
 		logObject.error(traceback.format_exc())
 		raise RuntimeError(traceback.format_exc())
-	return sample_protein_annotations
+	return dict(sample_protein_annotations)
 
 
 def runOrthoFinder2(bgc_prot_directory, orthofinder_outdir, logObject, cores=1):
@@ -1602,7 +1602,7 @@ def identifyParalogsAndCreateResultFiles(samp_hg_lts, lt_to_hg, sample_bgc_prote
 					for feature in rec.features:
 						if feature.type == 'CDS':
 							prot_lt = feature.qualifiers.get('locus_tag')[0]
-							feature.qualifiers.get('product')[0] = protein_annotations[sample][prot_lt]
+							feature.qualifiers['product'] = protein_annotations[sample][prot_lt]
 							if prot_lt in sample_lts_to_prune: continue
 							updated_features.append(feature)
 							start = min([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')])
@@ -1611,7 +1611,7 @@ def identifyParalogsAndCreateResultFiles(samp_hg_lts, lt_to_hg, sample_bgc_prote
 					for feature in sample_lts_to_add_genbank_features[rec.id]:
 						if feature.type == 'CDS':
 							prot_lt = feature.qualifiers.get('locus_tag')[0]
-							feature.qualifiers.get('product')[0] = protein_annotations[sample][prot_lt]
+							feature.qualifiers['product'] = protein_annotations[sample][prot_lt]
 							updated_features.append(feature)
 							start = min([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')])
 							starts.append([cds_iter, start])
@@ -1735,10 +1735,9 @@ def createGCFListingsDirectory(sample_bgcs, bgc_to_sample, bigscape_results_dir,
 		raise RuntimeError(traceback.format_exc())
 
 def updateAntiSMASHGenbanksToIncludeAnnotations(protein_annotations, antismash_bgcs_directory, antismash_bgcs_directory_updated, logObject):
+	sample_bgcs_updated = defaultdict(set)
+	bgc_to_sample_updated = {}
 	try:
-		print(protein_annotations)
-		sample_bgcs_updated = defaultdict(set)
-		bgc_to_sample_updated = {}
 		for s in os.listdir(antismash_bgcs_directory):
 			os.system('mkdir %s' % (antismash_bgcs_directory_updated + s))
 			for f in os.listdir(antismash_bgcs_directory + s + '/'):
@@ -1763,11 +1762,12 @@ def updateAntiSMASHGenbanksToIncludeAnnotations(protein_annotations, antismash_b
 				ugf_handle.close()
 				sample_bgcs_updated[s].add(update_gbk_file)
 				bgc_to_sample_updated[update_gbk_file] = s
+
 	except Exception as e:
 		logObject.error("Problem with updating AntiSMASH BGC Genbanks to feature KOfam annotations.")
 		logObject.error(traceback.format_exc())
 		raise RuntimeError(traceback.format_exc())
-
+	return([sample_bgcs_updated, bgc_to_sample_updated])
 def setupReadyDirectory(directories):
 	try:
 		for d in directories:
