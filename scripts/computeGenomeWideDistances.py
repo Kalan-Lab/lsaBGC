@@ -62,7 +62,7 @@ def create_parser():
 	Author: Rauf Salamzade
 	Affiliation: Kalan Lab, UW Madison, Department of Medical Microbiology and Immunology
 
-    Program to 
+    Program to compute genome-wide 
 	""", formatter_class=argparse.RawTextHelpFormatter)
 
     parser.add_argument('-l', '--sample_annotation_listing',

@@ -1771,9 +1771,8 @@ def updateAntiSMASHGenbanksToIncludeAnnotations(protein_annotations, bgc_to_samp
 		for s in sample_bgc_proteins:
 			for bgc in sample_bgc_proteins[s]:
 				bgc_prots = sample_bgc_proteins[sample][bgc]
-				new_bgc = antismash_bgcs_directory_updated + bgc.split('/')[-1]
+				new_bgc = antismash_bgcs_directory_updated + '/'.join(bgc.split('/')[-2:])
 				sample_bgc_proteins_update[s][new_bgc] = bgc_prots
-
 
 	except Exception as e:
 		logObject.error("Problem with updating AntiSMASH BGC Genbanks to feature KOfam annotations.")
