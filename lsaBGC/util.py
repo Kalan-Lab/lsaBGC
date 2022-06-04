@@ -1298,7 +1298,7 @@ def performKOFamAnnotation(sample_bgc_proteins, bgc_prot_directory, ko_annot_dir
 					if ko_score_types[ko] == 'full' and full_score >= ko_score_cutoffs[ko]:
 						hits_per_prot[prot_id].append([ko, full_score])
 					elif ko_score_types[ko] == 'domain' and dom_score >= ko_score_cutoffs[ko]:
-						hits_per_prot[prot_id].append(ko, dom_score)
+						hits_per_prot[prot_id].append([ko, dom_score])
 
 			best_hits = defaultdict(lambda: 'NA: hypothetical protein')
 			for pi in hits_per_prot:
