@@ -1734,7 +1734,7 @@ def createGCFListingsDirectory(sample_bgcs, bgc_to_sample, bigscape_results_dir,
 		logObject.error(traceback.format_exc())
 		raise RuntimeError(traceback.format_exc())
 
-def updateAntiSMASHGenbanksToIncludeAnnotations(protein_annotations, antismash_bgcs_directory, antismash_bgcs_directory_updated, logObject):
+def updateAntiSMASHGenbanksToIncludeAnnotations(protein_annotations, bgc_to_sample, antismash_bgcs_directory, antismash_bgcs_directory_updated, logObject):
 	sample_bgcs_updated = defaultdict(set)
 	bgc_to_sample_updated = {}
 	try:
@@ -1742,7 +1742,7 @@ def updateAntiSMASHGenbanksToIncludeAnnotations(protein_annotations, antismash_b
 			os.system('mkdir %s' % (antismash_bgcs_directory_updated + s))
 			for f in os.listdir(antismash_bgcs_directory + s + '/'):
 				if not f.endswith('.gbk'): continue
-				sample = f.split('.gbk')[0]
+				sample = bgc_to_sample[antismash_bgcs_directory + s + '/' + f]
 				update_gbk_file = antismash_bgcs_directory_updated + s + '/' + f
 				ugf_handle = open(update_gbk_file, 'w')
 				with open(antismash_bgcs_directory + s + '/' + f) as oabduf:

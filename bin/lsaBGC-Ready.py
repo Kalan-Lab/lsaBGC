@@ -259,7 +259,7 @@ def lsaBGC_Ready():
         antismash_bgcs_directory_updated = outdir + 'AntiSMASH_BGCs_Retagged_and_Annotated/'
         util.setupReadyDirectory([antismash_bgcs_directory_updated])
 
-        sample_bgcs_update, bgc_to_sample_update = util.updateAntiSMASHGenbanksToIncludeAnnotations(protein_annotations,
+        sample_bgcs_update, bgc_to_sample_update = util.updateAntiSMASHGenbanksToIncludeAnnotations(protein_annotations, bgc_to_sample,
                                                                                                     antismash_bgcs_directory,
                                                                                                     antismash_bgcs_directory_updated,
                                                                                                     logObject)
