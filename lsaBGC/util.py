@@ -1055,6 +1055,8 @@ def parseSampleGenomes(genome_listing_file, logObject):
 		sample_genomes = {}
 		all_genbanks = True
 		all_fastas = True
+		at_least_one_genbank = False
+		at_least_one_fasta = False
 		with open(genome_listing_file) as oglf:
 			for line in oglf:
 				line = line.strip()
@@ -1072,13 +1074,15 @@ def parseSampleGenomes(genome_listing_file, logObject):
 				sample_genomes[sample] = genome_file
 				if not is_fasta(genome_file):
 					all_fastas = False
+					at_least_one_fasta = True
 				if not is_genbank(genome_file):
 					all_genbanks = False
+					at_least_one_genbank = True
 
 		format_prediction = 'mixed'
-		if all_genbanks:
+		if all_genbanks and at_least_one_genbank:
 			format_prediction = 'genbank'
-		elif all_fastas:
+		elif all_fastas and at_least_one_fasta:
 			format_prediction = 'fasta'
 
 		return([sample_genomes, format_prediction])
