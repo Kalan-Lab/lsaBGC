@@ -1739,12 +1739,13 @@ def updateAntiSMASHGenbanksToIncludeAnnotations(protein_annotations, antismash_b
 		sample_bgcs_updated = defaultdict(set)
 		bgc_to_sample_updated = {}
 		for s in os.listdir(antismash_bgcs_directory):
+			os.system('mkdir %s' % (antismash_bgcs_directory_updated + s))
 			for f in os.listdir(antismash_bgcs_directory + s + '/'):
 				if not f.endswith('.gbk'): continue
 				sample = f.split('.gbk')[0]
-				update_gbk_file = antismash_bgcs_directory_updated + f
+				update_gbk_file = antismash_bgcs_directory_updated + s + '/' + f
 				ugf_handle = open(update_gbk_file, 'w')
-				with open(antismash_bgcs_directory + f) as oabduf:
+				with open(antismash_bgcs_directory + s + '/' + f) as oabduf:
 					for rec in SeqIO.parse(oabduf, 'genbank'):
 						updated_features = []
 						for feature in rec.features:
