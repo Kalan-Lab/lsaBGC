@@ -212,7 +212,8 @@ def lsaBGC_Ready():
     draft_sample_annotation_listing_file = int_outdir + 'Draft_Sample_Annotation_Files.txt'
     if draft_genome_listing_file != None:
         draft_sample_genomes, draft_format_prediction = util.parseSampleGenomes(draft_genome_listing_file, logObject)
-
+        print(draft_format_prediction)
+        print(draft_sample_genomes)
         try:
             assert(draft_format_prediction == 'fasta')
         except:
