@@ -1292,19 +1292,24 @@ def performKOFamAnnotation(sample_bgc_proteins, bgc_prot_directory, ko_annot_dir
 					ls = line.split()
 					ko = ls[2]
 					prot_id = ls[0]
+					full_eval = float(ls[4])
 					full_score = float(ls[5])
 					dom_score = float(ls[8])
 					if not ko in ko_score_types: continue
 					if ko_score_types[ko] == 'full' and full_score >= ko_score_cutoffs[ko]:
-						hits_per_prot[prot_id].append([ko, full_score])
+						hits_per_prot[prot_id].append([ko, -full_score, full_eval])
 					elif ko_score_types[ko] == 'domain' and dom_score >= ko_score_cutoffs[ko]:
-						hits_per_prot[prot_id].append([ko, dom_score])
-
+						hits_per_prot[prot_id].append([ko, -dom_score, full_eval])
+					if full_eval < 1e-50:
+						hits_per_prot[prot_id].append([ko, -1E10, full_eval])
 			best_hits = defaultdict(lambda: 'NA: hypothetical protein')
 			for pi in hits_per_prot:
-				for i, hit in enumerate(sorted(hits_per_prot[pi], key=operator.itemgetter(1), reverse=True)):
+				for i, hit in enumerate(sorted(hits_per_prot[pi], key=operator.itemgetter(1), reverse=False)):
 					if i == 0:
-						best_hits[pi] = hit[0] + ': ' + ko_descriptions[hit[0]]
+						conf = ' (High Confidence)'
+						if hit[1] == -1E10:
+							conf = ' (Low Confidence : e-val: ' + str(hit[2]) + ')'
+						best_hits[pi] = hit[0] + ': ' + ko_descriptions[hit[0]] + conf
 
 			for bgc in sample_bgc_proteins[sample]:
 				for pi in sample_bgc_proteins[sample][bgc]:
@@ -1602,7 +1607,8 @@ def identifyParalogsAndCreateResultFiles(samp_hg_lts, lt_to_hg, sample_bgc_prote
 					for feature in rec.features:
 						if feature.type == 'CDS':
 							prot_lt = feature.qualifiers.get('locus_tag')[0]
-							feature.qualifiers['product'] = protein_annotations[sample][prot_lt]
+							feature.qualifiers['product'] = [protein_annotations[sample][prot_lt]]
+							feature.qualifiers.move_to_end('translation')
 							if prot_lt in sample_lts_to_prune: continue
 							updated_features.append(feature)
 							start = min([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')])
@@ -1611,7 +1617,8 @@ def identifyParalogsAndCreateResultFiles(samp_hg_lts, lt_to_hg, sample_bgc_prote
 					for feature in sample_lts_to_add_genbank_features[rec.id]:
 						if feature.type == 'CDS':
 							prot_lt = feature.qualifiers.get('locus_tag')[0]
-							feature.qualifiers['product'] = protein_annotations[sample][prot_lt]
+							feature.qualifiers['product'] = [protein_annotations[sample][prot_lt]]
+							feature.qualifiers.move_to_end('translation')
 							updated_features.append(feature)
 							start = min([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')])
 							starts.append([cds_iter, start])
@@ -1660,7 +1667,7 @@ def identifyParalogsAndCreateResultFiles(samp_hg_lts, lt_to_hg, sample_bgc_prote
 
 def createGCFListingsDirectory(sample_bgcs, bgc_to_sample, bigscape_results_dir, gcf_listings_directory, logObject):
 	try:
-		final_stats_file = '/'.join(gcf_listings_directory.split('/')[:-2]) + 'GCF_Details.txt'
+		final_stats_file = '/'.join(gcf_listings_directory.split('/')[:-2]) + '/GCF_Details.txt'
 		sf_handle = open(final_stats_file, 'w')
 		sf_handle.write('\t'.join(['GCF id', 'number of BGCs', 'number of samples', 'samples with multiple BGCs in GCF',
 							   'size of the SCC', 'mean number of OGs', 'stdev for number of OGs',
@@ -1751,9 +1758,8 @@ def updateAntiSMASHGenbanksToIncludeAnnotations(protein_annotations, bgc_to_samp
 						for feature in rec.features:
 							if feature.type == "CDS":
 								prot_lt = feature.qualifiers.get('locus_tag')[0]
-								print(feature.qualifiers)
 								feature.qualifiers['product'] = [protein_annotations[sample][prot_lt]]
-								print(feature.qualifiers)
+								feature.qualifiers.move_to_end('translation')
 								updated_features.append(feature)
 							else:
 								updated_features.append(feature)
