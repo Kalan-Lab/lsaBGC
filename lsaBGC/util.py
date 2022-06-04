@@ -2,27 +2,22 @@ import os
 import sys
 from Bio import SeqIO
 from Bio.Seq import Seq
-from Bio.SeqRecord import SeqRecord
 from Bio.SeqFeature import SeqFeature, FeatureLocation
 import logging
 import subprocess
 import statistics
 from operator import itemgetter
 from collections import defaultdict
-import random
 import traceback
 import multiprocessing
 import copy
-import pysam
 from scipy import stats
 from ete3 import Tree
 import itertools
-import os
-import subprocess
-import argparse
 import math
 import numpy as np
 import pathlib
+import operator
 
 valid_alleles = set(['A', 'C', 'G', 'T'])
 curr_dir = os.path.abspath(pathlib.Path(__file__).parent.resolve()) + '/'
@@ -506,8 +501,6 @@ def getSpeciesRelationshipsFromPhylogeny(species_phylogeny, samples_in_gcf):
 			except:
 				pass
 	return ([pairwise_distances, samples_in_phylogeny])
-
-
 
 def runBowtie2Alignments(bowtie2_reference, paired_end_sequencing_file, bowtie2_outdir, logObject, cores=1):
 	"""
@@ -1057,26 +1050,18 @@ def processGenomes(sample_genomes, prodigal_outdir, prodigal_proteomes, prodigal
 		logObject.error(traceback.format_exc())
 		raise RuntimeError(traceback.format_exc())
 
-def parseSampleGenomes(genome_listing_file, input_listing_file, logObject):
+def parseSampleGenomes(genome_listing_file, logObject):
 	try:
-		selected_samples = set([])
-		if input_listing_file:
-			with open(input_listing_file) as oilf:
-				for line in oilf:
-					line = line.strip()
-					selected_samples.add(line)
-
 		sample_genomes = {}
 		all_genbanks = True
 		all_fastas = True
+		at_least_one_genbank = False
+		at_least_one_fasta = False
 		with open(genome_listing_file) as oglf:
 			for line in oglf:
 				line = line.strip()
 				ls = line.split('\t')
 				sample, genome_file = ls
-
-				if not input_listing_file == None and not sample in selected_samples: continue
-				selected_samples.add(sample)
 				try:
 					assert(os.path.isfile(genome_file))
 				except:
@@ -1089,19 +1074,18 @@ def parseSampleGenomes(genome_listing_file, input_listing_file, logObject):
 				sample_genomes[sample] = genome_file
 				if not is_fasta(genome_file):
 					all_fastas = False
+				else:
+					at_least_one_fasta = True
 				if not is_genbank(genome_file):
 					all_genbanks = False
+				else:
+					at_least_one_genbank = True
 
 		format_prediction = 'mixed'
-		if all_genbanks:
+		if all_genbanks and at_least_one_genbank:
 			format_prediction = 'genbank'
-		elif all_fastas:
+		elif all_fastas and at_least_one_fasta:
 			format_prediction = 'fasta'
-
-
-		for sample in selected_samples:
-			if not sample in sample_genomes:
-				logObject.warning('Skipping sample %s, provided in the input listing but not present in genome listings.')
 
 		return([sample_genomes, format_prediction])
 
@@ -1265,6 +1249,79 @@ def extractProteinsFromAntiSMASHBGCs(sample_bgcs, bgc_prot_directory, logObject)
 	return sample_bgc_prots
 
 
+def performKOFamAnnotation(sample_bgc_proteins, bgc_prot_directory, ko_annot_directory, kofam_hmm_file, kofam_pro_list, logObject, cores=1):
+	sample_protein_annotations = defaultdict(lambda: defaultdict(lambda: dict))
+	try:
+		ko_score_cutoffs = {}
+		ko_score_types = {}
+		ko_descriptions = {}
+		with open(kofam_pro_list) as okpl:
+			for i, line in enumerate(okpl):
+				if i == 0: continue
+				line = line.strip()
+				ls = line.split('\t')
+				ko = ls[0]
+				if ls[1] == '-': continue
+				score_cutoff = float(ls[1])
+				profile_type = ls[2]
+				description = ls[-1]
+				ko_score_cutoffs[ko] = score_cutoff
+				ko_score_types[ko] = profile_type
+				ko_descriptions[ko] = description
+
+		hmmsearch_cmds = []
+		for f in os.listdir(bgc_prot_directory):
+			sample = f.split('.faa')[0]
+			prot_file = bgc_prot_directory + f
+			annot_result = ko_annot_directory + sample + '.txt'
+			hmmsearch_cmd = ['hmmsearch', '--cpu', '2', '--tblout', annot_result, kofam_hmm_file,
+						   prot_file, logObject]
+			hmmsearch_cmds.append(hmmsearch_cmd)
+
+		p = multiprocessing.Pool(math.floor(cores/2))
+		p.map(multiProcess, hmmsearch_cmds)
+		p.close()
+
+		for sample in sample_bgc_proteins:
+			annot_result = ko_annot_directory + sample + '.txt'
+			hits_per_prot = defaultdict(list)
+			with open(annot_result) as orf:
+				for line in orf:
+					if line.startswith("#"): continue
+					line = line.strip()
+					ls = line.split()
+					ko = ls[2]
+					prot_id = ls[0]
+					full_eval = float(ls[4])
+					full_score = float(ls[5])
+					dom_score = float(ls[8])
+					if not ko in ko_score_types: continue
+					if ko_score_types[ko] == 'full' and full_score >= ko_score_cutoffs[ko]:
+						hits_per_prot[prot_id].append([ko, -full_score, full_eval])
+					elif ko_score_types[ko] == 'domain' and dom_score >= ko_score_cutoffs[ko]:
+						hits_per_prot[prot_id].append([ko, -dom_score, full_eval])
+					if full_eval < 1e-20 and full_score > 100.0:
+						hits_per_prot[prot_id].append([ko, -1E10, full_eval])
+			best_hits = defaultdict(lambda: 'NA: hypothetical protein')
+			for pi in hits_per_prot:
+				for i, hit in enumerate(sorted(hits_per_prot[pi], key=operator.itemgetter(1), reverse=False)):
+					if i == 0:
+						conf = ' (High Confidence)'
+						if hit[1] == -1E10:
+							conf = ' (Low Confidence : e-val: ' + str(hit[2]) + ')'
+						best_hits[pi] = hit[0] + ': ' + ko_descriptions[hit[0]] + conf
+
+			for bgc in sample_bgc_proteins[sample]:
+				for pi in sample_bgc_proteins[sample][bgc]:
+					sample_protein_annotations[sample][pi] = best_hits[pi]
+
+	except Exception as e:
+		logObject.error("Issues with performing KOfam based annotations.")
+		logObject.error(traceback.format_exc())
+		raise RuntimeError(traceback.format_exc())
+	return dict(sample_protein_annotations)
+
+
 def runOrthoFinder2(bgc_prot_directory, orthofinder_outdir, logObject, cores=1):
 		result_file = orthofinder_outdir + 'Orthogroups_BGC_Comprehensive.tsv'
 		try:
@@ -1404,11 +1461,10 @@ def determineParalogyThresholds(orthofinder_bgc_matrix_file, bgc_prot_directory,
 	os.system('rm -rf %s %s' % (tmp_hg_seq_dir, tmp_hg_dia_dir))
 	return [samp_hg_lts, lt_to_hg, paralogy_thresholds]
 
-def identifyParalogsAndCreateResultFiles(samp_hg_lts, lt_to_hg, sample_bgc_proteins, paralogy_thresholds, bgc_prot_directory,
-							  blast_directory, proteomes_directory, genbanks_directory, final_proteomes_directory,
-							  final_genbanks_directory, main_output_directory, logObject, cores=1):
-	sample_listing_file = main_output_directory + 'Sample_Annotation_Files.txt'
-	bgc_listing_file = main_output_directory + 'All_AntiSMASH_BGCs.txt'
+def identifyParalogsAndCreateResultFiles(samp_hg_lts, lt_to_hg, sample_bgc_proteins, paralogy_thresholds, protein_annotations,
+							  bgc_prot_directory, blast_directory, proteomes_directory, genbanks_directory, final_proteomes_directory,
+							  final_genbanks_directory, sample_listing_file, bgc_listing_file, orthofinder_matrix_file, logObject, cores=1):
+
 
 	sample_listing_handle = open(sample_listing_file, 'w')
 	bgc_listing_handle = open(bgc_listing_file, 'w')
@@ -1447,7 +1503,6 @@ def identifyParalogsAndCreateResultFiles(samp_hg_lts, lt_to_hg, sample_bgc_prote
 		raise RuntimeError(traceback.format_exc())
 
 	try:
-
 		for f in os.listdir(tmp_diamond_dir):
 			if not f.endswith('.tsv'): continue
 			sample = f.split('.tsv')[0]
@@ -1551,6 +1606,8 @@ def identifyParalogsAndCreateResultFiles(samp_hg_lts, lt_to_hg, sample_bgc_prote
 					for feature in rec.features:
 						if feature.type == 'CDS':
 							prot_lt = feature.qualifiers.get('locus_tag')[0]
+							feature.qualifiers['product'] = [protein_annotations[sample][prot_lt]]
+							feature.qualifiers.move_to_end('translation')
 							if prot_lt in sample_lts_to_prune: continue
 							updated_features.append(feature)
 							start = min([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')])
@@ -1558,6 +1615,9 @@ def identifyParalogsAndCreateResultFiles(samp_hg_lts, lt_to_hg, sample_bgc_prote
 							cds_iter += 1
 					for feature in sample_lts_to_add_genbank_features[rec.id]:
 						if feature.type == 'CDS':
+							prot_lt = feature.qualifiers.get('locus_tag')[0]
+							feature.qualifiers['product'] = [protein_annotations[sample][prot_lt]]
+							feature.qualifiers.move_to_end('translation')
 							updated_features.append(feature)
 							start = min([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')])
 							starts.append([cds_iter, start])
@@ -1587,7 +1647,6 @@ def identifyParalogsAndCreateResultFiles(samp_hg_lts, lt_to_hg, sample_bgc_prote
 			for h in samp_hg_lts[s]:
 				all_hgs.add(h)
 
-		orthofinder_matrix_file = main_output_directory + 'Orthogroups.tsv'
 		orthofinder_matrix_handle = open(orthofinder_matrix_file, 'w')
 		orthofinder_matrix_handle.write('Orthogroup\t' + '\t'.join([sample for sample in sorted(samp_hg_lts)]) + '\n')
 		for hg in sorted(all_hgs):
@@ -1605,8 +1664,14 @@ def identifyParalogsAndCreateResultFiles(samp_hg_lts, lt_to_hg, sample_bgc_prote
 	sample_listing_handle.close()
 	bgc_listing_handle.close()
 
-def createGCFListingsDirectory(sample_bgcs, bigscape_results_dir, gcf_listings_directory, logObject):
+def createGCFListingsDirectory(sample_bgcs, bgc_to_sample, bigscape_results_dir, gcf_listings_directory, logObject):
 	try:
+		final_stats_file = '/'.join(gcf_listings_directory.split('/')[:-2]) + '/GCF_Details.txt'
+		sf_handle = open(final_stats_file, 'w')
+		sf_handle.write('\t'.join(['GCF id', 'number of BGCs', 'number of samples', 'samples with multiple BGCs in GCF',
+							   'size of the SCC', 'mean number of OGs', 'stdev for number of OGs',
+							   'min pairwise Jaccard similarity', 'max pairwise Jaccard similarity',
+							   'number of core gene aggregates', 'annotations']) + '\n')
 		bgc_paths = {}
 		for sample in sample_bgcs:
 			for bgc in sample_bgcs[sample]:
@@ -1637,6 +1702,7 @@ def createGCFListingsDirectory(sample_bgcs, bigscape_results_dir, gcf_listings_d
 			if not os.path.isdir(class_sd): continue
 			for f in os.listdir(class_sd):
 				if not(f.endswith('.tsv') and '_clustering_' in f): continue
+				bgc_class = f.split('_clustering_')[0]
 				class_gcf_file = class_sd + f
 				gcfs = defaultdict(set)
 				with open(class_gcf_file) as ocgf:
@@ -1649,13 +1715,100 @@ def createGCFListingsDirectory(sample_bgcs, bigscape_results_dir, gcf_listings_d
 				for gcf in gcfs:
 					gcf_file = gcf_listings_directory + 'GCF_' + gcf + '.txt'
 					gcf_handle = open(gcf_file, 'w')
+					samples_with_gcf = defaultdict(int)
 					for b in gcfs[gcf]:
+						bs = bgc_to_sample[bgc_paths[b][1]]
+						samples_with_gcf[bs] += 1
 						gcf_handle.write(bgc_paths[b][0] + '\t' + bgc_paths[b][1] + '\n')
 					gcf_handle.close()
-
+					samples_with_multiple_bgcs = 0
+					for s in samples_with_gcf:
+						if samples_with_gcf[s] > 1:
+							samples_with_multiple_bgcs += 1
+					"""
+					'GCF id', 'number of BGCs', 'number of samples', 'samples with multiple BGCs in GCF',
+							   'size of the SCC', 'mean number of OGs', 'stdev for number of OGs',
+							   'min pairwise Jaccard similarity', 'max pairwise Jaccard similarity',
+							   'number of core gene aggregates', 'annotations']) + '\n')
+					"""
+					sf_handle.write('\t'.join([str(x) for x in ['GCF_' + gcf, len(gcfs[gcf]), len(samples_with_gcf),
+																samples_with_multiple_bgcs, 'NA', 'NA', 'NA', 'NA', 'NA',
+																'NA', bgc_class]]) + '\n')
+		sf_handle.close()
 	except Exception as e:
 		logObject.error("Problem with parsing BiG-SCAPE results directory provided.")
 		logObject.error(traceback.format_exc())
+		raise RuntimeError(traceback.format_exc())
+
+def updateAntiSMASHGenbanksToIncludeAnnotations(protein_annotations, bgc_to_sample, sample_bgc_proteins, antismash_bgcs_directory, antismash_bgcs_directory_updated, logObject):
+	sample_bgcs_updated = defaultdict(set)
+	bgc_to_sample_updated = {}
+	sample_bgc_proteins_update = defaultdict(lambda: defaultdict(set))
+	try:
+		for s in os.listdir(antismash_bgcs_directory):
+			os.system('mkdir %s' % (antismash_bgcs_directory_updated + s))
+			for f in os.listdir(antismash_bgcs_directory + s + '/'):
+				if not f.endswith('.gbk'): continue
+				sample = bgc_to_sample[antismash_bgcs_directory + s + '/' + f]
+				update_gbk_file = antismash_bgcs_directory_updated + s + '/' + f
+				ugf_handle = open(update_gbk_file, 'w')
+				with open(antismash_bgcs_directory + s + '/' + f) as oabduf:
+					for rec in SeqIO.parse(oabduf, 'genbank'):
+						updated_features = []
+						for feature in rec.features:
+							if feature.type == "CDS":
+								prot_lt = feature.qualifiers.get('locus_tag')[0]
+								feature.qualifiers['product'] = [protein_annotations[sample][prot_lt]]
+								feature.qualifiers.move_to_end('translation')
+								updated_features.append(feature)
+							else:
+								updated_features.append(feature)
+						rec.features = updated_features
+						SeqIO.write(rec, ugf_handle, 'genbank')
+				ugf_handle.close()
+				sample_bgcs_updated[s].add(update_gbk_file)
+				bgc_to_sample_updated[update_gbk_file] = s
+		for s in sample_bgc_proteins:
+			for bgc in sample_bgc_proteins[s]:
+				bgc_prots = sample_bgc_proteins[sample][bgc]
+				new_bgc = antismash_bgcs_directory_updated + '/'.join(bgc.split('/')[-2:])
+				sample_bgc_proteins_update[s][new_bgc] = bgc_prots
+
+	except Exception as e:
+		logObject.error("Problem with updating AntiSMASH BGC Genbanks to feature KOfam annotations.")
+		logObject.error(traceback.format_exc())
+		raise RuntimeError(traceback.format_exc())
+	return([sample_bgcs_updated, bgc_to_sample_updated, sample_bgc_proteins_update])
+
+def selectFinalResultsAndCleanUp(outdir, fin_outdir, logObject):
+	try:
+		delete_set = set(['BLASTing_of_Ortholog_Groups', 'OrthoFinder2_Results', 'KOfam_Annotations',
+						  'AntiSMASH_BGCs_Retagged', 'Prodigal_Gene_Calling_Draft', 'Predicted_Proteomes_Initial',
+						  'Prodigal_Gene_Calling', 'Genomic_Genbanks_Initial'])
+		for fd in os.listdir(outdir):
+			if os.path.isfile(fd): continue
+			subdir = outdir + fd + '/'
+			if fd in delete_set:
+				os.system('rm -rf %s' % subdir)
+		if not os.path.isdir(fin_outdir + 'GCF_Listings/') and os.path.isdir(outdir + 'lsaBGC_Cluster_Results/'):
+			os.system('ln -s %s %s' % (outdir + 'lsaBGC_Cluster_Results/GCF_Listings/', fin_outdir + 'GCF_Listings'))
+			os.system('ln -s %s %s' % (outdir + 'lsaBGC_Cluster_Results/GCF_Details_Expanded_Singletons.txt', fin_outdir + 'GCF_Details.txt'))
+		if os.path.isdir(outdir + 'lsaBGC_AutoExpansion_Results/'):
+			os.system('ln -s %s %s' % (outdir + 'lsaBGC_AutoExpansion_Results/Updated_GCF_Listings/', fin_outdir + 'Expanded_GCF_Listings'))
+			os.system('ln -s %s %s' % (outdir + 'lsaBGC_AutoExpansion_Results/Orthogroups.expanded.tsv', fin_outdir + 'Expanded_Orthogroups.tsv'))
+			os.system('ln -s %s %s' % (outdir + 'lsaBGC_AutoExpansion_Results/Sample_Annotation_Files.txt', fin_outdir + 'Expanded_Sample_Annotation_Files.txt'))
+		else:
+			os.system('ln -s %s %s' % (outdir + 'Intermediate_Files/*', fin_outdir))
+	except Exception as e:
+		raise RuntimeError(traceback.format_exc())
+
+def setupReadyDirectory(directories):
+	try:
+		for d in directories:
+			if os.path.isdir(d):
+				os.system('rm -rf %s' % d)
+			os.system('mkdir %s' % d)
+	except Exception as e:
 		raise RuntimeError(traceback.format_exc())
 
 def p_adjust_bh(p):
@@ -1696,6 +1849,7 @@ def is_genbank(gbk):
 	Function to check in Genbank file is correctly formatted.
 	"""
 	try:
+		assert(gbk.endswith('.gbk') or gbk.endswith('.genbank'))
 		with open(gbk) as of:
 			SeqIO.parse(of, 'genbank')
 		return True

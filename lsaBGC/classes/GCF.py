@@ -2818,7 +2818,7 @@ def popgen_analysis_of_hg(inputs):
 			relative_start = domain_start - gene_start
 			assert (len(gene_locs[gene]) + 3 >= (domain_end - gene_start))
 			relative_end = min([len(gene_locs[gene]), domain_end - gene_start])
-			domain_range = range(relative_start, relative_end+1)
+			domain_range = range(relative_start, relative_end)
 			for pos in domain_range:
 				msa_pos = gene_locs[gene][pos + 1]
 				if domain['type'] == 'PFAM_domain':
