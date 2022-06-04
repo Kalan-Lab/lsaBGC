@@ -1290,8 +1290,8 @@ def performKOFamAnnotation(sample_bgc_proteins, bgc_prot_directory, ko_annot_dir
 					if line.startswith("#"): continue
 					line = line.strip()
 					ls = line.split()
-					ko = ls[0]
-					prot_id = ls[2]
+					ko = ls[2]
+					prot_id = ls[0]
 					full_score = float(ls[5])
 					dom_score = float(ls[8])
 					if ko_score_types[ko] == 'full' and full_score >= ko_score_cutoffs[ko]:
