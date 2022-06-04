@@ -1736,6 +1736,7 @@ def createGCFListingsDirectory(sample_bgcs, bgc_to_sample, bigscape_results_dir,
 
 def updateAntiSMASHGenbanksToIncludeAnnotations(protein_annotations, antismash_bgcs_directory, antismash_bgcs_directory_updated, logObject):
 	try:
+		print(protein_annotations)
 		sample_bgcs_updated = defaultdict(set)
 		bgc_to_sample_updated = {}
 		for s in os.listdir(antismash_bgcs_directory):
@@ -1751,6 +1752,7 @@ def updateAntiSMASHGenbanksToIncludeAnnotations(protein_annotations, antismash_b
 						for feature in rec.features:
 							if feature.type == "CDS":
 								prot_lt = feature.qualifiers.get('locus_tag')[0]
+								print(feature.qualifiers)
 								feature.qualifiers['product'] = [protein_annotations[sample][prot_lt]]
 								updated_features.append(feature)
 							else:
