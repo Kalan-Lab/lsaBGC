@@ -1790,8 +1790,8 @@ def selectFinalResultsAndCleanUp(outdir, fin_outdir, logObject):
 			os.system('ln -s %s %s' % (outdir + 'lsaBGC_Cluster_Results/GCF_Details_Expanded_Singletons.txt', fin_outdir + 'GCF_Details.txt'))
 		if os.path.isdir(outdir + 'lsaBGC_AutoExpansion_Results/'):
 			os.system('ln -s %s %s' % (outdir + 'lsaBGC_AutoExpansion_Results/Updated_GCF_Listings/', fin_outdir + 'Expanded_GCF_Listings'))
-			os.system('ln -s %s %s' % (outdir + 'lsaBGC_AutoExpansion_Results/Orthogroups/Orthogroups.expanded.tsv', fin_outdir + 'Expanded_Orthogroups.tsv'))
-			os.system('ln -s %s %s' % (outdir + 'lsaBGC_AutoExpansion_Results/Orthogroups/Sample_Annotation_Files.txt', fin_outdir + 'Expanded_Sample_Annotation_Files.txt'))
+			os.system('ln -s %s %s' % (outdir + 'lsaBGC_AutoExpansion_Results/Orthogroups.expanded.tsv', fin_outdir + 'Expanded_Orthogroups.tsv'))
+			os.system('ln -s %s %s' % (outdir + 'lsaBGC_AutoExpansion_Results/Sample_Annotation_Files.txt', fin_outdir + 'Expanded_Sample_Annotation_Files.txt'))
 		else:
 			os.system('ln -s %s %s' % (outdir + 'Intermediate_Files/*', fin_outdir))
 	except Exception as e:

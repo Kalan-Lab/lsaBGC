@@ -302,7 +302,7 @@ def lsaBGC_Ready():
         lsabgc_cluster_results_dir = outdir + 'lsaBGC_Cluster_Results/'
         lsabgc_cluster_cmd = ['lsaBGC-Cluster.py', '-b', int_outdir + 'Primary_AntiSMASH_BGCs.txt', '-m',
                               int_outdir + 'Orthogroups.tsv', '-c', str(cores), '-o', lsabgc_cluster_results_dir,
-                              '-r', '0.7', '-i', '1.4', 'j', '20']
+                              '-r', '0.7', '-i', '1.4', '-j', '20.0']
         try:
             subprocess.call(' '.join(lsabgc_cluster_cmd), shell=True, stdout=subprocess.DEVNULL,
                             stderr=subprocess.DEVNULL,
