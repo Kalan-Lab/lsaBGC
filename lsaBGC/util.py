@@ -1294,6 +1294,7 @@ def performKOFamAnnotation(sample_bgc_proteins, bgc_prot_directory, ko_annot_dir
 					prot_id = ls[0]
 					full_score = float(ls[5])
 					dom_score = float(ls[8])
+					if not ko in ko_score_types: continue
 					if ko_score_types[ko] == 'full' and full_score >= ko_score_cutoffs[ko]:
 						hits_per_prot[prot_id].append([ko, full_score])
 					elif ko_score_types[ko] == 'domain' and dom_score >= ko_score_cutoffs[ko]:
