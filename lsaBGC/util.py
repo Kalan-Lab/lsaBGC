@@ -1754,6 +1754,7 @@ def updateAntiSMASHGenbanksToIncludeAnnotations(protein_annotations, antismash_b
 								prot_lt = feature.qualifiers.get('locus_tag')[0]
 								print(feature.qualifiers)
 								feature.qualifiers['product'] = [protein_annotations[sample][prot_lt]]
+								print(feature.qualifiers)
 								updated_features.append(feature)
 							else:
 								updated_features.append(feature)
