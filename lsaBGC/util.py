@@ -1812,6 +1812,7 @@ def is_genbank(gbk):
 	Function to check in Genbank file is correctly formatted.
 	"""
 	try:
+		assert(gbk.endswith('.gbk') or gbk.endswith('.genbank'))
 		with open(gbk) as of:
 			SeqIO.parse(of, 'genbank')
 		return True
