@@ -1074,11 +1074,12 @@ def parseSampleGenomes(genome_listing_file, logObject):
 				sample_genomes[sample] = genome_file
 				if not is_fasta(genome_file):
 					all_fastas = False
+				else:
 					at_least_one_fasta = True
 				if not is_genbank(genome_file):
 					all_genbanks = False
+				else:
 					at_least_one_genbank = True
-
 		format_prediction = 'mixed'
 		if all_genbanks and at_least_one_genbank:
 			format_prediction = 'genbank'
