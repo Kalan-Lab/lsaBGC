@@ -1503,7 +1503,6 @@ def identifyParalogsAndCreateResultFiles(samp_hg_lts, lt_to_hg, sample_bgc_prote
 		raise RuntimeError(traceback.format_exc())
 
 	try:
-
 		for f in os.listdir(tmp_diamond_dir):
 			if not f.endswith('.tsv'): continue
 			sample = f.split('.tsv')[0]
@@ -1741,9 +1740,10 @@ def createGCFListingsDirectory(sample_bgcs, bgc_to_sample, bigscape_results_dir,
 		logObject.error(traceback.format_exc())
 		raise RuntimeError(traceback.format_exc())
 
-def updateAntiSMASHGenbanksToIncludeAnnotations(protein_annotations, bgc_to_sample, antismash_bgcs_directory, antismash_bgcs_directory_updated, logObject):
+def updateAntiSMASHGenbanksToIncludeAnnotations(protein_annotations, bgc_to_sample, sample_bgc_proteins, antismash_bgcs_directory, antismash_bgcs_directory_updated, logObject):
 	sample_bgcs_updated = defaultdict(set)
 	bgc_to_sample_updated = {}
+	sample_bgc_proteins_update = defaultdict(lambda: defaultdict(set))
 	try:
 		for s in os.listdir(antismash_bgcs_directory):
 			os.system('mkdir %s' % (antismash_bgcs_directory_updated + s))
@@ -1768,12 +1768,18 @@ def updateAntiSMASHGenbanksToIncludeAnnotations(protein_annotations, bgc_to_samp
 				ugf_handle.close()
 				sample_bgcs_updated[s].add(update_gbk_file)
 				bgc_to_sample_updated[update_gbk_file] = s
+		for s in sample_bgc_proteins:
+			for bgc in sample_bgc_proteins[s]:
+				bgc_prots = sample_bgc_proteins[sample][bgc]
+				new_bgc = antismash_bgcs_directory_updated + bgc.split('/')[-1]
+				sample_bgc_proteins_update[s][new_bgc] = bgc_prots
+
 
 	except Exception as e:
 		logObject.error("Problem with updating AntiSMASH BGC Genbanks to feature KOfam annotations.")
 		logObject.error(traceback.format_exc())
 		raise RuntimeError(traceback.format_exc())
-	return([sample_bgcs_updated, bgc_to_sample_updated])
+	return([sample_bgcs_updated, bgc_to_sample_updated, sample_bgc_proteins_update])
 
 def selectFinalResultsAndCleanUp(outdir, fin_outdir, logObject):
 	try:

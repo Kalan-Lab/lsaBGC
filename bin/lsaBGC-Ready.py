@@ -248,7 +248,7 @@ def lsaBGC_Ready():
 
     sample_bgc_proteins = util.extractProteinsFromAntiSMASHBGCs(sample_bgcs, bgc_prot_directory, logObject)
 
-    # Step 5: Perform KOfam annotation if requested
+    # Step 5: Perform KOfam annotation if requested and update antiSMASH BGCs (including references to them)
     protein_annotations = None
     if annotate:
         ko_annot_directory = outdir + 'KOfam_Annotations/'
@@ -259,13 +259,14 @@ def lsaBGC_Ready():
         antismash_bgcs_directory_updated = outdir + 'AntiSMASH_BGCs_Retagged_and_Annotated/'
         util.setupReadyDirectory([antismash_bgcs_directory_updated])
 
-        sample_bgcs_update, bgc_to_sample_update = util.updateAntiSMASHGenbanksToIncludeAnnotations(protein_annotations, bgc_to_sample,
+        sample_bgcs_update, bgc_to_sample_update, sample_bgc_proteins_update = util.updateAntiSMASHGenbanksToIncludeAnnotations(protein_annotations, bgc_to_sample, sample_bgc_proteins,
                                                                                                     antismash_bgcs_directory,
                                                                                                     antismash_bgcs_directory_updated,
                                                                                                     logObject)
         antismash_bgcs_directory = antismash_bgcs_directory_updated
         sample_bgcs = sample_bgcs_update
         bgc_to_sample = bgc_to_sample_update
+        sample_bgc_proteins = sample_bgc_proteins_update
 
     # Step 6: Run OrthoFinder2 with Proteins from BGCs
     orthofinder_directory = outdir + 'OrthoFinder2_Results/'
@@ -300,9 +301,8 @@ def lsaBGC_Ready():
         util.createGCFListingsDirectory(sample_bgcs, bgc_to_sample, bigscape_results_dir, gcf_listings_directory, logObject)
     elif run_lsabgc_cluster:
         lsabgc_cluster_results_dir = outdir + 'lsaBGC_Cluster_Results/'
-        lsabgc_cluster_cmd = ['lsaBGC-Cluster.py', '-b', int_outdir + 'Primary_AntiSMASH_BGCs.txt', '-m',
-                              int_outdir + 'Orthogroups.tsv', '-c', str(cores), '-o', lsabgc_cluster_results_dir,
-                              '-r', '0.7', '-i', '1.4', '-j', '20.0']
+        lsabgc_cluster_cmd = ['lsaBGC-Cluster.py', '-b',primary_bgc_listing_file, '-m', primary_orthofinder_matrix_file,
+                              '-c', str(cores), '-o', lsabgc_cluster_results_dir, '-r', '0.7', '-i', '1.4', '-j', '20.0']
         try:
             subprocess.call(' '.join(lsabgc_cluster_cmd), shell=True, stdout=subprocess.DEVNULL,
                             stderr=subprocess.DEVNULL,
