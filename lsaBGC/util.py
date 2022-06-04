@@ -1079,6 +1079,7 @@ def parseSampleGenomes(genome_listing_file, logObject):
 				if not is_genbank(genome_file):
 					all_genbanks = False
 				else:
+					print(genome_file)
 					at_least_one_genbank = True
 		print(all_genbanks)
 		print(all_fastas)
