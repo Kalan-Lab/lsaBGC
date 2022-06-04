@@ -1079,12 +1079,8 @@ def parseSampleGenomes(genome_listing_file, logObject):
 				if not is_genbank(genome_file):
 					all_genbanks = False
 				else:
-					print(genome_file)
 					at_least_one_genbank = True
-		print(all_genbanks)
-		print(all_fastas)
-		print(at_least_one_genbank)
-		print(at_least_one_fasta)
+
 		format_prediction = 'mixed'
 		if all_genbanks and at_least_one_genbank:
 			format_prediction = 'genbank'
@@ -1260,7 +1256,8 @@ def performKOFamAnnotation(sample_bgc_proteins, bgc_prot_directory, ko_annot_dir
 		ko_score_types = {}
 		ko_descriptions = {}
 		with open(kofam_pro_list) as okpl:
-			for line in okpl:
+			for i, line in enumerate(okpl):
+				if i == 0: continue
 				line = line.strip()
 				ls = line.split('\t')
 				ko = ls[0]
