@@ -161,7 +161,7 @@ def lsaBGC_Ready():
             assert(os.path.isfile(kofam_db_location))
             with open(kofam_db_location) as okdlf:
                 for line in okdlf:
-                    kofam_hmm_file, kofam_pro_list = line.strip().split('\t')
+                    kofam_pro_list, kofam_hmm_file = line.strip().split('\t')
                     assert(os.path.isfile(kofam_hmm_file) and os.path.isfile(kofam_pro_list))
         except:
             raise RuntimeError("It appears KOfam database was not setup or setup successfully. Please run/rerun the script setup_annotation_dbs.py and report to Github issues if issue persists.")
