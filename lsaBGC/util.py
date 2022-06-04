@@ -1300,7 +1300,7 @@ def performKOFamAnnotation(sample_bgc_proteins, bgc_prot_directory, ko_annot_dir
 						hits_per_prot[prot_id].append([ko, -full_score, full_eval])
 					elif ko_score_types[ko] == 'domain' and dom_score >= ko_score_cutoffs[ko]:
 						hits_per_prot[prot_id].append([ko, -dom_score, full_eval])
-					if full_eval < 1e-50:
+					if full_eval < 1e-20 and full_score > 100.0:
 						hits_per_prot[prot_id].append([ko, -1E10, full_eval])
 			best_hits = defaultdict(lambda: 'NA: hypothetical protein')
 			for pi in hits_per_prot:
@@ -1774,6 +1774,21 @@ def updateAntiSMASHGenbanksToIncludeAnnotations(protein_annotations, bgc_to_samp
 		logObject.error(traceback.format_exc())
 		raise RuntimeError(traceback.format_exc())
 	return([sample_bgcs_updated, bgc_to_sample_updated])
+
+def selectFinalResultsAndCleanUp(outdir, fin_outdir, logObject):
+	try:
+		delete_set = set(['BLASTing_of_Ortholog_Groups', 'OrthoFinder2_Results', 'KOfam_Annotations',
+						  'AntiSMASH_BGCs_Retagged', 'Prodigal_Gene_Calling_Draft', 'Predicted_Proteomes_Initial',
+						  'Prodigal_Gene_Calling', 'Genomic_Genbanks_Initial'])
+		for fd in os.listdir(outdir):
+			if os.path.isfile(fd): continue
+			subdir = outdir + fd + '/'
+			if fd in delete_set:
+				os.system('rm -rf %s' % subdir)
+
+	except Exception as e:
+		raise RuntimeError(traceback.format_exc())
+
 def setupReadyDirectory(directories):
 	try:
 		for d in directories:

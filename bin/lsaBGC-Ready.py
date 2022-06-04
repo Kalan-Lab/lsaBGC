@@ -337,7 +337,7 @@ def lsaBGC_Ready():
             raise RuntimeError('Had an issue running: %s' % ' '.join(lsabgc_expansion_cmd))
 
     # Step 11: Create Final Results Directory
-    #util.selectFinalResultsAndCleanUp(outdir, fin_outdir, logObject)
+    util.selectFinalResultsAndCleanUp(outdir, fin_outdir, logObject)
 
     # Close logging object and exit
     util.closeLoggerObject(logObject)

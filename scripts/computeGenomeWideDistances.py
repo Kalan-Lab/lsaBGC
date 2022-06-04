@@ -62,47 +62,26 @@ def create_parser():
 	Author: Rauf Salamzade
 	Affiliation: Kalan Lab, UW Madison, Department of Medical Microbiology and Immunology
 
-	Program to automate most of lsaBGC analytical programs across each GCF. 
-
+    Program to 
 	""", formatter_class=argparse.RawTextHelpFormatter)
 
-    parser.add_argument('-o', '--output_directory', help="Parent output/workspace directory.", required=True)
     parser.add_argument('-l', '--sample_annotation_listing',
                         help="Path to tab delimited file listing: (1) sample name (2) path to Prokka Genbank and (3) path to Prokka predicted proteome. This file is produced by lsaBGC-Process.py.",
-                        required=False, default=None)
-    parser.add_argument('-s', '--create_species_tree', action='store_true',
+                        required=True)
+    parser.add_argument('-o', '--output_directory', help="Parent output/workspace directory.", required=True)
+    parser.add_argument('-t', '--create_species_tree', action='store_true',
                         help="Use neighbor-joining to create a species tree off pairwise distances.",
                         default=False, required=False)
-    parser.add_argument('-p', '--population_analysis', action='store_true',
+    parser.add_argument('-p', '--infer_populations', action='store_true',
                         help="Whether to construct species phylogeny and use it to determine populations.",
                         default=False, required=False)
-    parser.add_argument('-cm', '--comparem', action='store_true',
-                        help='Use compareM (to perform AAI analysis) instead of FastANI (to perform ANI analysis). This is recommended if the "lineage" in question is a genus.')
-    parser.add_argument('-ps', '--num_populations', type=int,
-                        help='Overwritten if manual_populations is specified. If population analysis specified, what is the number of populations to infer from cutting the neighbor joining tree constructed by FastANI/CompareM inference.',
-                        required=False, default=4)
-    parser.add_argument('-mp', '--manual_populations', help='Path to user defined populations file.', required=False,
-                        default=None)
-    parser.add_argument('-i', '--discovary_input_listing',
-                        help="Sequencing readsets for DiscoVary analysis. Tab delimited file listing: (1) sample name, (2) forward readset, (3) reverse readset for metagenomic/isolate sequencing data.",
-                        required=False, default=None)
-    parser.add_argument('-n', '--discovary_analysis_name',
-                        help="Identifier/name for DiscoVary. Not providing this parameter will avoid running lsaBGC-DiscoVary step.",
-                        required=False, default=None)
+    parser.add_argument('-i', '--identity_cutoff', type=float, help='Cutoff for ANI/AAI for grouping samples together if population inference requested.', required=False, default=0.99)
+    parser.add_argument('-s', '--shared_cutoff', type=float, help='Cutoff for shared genomic content for grouping samples together if population inference requested.', required=False, efault=0.8)
+    parser.add_argument('-m', '--method', help='Which method to use for estimating ANI or AAI? Options: "CompareM", "FastANI", "MASH".')
     parser.add_argument('-c', '--cores', type=int, help="Total number of cores to use.", required=False, default=1)
 
     args = parser.parse_args()
     return args
-
-
-def writeToOpenHandle(gcf_results_file, combined_results_handle, include_header):
-    with open(gcf_results_file) as ogrf:
-        for i, line in enumerate(ogrf):
-            if i == 0 and include_header:
-                combined_results_handle.write(line)
-            elif i != 0:
-                combined_results_handle.write(line)
-
 
 def lsaBGC_AutoAnalyze():
     """
