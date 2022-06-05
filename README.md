@@ -1,6 +1,5 @@
 # *lsa*BGC
 ### Lineage Specific Analysis of Biosynthetic Gene Clusters
-#### Rauf Salamzade - Kalan Lab, MMI UW-Madison
 
 *lsa*BGC is a software suite designed to provide a comprehensive set of functions for investigating and mining for 
 biosynthetic gene cluster diversity across a focal lineage/taxa of interest using AntiSMASH based annotation.
