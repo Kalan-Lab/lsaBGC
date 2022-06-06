@@ -87,11 +87,11 @@ setup_annotation_dbs.py
 
 ## Overview:
 
-![](https://github.com/Kalan-Lab/lsaBGC/blob/main/docs/images/lsaBGC1.1_Overview.jpg)
+![]([https://github.com/Kalan-Lab/lsaBGC/blob/main/docs/images/lsaBGC1.1_Overview.jpg](https://github.com/Kalan-Lab/lsaBGC/blob/main/docs/images/lsaBGC_Simplified.png))
 
 ## Acknowledgements:
 
-We would like to thank members of the Kalan lab, Currie lab, Kwan lab, and Anantharaman lab at UW Madison for feedback on the development of lsaBGC.
+We would like to thank members of the Kalan lab, Currie lab, Kwan lab, and Anantharaman lab at UW Madison for feedback on the development of lsaBGC. 
 
 ## License:
 
