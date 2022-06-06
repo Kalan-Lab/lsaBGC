@@ -1,8 +1,14 @@
 # *lsa*BGC
 ### Lineage Specific Analysis of Biosynthetic Gene Clusters
 
-*lsa*BGC is a software suite designed to provide a comprehensive set of functions for investigating and mining for 
-biosynthetic gene cluster diversity across a focal lineage/taxa of interest using AntiSMASH based annotation.
+*lsa*BGC is a modular, software suite designed to provide a comprehensive set of functions for investigating and mining for 
+biosynthetic gene cluster diversity across a focal lineage/taxa of interest using AntiSMASH based annotation. It consists of 
+8 independent programs: `lsaBGC-Ready.py`, `lsaBGC-Cluster.py`, `lsaBGC-Expansion`, `lsaBGC-Refine.py`, `lsaBGC-See.py`, 
+`lsaBGC-PopGene.py`, `lsaBGC-Divergence.py`, and `lsaBGC-DiscoVary.py`.
+
+![](https://github.com/Kalan-Lab/lsaBGC/blob/main/docs/images/lsaBGC_Simplified.png)
+
+## Major Updates 
 
 * Jun 06, 2022 - Major updates to `lsaBGC-Ready.py` - the new recommended program for setting-up to run the lsaBGC suite.
 * May 24, 2022 - `lsaBGC-Ready.py` is now available and can take pre-computed antiSMASH BGC predictions, along with optional BiG-SCAPE clustering results, to produce the required inputs for major lsaBGC analytical programs (`lsaBGC-See.py`, `lsaBGC-Refine.py`, `lsaBGC-PopGene.py`, `lsaBGC-DiscoVary.py`). 
@@ -85,13 +91,9 @@ KOfam profile HMMs (~5GB). To setup databases, simply run the script:
 setup_annotation_dbs.py 
 ```
 
-## Overview:
-
-![]([https://github.com/Kalan-Lab/lsaBGC/blob/main/docs/images/lsaBGC1.1_Overview.jpg](https://github.com/Kalan-Lab/lsaBGC/blob/main/docs/images/lsaBGC_Simplified.png))
-
 ## Acknowledgements:
 
-We would like to thank members of the Kalan lab, Currie lab, Kwan lab, and Anantharaman lab at UW Madison for feedback on the development of lsaBGC. 
+We would like to thank members of the Kalan lab, Currie lab, Kwan lab, and Anantharaman lab at UW Madison for feedback on the development of lsaBGC.
 
 ## License:
 
