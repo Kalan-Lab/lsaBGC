@@ -65,7 +65,7 @@ def create_parser():
 	""", formatter_class=argparse.RawTextHelpFormatter)
 
 	parser.add_argument('-i', '--input_antismash_dir', help='Path to genomic assembly in FASTA format.', required=True)
-
+	parser.add_argument('-f', '--filter_incomplete', help='Filter out incomplete BGCs (those found on contig edges.', required=False, default=False)
 	args = parser.parse_args()
 	return args
 
@@ -87,13 +87,23 @@ def siftAndPrint():
 	except:
 		raise RuntimeError('Cannot find input directory of antiSMASH results.')
 
+	filter_incomplete_flag = myargs.filter_incomplete
+
 	"""
 	START WORKFLOW
 	"""
 
 	for full_file_name in glob.glob(input_antismash_dir + "*/*region*.gbk"):
 		sample = full_file_name.split('/')[-2]
-		print(sample + '\t' + full_file_name)
+		contig_edge_flag
+		with open(full_file_name) as offn:
+			for line in offn:
+				line = line.strip()
+				if '/contig_edge="True"' in line:
+					contig_edge_flag = True
+
+		if not filter_incomplete_flag or (filter_incomplete_flag and contig_edge_flag):
+			print(sample + '\t' + full_file_name)
 
 if __name__ == '__main__':
 	siftAndPrint()
