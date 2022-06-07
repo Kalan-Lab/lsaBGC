@@ -76,7 +76,7 @@ def create_parser():
                         help="Use neighbor-joining to create a species tree off pairwise distances.",
                         default=False, required=False)
     parser.add_argument('-i', '--identity_cutoff', type=float, help='Cutoff for ANI/AAI for grouping samples together if population inference requested.', required=False, default=0.99)
-    parser.add_argument('-s', '--shared_cutoff', type=float, help='Cutoff for shared genomic content for grouping samples together if population inference requested.', required=False, efault=0.8)
+    parser.add_argument('-s', '--shared_cutoff', type=float, help='Cutoff for shared genomic content for grouping samples together if population inference requested.', required=False, default=0.8)
     parser.add_argument('-m', '--method', help='Which method to use for estimating ANI or AAI? Options: "CompareM", "FastANI", "MASH". Default is FastANI.', required=False, default="FastANI")
     parser.add_argument('-c', '--cores', type=int, help="Total number of cores to use.", required=False, default=1)
 

@@ -1008,12 +1008,12 @@ def multiProcess(input):
 
 def processGenomes(sample_genomes, prodigal_outdir, prodigal_proteomes, prodigal_genbanks, logObject, cores=1, locus_tag_length=3):
 	"""
-	Void function to run Prokka based gene-calling and annotations.
+	Void function to run Prodigal based gene-calling and annotations.
 
 	:param sample_genomes: dictionary with keys as sample names and values as genomic assembly paths.
 	:param prodigal_outdir: full path to directory where Prokka results will be written.
-	:param prodigal_proteomes: full path to directory where Prokka generated predicted-proteome FASTA files will be moved after Prokka has run.
-	:param prodigal_genbanks: full path to directory where Prokka generated Genbank (featuring predicted CDS) files will be moved after Prokka has run.
+	:param prodigal_proteomes: full path to directory where Prokka generated predicted-proteome FASTA files will be moved after prodigal has run.
+	:param prodigal_genbanks: full path to directory where Prokka generated Genbank (featuring predicted CDS) files will be moved after prodigal has run.
 	:param taxa: name of the taxonomic clade of interest.
 	:param logObject: python logging object handler.
 	:param cores: number of cores to use in multiprocessing Prokka cmds.

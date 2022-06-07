@@ -37,5 +37,5 @@ dependencies:
   - bioconda::orthofinder=2.5.4
   - bioconda::prodigal=2.6.3
   - conda-forge::pandas=1.4.2
-  - - pip:
+  - pip:
         - magus-msa= 0.1.0b2
