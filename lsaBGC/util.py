@@ -1802,6 +1802,10 @@ def selectFinalResultsAndCleanUp(outdir, fin_outdir, logObject):
 			elif os.path.isdir(outdir + 'lsaBGC_Cluster_Results/'):
 				os.system('ln -s %s %s' % (outdir + 'lsaBGC_Cluster_Results/GCF_Listings/', fin_outdir + 'GCF_Listings'))
 				os.system('ln -s %s %s' % (outdir + 'lsaBGC_Cluster_Results/GCF_Details_Expanded_Singletons.txt', fin_outdir + 'GCF_Details.txt'))
+		if os.path.isdir(outdir + 'BiG_SCAPE_Results_Reformatted/'):
+			os.system('ln -s %s %s' % (outdir + 'BiG_SCAPE_Results_Reformatted/GCF_Details.txt', fin_outdir + 'GCF_Details.txt'))
+		elif os.path.isdir(outdir + 'lsaBGC_Cluster_Results/'):
+			os.system('ln -s %s %s' % (outdir + 'lsaBGC_Cluster_Results/GCF_Details_Expanded_Singletons.txt', fin_outdir + 'GCF_Details.txt'))
 
 	except Exception as e:
 		raise RuntimeError(traceback.format_exc())
