@@ -177,11 +177,11 @@ def lsaBGC_Ready():
     parameters_file = outdir + 'Parameter_Inputs.txt'
     parameter_values = [genome_listing_file, antismash_listing_file, outdir, draft_genome_listing_file,
                         genomes_as_genbanks, bigscape_results_dir, annotate, run_lsabgc_cluster, run_lsabgc_expansion,
-                        keep_intermediates]
+                        keep_intermediates, cores]
     parameter_names = ["Primary Genome Listing File", "AntiSMASH Results Listing File", "Output Directory",
                        "Draft Genome Listing File", "Primary Genomes are Genbanks with CDS Annotation Features",
                        "BiG-SCAPE Results Directory", "Perform KOfam Annotation?", "Run lsaBGC-Cluster Analysis?",
-                       "Run lsaBGC-AutoExpansion Analysis?", "Number of Cores?", "Keep Intermediate Files/Directories?"]
+                       "Run lsaBGC-AutoExpansion Analysis?", "Keep Intermediate Files/Directories?", "Number of Cores"]
     util.logParametersToFile(parameters_file, parameter_names, parameter_values)
     logObject.info("Done saving parameters!")
 
@@ -295,9 +295,12 @@ def lsaBGC_Ready():
                                               cores=cores)
 
     # Step 9: Process BiG-SCAPE Results and Create GCF Listings (if provided by user) or run lsaBGC-Cluster if requested.
+    gcf_listings_directory = None
     if bigscape_results_dir != None:
-        gcf_listings_directory = fin_outdir + 'GCF_Listings/'
-        if not os.path.isdir(gcf_listings_directory): os.system('mkdir %s' % gcf_listings_directory)
+        bigscape_reformat_directory = outdir + 'BiG_SCAPE_Results_Reformatted/'
+        gcf_listings_directory = bigscape_reformat_directory + 'GCF_Listings/'
+        if not os.path.isdir(bigscape_reformat_directory) or not os.path.isdir(gcf_listings_directory):
+            util.setupReadyDirectory([bigscape_reformat_directory, gcf_listings_directory])
         util.createGCFListingsDirectory(sample_bgcs, bgc_to_sample, bigscape_results_dir, gcf_listings_directory, logObject)
     elif run_lsabgc_cluster:
         lsabgc_cluster_results_dir = outdir + 'lsaBGC_Cluster_Results/'
@@ -309,6 +312,7 @@ def lsaBGC_Ready():
                             executable='/bin/bash')
             if logObject:
                 logObject.info('Successfully ran: %s' % ' '.join(lsabgc_cluster_cmd))
+            gcf_listings_directory = lsabgc_cluster_results_dir + 'GCF_Listings/'
         except:
             if logObject:
                 logObject.error('Had an issue running: %s' % ' '.join(lsabgc_cluster_cmd))
@@ -318,9 +322,9 @@ def lsaBGC_Ready():
     # Step 10: Run lsaBGC-AutoExpansion if requested
     if run_lsabgc_expansion and ((bigscape_results_dir != None and os.path.isdir(bigscape_results_dir)) or
                                  (run_lsabgc_cluster and os.path.isdir(lsabgc_cluster_results_dir))) and \
-                                draft_genome_listing_file != None:
+                                draft_genome_listing_file != None and os.path.isdir(gcf_listings_directory):
         lsabgc_expansion_results_dir = outdir + 'lsaBGC_AutoExpansion_Results/'
-        lsabgc_expansion_cmd = ['lsaBGC-AutoExpansion.py', '-g', fin_outdir + 'GCF_Listings/', '-m',
+        lsabgc_expansion_cmd = ['lsaBGC-AutoExpansion.py', '-g', gcf_listings_directory, '-m',
                                int_outdir + 'Orthogroups.tsv', '-l', int_outdir + 'Primary_Sample_Annotation_Files.txt',
                                '-e', int_outdir + 'Draft_Sample_Annotation_Files.txt', '-q', '-c', str(cores),
                                '-o', lsabgc_expansion_results_dir]
