@@ -180,6 +180,7 @@ def main():
                                                                      fastani_results_file, cores, logObject)
     elif method.upper() == 'COMPAREM':
         comparem_results_dir = outdir + 'CompareM/'
+        util.setupReadyDirectory([comparem_results_dir])
         gw_pairwise_identities, gw_pairwise_shared = util.runCompareM(gw_fasta_listing_file,
                                                                              comparem_results_dir, cores, logObject)
 
