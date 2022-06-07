@@ -226,7 +226,8 @@ def main():
                             redundant_samples.add(s2)
                         else:
                             redundant_samples.add(s1)
-            genome_wise_est_handle.write(s1 + '\t' + s2 + '\t' + str(gw_pairwise_identities[s1][s2]) + '\n')
+            if s1 != s2:
+                genome_wise_est_handle.write(s1 + '\t' + s2 + '\t' + str(gw_pairwise_identities[s1][s2]) + '\n')
             printlist.append(str(1.0-gw_pairwise_identities[s1][s2]))
         mash_matrix_handle.write('\t'.join(printlist) + '\n')
     mash_matrix_handle.close()
