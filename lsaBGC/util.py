@@ -1790,15 +1790,19 @@ def selectFinalResultsAndCleanUp(outdir, fin_outdir, logObject):
 			subdir = outdir + fd + '/'
 			if fd in delete_set:
 				os.system('rm -rf %s' % subdir)
-		if not os.path.isdir(fin_outdir + 'GCF_Listings/') and os.path.isdir(outdir + 'lsaBGC_Cluster_Results/'):
-			os.system('ln -s %s %s' % (outdir + 'lsaBGC_Cluster_Results/GCF_Listings/', fin_outdir + 'GCF_Listings'))
-			os.system('ln -s %s %s' % (outdir + 'lsaBGC_Cluster_Results/GCF_Details_Expanded_Singletons.txt', fin_outdir + 'GCF_Details.txt'))
 		if os.path.isdir(outdir + 'lsaBGC_AutoExpansion_Results/'):
 			os.system('ln -s %s %s' % (outdir + 'lsaBGC_AutoExpansion_Results/Updated_GCF_Listings/', fin_outdir + 'Expanded_GCF_Listings'))
 			os.system('ln -s %s %s' % (outdir + 'lsaBGC_AutoExpansion_Results/Orthogroups.expanded.tsv', fin_outdir + 'Expanded_Orthogroups.tsv'))
 			os.system('ln -s %s %s' % (outdir + 'lsaBGC_AutoExpansion_Results/Sample_Annotation_Files.txt', fin_outdir + 'Expanded_Sample_Annotation_Files.txt'))
 		else:
 			os.system('ln -s %s %s' % (outdir + 'Intermediate_Files/*', fin_outdir))
+			if os.path.isdir(outdir + 'BiG_SCAPE_Results_Reformatted/'):
+				os.system('ln -s %s %s' % (outdir + 'BiG_SCAPE_Results_Reformatted/GCF_Listings/', fin_outdir + 'GCF_Listings'))
+				os.system('ln -s %s %s' % (outdir + 'BiG_SCAPE_Results_Reformatted/GCF_Details.txt', fin_outdir + 'GCF_Details.txt'))
+			elif os.path.isdir(outdir + 'lsaBGC_Cluster_Results/'):
+				os.system('ln -s %s %s' % (outdir + 'lsaBGC_Cluster_Results/GCF_Listings/', fin_outdir + 'GCF_Listings'))
+				os.system('ln -s %s %s' % (outdir + 'lsaBGC_Cluster_Results/GCF_Details_Expanded_Singletons.txt', fin_outdir + 'GCF_Details.txt'))
+
 	except Exception as e:
 		raise RuntimeError(traceback.format_exc())
 
