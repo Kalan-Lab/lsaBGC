@@ -196,6 +196,9 @@ def main():
     mash_matrix_handle = open(mash_matrix_file, 'w')
     mash_matrix_handle.write('Sample/Sample\t' + '\t'.join([s for s in sorted(gw_pairwise_identities)]) + '\n')
 
+    genome_wise_est_file = outdir + 'Genome_Wide_Estimates.txt'
+    genome_wise_est_handle = open(genome_wise_est_file, 'w')
+
     similar_samples = []
     similar_sample_set = set([])
     all_samples = set([])
@@ -222,9 +225,11 @@ def main():
                             redundant_samples.add(s2)
                         else:
                             redundant_samples.add(s1)
+            genome_wise_est_handle.write(s1 + '\t' + s2 + '\t' + str(gw_pairwise_identities[s1][s2]) + '\n')
             printlist.append(str(1.0-gw_pairwise_identities[s1][s2]))
         mash_matrix_handle.write('\t'.join(printlist) + '\n')
     mash_matrix_handle.close()
+    genome_wise_est_handle.close()
 
     sample_retention_set = all_samples.difference(redundant_samples).difference(poor_n50_samples)
     update_sample_list_file = outdir + 'Sample_Listing_Keep.txt'
