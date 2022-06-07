@@ -164,7 +164,7 @@ def main():
     Pan_Object = Pan(sample_annotation_listing_file, logObject=logObject)
     logObject.info("Converting Genbanks from listing file into FASTA per sample.")
     gw_fasta_dir = outdir + 'Sample_Assemblies_in_FASTA/'
-    util.setupReadyDirectory(gw_fasta_dir)
+    util.setupReadyDirectory([gw_fasta_dir])
     Pan_Object.convertGenbanksIntoFastas(gw_fasta_dir, gw_fasta_listing_file)
     logObject.info("Successfully performed conversions.")
 
