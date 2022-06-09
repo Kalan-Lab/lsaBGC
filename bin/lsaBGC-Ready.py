@@ -69,15 +69,15 @@ def create_parser():
 	""", formatter_class=argparse.RawTextHelpFormatter)
 
     parser.add_argument('-i', '--genome_listing',
-                        help='Tab-delimited, two column file for core samples (ideally with high-quality or complete genomes) where the first column is the sample/isolate/genome name and the second is the full path to the genome file (Genbank or FASTA)',
+                        help='Tab-delimited, two column file for primary samples (ideally with high-quality or complete genomes) where the first column is the sample/isolate/genome name and the second is the full path to the genome file (Genbank or FASTA)',
                         required=True)
     parser.add_argument('-l', '--antismash_listing',
-                        help='Tab-delimited, two column file for antiSMASH results for samples listed in the "--genome_listing" argument, where the first column is the sample/isolate/genome name the second is the full path to an antiSMASH BGC prediction in Genbank format.',
+                        help='Tab-delimited, two column file listing antiSMASH results for primary samples (those from the "--genome_listing" argument), where the first column is the sample/isolate/genome name the second is the full path to an antiSMASH BGC prediction in Genbank format.',
                         required=True)
     parser.add_argument('-o', '--output_directory', help='Parent output/workspace directory.', required=True)
     parser.add_argument('-b', '--bigscape_results', help='Path to BiG-SCAPE results directory of antiSMASH predicted in complete genomes. Please make sure the sample names match what is provided for "--genome_listings".', required=False,
                         default=None)
-    parser.add_argument('-d', '--draft_genome_listing', help='Tab-delimited, two column file for samples with draft genomes (same format as for the "--genome_listing" argument). The genomes/BGCs of these samples won\'t be used in ortholog-grouping of proteins and clustering of BGCs, but will simply have gene calling run for them. This will enable more sensitive/expanded detection of GCF instances later using lsaBGC-Expansion/AutoExpansion.',
+    parser.add_argument('-d', '--additional_genome_listing', help='Tab-delimited, two column file for samples with additional/draft genomes (same format as for the "--genome_listing" argument). The genomes/BGCs of these samples won\'t be used in ortholog-grouping of proteins and clustering of BGCs, but will simply have gene calling run for them. This will enable more sensitive/expanded detection of GCF instances later using lsaBGC-Expansion/AutoExpansion.',
                         required=False, default=None)
     parser.add_argument('-a', '--annotate', action='store_true',
                         help='Perform annotation of BGC proteins using KOfam HMM profiles.', required=False, default=False)
@@ -179,7 +179,7 @@ def lsaBGC_Ready():
                         genomes_as_genbanks, bigscape_results_dir, annotate, run_lsabgc_cluster, run_lsabgc_expansion,
                         keep_intermediates, cores]
     parameter_names = ["Primary Genome Listing File", "AntiSMASH Results Listing File", "Output Directory",
-                       "Draft Genome Listing File", "Primary Genomes are Genbanks with CDS Annotation Features",
+                       "Additional Genome Listing File", "Primary Genomes are Genbanks with CDS Annotation Features",
                        "BiG-SCAPE Results Directory", "Perform KOfam Annotation?", "Run lsaBGC-Cluster Analysis?",
                        "Run lsaBGC-AutoExpansion Analysis?", "Keep Intermediate Files/Directories?", "Number of Cores"]
     util.logParametersToFile(parameters_file, parameter_names, parameter_values)
@@ -208,8 +208,8 @@ def lsaBGC_Ready():
         ## genomes are provided as Genbanks
         util.extractProteins(sample_genomes, proteomes_directory, logObject)
 
-    # Step 2: Process Draft Genomes
-    draft_sample_annotation_listing_file = int_outdir + 'Draft_Sample_Annotation_Files.txt'
+    # Step 2: Process Additional Genomes
+    draft_sample_annotation_listing_file = int_outdir + 'Additional_Sample_Annotation_Files.txt'
     if draft_genome_listing_file != None:
         draft_sample_genomes, draft_format_prediction = util.parseSampleGenomes(draft_genome_listing_file, logObject)
 
@@ -219,9 +219,9 @@ def lsaBGC_Ready():
             logObject.error('Format of draft genomes must be FASTA.')
             raise RuntimeError('Format of draft genomes must be FASTA.')
 
-        draft_prodigal_outdir = outdir + 'Prodigal_Gene_Calling_Draft/'
-        draft_proteomes_directory = outdir + 'Predicted_Proteomes_Draft/'
-        draft_genbanks_directory = outdir + 'Genomic_Genbanks_Draft/'
+        draft_prodigal_outdir = outdir + 'Prodigal_Gene_Calling_Additional/'
+        draft_proteomes_directory = outdir + 'Predicted_Proteomes_Additional/'
+        draft_genbanks_directory = outdir + 'Genomic_Genbanks_Additional/'
         util.setupReadyDirectory([draft_prodigal_outdir, draft_proteomes_directory, draft_genbanks_directory])
 
         # Note, locus tags of length 4 are used within lsaBGC to mark samples with draft genomes where we ultimately
@@ -326,7 +326,7 @@ def lsaBGC_Ready():
         lsabgc_expansion_results_dir = outdir + 'lsaBGC_AutoExpansion_Results/'
         lsabgc_expansion_cmd = ['lsaBGC-AutoExpansion.py', '-g', gcf_listings_directory, '-m',
                                int_outdir + 'Orthogroups.tsv', '-l', int_outdir + 'Primary_Sample_Annotation_Files.txt',
-                               '-e', int_outdir + 'Draft_Sample_Annotation_Files.txt', '-q', '-c', str(cores),
+                               '-e', int_outdir + 'Additional_Sample_Annotation_Files.txt', '-q', '-c', str(cores),
                                '-o', lsabgc_expansion_results_dir]
         try:
             subprocess.call(' '.join(lsabgc_expansion_cmd), shell=True, stdout=subprocess.DEVNULL,

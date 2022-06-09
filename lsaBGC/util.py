@@ -1783,7 +1783,7 @@ def updateAntiSMASHGenbanksToIncludeAnnotations(protein_annotations, bgc_to_samp
 def selectFinalResultsAndCleanUp(outdir, fin_outdir, logObject):
 	try:
 		delete_set = set(['BLASTing_of_Ortholog_Groups', 'OrthoFinder2_Results', 'KOfam_Annotations',
-						  'AntiSMASH_BGCs_Retagged', 'Prodigal_Gene_Calling_Draft', 'Predicted_Proteomes_Initial',
+						  'AntiSMASH_BGCs_Retagged', 'Prodigal_Gene_Calling_Additional', 'Predicted_Proteomes_Initial',
 						  'Prodigal_Gene_Calling', 'Genomic_Genbanks_Initial'])
 		for fd in os.listdir(outdir):
 			if os.path.isfile(fd): continue
