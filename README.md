@@ -81,7 +81,13 @@ make sure to replace the dummy paths!):
 ```
 mkdir -p /path/to/conda_env/etc/conda/activate.d
 touch /path/to/conda_env/etc/conda/activate.d/env_vars.sh
-echo $'#!/bin/sh\n\ulimit -n 1000000' > /path/to/conda_env/etc/conda/activate.d/env_vars.sh
+echo $'#!/bin/sh\n\ulimit -n 1000000\n' > /path/to/conda_env/etc/conda/activate.d/env_vars.sh
+```
+
+We also recommend setting the environment variable $TMPDIR to a larger space than the typical default `/tmp/` which is usually short on space. This becomes needed for large `sort` operations, which can pop up when using CompareM.
+
+```
+echo $'export $TMPDIR=/path/to/larger_tmp_dir/' >> /path/to/conda_env/etc/conda/activate.d/env_vars.sh
 ```
 
 5. Setup database(s) for annotation used by `lsaBGC-Ready.py`. This is currently just the,
