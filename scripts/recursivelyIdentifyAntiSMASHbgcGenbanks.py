@@ -95,7 +95,7 @@ def siftAndPrint():
 
 	for full_file_name in glob.glob(input_antismash_dir + "*/*region*.gbk"):
 		sample = full_file_name.split('/')[-2]
-		contig_edge_flag
+		contig_edge_flag = False
 		with open(full_file_name) as offn:
 			for line in offn:
 				line = line.strip()
