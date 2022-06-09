@@ -87,8 +87,6 @@ def siftAndPrint():
     except:
         raise RuntimeError('Cannot find input directory of antiSMASH results.')
 
-    filter_incomplete_flag = myargs.filter_incomplete
-
     """
     START WORKFLOW
     """
