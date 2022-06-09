@@ -1776,7 +1776,7 @@ def updateAntiSMASHGenbanksToIncludeAnnotations(protein_annotations, bgc_to_samp
 				bgc_to_sample_updated[update_gbk_file] = s
 		for s in sample_bgc_proteins:
 			for bgc in sample_bgc_proteins[s]:
-				bgc_prots = sample_bgc_proteins[sample][bgc]
+				bgc_prots = sample_bgc_proteins[s][bgc]
 				new_bgc = antismash_bgcs_directory_updated + '/'.join(bgc.split('/')[-2:])
 				sample_bgc_proteins_update[s][new_bgc] = bgc_prots
 
