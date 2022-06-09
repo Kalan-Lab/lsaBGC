@@ -1606,7 +1606,10 @@ def identifyParalogsAndCreateResultFiles(samp_hg_lts, lt_to_hg, sample_bgc_prote
 					for feature in rec.features:
 						if feature.type == 'CDS':
 							prot_lt = feature.qualifiers.get('locus_tag')[0]
-							feature.qualifiers['product'] = [protein_annotations[sample][prot_lt]]
+							if protein_annotations == None:
+								feature.qualifiers['product'] = 'hypothetical protein'
+							else:
+								feature.qualifiers['product'] = [protein_annotations[sample][prot_lt]]
 							feature.qualifiers.move_to_end('translation')
 							if prot_lt in sample_lts_to_prune: continue
 							updated_features.append(feature)
@@ -1616,7 +1619,10 @@ def identifyParalogsAndCreateResultFiles(samp_hg_lts, lt_to_hg, sample_bgc_prote
 					for feature in sample_lts_to_add_genbank_features[rec.id]:
 						if feature.type == 'CDS':
 							prot_lt = feature.qualifiers.get('locus_tag')[0]
-							feature.qualifiers['product'] = [protein_annotations[sample][prot_lt]]
+							if protein_annotations == None:
+								feature.qualifiers['product'] = 'hypothetical protein'
+							else:
+								feature.qualifiers['product'] = [protein_annotations[sample][prot_lt]]
 							feature.qualifiers.move_to_end('translation')
 							updated_features.append(feature)
 							start = min([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')])
