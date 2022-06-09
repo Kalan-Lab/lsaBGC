@@ -65,7 +65,7 @@ def create_parser():
 	""", formatter_class=argparse.RawTextHelpFormatter)
 
 	parser.add_argument('-i', '--input_antismash_dir', help='Path to genomic assembly in FASTA format.', required=True)
-	parser.add_argument('-f', '--filter_incomplete', help='Filter out incomplete BGCs (those found on contig edges.', required=False, default=False)
+	parser.add_argument('-f', '--filter_incomplete', action='store_true', help='Filter out incomplete BGCs (those found on contig edges.', required=False, default=False)
 	args = parser.parse_args()
 	return args
 
