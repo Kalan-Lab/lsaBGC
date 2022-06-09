@@ -102,7 +102,7 @@ def siftAndPrint():
 				if '/contig_edge="True"' in line:
 					contig_edge_flag = True
 
-		if not filter_incomplete_flag or (filter_incomplete_flag and contig_edge_flag):
+		if not filter_incomplete_flag or (filter_incomplete_flag and not contig_edge_flag):
 			print(sample + '\t' + full_file_name)
 
 if __name__ == '__main__':
