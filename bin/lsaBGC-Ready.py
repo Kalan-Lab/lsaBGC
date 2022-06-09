@@ -132,7 +132,7 @@ def lsaBGC_Ready():
 	PARSE OPTIONAL INPUTS
 	"""
 
-    additional_genome_listing_file = os.path.abspath(myargs.da_genome_listing)
+    additional_genome_listing_file = os.path.abspath(myargs.additional_genome_listing)
     cores = myargs.cores
     genomes_as_genbanks = myargs.genomes_as_genbanks
     bigscape_results_dir = myargs.bigscape_results
