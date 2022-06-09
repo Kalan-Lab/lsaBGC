@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-### Program: listAllGenomes.py
+### Program: listAllGenomesInDirectory.py
 ### Author: Rauf Salamzade
 ### Kalan Lab
 ### UW Madison, Department of Medical Microbiology and Immunology

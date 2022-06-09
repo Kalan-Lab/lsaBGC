@@ -8,5 +8,5 @@ setup(name='lsaBGC',
       author_email='salamzader@gmail.com',
       license='BSD-3',
       packages=['lsaBGC'],
-      scripts=['scripts/runProdigalAndMakeProperGenbank.py', 'scripts/createPickleOfSampleAnnotationListingFile.py', 'scripts/popSizeAndSampleSelector.py', 'workflows/lsaBGC-AutoProcess.py', 'workflows/lsaBGC-AutoAnalyze.py', 'workflows/lsaBGC-AutoExpansion.py', 'bin/lsaBGC-Ready.py', 'bin/lsaBGC-Cluster.py', 'bin/lsaBGC-See.py', 'bin/lsaBGC-PopGene.py', 'bin/lsaBGC-Refiner.py', 'bin/lsaBGC-Expansion.py', 'bin/lsaBGC-Divergence.py', 'bin/lsaBGC-DiscoVary.py'],
+      scripts=['scripts/listAllGenomesInDirectory.py', 'scripts/recursivelyIdentifyAntiSMASHbgcGenbanks.py', 'scripts/runProdigalAndMakeProperGenbank.py', 'scripts/createPickleOfSampleAnnotationListingFile.py', 'scripts/popSizeAndSampleSelector.py', 'workflows/lsaBGC-AutoProcess.py', 'workflows/lsaBGC-AutoAnalyze.py', 'workflows/lsaBGC-AutoExpansion.py', 'bin/lsaBGC-Ready.py', 'bin/lsaBGC-Cluster.py', 'bin/lsaBGC-See.py', 'bin/lsaBGC-PopGene.py', 'bin/lsaBGC-Refiner.py', 'bin/lsaBGC-Expansion.py', 'bin/lsaBGC-Divergence.py', 'bin/lsaBGC-DiscoVary.py'],
       zip_safe=False)
