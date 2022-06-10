@@ -193,10 +193,10 @@ def lsaBGC_AutoExpansion():
 					bgc_gbk_path, sample, lt, hg, eval, hg_is_functionally_core = line.split('\t')
 					## TODO: Remove unnecessary cast in future release
 					eval = Decimal(eval)
-					d = Decimal(eval + 1e-300)
+					d = Decimal(eval + Decimal(1e-300))
 					bgc_lt_evals[sample][gcf_id][bgc_gbk_path][lt] = float(max([d.log10(), -300]))
 					if quick_mode:
-						d = Decimal(eval + 1e-500)
+						d = Decimal(eval + Decimal(1e-500))
 						bgc_lt_evals[sample][gcf_id][bgc_gbk_path][lt] = float(max([d.log10(), -500]))
 					bgc_lts[sample][gcf_id][bgc_gbk_path].add(lt)
 					if hg_is_functionally_core == 'True':
