@@ -175,7 +175,7 @@ def lsaBGC_AutoExpansion():
 			if pickle_expansion_annotation_data_file:
 				cmd += ['-z', pickle_expansion_annotation_data_file]
 			try:
-				pass #util.run_cmd(cmd, logObject, stderr=sys.stderr, stdout=sys.stdout)
+				util.run_cmd(cmd, logObject, stderr=sys.stderr, stdout=sys.stdout)
 			except:
 				logObject.warning("lsaBGC-Expansion.py was unsuccessful, skipping over GCF %s" % gcf_id)
 				sys.stderr.write("lsaBGC-Expansion.py was unsuccessful, skipping over GCF %s\n" % gcf_id)
