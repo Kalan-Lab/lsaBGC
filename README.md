@@ -38,7 +38,8 @@ Documentation can currently be found on this Github repo's wiki: https://github.
 
 ## Installation:
 
-Should take ~10 minutes.
+Should take ~5-10 minutes. Code for an automated installation is also provided on the [Installation wiki page](https://github.com/Kalan-Lab/lsaBGC/wiki/01.-Installation).
+
 
 #### Note, through these steps, please make sure to change the dummy paths `/path/to/conda_env/` and `/path/to/lsaBGC` with the desired location of the conda environment on your computing system and the location of where you clone the lsaBGC git repository on your system, respectively!!!
 
