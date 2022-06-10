@@ -295,9 +295,32 @@ def lsaBGC_Ready():
                                               primary_bgc_listing_file, primary_orthofinder_matrix_file, logObject,
                                               cores=cores)
 
-    if not skip_primary_expansion:
-        os.system('cat %s >> %s' % (primary_sample_annotation_listing_file, additional_sample_annotation_listing_file))
+    additional_sample_annotation_listing_handle = open(additional_sample_annotation_listing_file, 'a+')
+    prim_samps_with_bgcs = set([])
+    with open(primary_sample_annotation_listing_file) as opsalf:
+        for line in opsalf:
+            line = line.strip()
+            s,gbk,faa = line.split('\t')
+            prim_samps_with_bgcs.add(s)
+            if not skip_primary_expansion:
+                additional_sample_annotation_listing_handle.write(line + '\n')
 
+    primary_sample_annotation_listing_handle = open(primary_sample_annotation_listing_file, 'a+')
+    for f in os.listdir(proteomes_directory):
+        s = f.split('.faa')
+        if s in prim_samps_with_bgcs: continue
+        faa = proteomes_directory + f
+        fin_faa = final_proteomes_directory + f
+        gbk = genbanks_directory + s + '.gbk'
+        fin_gbk = final_genbanks_directory + s + '.gbk'
+        os.system('cp %s %s' % (faa, fin_faa))
+        os.system('cp %s %s' % (gbk, fin_gbk))
+        primary_sample_annotation_listing_handle.write(s + '\t' + fin_gbk + '\t' + fin_faa + '\n')
+        if not skip_primary_expansion:
+            additional_sample_annotation_listing_handle.write(line + '\n')
+    primary_sample_annotation_listing_handle.close()
+    additional_sample_annotation_listing_handle.close()
+    
     # Step 9: Process BiG-SCAPE Results and Create GCF Listings (if provided by user) or run lsaBGC-Cluster if requested.
     gcf_listings_directory = None
     if bigscape_results_dir != None:
