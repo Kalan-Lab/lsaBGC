@@ -140,6 +140,7 @@ def lsaBGC_AutoExpansion():
 	bgc_lts = defaultdict(lambda: defaultdict(lambda: defaultdict(set)))
 	bgc_lt_to_hg = defaultdict(dict)
 	original_gcfs = set([])
+	original_gcf_samples = defaultdict(set)
 	for g in os.listdir(gcf_listing_dir):
 		gcf_id = g.split('.txt')[0]
 		gcf_listing_file = gcf_listing_dir + g
@@ -147,7 +148,6 @@ def lsaBGC_AutoExpansion():
 		logObject.info("Beginning expansion for GCF %s" % gcf_id)
 		sys.stderr.write("Beginning expansion for GCF %s\n" % gcf_id)
 
-		gcf_primary_instance_samples = set([])
 		with open(gcf_listing_file) as oglf:
 			for line in oglf:
 				line = line.strip()
@@ -161,7 +161,7 @@ def lsaBGC_AutoExpansion():
 						bgc_lt_evals[sample][gcf_id][bgc_gbk_path][lt] = -500
 					bgc_lts[sample][gcf_id][bgc_gbk_path].add(lt)
 				original_gcfs.add(line.split('\t')[1])
-				gcf_primary_instance_samples.add(line.split('\t')[0])
+				orginal_gcf_samples[g].add(line.split('\t')[0])
 
 		# Run lsaBGC-Expansion.py for GCF
 		### TODO add additional options in expansion to auto-expansion
@@ -193,8 +193,7 @@ def lsaBGC_AutoExpansion():
 				for line in oghef:
 					line = line.strip()
 					bgc_gbk_path, sample, lt, hg, eval, hg_is_functionally_core = line.split('\t')
-					if sample in gcf_primary_instance_samples: continue
-					## TODO: Remove unnecessary cast in future release
+					if sample in original_gcf_samples[g]: continue
 					eval = Decimal(eval)
 					d = Decimal(eval + Decimal(1e-300))
 					bgc_lt_evals[sample][gcf_id][bgc_gbk_path][lt] = float(max([d.log10(), -300]))
@@ -289,6 +288,7 @@ def lsaBGC_AutoExpansion():
 			for line in oeglf:
 				line = line.strip()
 				sample, bgc_gbk_path = line.split('\t')
+				if sample in original_gcf_samples[gcf]: continue
 				if (not bgc_gbk_path in bgcs_to_discard) and (bgc_gbk_path in bgcs_with_func_core_lt):
 					sample_has_bgc_with_functional_core_lt[sample][gcf] = True
 
