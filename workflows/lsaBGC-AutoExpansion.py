@@ -161,7 +161,7 @@ def lsaBGC_AutoExpansion():
 						bgc_lt_evals[sample][gcf_id][bgc_gbk_path][lt] = -500
 					bgc_lts[sample][gcf_id][bgc_gbk_path].add(lt)
 				original_gcfs.add(line.split('\t')[1])
-				orginal_gcf_samples[g].add(line.split('\t')[0])
+				original_gcf_samples[g].add(line.split('\t')[0])
 
 		# Run lsaBGC-Expansion.py for GCF
 		### TODO add additional options in expansion to auto-expansion
@@ -175,7 +175,7 @@ def lsaBGC_AutoExpansion():
 			if pickle_expansion_annotation_data_file:
 				cmd += ['-z', pickle_expansion_annotation_data_file]
 			try:
-				pass#util.run_cmd(cmd, logObject, stderr=sys.stderr, stdout=sys.stdout)
+				pass #util.run_cmd(cmd, logObject, stderr=sys.stderr, stdout=sys.stdout)
 			except:
 				logObject.warning("lsaBGC-Expansion.py was unsuccessful, skipping over GCF %s" % gcf_id)
 				sys.stderr.write("lsaBGC-Expansion.py was unsuccessful, skipping over GCF %s\n" % gcf_id)
