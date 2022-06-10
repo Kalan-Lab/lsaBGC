@@ -223,18 +223,9 @@ def lsaBGC_AutoExpansion():
 					for bgc2 in bgc_lts[sample][gcf2]:
 						bgc2_lts = bgc_lts[sample][gcf2][bgc2]
 						if len(bgc1_lts.intersection(bgc2_lts)) > 0 and ( (float(len(bgc1_lts.intersection(bgc2_lts)))/float(len(bgc1_lts)) >= 0.05) or (float(len(bgc1_lts.intersection(bgc2_lts)))/float(len(bgc2_lts)) >= 0.05)):
-							bgc1_score = 0.0
-							bgc2_score = 0.0
-							for lt in bgc1_lts:
-								bgc1_score += bgc_lt_evals[sample][gcf1][bgc1][lt]
-							for lt in bgc2_lts:
-								bgc2_score += bgc_lt_evals[sample][gcf2][bgc2][lt]
-							try:
-								assert(bgc1_score != bgc2_score)
-							except Exception as e:
-								logObject.warning("Overlapping BGCs exist with equivalent scores for different GCFs. This should not be possible. Both instances will be discarded.")
-								logObject.warning(traceback.format_exc())
-
+							print(bgc1)
+							print(bgc2)
+							print('-------')
 							address = None
 							if bgc1 in original_gcfs and bgc2 in original_gcfs:
 								address = "neither removed"
@@ -245,18 +236,35 @@ def lsaBGC_AutoExpansion():
 							elif bgc2 in original_gcfs and not bgc1 in original_gcfs:
 								address = bgc1 + ' removed'
 								bgcs_to_discard.add(bgc1)
-							elif bgc1_score < bgc2_score:
-								address = bgc2 + ' removed'
-								bgcs_to_discard.add(bgc2)
-							elif bgc2_score < bgc1_score:
-								address = bgc1 + ' removed'
-								bgcs_to_discard.add(bgc1)
+							if address != None:
+								logObject.info("Overlap found between BGCs %s (%s) and %s (%s), %s." % (bgc1, gcf1, bgc2, gcf2, address))
 							else:
-								address = 'both removed'
-								bgcs_to_discard.add(bgc1)
-								bgcs_to_discard.add(bgc2)
+								bgc1_score = 0.0
+								bgc2_score = 0.0
+								for lt in bgc1_lts:
+									bgc1_score += bgc_lt_evals[sample][gcf1][bgc1][lt]
+								for lt in bgc2_lts:
+									bgc2_score += bgc_lt_evals[sample][gcf2][bgc2][lt]
 
-							logObject.info("Overlap found between BGCs %s (%s) and %s (%s), %s." % (bgc1, gcf1, bgc2, gcf2, address))
+								try:
+									assert(bgc1_score != bgc2_score)
+								except Exception as e:
+									logObject.warning("Overlapping BGCs exist with equivalent scores for different GCFs. This should not be possible. Both instances will be discarded.")
+									logObject.warning(traceback.format_exc())
+
+								address = None
+								if bgc1_score < bgc2_score:
+									address = bgc2 + ' removed'
+									bgcs_to_discard.add(bgc2)
+								elif bgc2_score < bgc1_score:
+									address = bgc1 + ' removed'
+									bgcs_to_discard.add(bgc1)
+								else:
+									address = 'both removed'
+									bgcs_to_discard.add(bgc1)
+									bgcs_to_discard.add(bgc2)
+
+								logObject.info("Overlap found between BGCs %s (%s) and %s (%s), %s." % (bgc1, gcf1, bgc2, gcf2, address))
 
 	# create updated general listings file
 	updated_listings_file = outdir + 'Sample_Annotation_Files.txt'
