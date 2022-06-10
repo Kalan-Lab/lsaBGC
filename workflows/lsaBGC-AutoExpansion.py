@@ -147,6 +147,7 @@ def lsaBGC_AutoExpansion():
 		logObject.info("Beginning expansion for GCF %s" % gcf_id)
 		sys.stderr.write("Beginning expansion for GCF %s\n" % gcf_id)
 
+		gcf_primary_instance_samples = set([])
 		with open(gcf_listing_file) as oglf:
 			for line in oglf:
 				line = line.strip()
@@ -160,6 +161,7 @@ def lsaBGC_AutoExpansion():
 						bgc_lt_evals[sample][gcf_id][bgc_gbk_path][lt] = -500
 					bgc_lts[sample][gcf_id][bgc_gbk_path].add(lt)
 				original_gcfs.add(line.split('\t')[1])
+				gcf_primary_instances.add(line.split('\t')[0])
 
 		# Run lsaBGC-Expansion.py for GCF
 		### TODO add additional options in expansion to auto-expansion
@@ -191,6 +193,7 @@ def lsaBGC_AutoExpansion():
 				for line in oghef:
 					line = line.strip()
 					bgc_gbk_path, sample, lt, hg, eval, hg_is_functionally_core = line.split('\t')
+					if sample in gcf_primary_instance_samples: continue
 					## TODO: Remove unnecessary cast in future release
 					eval = Decimal(eval)
 					d = Decimal(eval + Decimal(1e-300))
@@ -217,15 +220,12 @@ def lsaBGC_AutoExpansion():
 	for sample in bgc_lts:
 		for i, gcf1 in enumerate(bgc_lts[sample]):
 			for j, gcf2 in enumerate(bgc_lts[sample]):
-				if i > j: continue
+				if i >= j: continue
 				for bgc1 in bgc_lts[sample][gcf1]:
 					bgc1_lts = bgc_lts[sample][gcf1][bgc1]
 					for bgc2 in bgc_lts[sample][gcf2]:
 						bgc2_lts = bgc_lts[sample][gcf2][bgc2]
 						if len(bgc1_lts.intersection(bgc2_lts)) > 0 and ( (float(len(bgc1_lts.intersection(bgc2_lts)))/float(len(bgc1_lts)) >= 0.05) or (float(len(bgc1_lts.intersection(bgc2_lts)))/float(len(bgc2_lts)) >= 0.05)):
-							print(bgc1)
-							print(bgc2)
-							print('-------')
 							address = None
 							if bgc1 in original_gcfs and bgc2 in original_gcfs:
 								address = "neither removed"
