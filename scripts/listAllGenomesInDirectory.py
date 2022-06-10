@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-### Program: recursivelyIdentifyAntiSMASHbgcGenbanks.py
+### Program: listAllGenomesInDirectory.py
 ### Author: Rauf Salamzade
 ### Kalan Lab
 ### UW Madison, Department of Medical Microbiology and Immunology
@@ -37,11 +37,12 @@
 
 import os
 import argparse
-import glob
+import sys
+
 
 def create_parser():
-	""" Parse arguments """
-	parser = argparse.ArgumentParser(description="""
+    """ Parse arguments """
+    parser = argparse.ArgumentParser(description="""
 	Program: recursivelyIdentifyAntiSMASHbgcGenbanks.py
 	Author: Rauf Salamzade
 	Affiliation: Kalan Lab, UW Madison, Department of Medical Microbiology and Immunology
@@ -50,60 +51,55 @@ def create_parser():
 	with AntiSMASH results for a set of samples, it will create a two-column, tab-delimited listing file where
 	the first column is the sample name and the second is the full path to an individual BGC for the sample. E.g.
 	suppose the following setup:
-	
+
 	./AntiSMASH-General-Dir/Sample-Name-1/Sample-Name-1_Scaffold-1.region0001.gbk
 	./AntiSMASH-General-Dir/Sample-Name-1/Sample-Name-1_Scaffold-5.region0007.gbk
 	./AntiSMASH-General-Dir/Sample-Name-2/Sample-Name-1_Scaffold-1.region0002.gbk
 
 	Then it will print to standard output the following:
-	
-	Sample-Name-1 <tab> /full-path-to/AntiSMASH-General-Dir/Sample-Name-1/Sample-Name-1_Scaffold-1.region0001.gbk
-	Sample-Name-1 <tab> /full-path-to/AntiSMASH-General-Dir/Sample-Name-1/Sample-Name-1_Scaffold-5.region0007.gbk
-	Sample-Name-2 <tab> /full-path-to/AntiSMASH-General-Dir/Sample-Name-1/Sample-Name-1_Scaffold-1.region0002.gbk
+
+	Sample-Name-1 <tab> /full-path-to/AntiSMASH-General-Dir/Sample-Name-1.fasta
+	Sample-Name-2 <tab> /full-path-to/AntiSMASH-General-Dir/Sample-Name-2.fna
+	Sample-Name-3 <tab> /full-path-to/AntiSMASH-General-Dir/Sample-Name-3.fa
 
 	Note, for files to be considered as BGC Genbanks, they must end with *.gbk and feature ".region" in the file name.
 	""", formatter_class=argparse.RawTextHelpFormatter)
 
-	parser.add_argument('-i', '--input_antismash_dir', help='Path to genomic assembly in FASTA format.', required=True)
-	parser.add_argument('-f', '--filter_incomplete', action='store_true', help='Filter out incomplete BGCs (those found on contig edges.', required=False, default=False)
-	args = parser.parse_args()
-	return args
+    parser.add_argument('-i', '--input_genomes_dir', help='Path to genomic assembly in FASTA format.', required=True)
+    args = parser.parse_args()
+    return args
 
 
 def siftAndPrint():
-	"""
-	Void function which runs primary workflow for program.
-	"""
+    """
+    Void function which runs primary workflow for program.
+    """
 
-	"""
-	PARSE REQUIRED INPUTS
-	"""
-	myargs = create_parser()
+    """
+    PARSE REQUIRED INPUTS
+    """
+    myargs = create_parser()
 
-	input_antismash_dir = os.path.abspath(myargs.input_antismash_dir) + '/'
+    input_genomes_dir = os.path.abspath(myargs.input_genomes_dir) + '/'
 
-	try:
-		assert(os.path.isdir(input_antismash_dir))
-	except:
-		raise RuntimeError('Cannot find input directory of antiSMASH results.')
+    try:
+        assert (os.path.isdir(input_genomes_dir))
+    except:
+        raise RuntimeError('Cannot find input directory of antiSMASH results.')
 
-	filter_incomplete_flag = myargs.filter_incomplete
+    """
+    START WORKFLOW
+    """
 
-	"""
-	START WORKFLOW
-	"""
+    for f in os.listdir(input_genomes_dir):
+        suffix = f.split('.')[-1]
+        if not suffix in set(['fasta', 'fna', 'fa']):
+            sys.stderr.write('Warning, skipping file: %s, does not appear to have suffix expected of nucleotide FASTA files.\n' % f)
+        else:
+            sample = '.'.join(f.split('.')[:-1])
+            full_file_name = input_genomes_dir + f
+            print(sample + '\t' + full_file_name)
 
-	for full_file_name in glob.glob(input_antismash_dir + "*/*region*.gbk"):
-		sample = full_file_name.split('/')[-2]
-		contig_edge_flag = False
-		with open(full_file_name) as offn:
-			for line in offn:
-				line = line.strip()
-				if '/contig_edge="True"' in line:
-					contig_edge_flag = True
-
-		if not filter_incomplete_flag or (filter_incomplete_flag and not contig_edge_flag):
-			print(sample + '\t' + full_file_name)
 
 if __name__ == '__main__':
-	siftAndPrint()
+    siftAndPrint()

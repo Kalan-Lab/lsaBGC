@@ -1008,12 +1008,12 @@ def multiProcess(input):
 
 def processGenomes(sample_genomes, prodigal_outdir, prodigal_proteomes, prodigal_genbanks, logObject, cores=1, locus_tag_length=3):
 	"""
-	Void function to run Prokka based gene-calling and annotations.
+	Void function to run Prodigal based gene-calling and annotations.
 
 	:param sample_genomes: dictionary with keys as sample names and values as genomic assembly paths.
 	:param prodigal_outdir: full path to directory where Prokka results will be written.
-	:param prodigal_proteomes: full path to directory where Prokka generated predicted-proteome FASTA files will be moved after Prokka has run.
-	:param prodigal_genbanks: full path to directory where Prokka generated Genbank (featuring predicted CDS) files will be moved after Prokka has run.
+	:param prodigal_proteomes: full path to directory where Prokka generated predicted-proteome FASTA files will be moved after prodigal has run.
+	:param prodigal_genbanks: full path to directory where Prokka generated Genbank (featuring predicted CDS) files will be moved after prodigal has run.
 	:param taxa: name of the taxonomic clade of interest.
 	:param logObject: python logging object handler.
 	:param cores: number of cores to use in multiprocessing Prokka cmds.
@@ -1606,7 +1606,10 @@ def identifyParalogsAndCreateResultFiles(samp_hg_lts, lt_to_hg, sample_bgc_prote
 					for feature in rec.features:
 						if feature.type == 'CDS':
 							prot_lt = feature.qualifiers.get('locus_tag')[0]
-							feature.qualifiers['product'] = [protein_annotations[sample][prot_lt]]
+							if protein_annotations == None:
+								feature.qualifiers['product'] = 'hypothetical protein'
+							else:
+								feature.qualifiers['product'] = [protein_annotations[sample][prot_lt]]
 							feature.qualifiers.move_to_end('translation')
 							if prot_lt in sample_lts_to_prune: continue
 							updated_features.append(feature)
@@ -1616,7 +1619,10 @@ def identifyParalogsAndCreateResultFiles(samp_hg_lts, lt_to_hg, sample_bgc_prote
 					for feature in sample_lts_to_add_genbank_features[rec.id]:
 						if feature.type == 'CDS':
 							prot_lt = feature.qualifiers.get('locus_tag')[0]
-							feature.qualifiers['product'] = [protein_annotations[sample][prot_lt]]
+							if protein_annotations == None:
+								feature.qualifiers['product'] = 'hypothetical protein'
+							else:
+								feature.qualifiers['product'] = [protein_annotations[sample][prot_lt]]
 							feature.qualifiers.move_to_end('translation')
 							updated_features.append(feature)
 							start = min([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')])
@@ -1770,7 +1776,7 @@ def updateAntiSMASHGenbanksToIncludeAnnotations(protein_annotations, bgc_to_samp
 				bgc_to_sample_updated[update_gbk_file] = s
 		for s in sample_bgc_proteins:
 			for bgc in sample_bgc_proteins[s]:
-				bgc_prots = sample_bgc_proteins[sample][bgc]
+				bgc_prots = sample_bgc_proteins[s][bgc]
 				new_bgc = antismash_bgcs_directory_updated + '/'.join(bgc.split('/')[-2:])
 				sample_bgc_proteins_update[s][new_bgc] = bgc_prots
 
@@ -1783,22 +1789,30 @@ def updateAntiSMASHGenbanksToIncludeAnnotations(protein_annotations, bgc_to_samp
 def selectFinalResultsAndCleanUp(outdir, fin_outdir, logObject):
 	try:
 		delete_set = set(['BLASTing_of_Ortholog_Groups', 'OrthoFinder2_Results', 'KOfam_Annotations',
-						  'AntiSMASH_BGCs_Retagged', 'Prodigal_Gene_Calling_Draft', 'Predicted_Proteomes_Initial',
+						  'AntiSMASH_BGCs_Retagged', 'Prodigal_Gene_Calling_Additional', 'Predicted_Proteomes_Initial',
 						  'Prodigal_Gene_Calling', 'Genomic_Genbanks_Initial'])
 		for fd in os.listdir(outdir):
 			if os.path.isfile(fd): continue
 			subdir = outdir + fd + '/'
 			if fd in delete_set:
 				os.system('rm -rf %s' % subdir)
-		if not os.path.isdir(fin_outdir + 'GCF_Listings/') and os.path.isdir(outdir + 'lsaBGC_Cluster_Results/'):
-			os.system('ln -s %s %s' % (outdir + 'lsaBGC_Cluster_Results/GCF_Listings/', fin_outdir + 'GCF_Listings'))
-			os.system('ln -s %s %s' % (outdir + 'lsaBGC_Cluster_Results/GCF_Details_Expanded_Singletons.txt', fin_outdir + 'GCF_Details.txt'))
 		if os.path.isdir(outdir + 'lsaBGC_AutoExpansion_Results/'):
 			os.system('ln -s %s %s' % (outdir + 'lsaBGC_AutoExpansion_Results/Updated_GCF_Listings/', fin_outdir + 'Expanded_GCF_Listings'))
 			os.system('ln -s %s %s' % (outdir + 'lsaBGC_AutoExpansion_Results/Orthogroups.expanded.tsv', fin_outdir + 'Expanded_Orthogroups.tsv'))
 			os.system('ln -s %s %s' % (outdir + 'lsaBGC_AutoExpansion_Results/Sample_Annotation_Files.txt', fin_outdir + 'Expanded_Sample_Annotation_Files.txt'))
 		else:
 			os.system('ln -s %s %s' % (outdir + 'Intermediate_Files/*', fin_outdir))
+			if os.path.isdir(outdir + 'BiG_SCAPE_Results_Reformatted/'):
+				os.system('ln -s %s %s' % (outdir + 'BiG_SCAPE_Results_Reformatted/GCF_Listings/', fin_outdir + 'GCF_Listings'))
+				os.system('ln -s %s %s' % (outdir + 'BiG_SCAPE_Results_Reformatted/GCF_Details.txt', fin_outdir + 'GCF_Details.txt'))
+			elif os.path.isdir(outdir + 'lsaBGC_Cluster_Results/'):
+				os.system('ln -s %s %s' % (outdir + 'lsaBGC_Cluster_Results/GCF_Listings/', fin_outdir + 'GCF_Listings'))
+				os.system('ln -s %s %s' % (outdir + 'lsaBGC_Cluster_Results/GCF_Details_Expanded_Singletons.txt', fin_outdir + 'GCF_Details.txt'))
+		if os.path.isdir(outdir + 'BiG_SCAPE_Results_Reformatted/'):
+			os.system('ln -s %s %s' % (outdir + 'BiG_SCAPE_Results_Reformatted/GCF_Details.txt', fin_outdir + 'GCF_Details.txt'))
+		elif os.path.isdir(outdir + 'lsaBGC_Cluster_Results/'):
+			os.system('ln -s %s %s' % (outdir + 'lsaBGC_Cluster_Results/GCF_Details_Expanded_Singletons.txt', fin_outdir + 'GCF_Details.txt'))
+
 	except Exception as e:
 		raise RuntimeError(traceback.format_exc())
 

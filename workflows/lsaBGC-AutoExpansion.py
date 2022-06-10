@@ -140,6 +140,7 @@ def lsaBGC_AutoExpansion():
 	bgc_lts = defaultdict(lambda: defaultdict(lambda: defaultdict(set)))
 	bgc_lt_to_hg = defaultdict(dict)
 	original_gcfs = set([])
+	original_gcf_samples = defaultdict(set)
 	for g in os.listdir(gcf_listing_dir):
 		gcf_id = g.split('.txt')[0]
 		gcf_listing_file = gcf_listing_dir + g
@@ -160,6 +161,7 @@ def lsaBGC_AutoExpansion():
 						bgc_lt_evals[sample][gcf_id][bgc_gbk_path][lt] = -500
 					bgc_lts[sample][gcf_id][bgc_gbk_path].add(lt)
 				original_gcfs.add(line.split('\t')[1])
+				original_gcf_samples[g].add(line.split('\t')[0])
 
 		# Run lsaBGC-Expansion.py for GCF
 		### TODO add additional options in expansion to auto-expansion
@@ -191,12 +193,12 @@ def lsaBGC_AutoExpansion():
 				for line in oghef:
 					line = line.strip()
 					bgc_gbk_path, sample, lt, hg, eval, hg_is_functionally_core = line.split('\t')
-					## TODO: Remove unnecessary cast in future release
-					eval = float(eval)
-					d = Decimal(eval + 1e-300)
+					if sample in original_gcf_samples[g]: continue
+					eval = Decimal(eval)
+					d = Decimal(eval + Decimal(1e-300))
 					bgc_lt_evals[sample][gcf_id][bgc_gbk_path][lt] = float(max([d.log10(), -300]))
 					if quick_mode:
-						d = Decimal(eval + 1e-500)
+						d = Decimal(eval + Decimal(1e-500))
 						bgc_lt_evals[sample][gcf_id][bgc_gbk_path][lt] = float(max([d.log10(), -500]))
 					bgc_lts[sample][gcf_id][bgc_gbk_path].add(lt)
 					if hg_is_functionally_core == 'True':
@@ -223,18 +225,6 @@ def lsaBGC_AutoExpansion():
 					for bgc2 in bgc_lts[sample][gcf2]:
 						bgc2_lts = bgc_lts[sample][gcf2][bgc2]
 						if len(bgc1_lts.intersection(bgc2_lts)) > 0 and ( (float(len(bgc1_lts.intersection(bgc2_lts)))/float(len(bgc1_lts)) >= 0.05) or (float(len(bgc1_lts.intersection(bgc2_lts)))/float(len(bgc2_lts)) >= 0.05)):
-							bgc1_score = 0.0
-							bgc2_score = 0.0
-							for lt in bgc1_lts:
-								bgc1_score += bgc_lt_evals[sample][gcf1][bgc1][lt]
-							for lt in bgc2_lts:
-								bgc2_score += bgc_lt_evals[sample][gcf2][bgc2][lt]
-							try:
-								assert(bgc1_score != bgc2_score)
-							except Exception as e:
-								logObject.warning("Overlapping BGCs exist with equivalent scores for different GCFs. This should not be possible. Both instances will be discarded.")
-								logObject.warning(traceback.format_exc())
-
 							address = None
 							if bgc1 in original_gcfs and bgc2 in original_gcfs:
 								address = "neither removed"
@@ -245,18 +235,35 @@ def lsaBGC_AutoExpansion():
 							elif bgc2 in original_gcfs and not bgc1 in original_gcfs:
 								address = bgc1 + ' removed'
 								bgcs_to_discard.add(bgc1)
-							elif bgc1_score < bgc2_score:
-								address = bgc2 + ' removed'
-								bgcs_to_discard.add(bgc2)
-							elif bgc2_score < bgc1_score:
-								address = bgc1 + ' removed'
-								bgcs_to_discard.add(bgc1)
+							if address != None:
+								logObject.info("Overlap found between BGCs %s (%s) and %s (%s), %s." % (bgc1, gcf1, bgc2, gcf2, address))
 							else:
-								address = 'both removed'
-								bgcs_to_discard.add(bgc1)
-								bgcs_to_discard.add(bgc2)
+								bgc1_score = 0.0
+								bgc2_score = 0.0
+								for lt in bgc1_lts:
+									bgc1_score += bgc_lt_evals[sample][gcf1][bgc1][lt]
+								for lt in bgc2_lts:
+									bgc2_score += bgc_lt_evals[sample][gcf2][bgc2][lt]
 
-							logObject.info("Overlap found between BGCs %s (%s) and %s (%s), %s." % (bgc1, gcf1, bgc2, gcf2, address))
+								try:
+									assert(bgc1_score != bgc2_score)
+								except Exception as e:
+									logObject.warning("Overlapping BGCs exist with equivalent scores for different GCFs. This should not be possible. Both instances will be discarded.")
+									logObject.warning(traceback.format_exc())
+
+								address = None
+								if bgc1_score < bgc2_score:
+									address = bgc2 + ' removed'
+									bgcs_to_discard.add(bgc2)
+								elif bgc2_score < bgc1_score:
+									address = bgc1 + ' removed'
+									bgcs_to_discard.add(bgc1)
+								else:
+									address = 'both removed'
+									bgcs_to_discard.add(bgc1)
+									bgcs_to_discard.add(bgc2)
+
+								logObject.info("Overlap found between BGCs %s (%s) and %s (%s), %s." % (bgc1, gcf1, bgc2, gcf2, address))
 
 	# create updated general listings file
 	updated_listings_file = outdir + 'Sample_Annotation_Files.txt'
@@ -268,8 +275,9 @@ def lsaBGC_AutoExpansion():
 			updated_listings_handle.write(line)
 	with open(expansion_listing_file) as oelf:
 		for line in oelf:
-			all_samples.add(util.cleanUpSampleName(line.strip().split('\t')[0]))
-			updated_listings_handle.write(line)
+			if not util.cleanUpSampleName(line.strip().split('\t')[0]) in all_samples:
+				all_samples.add(util.cleanUpSampleName(line.strip().split('\t')[0]))
+				updated_listings_handle.write(line)
 	updated_listings_handle.close()
 
 	# further filter out entire GCF presence in samples if needed
@@ -280,6 +288,7 @@ def lsaBGC_AutoExpansion():
 			for line in oeglf:
 				line = line.strip()
 				sample, bgc_gbk_path = line.split('\t')
+				if sample in original_gcf_samples[gcf]: continue
 				if (not bgc_gbk_path in bgcs_to_discard) and (bgc_gbk_path in bgcs_with_func_core_lt):
 					sample_has_bgc_with_functional_core_lt[sample][gcf] = True
 

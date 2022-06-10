@@ -69,15 +69,15 @@ def create_parser():
 	""", formatter_class=argparse.RawTextHelpFormatter)
 
     parser.add_argument('-i', '--genome_listing',
-                        help='Tab-delimited, two column file for core samples (ideally with high-quality or complete genomes) where the first column is the sample/isolate/genome name and the second is the full path to the genome file (Genbank or FASTA)',
+                        help='Tab-delimited, two column file for primary samples (ideally with high-quality or complete genomes) where the first column is the sample/isolate/genome name and the second is the full path to the genome file (Genbank or FASTA)',
                         required=True)
     parser.add_argument('-l', '--antismash_listing',
-                        help='Tab-delimited, two column file for antiSMASH results for samples listed in the "--genome_listing" argument, where the first column is the sample/isolate/genome name the second is the full path to an antiSMASH BGC prediction in Genbank format.',
+                        help='Tab-delimited, two column file listing antiSMASH results for primary samples (those from the "--genome_listing" argument), where the first column is the sample/isolate/genome name the second is the full path to an antiSMASH BGC prediction in Genbank format.',
                         required=True)
     parser.add_argument('-o', '--output_directory', help='Parent output/workspace directory.', required=True)
     parser.add_argument('-b', '--bigscape_results', help='Path to BiG-SCAPE results directory of antiSMASH predicted in complete genomes. Please make sure the sample names match what is provided for "--genome_listings".', required=False,
                         default=None)
-    parser.add_argument('-d', '--draft_genome_listing', help='Tab-delimited, two column file for samples with draft genomes (same format as for the "--genome_listing" argument). The genomes/BGCs of these samples won\'t be used in ortholog-grouping of proteins and clustering of BGCs, but will simply have gene calling run for them. This will enable more sensitive/expanded detection of GCF instances later using lsaBGC-Expansion/AutoExpansion.',
+    parser.add_argument('-d', '--additional_genome_listing', help='Tab-delimited, two column file for samples with additional/draft genomes (same format as for the "--genome_listing" argument). The genomes/BGCs of these samples won\'t be used in ortholog-grouping of proteins and clustering of BGCs, but will simply have gene calling run for them. This will enable more sensitive/expanded detection of GCF instances later using lsaBGC-Expansion/AutoExpansion.',
                         required=False, default=None)
     parser.add_argument('-a', '--annotate', action='store_true',
                         help='Perform annotation of BGC proteins using KOfam HMM profiles.', required=False, default=False)
@@ -90,7 +90,7 @@ def create_parser():
                         help="Total number of cores/threads to use for running OrthoFinder2/prodigal.", required=False,
                         default=1)
     parser.add_argument('-k', '--keep_intermediates', action='store_true', help='Keep intermediate directories / files which are likely not useful for downstream analyses.', required=False, default=False)
-
+    parser.add_argument('-spe', '--skip_primary_expansion', action='store_true', help='Skip expansion on primary genomes as well.', required=False, default=False)
     args = parser.parse_args()
     return args
 
@@ -132,7 +132,7 @@ def lsaBGC_Ready():
 	PARSE OPTIONAL INPUTS
 	"""
 
-    draft_genome_listing_file = os.path.abspath(myargs.draft_genome_listing)
+    additional_genome_listing_file = os.path.abspath(myargs.additional_genome_listing)
     cores = myargs.cores
     genomes_as_genbanks = myargs.genomes_as_genbanks
     bigscape_results_dir = myargs.bigscape_results
@@ -140,11 +140,12 @@ def lsaBGC_Ready():
     run_lsabgc_cluster = myargs.lsabgc_cluster
     run_lsabgc_expansion = myargs.lsabgc_expansion
     keep_intermediates = myargs.keep_intermediates
+    skip_primary_expansion = myargs.skip_primary_expansion
 
     try:
-        assert (os.path.isfile(draft_genome_listing_file))
+        assert (os.path.isfile(additional_genome_listing_file))
     except:
-        raise RuntimeError('Issue with reading genome listing file for samples with draft genomic assemblies.')
+        raise RuntimeError('Issue with reading genome listing file for samples with additional genomic assemblies.')
 
     if bigscape_results_dir != None:
         try:
@@ -175,13 +176,13 @@ def lsaBGC_Ready():
     logObject = util.createLoggerObject(log_file)
     logObject.info("Saving parameters for future provedance.")
     parameters_file = outdir + 'Parameter_Inputs.txt'
-    parameter_values = [genome_listing_file, antismash_listing_file, outdir, draft_genome_listing_file,
+    parameter_values = [genome_listing_file, antismash_listing_file, outdir, additional_genome_listing_file,
                         genomes_as_genbanks, bigscape_results_dir, annotate, run_lsabgc_cluster, run_lsabgc_expansion,
-                        keep_intermediates]
+                        keep_intermediates, cores]
     parameter_names = ["Primary Genome Listing File", "AntiSMASH Results Listing File", "Output Directory",
-                       "Draft Genome Listing File", "Primary Genomes are Genbanks with CDS Annotation Features",
+                       "Additional Genome Listing File", "Primary Genomes are Genbanks with CDS Annotation Features",
                        "BiG-SCAPE Results Directory", "Perform KOfam Annotation?", "Run lsaBGC-Cluster Analysis?",
-                       "Run lsaBGC-AutoExpansion Analysis?", "Number of Cores?", "Keep Intermediate Files/Directories?"]
+                       "Run lsaBGC-AutoExpansion Analysis?", "Keep Intermediate Files/Directories?", "Number of Cores"]
     util.logParametersToFile(parameters_file, parameter_names, parameter_values)
     logObject.info("Done saving parameters!")
 
@@ -208,32 +209,32 @@ def lsaBGC_Ready():
         ## genomes are provided as Genbanks
         util.extractProteins(sample_genomes, proteomes_directory, logObject)
 
-    # Step 2: Process Draft Genomes
-    draft_sample_annotation_listing_file = int_outdir + 'Draft_Sample_Annotation_Files.txt'
-    if draft_genome_listing_file != None:
-        draft_sample_genomes, draft_format_prediction = util.parseSampleGenomes(draft_genome_listing_file, logObject)
+    # Step 2: Process Additional Genomes
+    additional_sample_annotation_listing_file = int_outdir + 'Additional_Sample_Annotation_Files.txt'
+    if additional_genome_listing_file != None:
+        additional_sample_genomes, additional_format_prediction = util.parseSampleGenomes(additional_genome_listing_file, logObject)
 
         try:
-            assert(draft_format_prediction == 'fasta')
+            assert(additional_format_prediction == 'fasta')
         except:
-            logObject.error('Format of draft genomes must be FASTA.')
-            raise RuntimeError('Format of draft genomes must be FASTA.')
+            logObject.error('Format of additional genomes must be FASTA.')
+            raise RuntimeError('Format of additional genomes must be FASTA.')
 
-        draft_prodigal_outdir = outdir + 'Prodigal_Gene_Calling_Draft/'
-        draft_proteomes_directory = outdir + 'Predicted_Proteomes_Draft/'
-        draft_genbanks_directory = outdir + 'Genomic_Genbanks_Draft/'
-        util.setupReadyDirectory([draft_prodigal_outdir, draft_proteomes_directory, draft_genbanks_directory])
+        additional_prodigal_outdir = outdir + 'Prodigal_Gene_Calling_Additional/'
+        additional_proteomes_directory = outdir + 'Predicted_Proteomes_Additional/'
+        additional_genbanks_directory = outdir + 'Genomic_Genbanks_Additional/'
+        util.setupReadyDirectory([additional_prodigal_outdir, additional_proteomes_directory, additional_genbanks_directory])
 
-        # Note, locus tags of length 4 are used within lsaBGC to mark samples with draft genomes where we ultimately
+        # Note, locus tags of length 4 are used within lsaBGC to mark samples with additional genomes where we ultimately
         # find them via lsaBGC-Expansion.
-        util.processGenomes(draft_sample_genomes, draft_prodigal_outdir, draft_proteomes_directory, draft_genbanks_directory,
+        util.processGenomes(additional_sample_genomes, additional_prodigal_outdir, additional_proteomes_directory, additional_genbanks_directory,
                             logObject, cores=cores, locus_tag_length=4)
 
-        draft_sample_annotation_listing_handle = open(draft_sample_annotation_listing_file, 'w')
-        for f in os.listdir(draft_proteomes_directory):
+        additional_sample_annotation_listing_handle = open(additional_sample_annotation_listing_file, 'w')
+        for f in os.listdir(additional_proteomes_directory):
             sample = f.split('.faa')[0]
-            draft_sample_annotation_listing_handle.write(sample + '\t' + draft_genbanks_directory + sample + '.gbk' + '\t' + draft_proteomes_directory + f + '\n')
-        draft_sample_annotation_listing_handle.close()
+            additional_sample_annotation_listing_handle.write(sample + '\t' + additional_genbanks_directory + sample + '.gbk' + '\t' + additional_proteomes_directory + f + '\n')
+        additional_sample_annotation_listing_handle.close()
 
     # Step 3: Process antiSMASH Results and Add Annotations
     antismash_bgcs_directory = outdir + 'AntiSMASH_BGCs_Retagged/'
@@ -294,21 +295,51 @@ def lsaBGC_Ready():
                                               primary_bgc_listing_file, primary_orthofinder_matrix_file, logObject,
                                               cores=cores)
 
+    additional_sample_annotation_listing_handle = open(additional_sample_annotation_listing_file, 'a+')
+    prim_samps_with_bgcs = set([])
+    with open(primary_sample_annotation_listing_file) as opsalf:
+        for line in opsalf:
+            line = line.strip()
+            s,gbk,faa = line.split('\t')
+            prim_samps_with_bgcs.add(s)
+            if not skip_primary_expansion:
+                additional_sample_annotation_listing_handle.write(line + '\n')
+
+    primary_sample_annotation_listing_handle = open(primary_sample_annotation_listing_file, 'a+')
+    for f in os.listdir(proteomes_directory):
+        s = f.split('.faa')[0]
+        if s in prim_samps_with_bgcs: continue
+        faa = proteomes_directory + f
+        fin_faa = final_proteomes_directory + f
+        gbk = genbanks_directory + s + '.gbk'
+        fin_gbk = final_genbanks_directory + s + '.gbk'
+        os.system('cp %s %s' % (faa, fin_faa))
+        os.system('cp %s %s' % (gbk, fin_gbk))
+        primary_sample_annotation_listing_handle.write(s + '\t' + fin_gbk + '\t' + fin_faa + '\n')
+        if not skip_primary_expansion:
+            additional_sample_annotation_listing_handle.write(line + '\n')
+    primary_sample_annotation_listing_handle.close()
+    additional_sample_annotation_listing_handle.close()
+
     # Step 9: Process BiG-SCAPE Results and Create GCF Listings (if provided by user) or run lsaBGC-Cluster if requested.
+    gcf_listings_directory = None
     if bigscape_results_dir != None:
-        gcf_listings_directory = fin_outdir + 'GCF_Listings/'
-        if not os.path.isdir(gcf_listings_directory): os.system('mkdir %s' % gcf_listings_directory)
+        bigscape_reformat_directory = outdir + 'BiG_SCAPE_Results_Reformatted/'
+        gcf_listings_directory = bigscape_reformat_directory + 'GCF_Listings/'
+        if not os.path.isdir(bigscape_reformat_directory) or not os.path.isdir(gcf_listings_directory):
+            util.setupReadyDirectory([bigscape_reformat_directory, gcf_listings_directory])
         util.createGCFListingsDirectory(sample_bgcs, bgc_to_sample, bigscape_results_dir, gcf_listings_directory, logObject)
     elif run_lsabgc_cluster:
         lsabgc_cluster_results_dir = outdir + 'lsaBGC_Cluster_Results/'
-        lsabgc_cluster_cmd = ['lsaBGC-Cluster.py', '-b',primary_bgc_listing_file, '-m', primary_orthofinder_matrix_file,
-                              '-c', str(cores), '-o', lsabgc_cluster_results_dir, '-r', '0.7', '-i', '1.4', '-j', '20.0']
+        lsabgc_cluster_cmd = ['lsaBGC-Cluster.py', '-b', primary_bgc_listing_file, '-m', primary_orthofinder_matrix_file,
+                              '-c', str(cores), '-o', lsabgc_cluster_results_dir, '-r', '0.7', '-i', '4.0', '-j', '20.0']
         try:
             subprocess.call(' '.join(lsabgc_cluster_cmd), shell=True, stdout=subprocess.DEVNULL,
                             stderr=subprocess.DEVNULL,
                             executable='/bin/bash')
             if logObject:
                 logObject.info('Successfully ran: %s' % ' '.join(lsabgc_cluster_cmd))
+            gcf_listings_directory = lsabgc_cluster_results_dir + 'GCF_Listings/'
         except:
             if logObject:
                 logObject.error('Had an issue running: %s' % ' '.join(lsabgc_cluster_cmd))
@@ -318,11 +349,11 @@ def lsaBGC_Ready():
     # Step 10: Run lsaBGC-AutoExpansion if requested
     if run_lsabgc_expansion and ((bigscape_results_dir != None and os.path.isdir(bigscape_results_dir)) or
                                  (run_lsabgc_cluster and os.path.isdir(lsabgc_cluster_results_dir))) and \
-                                draft_genome_listing_file != None:
+                                additional_genome_listing_file != None and os.path.isdir(gcf_listings_directory):
         lsabgc_expansion_results_dir = outdir + 'lsaBGC_AutoExpansion_Results/'
-        lsabgc_expansion_cmd = ['lsaBGC-AutoExpansion.py', '-g', fin_outdir + 'GCF_Listings/', '-m',
+        lsabgc_expansion_cmd = ['lsaBGC-AutoExpansion.py', '-g', gcf_listings_directory, '-m',
                                int_outdir + 'Orthogroups.tsv', '-l', int_outdir + 'Primary_Sample_Annotation_Files.txt',
-                               '-e', int_outdir + 'Draft_Sample_Annotation_Files.txt', '-q', '-c', str(cores),
+                               '-e', int_outdir + 'Additional_Sample_Annotation_Files.txt', '-q', '-c', str(cores),
                                '-o', lsabgc_expansion_results_dir]
         try:
             subprocess.call(' '.join(lsabgc_expansion_cmd), shell=True, stdout=subprocess.DEVNULL,
