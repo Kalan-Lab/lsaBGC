@@ -19,7 +19,7 @@ biosynthetic gene cluster diversity across a focal lineage/taxa of interest usin
 Documentation can currently be found on this Github repo's wiki: https://github.com/Kalan-Lab/lsaBGC/wiki
 
 1. [Background on lsaBGC - what it does and does not do](https://github.com/Kalan-Lab/lsaBGC/wiki/00.-Background)
-2. [Installation Guide (see below for more concise version of installation)](https://github.com/Kalan-Lab/lsaBGC/wiki/01.-Installation)
+2. [Installation Guide](https://github.com/Kalan-Lab/lsaBGC/wiki/01.-Installation)
 3. [The Object Oriented Core of lsaBGC](https://github.com/Kalan-Lab/lsaBGC/wiki/02.-The-Object-Oriented-Core-of-lsaBGC)
 4. [Tutorial: Exploring BGCs in Cutibacterium](https://github.com/Kalan-Lab/lsaBGC/wiki/03.-Tutorial:-Exploring-BGCs-in-Cutibacterium)
 5. [Generating Required Inputs for lsaBGC](https://github.com/Kalan-Lab/lsaBGC/wiki/04.-Generating-Required-Inputs-for-lsaBGC)
