@@ -46,12 +46,12 @@ To install, please take the following steps:
 
 1. Clone this git repository:
 
-```git clone git@github.com:Kalan-Lab/lsaBGC.git```
+```git clone https://github.com/Kalan-Lab/lsaBGC```
 
 2. Setup the conda environment using the yml file.
 
 ```
-conda env create -f lsaBGC_environment.yml -p /path/to/conda_env/
+conda env create -f lsaBGC/lsaBGC_environment.yml -p /path/to/conda_env/
 ```
 
 3. Activate the environment and perform setup and pip installation in the git repository:
@@ -81,7 +81,6 @@ load the conda environment for lsaBGC, please run the following commands (again
 make sure to replace the dummy paths!):
 ```
 mkdir -p /path/to/conda_env/etc/conda/activate.d
-touch /path/to/conda_env/etc/conda/activate.d/env_vars.sh
 echo $'#!/bin/sh\n\ulimit -n 1000000\n' > /path/to/conda_env/etc/conda/activate.d/env_vars.sh
 ```
 
@@ -90,6 +89,8 @@ We also recommend setting the environment variable $TMPDIR to a larger space tha
 ```
 echo $'export TMPDIR=/path/to/larger_tmp_dir/' >> /path/to/conda_env/etc/conda/activate.d/env_vars.sh
 ```
+
+Finally, you can deactivate and reactivate the conda environment for the environment changes to take effect.
 
 5. Setup database(s) for annotation used by `lsaBGC-Ready.py`. This is currently just the,
 KOfam profile HMMs (~5GB). To setup databases, simply run the script:
