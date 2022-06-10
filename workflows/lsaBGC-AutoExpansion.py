@@ -217,7 +217,7 @@ def lsaBGC_AutoExpansion():
 	for sample in bgc_lts:
 		for i, gcf1 in enumerate(bgc_lts[sample]):
 			for j, gcf2 in enumerate(bgc_lts[sample]):
-				if i >= j: continue
+				if i > j: continue
 				for bgc1 in bgc_lts[sample][gcf1]:
 					bgc1_lts = bgc_lts[sample][gcf1][bgc1]
 					for bgc2 in bgc_lts[sample][gcf2]:
