@@ -307,7 +307,7 @@ def lsaBGC_Ready():
 
     primary_sample_annotation_listing_handle = open(primary_sample_annotation_listing_file, 'a+')
     for f in os.listdir(proteomes_directory):
-        s = f.split('.faa')
+        s = f.split('.faa')[0]
         if s in prim_samps_with_bgcs: continue
         faa = proteomes_directory + f
         fin_faa = final_proteomes_directory + f
@@ -320,7 +320,7 @@ def lsaBGC_Ready():
             additional_sample_annotation_listing_handle.write(line + '\n')
     primary_sample_annotation_listing_handle.close()
     additional_sample_annotation_listing_handle.close()
-    
+
     # Step 9: Process BiG-SCAPE Results and Create GCF Listings (if provided by user) or run lsaBGC-Cluster if requested.
     gcf_listings_directory = None
     if bigscape_results_dir != None:
