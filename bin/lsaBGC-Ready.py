@@ -90,7 +90,7 @@ def create_parser():
                         help="Total number of cores/threads to use for running OrthoFinder2/prodigal.", required=False,
                         default=1)
     parser.add_argument('-k', '--keep_intermediates', action='store_true', help='Keep intermediate directories / files which are likely not useful for downstream analyses.', required=False, default=False)
-
+    parser.add_argument('-spe', '--skip_primary_expansion', action='store_true', help='Skip expansion on primary genomes as well.', required=False, default=False)
     args = parser.parse_args()
     return args
 
@@ -140,6 +140,7 @@ def lsaBGC_Ready():
     run_lsabgc_cluster = myargs.lsabgc_cluster
     run_lsabgc_expansion = myargs.lsabgc_expansion
     keep_intermediates = myargs.keep_intermediates
+    skip_primary_expansion = myargs.skip_primary_expansion
 
     try:
         assert (os.path.isfile(additional_genome_listing_file))
@@ -294,6 +295,9 @@ def lsaBGC_Ready():
                                               primary_bgc_listing_file, primary_orthofinder_matrix_file, logObject,
                                               cores=cores)
 
+    if not skip_primary_expansion:
+        os.system('cat %s >> %s' % (primary_sample_annotation_listing_file, additional_sample_annotation_listing_file))
+
     # Step 9: Process BiG-SCAPE Results and Create GCF Listings (if provided by user) or run lsaBGC-Cluster if requested.
     gcf_listings_directory = None
     if bigscape_results_dir != None:
@@ -304,7 +308,7 @@ def lsaBGC_Ready():
         util.createGCFListingsDirectory(sample_bgcs, bgc_to_sample, bigscape_results_dir, gcf_listings_directory, logObject)
     elif run_lsabgc_cluster:
         lsabgc_cluster_results_dir = outdir + 'lsaBGC_Cluster_Results/'
-        lsabgc_cluster_cmd = ['lsaBGC-Cluster.py', '-b',primary_bgc_listing_file, '-m', primary_orthofinder_matrix_file,
+        lsabgc_cluster_cmd = ['lsaBGC-Cluster.py', '-b', primary_bgc_listing_file, '-m', primary_orthofinder_matrix_file,
                               '-c', str(cores), '-o', lsabgc_cluster_results_dir, '-r', '0.7', '-i', '4.0', '-j', '20.0']
         try:
             subprocess.call(' '.join(lsabgc_cluster_cmd), shell=True, stdout=subprocess.DEVNULL,
