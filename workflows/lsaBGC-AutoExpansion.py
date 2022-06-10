@@ -161,7 +161,7 @@ def lsaBGC_AutoExpansion():
 						bgc_lt_evals[sample][gcf_id][bgc_gbk_path][lt] = -500
 					bgc_lts[sample][gcf_id][bgc_gbk_path].add(lt)
 				original_gcfs.add(line.split('\t')[1])
-				gcf_primary_instances.add(line.split('\t')[0])
+				gcf_primary_instance_samples.add(line.split('\t')[0])
 
 		# Run lsaBGC-Expansion.py for GCF
 		### TODO add additional options in expansion to auto-expansion
