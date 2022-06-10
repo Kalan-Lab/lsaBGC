@@ -1,7 +1,7 @@
 # *lsa*BGC
 ### Lineage Specific Analysis of Biosynthetic Gene Clusters
 
-*lsa*BGC is a modular, software suite designed to provide a comprehensive set of functions for investigating and mining for 
+*lsa*BGC is a modular software suite designed to provide a comprehensive set of functions for investigating and mining for 
 biosynthetic gene cluster diversity across a focal lineage/taxa of interest using AntiSMASH based annotation. It consists of 
 8 independent programs: `lsaBGC-Ready.py`, `lsaBGC-Cluster.py`, `lsaBGC-Expansion`, `lsaBGC-Refine.py`, `lsaBGC-See.py`, 
 `lsaBGC-PopGene.py`, `lsaBGC-Divergence.py`, and `lsaBGC-DiscoVary.py`.
@@ -88,7 +88,7 @@ echo $'#!/bin/sh\n\ulimit -n 1000000\n' > /path/to/conda_env/etc/conda/activate.
 We also recommend setting the environment variable $TMPDIR to a larger space than the typical default `/tmp/` which is usually short on space. This becomes needed for large `sort` operations, which can pop up when using CompareM.
 
 ```
-echo $'export $TMPDIR=/path/to/larger_tmp_dir/' >> /path/to/conda_env/etc/conda/activate.d/env_vars.sh
+echo $'export TMPDIR=/path/to/larger_tmp_dir/' >> /path/to/conda_env/etc/conda/activate.d/env_vars.sh
 ```
 
 5. Setup database(s) for annotation used by `lsaBGC-Ready.py`. This is currently just the,
