@@ -268,8 +268,9 @@ def lsaBGC_AutoExpansion():
 			updated_listings_handle.write(line)
 	with open(expansion_listing_file) as oelf:
 		for line in oelf:
-			all_samples.add(util.cleanUpSampleName(line.strip().split('\t')[0]))
-			updated_listings_handle.write(line)
+			if not util.cleanUpSampleName(line.strip().split('\t')[0]) in all_samples:
+				all_samples.add(util.cleanUpSampleName(line.strip().split('\t')[0]))
+				updated_listings_handle.write(line)
 	updated_listings_handle.close()
 
 	# further filter out entire GCF presence in samples if needed
