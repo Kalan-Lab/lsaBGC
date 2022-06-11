@@ -38,68 +38,9 @@ Documentation can currently be found on this Github repo's wiki: https://github.
 
 ## Installation:
 
-Should take ~5-10 minutes. 
+Installation is performed via Conda and should take ~5-10 minutes. We are happy to attempt to address issues with installation if any arise, please open a Git Issues case.
 
-A more automated installation process is also described on the [Installation wiki page](https://github.com/Kalan-Lab/lsaBGC/wiki/01.-Installation).
-
-#### Note, through these steps, please make sure to change the dummy paths `/path/to/conda_env/` and `/path/to/lsaBGC` with the desired location of the conda environment on your computing system and the location of where you clone the lsaBGC git repository on your system, respectively!!!
-
-To install, please take the following steps:
-
-1. Clone this git repository:
-
-```git clone https://github.com/Kalan-Lab/lsaBGC```
-
-2. Setup the conda environment using the yml file.
-
-```
-conda env create -f /path/to/lsaBGC/lsaBGC_environment.yml -p /path/to/conda_env/
-```
-
-3. Activate the environment and perform setup and pip installation in the git repository:
-```
-# activate the conda environment for lsaBGC just created
-conda activate /path/to/conda_env/
-
-# change directories to where the Git repo for lsaBGC was downloaded
-cd /path/to/lsaBGC/
-
-# perform python install within conda environment
-python setup.py install
-pip install -e .
-```
-
-4. lsaBGC uses OrthoFinder (v2.5.4) to cluster proteins in BGCs into homolog groups, 
-this process can require lots of files to be written and these limits are often
-controlled by certain settings on servers. In my experience, the soft limit is often 
-the problem. For more insight into such constraints see: 
-https://github.com/davidemms/OrthoFinder/issues/384
-
-While other ortholog grouping software are available, OrthoFinder2 offers several
-benefits to ensure the most high quality ortholog grouping.
-
-To automatically set your soft limit to be 1 million files everytime you 
-load the conda environment for lsaBGC, please run the following commands (again
-make sure to replace the dummy paths!):
-```
-mkdir -p /path/to/conda_env/etc/conda/activate.d
-echo $'#!/bin/sh\n\ulimit -n 1000000\n' > /path/to/conda_env/etc/conda/activate.d/env_vars.sh
-```
-
-We also recommend setting the environment variable $TMPDIR to a larger space than the typical default `/tmp/` which is usually short on space. This becomes needed for large `sort` operations, which can pop up when using CompareM.
-
-```
-echo $'export TMPDIR=/path/to/larger_tmp_dir/' >> /path/to/conda_env/etc/conda/activate.d/env_vars.sh
-```
-
-Finally, you can deactivate and reactivate the conda environment for the environment changes to take effect.
-
-5. Setup database(s) for annotation used by `lsaBGC-Ready.py`. This is currently just the,
-KOfam profile HMMs (~5GB). To setup databases, simply run the script:
-
-```
-setup_annotation_dbs.py 
-```
+A step-by-step guide and bash scripts for automated installation are provided on the [Installation wiki page](https://github.com/Kalan-Lab/lsaBGC/wiki/01.-Installation). [Test cases](https://github.com/Kalan-Lab/lsaBGC_Ckefir_Testing_Cases) to demonstrate individual programs are available along with a more [comprehensive tutorial](https://github.com/Kalan-Lab/lsaBGC/wiki/03.-Tutorial:-Exploring-BGCs-in-Cutibacterium) to showcase the use of the suite and relations between core programs.
 
 ## Acknowledgements:
 
