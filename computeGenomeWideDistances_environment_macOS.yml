@@ -1,0 +1,10 @@
+name: computeGenomeWideDistances
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - bioconda::fastani=1.32
+  - bioconda::mash=2.3
+  - bioconda::comparem=0.1.2
+
