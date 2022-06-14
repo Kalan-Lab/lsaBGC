@@ -9,7 +9,7 @@ biosynthetic gene cluster diversity across a focal lineage/taxa of interest usin
 ![](https://github.com/Kalan-Lab/lsaBGC/blob/main/docs/images/lsaBGC1.1_Simplified.png)
 
 ## Major Updates 
-* Jun 14, 2022 - Added [note on scalability](###markdown-header-notes-on-scalability) and future plans.
+* Jun 14, 2022 - Added [note on scalability](#markdown-header-notes-on-scalability) and future plans.
 * Jun 09, 2022 - Fixed issues with `lsaBGC-Ready.py` & New Tutorial check it out [here](https://github.com/Kalan-Lab/lsaBGC/wiki/03.-Tutorial:-Exploring-BGCs-in-Cutibacterium)!
 * Jun 06, 2022 - Major updates to `lsaBGC-Ready.py` - the new recommended program for setting-up to run the lsaBGC suite.
 * May 24, 2022 - `lsaBGC-Ready.py` is now available and can take pre-computed antiSMASH BGC predictions, along with optional BiG-SCAPE clustering results, to produce the required inputs for major lsaBGC analytical programs (`lsaBGC-See.py`, `lsaBGC-Refine.py`, `lsaBGC-PopGene.py`, `lsaBGC-DiscoVary.py`). 
@@ -42,7 +42,7 @@ Installation is performed via Conda and should take ~5-10 minutes. We are happy 
 
 On the [Installation wiki page](https://github.com/Kalan-Lab/lsaBGC/wiki/01.-Installation), you can find a step-by-step guide and bash scripts for automated installation are provided. [Test cases](https://github.com/Kalan-Lab/lsaBGC_Ckefir_Testing_Cases) to demonstrate individual programs are available along with a more [comprehensive tutorial](https://github.com/Kalan-Lab/lsaBGC/wiki/03.-Tutorial:-Exploring-BGCs-in-Cutibacterium) to showcase the use of the suite and relations between core programs.
 
-## Notes on Scalability
+## Notes on Scalability:
 
 Currently, the primary/core set of samples/genomes used to define BGCs should not exceed 300 samples. This is because OrthoFinder2 performs all-vs-all alignments between genomes and will produce a lot of files. To resolve this limitation in the future, I am looking into developing stratedgies to make OrthoFinder2 more scalable (such as performing all-vs-all diamond alignments via a reflexive alignment to a single giant file with all proteins from all genomes - diamond gains a speed boost + avoids writing a lot of files) or using alternate software, though OrthoFinder2 has some immense benefits for accurate clustering that would be great to retain. For most genera the 300 upper limit should work well after dereplication of genomes to remove redundancy. lsaBGC-AutoExpansion can then be used at high-scale to find homologous instances to GCFs defined from primary genomes in addtiional/draft genomes. 
 
