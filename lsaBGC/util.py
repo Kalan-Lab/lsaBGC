@@ -1846,6 +1846,17 @@ def is_newick(newick):
 	except:
 		return False
 
+def is_fastq(fastq):
+	"""
+	Function to validate if FASTA file is correctly formatted.
+	"""
+	try:
+		with open(fastq) as of:
+			SeqIO.parse(of, 'fastq')
+		return True
+	except:
+		return False
+
 
 def is_fasta(fasta):
 	"""
@@ -1989,3 +2000,10 @@ def calculateTajimasD(sequences):
 		return (D)
 	else:
 		return ("NA")
+
+def is_numeric(x):
+	try:
+		x = float(x)
+		return True
+	except:
+		return False
