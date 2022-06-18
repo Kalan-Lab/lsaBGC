@@ -1,7 +1,7 @@
 # *lsa*BGC
 ### Lineage Specific Analysis of Biosynthetic Gene Clusters
 
-*lsa*BGC is a modular, software suite designed to provide a comprehensive set of functions for investigating and mining for 
+*lsa*BGC is a modular software suite designed to provide a comprehensive set of functions for investigating and mining for 
 biosynthetic gene cluster diversity across a focal lineage/taxa of interest using AntiSMASH based annotation. It consists of 
 8 independent programs: `lsaBGC-Ready.py`, `lsaBGC-Cluster.py`, `lsaBGC-Expansion`, `lsaBGC-Refine.py`, `lsaBGC-See.py`, 
 `lsaBGC-PopGene.py`, `lsaBGC-Divergence.py`, and `lsaBGC-DiscoVary.py`.
@@ -9,7 +9,7 @@ biosynthetic gene cluster diversity across a focal lineage/taxa of interest usin
 ![](https://github.com/Kalan-Lab/lsaBGC/blob/main/docs/images/lsaBGC1.1_Simplified.png)
 
 ## Major Updates 
-
+* Jun 14, 2022 - Added [note on scalability](#user-content-notes-on-scalability), below on this page, and future plans to address them.
 * Jun 09, 2022 - Fixed issues with `lsaBGC-Ready.py` & New Tutorial check it out [here](https://github.com/Kalan-Lab/lsaBGC/wiki/03.-Tutorial:-Exploring-BGCs-in-Cutibacterium)!
 * Jun 06, 2022 - Major updates to `lsaBGC-Ready.py` - the new recommended program for setting-up to run the lsaBGC suite.
 * May 24, 2022 - `lsaBGC-Ready.py` is now available and can take pre-computed antiSMASH BGC predictions, along with optional BiG-SCAPE clustering results, to produce the required inputs for major lsaBGC analytical programs (`lsaBGC-See.py`, `lsaBGC-Refine.py`, `lsaBGC-PopGene.py`, `lsaBGC-DiscoVary.py`). 
@@ -19,7 +19,7 @@ biosynthetic gene cluster diversity across a focal lineage/taxa of interest usin
 Documentation can currently be found on this Github repo's wiki: https://github.com/Kalan-Lab/lsaBGC/wiki
 
 1. [Background on lsaBGC - what it does and does not do](https://github.com/Kalan-Lab/lsaBGC/wiki/00.-Background)
-2. [Extended Installation Guide (see below for more concise version of installation)](https://github.com/Kalan-Lab/lsaBGC/wiki/01.-Installation)
+2. [Installation Guide](https://github.com/Kalan-Lab/lsaBGC/wiki/01.-Installation)
 3. [The Object Oriented Core of lsaBGC](https://github.com/Kalan-Lab/lsaBGC/wiki/02.-The-Object-Oriented-Core-of-lsaBGC)
 4. [Tutorial: Exploring BGCs in Cutibacterium](https://github.com/Kalan-Lab/lsaBGC/wiki/03.-Tutorial:-Exploring-BGCs-in-Cutibacterium)
 5. [Generating Required Inputs for lsaBGC](https://github.com/Kalan-Lab/lsaBGC/wiki/04.-Generating-Required-Inputs-for-lsaBGC)
@@ -38,65 +38,15 @@ Documentation can currently be found on this Github repo's wiki: https://github.
 
 ## Installation:
 
-Should take ~10 minutes.
+Installation is performed via Conda and should take ~5-10 minutes. We are happy to attempt to address issues with installation if any arise, please open a Git Issues case.
 
-#### Note, through these steps, please make sure to change the dummy paths `/path/to/conda_env/` and `/path/to/lsaBGC` with the desired location of the conda environment on your computing system and the location of where you clone the lsaBGC git repository on your system, respectively!!!
+On the [Installation wiki page](https://github.com/Kalan-Lab/lsaBGC/wiki/01.-Installation), you can find a step-by-step guide and bash scripts for automated installation are provided. [Test cases](https://github.com/Kalan-Lab/lsaBGC_Ckefir_Testing_Cases) to demonstrate individual programs are available along with a more [comprehensive tutorial](https://github.com/Kalan-Lab/lsaBGC/wiki/03.-Tutorial:-Exploring-BGCs-in-Cutibacterium) to showcase the use of the suite and relations between core programs.
 
-To install, please take the following steps:
+## Notes on Scalability:
 
-1. Clone this git repository:
+Currently, the primary/core set of samples/genomes used to define BGCs should not exceed 300 samples. This is because OrthoFinder2 performs all-vs-all alignments between genomes and will produce a lot of files. To resolve this limitation in the future, I am looking into developing stratedgies to make OrthoFinder2 more scalable (such as performing all-vs-all diamond alignments via a reflexive alignment to a single giant file with all proteins from all genomes - diamond gains a speed boost + avoids writing a lot of files) or using alternate software, though OrthoFinder2 has some immense benefits for accurate clustering that would be great to retain. For most genera, the 300 upper limit should work well after dereplication of genomes to remove redundancy. lsaBGC-AutoExpansion can then be used at high-scale to find homologous instances to GCFs defined from primary genomes in addtiional/draft genomes. 
 
-```git clone git@github.com:Kalan-Lab/lsaBGC.git```
-
-2. Setup the conda environment using the yml file.
-
-```
-conda env create -f lsaBGC_environment.yml -p /path/to/conda_env/
-```
-
-3. Activate the environment and perform setup and pip installation in the git repository:
-```
-# activate the conda environment for lsaBGC just created
-conda activate /path/to/conda_env/
-
-# change directories to where the Git repo for lsaBGC was downloaded
-cd /path/to/lsaBGC/
-
-# perform python install within conda environment
-python setup.py install
-pip install -e .
-```
-
-4. lsaBGC uses OrthoFinder (v2.5.4) to cluster proteins in BGCs into homolog groups, 
-this process can require lots of files to be written and these limits are often
-controlled by certain settings on servers. In my experience, the soft limit is often 
-the problem. For more insight into such constraints see: 
-https://github.com/davidemms/OrthoFinder/issues/384
-
-While other ortholog grouping software are available, OrthoFinder2 offers several
-benefits to ensure the most high quality ortholog grouping.
-
-To automatically set your soft limit to be 1 million files everytime you 
-load the conda environment for lsaBGC, please run the following commands (again
-make sure to replace the dummy paths!):
-```
-mkdir -p /path/to/conda_env/etc/conda/activate.d
-touch /path/to/conda_env/etc/conda/activate.d/env_vars.sh
-echo $'#!/bin/sh\n\ulimit -n 1000000\n' > /path/to/conda_env/etc/conda/activate.d/env_vars.sh
-```
-
-We also recommend setting the environment variable $TMPDIR to a larger space than the typical default `/tmp/` which is usually short on space. This becomes needed for large `sort` operations, which can pop up when using CompareM.
-
-```
-echo $'export $TMPDIR=/path/to/larger_tmp_dir/' >> /path/to/conda_env/etc/conda/activate.d/env_vars.sh
-```
-
-5. Setup database(s) for annotation used by `lsaBGC-Ready.py`. This is currently just the,
-KOfam profile HMMs (~5GB). To setup databases, simply run the script:
-
-```
-setup_annotation_dbs.py 
-```
+Additionally, currently `lsaBGC-PopGene.py` can also take a long time to run when more than 300 genomes are provided. Dereplication of input genomes should definitely be performed prior to using this program however to more appropriately caclulate evolutionary and population genetic statistics. We plan to resolve this limitation regardless using [MAGUS](https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1008950) in the near future, which allows for fast alignment of up to a million sequences through a divide-and-conquer type approach. 
 
 ## Acknowledgements:
 
