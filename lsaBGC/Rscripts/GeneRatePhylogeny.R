@@ -17,9 +17,9 @@ phylo.tree <- midpoint.root(phylo.tree)
 track_data <- read.table(track_file, header=F, sep='\t')
 
 if (track_data[1,1] == "name") {
-  col.names(track_data) <- track_data[,1]
+  colnames(track_data) <- track_data[,1]
 } else {
-  col.names(track_data) <- c('name', 'type')
+  colnames(track_data) <- c('name', 'type')
 }
 
 
