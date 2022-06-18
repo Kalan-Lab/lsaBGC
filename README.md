@@ -9,7 +9,7 @@ based annotation. It consists of 8 independent programs: `lsaBGC-Ready.py`, `lsa
 ![](https://github.com/Kalan-Lab/lsaBGC/blob/main/docs/images/lsaBGC1.1_Simplified.png)
 
 ## Major Updates 
-* Jun 18, 2022 - Updated `lsaBGC-AutoAnalyze.py` for better integration into new framework based around `lsaBGC-Ready.py`.
+* Jun 18, 2022 - Updated [`lsaBGC-AutoAnalyze.py`](https://github.com/Kalan-Lab/lsaBGC/wiki/13.-The-lsaBGC-AutoAnalyze-Workflow) (automated lsaBGC analysis for each GCF) for better integration into new framework based around `lsaBGC-Ready.py`. 
 * Jun 14, 2022 - Added [note on scalability](#user-content-notes-on-scalability), below on this page, and future plans to address them.
 * Jun 09, 2022 - Fixed issues with `lsaBGC-Ready.py` & New Tutorial check it out [here](https://github.com/Kalan-Lab/lsaBGC/wiki/03.-Tutorial:-Exploring-BGCs-in-Cutibacterium)!
 * Jun 06, 2022 - Major updates to `lsaBGC-Ready.py` - the new recommended program for setting-up to run the lsaBGC suite.
