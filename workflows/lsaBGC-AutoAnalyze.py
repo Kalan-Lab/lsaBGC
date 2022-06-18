@@ -274,7 +274,6 @@ def lsaBGC_AutoAnalyze():
 	if population_listing_file and species_phylogeny_file:
 		populations_on_tree_pdf = outdir + 'Populations_on_Species_Tree.pdf'
 		cmd = ['Rscript', RSCRIPT_FOR_POPULATIONS_ON_PHYLO, species_phylogeny_file, population_listing_file, populations_on_tree_pdf]
-		print(' '.join(cmd))
 		try:
 			util.run_cmd(cmd, logObject)
 		except Exception as e:
@@ -432,7 +431,7 @@ def lsaBGC_AutoAnalyze():
 						gcf_consensus_sim_plot_lines.append(gcf_id + '\t' + gcf_id.split('_')[1] + '\t' + hg + '\t' + hg_ordering[hg] + '\t' + samp + '\t' + str(diff))
 				for samp in all_samples:
 					if not samp in samps_accounted:
-						gcf_consensus_sim_plot_lines.append(gcf_id + '\t' + gcf_id.split('_')[1] + '\t' + hg + '\t' + hg_ordering[hg] + '\t' + samp + '\t' + str(1.0))
+						gcf_consensus_sim_plot_lines.append(gcf_id + '\t' + gcf_id.split('_')[1] + '\t' + hg + '\t' + hg_ordering[hg] + '\t' + samp + '\t' + "NA")
 
 		if float(len(total_samples_accounted))/float(len(sample_retention_set)) >= 0.1:
 			combined_consensus_similarity_handle.write('\n'.join(gcf_consensus_sim_plot_lines) + '\n')
