@@ -169,6 +169,7 @@ def lsaBGC_AutoAnalyze():
 			assert(os.path.isfile(genomewide_distances_file))
 			with open(genomewide_distances_file):
 				line = line.strip()
+				print(line.split('\t'))
 				sample_1, sample_2, gen_est = line.split('\t')
 				assert(sample_1 in all_samples and sample_2 in all_samples and util.is_numeric(gen_est))
 		except:
