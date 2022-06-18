@@ -25,6 +25,6 @@ if (track_data[1,1] == "name") {
 
 pdf(pdf_file, height=10, width=10)
 p <- ggtree(phylo.tree, layout="circular")
-p <- p %<+% track_data + geom_tippoint(aes(color=as.factor(type)))+ guides(fill="none")
+p <- p %<+% track_data + geom_tippoint(aes(color=as.factor(type))) + theme(legend.position="none")
 print(p)
 dev.off()
