@@ -220,8 +220,8 @@ def lsaBGC_AutoAnalyze():
 	parameter_names = ["GCF Listings Directory", "Listing File of Sample Annotation Files for Initial Set of Samples",
 					   "OrthoFinder Homolog Matrix", "Output Directory", "Species Phylogeny File in Newick Format",
 					   "File with GenomeWide Distance Estimations", "CompareM AAI Was Used for GenomeWide Distance Estimations?",
-					   "DiscoVary Analysis ID", "DiscoVary Sequencing Data Location Specification File",
-					   "Sample Retention Set", "Cores"]
+					   "Clade/Population Listings File", "DiscoVary Analysis ID",
+					   "DiscoVary Sequencing Data Location Specification File", "Sample Retention Set", "Cores"]
 	util.logParametersToFile(parameters_file, parameter_names, parameter_values)
 	logObject.info("Done saving parameters!")
 
