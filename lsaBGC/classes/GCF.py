@@ -976,7 +976,10 @@ class GCF(Pan):
 
 		for i, ls in enumerate(data):
 			newline = '\t'.join(ls[:-9]) + '\t' + str(adj_pvals[i]) + '\t' + '\t'.join(ls[-8:])
-			data_for_sorting.append([int(ls[4]), newline])
+			con_order = 1E10
+			if util.is_numeric(ls[4]):
+				con_order = int(ls[4])
+			data_for_sorting.append([con_order, newline])
 
 		for ls in sorted(data_for_sorting, key=itemgetter(0)):
 			final_output_handle.write(ls[1] + '\n')

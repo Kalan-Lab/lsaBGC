@@ -61,8 +61,10 @@ def create_parser():
 	Author: Rauf Salamzade
 	Affiliation: Kalan Lab, UW Madison, Department of Medical Microbiology and Immunology
 
-	Program to automate most of lsaBGC analytical programs across each GCF. 
+	Wrapper program to automate running lsaBGC analytical programs for each GCF. 
 	
+	Iteratively runs lsaBGC-See.py, lsaBGC-PopGene.py, lsaBGC-Divergence.py, and optionally lsaBGC-DiscoVary.py for
+	each GCF in a GCF listings directory, produced by lsaBGC-Ready, lsaBGC-Cluster, or lsaBGC-AutoExpansion.py.
 	""", formatter_class=argparse.RawTextHelpFormatter)
 
 	parser.add_argument('-o', '--output_directory', help="Parent output/workspace directory.", required=True)
@@ -70,25 +72,16 @@ def create_parser():
 	parser.add_argument('-g', '--gcf_listing_dir', help='Directory with GCF listing files.', required=True)
 	parser.add_argument('-m', '--orthofinder_matrix', help="OrthoFinder homolog group by sample matrix.", required=True)
 	parser.add_argument('-k', '--sample_set', help="Sample set to keep in analysis. Should be file with one sample id per line.", required=False)
-	parser.add_argument('-s', '--lineage_phylogeny', help="Path to species phylogeny. If not provided a FastANI based neighborjoining tree will be constructed and used.", default=None, required=False)
-	parser.add_argument('-p', '--population_analysis',	action='store_true', help="Whether to construct species phylogeny and use it to determine populations.", default=False, required=False)
-	parser.add_argument('-cm', '--comparem', action='store_true', help='Use compareM (to perform AAI analysis) instead of FastANI (to perform ANI analysis). This is recommended if the "lineage" in question is a genus.')
-	parser.add_argument('-ps', '--num_populations', type=int, help='Overwritten if manual_populations is specified. If population analysis specified, what is the number of populations to infer from cutting the neighbor joining tree constructed by FastANI/CompareM inference.', required=False, default=4)
-	parser.add_argument('-mp', '--manual_populations', help='Path to user defined populations file.', required=False, default=None)
+	parser.add_argument('-s', '--species_phylogeny', help="Path to species phylogeny. If not provided a FastANI based neighborjoining tree will be constructed and used.", default=None, required=False)
+	parser.add_argument('-w', '--genome_wide_distances', help="Path to file listing genome-wide distances between genomes/samples. This is the Genome-Wide_Estimates.txt file produced by the computeGenomeWideEstimates.py script")
+	parser.add_argument('-r', '--aai', action='store_true', help='AAI was used to compute genome wise distances instead of ANI. E.g. if CompareM was used.')
+	parser.add_argument('-p', '--populations', help='Path to user defined populations/groupings file. Tab delimited with 2 columns: (1) sample name and (2) group identifier.', required=False, default=None)
 	parser.add_argument('-i', '--discovary_input_listing', help="Sequencing readsets for DiscoVary analysis. Tab delimited file listing: (1) sample name, (2) forward readset, (3) reverse readset for metagenomic/isolate sequencing data.", required=False, default=None)
 	parser.add_argument('-n', '--discovary_analysis_name', help="Identifier/name for DiscoVary. Not providing this parameter will avoid running lsaBGC-DiscoVary step.", required=False, default=None)
 	parser.add_argument('-c', '--cores', type=int, help="Total number of cores to use.", required=False, default=1)
 
 	args = parser.parse_args()
 	return args
-
-def writeToOpenHandle(gcf_results_file, combined_results_handle, include_header):
-	with open(gcf_results_file) as ogrf:
-		for i, line in enumerate(ogrf):
-			if i == 0 and include_header:
-				combined_results_handle.write(line)
-			elif i != 0:
-				combined_results_handle.write(line)
 
 def lsaBGC_AutoAnalyze():
 	"""
@@ -108,31 +101,111 @@ def lsaBGC_AutoAnalyze():
 	try:
 		assert(os.path.isdir(gcf_listing_dir) and os.path.isfile(original_orthofinder_matrix_file) and os.path.isfile(input_listing_file))
 	except:
-		raise RuntimeError('Input directory with GCF listings does not exist or the OrthoFinder does not exist. Exiting now ...')
+		raise RuntimeError('Input directory with GCF listings does not exist, sample annotation file, or the OrthoFinder matrix does not exist. Exiting now ...')
 
-	if os.path.isdir(outdir):
-		sys.stderr.write("Output directory exists. Continuing in 5 seconds ...\n ")
-		sleep(5)
-	else:
-		os.system('mkdir %s' % outdir)
+	all_samples = set([])
+	try:
+		with open(input_listing_file) as oilf:
+			for line in oilf:
+				line = line.strip()
+				sample, sample_gbk, sample_faa = line.split('\t')
+				assert(util.is_genbank(sample_gbk))
+				assert(util.is_fasta(sample_faa))
+				all_samples.add(line.split('\t')[0])
+	except:
+		raise RuntimeError("Issue with validating input listing file with sample genome-wide genbanks and predicted proteomes is in correct format.")
+
+	try:
+		gcf_listings = 0
+		for f in os.listdir(gcf_listing_dir):
+			if f.startswith('GCF_') and f.endswith('.txt'):
+				with open(gcf_listing_dir + f) as ogf:
+					for line in ogf:
+						line = line.strip()
+						samp, bgc_path = line.split('\t')
+						assert(samp in all_samples)
+						assert(util.is_genbank(bgc_path))
+				gcf_listings += 1
+		assert(gcf_listings > 0)
+	except:
+		raise RuntimeError("Issue with validating at least single GCF listing file in the GCF listings directory.")
+
+	try:
+		with open(original_orthofinder_matrix_file) as omf:
+			for i, line in enumerate(omf):
+				line = line.strip('\n')
+				ls = line.split('\t')
+				if i == 0:
+					for samp in ls[1:]:
+						if samp != '':
+							assert(samp in all_samples)
+				else:
+					assert(ls[0].startswith("OG"))
+	except:
+		raise RuntimeError("Issue with validating OrthoFinder matrix is in correct format.")
+
 
 	"""
 	PARSE OPTIONAL INPUTS
 	"""
 
 	sample_set_file = myargs.sample_set
-	lineage_phylogeny_file = myargs.lineage_phylogeny
-	population_analysis = myargs.population_analysis
-	comparem = myargs.comparem
-	num_populations = myargs.num_populations
-	manual_populations_file = myargs.manual_populations
+	species_phylogeny_file = myargs.species_phylogeny
+	genomewide_distances_file = myargs.genome_wide_distances
+	aai_flag = myargs.aai
+	population_listing_file = myargs.populations
 	discovary_analysis_id = myargs.discovary_analysis_name
 	discovary_input_listing = myargs.discovary_input_listing
 	cores = myargs.cores
 
+	if species_phylogeny_file != None:
+		try:
+			assert(util.is_newick(species_phylogeny_file))
+		except:
+			raise RuntimeError('Species phylogeny provided either does not exist or is not in the proper format. Exiting now ...')
+
+	if genomewide_distances_file != None:
+		try:
+			assert(os.path.isfile(genomewide_distances_file))
+			with open(genomewide_distances_file) as ogdf:
+				for line in ogdf:
+					line = line.strip()
+					sample_1, sample_2, gen_est = line.split('\t')
+					assert(sample_1 in all_samples and sample_2 in all_samples and util.is_numeric(gen_est))
+		except:
+			raise RuntimeError('GenomeWide estimates file provided does not exist or does not meet expected formatting. Exiting now ...')
+
+	if population_listing_file != None:
+		try:
+			with open(population_listing_file) as oplf:
+				for line in oplf:
+					line = line.strip()
+					sample, pop = line.split('\t')
+					assert(sample in all_samples)
+		except:
+			raise RuntimeError('Population listings file provided does meet expected formatting.')
+
+	if discovary_input_listing != None:
+		try:
+			with open(discovary_input_listing) as odilf:
+				for line in odilf:
+					line = line.strip()
+					sample, frw_pe_file, rev_pe_file = line.split('\t')
+					assert(os.path.isfastq(frw_pe_file))
+					assert(os.path.isfastq(rev_pe_file))
+					assert(sample in all_samples)
+		except:
+			raise RuntimeError('DiscoVary paired-end sequencing data listings file does not meet expected formatting.')
+
 	"""
 	START WORKFLOW
 	"""
+
+	if os.path.isdir(outdir):
+		sys.stderr.write("Output directory exists. Continuing in 5 seconds ...\n ")
+		sleep(5)
+	else:
+		os.system('mkdir %s' % outdir)
 
 	# create logging object
 	log_file = outdir + 'Progress.log'
@@ -142,83 +215,18 @@ def lsaBGC_AutoAnalyze():
 	logObject.info("Saving parameters for easier determination of results' provenance in the future.")
 	parameters_file = outdir + 'Parameter_Inputs.txt'
 	parameter_values = [gcf_listing_dir, input_listing_file, original_orthofinder_matrix_file, outdir,
-						lineage_phylogeny_file, population_analysis, comparem, discovary_analysis_id,
-						discovary_input_listing, sample_set_file, num_populations, manual_populations_file, cores]
-	parameter_names = ["GCF Listings Directory", "Listing File of Prokka Annotation Files for Initial Set of Samples",
-					   "OrthoFinder Homolog Matrix", "Output Directory", "Phylogeny File in Newick Format",
-					   "Delineate Populations and Perform Population Genetics Analytics", "CompareM AAI Requested?",
-					   "DiscoVary Analysis ID", "DiscoVary Sequencing Data Location Specification File",
-					   "Sample Retention Set", "Number of Populations", "Path to Manual Population Specifications File",
-					   "Cores"]
+						species_phylogeny_file, genomewide_distances_file, aai_flag, population_listing_file,
+						discovary_analysis_id, discovary_input_listing, sample_set_file, cores]
+	parameter_names = ["GCF Listings Directory", "Listing File of Sample Annotation Files for Initial Set of Samples",
+					   "OrthoFinder Homolog Matrix", "Output Directory", "Species Phylogeny File in Newick Format",
+					   "File with GenomeWide Distance Estimations", "CompareM AAI Was Used for GenomeWide Distance Estimations?",
+					   "Clade/Population Listings File", "DiscoVary Analysis ID",
+					   "DiscoVary Sequencing Data Location Specification File", "Sample Retention Set", "Cores"]
 	util.logParametersToFile(parameters_file, parameter_names, parameter_values)
 	logObject.info("Done saving parameters!")
 
 	# Step 0: (Optional) Parse sample set retention specifications file, if provided by the user.
 	sample_retention_set = util.getSampleRetentionSet(sample_set_file)
-
-	Pan_Object = Pan(input_listing_file, logObject=logObject)
-	logObject.info("Converting Genbanks from Expansion listing file into FASTA per sample.")
-	gw_fasta_dir = outdir + 'Sample_Assemblies_in_FASTA/'
-	if not os.path.isdir(gw_fasta_dir): os.system('mkdir %s' % gw_fasta_dir)
-	gw_fasta_listing_file = outdir + 'Genome_FASTA_Listings.txt'
-	Pan_Object.convertGenbanksIntoFastas(gw_fasta_dir, gw_fasta_listing_file, sample_retention_set=sample_retention_set)
-	logObject.info("Successfully performed conversions.")
-
-	gw_pairwise_similarities, gw_pairwise_comparisons = [None]*2
-	if not comparem:
-		logObject.info("Running FastANI Analysis Between Genomes.")
-		fastani_result_file = outdir + 'FastANI_Results.txt'
-		gw_pairwise_similarities, gw_pairwise_comparisons = util.runFastANI(gw_fasta_listing_file, outdir, fastani_result_file, cores, logObject, prune_set=sample_retention_set)
-		logObject.info("Ran FastANI Analysis Between Genomes.")
-	else:
-		logObject.info("Running CompareM Analysis Between Genomes.")
-		comparem_results_dir = outdir + 'CompareM_Results/'
-		if not os.path.isdir(comparem_results_dir): os.system('mkdir %s' % comparem_results_dir)
-		gw_pairwise_similarities, gw_pairwise_comparisons = util.runCompareM(gw_fasta_listing_file, comparem_results_dir, cores, logObject, prune_set=sample_retention_set)
-
-	gw_matrix_file = outdir + 'Genome_Wide_Distance_Matrix.txt'
-	gw_result_cleaned_file = outdir + 'Genome_Wide_Estimates.txt'
-	gw_result_cleaned_handle = open(gw_result_cleaned_file, 'w')
-	gw_matrix_handle = open(gw_matrix_file, 'w')
-	gw_matrix_handle.write('Sample/Sample\t' + '\t'.join([s for s in sorted(gw_pairwise_similarities)]) + '\n')
-	for s1 in sorted(gw_pairwise_similarities):
-		printlist = [s1]
-		for s2 in sorted(gw_pairwise_similarities):
-			printlist.append(str(1.0 - gw_pairwise_similarities[s1][s2]))
-			if s1 != s2:
-				gw_result_cleaned_handle.write('\t'.join([s1, s2, str(gw_pairwise_similarities[s1][s2])]) + '\n')
-		gw_matrix_handle.write('\t'.join(printlist) + '\n')
-	gw_matrix_handle.close()
-	gw_result_cleaned_handle.close()
-
-	if not lineage_phylogeny_file:
-		# create neighbor joining tree from FastANI/CompareM similarity analysis results
-		logObject.info("Using FastANI/CompareM estimated ANI/AAI between genomes to infer neighbor-joining tree.")
-		gw_nj_tree = outdir + 'Neighbor_Joining_Tree.nwk'
-
-		# create neighbor-joining tree
-		cmd = ['Rscript', RSCRIPT_FOR_NJTREECONSTRUCTION, gw_matrix_file, gw_nj_tree]
-		try:
-			util.run_cmd(cmd, logObject)
-			assert(util.is_newick(gw_nj_tree))
-			lineage_phylogeny_file = gw_nj_tree
-		except Exception as e:
-			logObject.error("Had issues with creating neighbor joining tree.")
-			logObject.error(traceback.format_exc())
-			raise RuntimeError("Had issues with creating neighbor joining tree.")
-
-	elif lineage_phylogeny_file and sample_retention_set != None:
-		# Pruning lineage phylogeny provided
-		logObject.info("Pruning lineage phylogeny to retain only samples of interest.")
-		update_lineage_phylogeny_file = outdir + 'Lineage_Phylogeny.Pruned.nwk'
-
-		t = Tree(lineage_phylogeny_file)
-		R = t.get_midpoint_outgroup()
-		t.set_outgroup(R)
-		t.prune(sample_retention_set)
-		t.write(format=5, outfile=update_lineage_phylogeny_file)
-		lineage_phylogeny_file = update_lineage_phylogeny_file
-		logObject.info("Successfully refined lineage phylogeny for sample set of interest.")
 
 	if sample_retention_set != None:
 		# Editing GCF listing files and input listing file to keep only samples of interest
@@ -242,39 +250,35 @@ def lsaBGC_AutoAnalyze():
 			with open(gcf_listing_dir + g) as ogf:
 				for line in ogf:
 					line = line.strip()
-					ls = line.split('\t')
-					if ls[0] in sample_retention_set:
+					sample, bgc_path = line.split('\t')
+					if sample in sample_retention_set:
 						update_gcf_listing_handle.write(line + '\n')
+
 			update_gcf_listing_handle.close()
 
 		input_listing_file = update_input_listing_file
 		gcf_listing_dir = update_gcf_listing_dir
 
-	all_samples = set([])
-	with open(input_listing_file) as oilf:
-		for line in oilf:
-			all_samples.add(line.split('\t')[0])
+		if genomewide_distances_file != None:
+			update_genomewide_distances_file = outdir + 'GenomeWide_Distance_Estimates.Pruned.txt'
+			update_genomewide_distances_handle = open(update_genomewide_distances_file, 'w')
+			with open(genomewide_distances_file) as ogdf:
+				for line in ogdf:
+					line = line.strip()
+					sample_1, sample_2, gw_est = line.split('\t')
+					if sample_1 in sample_retention_set and sample_2 in sample_retention_set:
+						update_genomewide_distances_handle.write(line + '\n')
+			update_genomewide_distances_handle.close()
+			genomewide_distances_file = update_genomewide_distances_file
 
-	population_listing_file = None
-	if population_analysis and manual_populations_file:
-		population_listing_file = manual_populations_file
-		populations_on_tree_pdf = outdir + 'Populations_on_Lineage_Tree.pdf'
-		cmd = ['Rscript', RSCRIPT_FOR_POPULATIONS_ON_PHYLO, lineage_phylogeny_file, population_listing_file, populations_on_tree_pdf]
-		print(' '.join(cmd))
+	if population_listing_file and species_phylogeny_file:
+		populations_on_tree_pdf = outdir + 'Populations_on_Species_Tree.pdf'
+		cmd = ['Rscript', RSCRIPT_FOR_POPULATIONS_ON_PHYLO, species_phylogeny_file, population_listing_file, populations_on_tree_pdf]
 		try:
 			util.run_cmd(cmd, logObject)
 		except Exception as e:
 			logObject.error("Had issues showcasing manually defined population labels on phylogeny/tree.")
 			raise RuntimeError("Had issues showcasing manually defined population labels on phylogeny/tree.")
-	elif population_analysis and not manual_populations_file:
-		population_listing_file = outdir + 'Populations_Defined.txt'
-		populations_on_tree_pdf = outdir + 'Populations_on_Lineage_Tree.pdf'
-		cmd = ['Rscript', RSCRIPT_FOR_DEFINECLADES_FROM_PHYLO, lineage_phylogeny_file, str(num_populations), population_listing_file, populations_on_tree_pdf]
-		try:
-			util.run_cmd(cmd, logObject)
-		except Exception as e:
-			logObject.error("Had issues with creating neighbor joining tree and defining populations using cutree.")
-			raise RuntimeError("Had issues with creating neighbor joining tree and defining populations using cutree.")
 
 	see_outdir = outdir + 'See/'
 	pop_outdir = outdir + 'PopGene/'
@@ -299,7 +303,7 @@ def lsaBGC_AutoAnalyze():
 		if not os.path.isdir(gcf_see_outdir):
 			os.system('mkdir %s' % gcf_see_outdir)
 			cmd = ['lsaBGC-See.py', '-g', gcf_listing_file, '-m', orthofinder_matrix_file, '-o', gcf_see_outdir,
-				   '-i', gcf_id, '-s', lineage_phylogeny_file, '-p', '-c', str(cores)]
+				   '-i', gcf_id, '-s', species_phylogeny_file, '-p', '-c', str(cores)]
 			try:
 				util.run_cmd(cmd, logObject)
 			except Exception as e:
@@ -311,10 +315,12 @@ def lsaBGC_AutoAnalyze():
 		if not os.path.isdir(gcf_pop_outdir):
 			os.system('mkdir %s' % gcf_pop_outdir)
 			cmd = ['lsaBGC-PopGene.py', '-g', gcf_listing_file, '-m', orthofinder_matrix_file, '-o', gcf_pop_outdir,
-				   '-i', gcf_id, '-c', str(cores), '-f', gw_result_cleaned_file]
-			if population_listing_file:
+				   '-i', gcf_id, '-c', str(cores)]
+			if genomewide_distances_file != None:
+				cmd += ['-f', genomewide_distances_file]
+			if population_listing_file != None:
 				cmd += ['-p', population_listing_file]
-			if comparem:
+			if aai_flag:
 				cmd += ['-cm']
 			try:
 				util.run_cmd(cmd, logObject, stderr=sys.stderr, stdout=sys.stdout)
@@ -327,9 +333,10 @@ def lsaBGC_AutoAnalyze():
 		if not os.path.isdir(gcf_div_outdir):
 			os.system('mkdir %s' % gcf_div_outdir)
 			cmd = ['lsaBGC-Divergence.py', '-g', gcf_listing_file, '-l', input_listing_file, '-o', gcf_div_outdir,
-				   '-i', gcf_id, '-a',	gcf_pop_outdir + 'Codon_Alignments_Listings.txt', '-c', str(cores),
-				   '-f', gw_result_cleaned_file]
-			if comparem:
+				   '-i', gcf_id, '-a',	gcf_pop_outdir + 'Codon_Alignments_Listings.txt', '-c', str(cores)]
+			if genomewide_distances_file != None:
+				cmd += ['-f', genomewide_distances_file]
+			if aai_flag:
 				cmd += ['-cm']
 			try:
 				util.run_cmd(cmd, logObject)
@@ -384,7 +391,7 @@ def lsaBGC_AutoAnalyze():
 				ls = line.split('\t')
 				if j == 0 and not include_header: continue
 				elif j == 0 and include_header:
-					if population_analysis:
+					if population_listing_file != None:
 						combined_gene_plotting_input_handle.write('\t'.join(ls[:3] + ls[4:7] + ['gene_start', 'gene_stop'] + ls[7:-2]) + '\n')
 					else:
 						combined_gene_plotting_input_handle.write('\t'.join(ls[:3] + ls[4:7] + ['gene_start', 'gene_stop'] + ls[7:-1]) + '\n')
@@ -394,7 +401,7 @@ def lsaBGC_AutoAnalyze():
 		previous_end = 1
 		for tupls in sorted(data, key=itemgetter(0)):
 			ls = tupls[1]
-			if population_analysis:
+			if population_listing_file != None:
 				combined_gene_plotting_input_handle.write('\t'.join(ls[:3] + ls[4:7] + [str(previous_end), str(previous_end + int(float(ls[7])))] + ls[7:-2]) + '\n')
 			else:
 				combined_gene_plotting_input_handle.write('\t'.join(ls[:3] + ls[4:7] + [str(previous_end), str(previous_end + int(float(ls[7])))] + ls[7:-1]) + '\n')
@@ -424,7 +431,7 @@ def lsaBGC_AutoAnalyze():
 						gcf_consensus_sim_plot_lines.append(gcf_id + '\t' + gcf_id.split('_')[1] + '\t' + hg + '\t' + hg_ordering[hg] + '\t' + samp + '\t' + str(diff))
 				for samp in all_samples:
 					if not samp in samps_accounted:
-						gcf_consensus_sim_plot_lines.append(gcf_id + '\t' + gcf_id.split('_')[1] + '\t' + hg + '\t' + hg_ordering[hg] + '\t' + samp + '\t' + str(1.0))
+						gcf_consensus_sim_plot_lines.append(gcf_id + '\t' + gcf_id.split('_')[1] + '\t' + hg + '\t' + hg_ordering[hg] + '\t' + samp + '\t' + "NA")
 
 		if float(len(total_samples_accounted))/float(len(sample_retention_set)) >= 0.1:
 			combined_consensus_similarity_handle.write('\n'.join(gcf_consensus_sim_plot_lines) + '\n')
@@ -437,7 +444,7 @@ def lsaBGC_AutoAnalyze():
 
 	# create big-picture heatmap of presence/sequence-similarity to consensus sequence of homolog groups from each gcf
 	big_picture_heatmap_pdf_file = outdir + 'Consensus_Sequence_Similarity_of_Homolog_Groups.pdf'
-	cmd = ['Rscript', RSCRIPT_FOR_BIGPICTUREHEATMAP, lineage_phylogeny_file, combined_consensus_similarity_file,
+	cmd = ['Rscript', RSCRIPT_FOR_BIGPICTUREHEATMAP, species_phylogeny_file, combined_consensus_similarity_file,
 		   population_listing_file, big_picture_heatmap_pdf_file]
 	try:
 		util.run_cmd(cmd, logObject)
@@ -466,6 +473,14 @@ def lsaBGC_AutoAnalyze():
 	# Close logging object and exit
 	util.closeLoggerObject(logObject)
 	sys.exit(0)
+
+def writeToOpenHandle(gcf_results_file, combined_results_handle, include_header):
+	with open(gcf_results_file) as ogrf:
+		for i, line in enumerate(ogrf):
+			if i == 0 and include_header:
+				combined_results_handle.write(line)
+			elif i != 0:
+				combined_results_handle.write(line)
 
 if __name__ == '__main__':
 	lsaBGC_AutoAnalyze()
