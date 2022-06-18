@@ -166,13 +166,12 @@ def lsaBGC_AutoAnalyze():
 
 	if genomewide_distances_file != None:
 		try:
-			print(genomewide_distances_file)
 			assert(os.path.isfile(genomewide_distances_file))
-			with open(genomewide_distances_file):
-				line = line.strip()
-				print(line.split('\t'))
-				sample_1, sample_2, gen_est = line.split('\t')
-				assert(sample_1 in all_samples and sample_2 in all_samples and util.is_numeric(gen_est))
+			with open(genomewide_distances_file) as ogdf:
+				for line in ogdf:
+					line = line.strip()
+					sample_1, sample_2, gen_est = line.split('\t')
+					assert(sample_1 in all_samples and sample_2 in all_samples and util.is_numeric(gen_est))
 		except:
 			raise RuntimeError('GenomeWide estimates file provided does not exist or does not meet expected formatting. Exiting now ...')
 
