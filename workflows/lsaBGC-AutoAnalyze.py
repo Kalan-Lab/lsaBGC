@@ -166,6 +166,7 @@ def lsaBGC_AutoAnalyze():
 
 	if genomewide_distances_file != None:
 		try:
+			print(genomewide_distances_file)
 			assert(os.path.isfile(genomewide_distances_file))
 			with open(genomewide_distances_file):
 				line = line.strip()
