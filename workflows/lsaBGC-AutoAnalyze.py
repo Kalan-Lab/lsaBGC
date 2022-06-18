@@ -136,7 +136,7 @@ def lsaBGC_AutoAnalyze():
 				line = line.strip('\n')
 				ls = line.split('\t')
 				if i == 0:
-					for samp in ls:
+					for samp in ls[1:]:
 						if samp != '':
 							assert(samp in all_samples)
 				else:
