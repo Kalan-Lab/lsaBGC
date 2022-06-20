@@ -213,12 +213,12 @@ def lsaBGC_Ready():
         uS = subprocess.check_output('ulimit -Sn', shell=True)
         uH = int(uH.decode('utf-8').strip())
         uS = int(uS.decode('utf-8').strip())
-        if num_files > uH:
-            logObject.error("Too many files will be produced and need to be read at once by OrthoFinder2. Your system requires root privs to change this, which I do not recommend. See the following OrthoFinder2 Github issue for more details: https://github.com/davidemms/OrthoFinder/issues/384")
-            raise RuntimeError("Too many files will be produced and need to be read at once by OrthoFinder2. Your system requires root privs to change this, which I do not recommend. See the following OrthoFinder2 Github issue for more details: https://github.com/davidemms/OrthoFinder/issues/384")
         if num_files > uS:
             logObject.error("Too many files will be produced and need to be read at once by OrthoFinder2. Luckily, you can resolve this quite easily via: ulimit -n 250000 . After running the command rerun lsaBGC-Ready.py and you should not get stuck here again.")
             raise RuntimeError("Too many files will be produced and need to be read at once by OrthoFinder2. Luckily, you can resolve this quite easily via: ulimit -n 250000 . After running the command rerun lsaBGC-Ready.py and you should not get stuck here again.")
+        if num_files > uH:
+            logObject.error("Too many files will be produced and need to be read at once by OrthoFinder2. Your system requires root privs to change this, which I do not recommend. See the following OrthoFinder2 Github issue for more details: https://github.com/davidemms/OrthoFinder/issues/384")
+            raise RuntimeError("Too many files will be produced and need to be read at once by OrthoFinder2. Your system requires root privs to change this, which I do not recommend. See the following OrthoFinder2 Github issue for more details: https://github.com/davidemms/OrthoFinder/issues/384")
         if num_files < uS and num_files < uH:
             logObject.info("Great news! You have correctly set ulimit settings and we believe OrthoFinder2 should be able to run smoothly!")
     except:
