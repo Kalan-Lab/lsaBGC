@@ -60,7 +60,12 @@ def create_parser():
 	BiG-SCAPE results are not provided, users have the option to run lsaBGC-Cluster instead which implements algorithms
 	designed for clustering complete instances of BGCs from completed/finished genomic assemblies.
 
-	Note, to avoid issues with BiG-SCAPE clustering (if used instead lsaBGC-Cluster.py), please use distinct output 
+	Note, OrthoFinder2 is performed for reduced predicted proteomes which only contain BGC embedded 
+	proteins. Genome-wide paralogs for orthogroups are subsequently identified by using orthogroup specific cutoffs
+	based on the percent identity and coverage thresholds determined for each orthogroup (the minimum perc. id and 
+	coverage observed within BGC proteins belonging to the same orthgroup).
+	
+	Note2, to avoid issues with BiG-SCAPE clustering (if used instead lsaBGC-Cluster.py), please use distinct output 
 	prefices for each sample so that BGC names do not overlap across samples (can happen if sample genomes were
 	assembled by users and do not have unique identifiers). 
 	
@@ -69,23 +74,22 @@ def create_parser():
 	""", formatter_class=argparse.RawTextHelpFormatter)
 
     parser.add_argument('-i', '--genome_listing',
-                        help='Tab-delimited, two column file for primary samples (ideally with high-quality or complete genomes) where the first column is the sample/isolate/genome name and the second is the full path to the genome file (Genbank or FASTA)',
+                        help='Tab-delimited, two column file for primary samples (ideally with high-quality or complete genomes)\nwhere the first column is the sample/isolate/genome name and the second is the\nfull path to the genome file (Genbank or FASTA)',
                         required=True)
     parser.add_argument('-l', '--antismash_listing',
-                        help='Tab-delimited, two column file listing antiSMASH results for primary samples (those from the "--genome_listing" argument), where the first column is the sample/isolate/genome name the second is the full path to an antiSMASH BGC prediction in Genbank format.',
+                        help='Tab-delimited, two column file listing antiSMASH results for primary samples (those from the\n"--genome_listing" argument), where the first column is the sample/isolate/genome name the second\nis the full path to an antiSMASH BGC prediction in Genbank format.',
                         required=True)
     parser.add_argument('-o', '--output_directory', help='Parent output/workspace directory.', required=True)
-    parser.add_argument('-b', '--bigscape_results', help='Path to BiG-SCAPE results directory of antiSMASH predicted in complete genomes. Please make sure the sample names match what is provided for "--genome_listings".', required=False,
+    parser.add_argument('-b', '--bigscape_results', help='Path to BiG-SCAPE results directory of antiSMASH predicted in primary\ngenomes.Please make sure the sample names match what is provided for "--genome_listings".', required=False,
                         default=None)
-    parser.add_argument('-d', '--additional_genome_listing', help='Tab-delimited, two column file for samples with additional/draft genomes (same format as for the "--genome_listing" argument). The genomes/BGCs of these samples won\'t be used in ortholog-grouping of proteins and clustering of BGCs, but will simply have gene calling run for them. This will enable more sensitive/expanded detection of GCF instances later using lsaBGC-Expansion/AutoExpansion.',
+    parser.add_argument('-d', '--additional_genome_listing', help='Tab-delimited, two column file for samples with additional/draft\ngenomes (same format as for the "--genome_listing" argument). The genomes/BGCs of these\nsamples won\'t be used in ortholog-grouping of proteins and clustering of BGCs, but will simply have gene\ncalling run for them. This will enable more sensitive/expanded detection of GCF instances later\nusing lsaBGC-Expansion/AutoExpansion.',
                         required=False, default=None)
     parser.add_argument('-a', '--annotate', action='store_true',
                         help='Perform annotation of BGC proteins using KOfam HMM profiles.', required=False, default=False)
-    parser.add_argument('-g', '--genomes_as_genbanks', action='store_true',
-                        help='Genomes used for initial antiSMASH analysis were in Genbank format with CDS features which have protein translations included.',
+    parser.add_argument('-g', '--genomes_as_genbanks', action='store_true', help='Genomes used for initial antiSMASH analysis were in Genbank format with CDS features\nwhich have protein translations included.',
                         default=False, required=False)
-    parser.add_argument('-lc', '--lsabgc_cluster', action='store_true', help='Run lsaBGC-Cluster with default parameters. Note, we recommend running lsaBGC-Cluster manually and exploring parameters through its ability to generate a user-report for setting clustering parameters.', required=False, default=False)
-    parser.add_argument('-le', '--lsabgc_expansion', action='store_true', help='Run lsaBGC-AutoExpansion with default parameters. Assumes either "--bigscape_results" or "--lsabgc_cluster" is specified.', default=False, required=False)
+    parser.add_argument('-lc', '--lsabgc_cluster', action='store_true', help='Run lsaBGC-Cluster with default parameters. Note, we recommend running lsaBGC-Cluster manually\nand exploring parameters through its ability to generate a user-report for setting clustering parameters.', required=False, default=False)
+    parser.add_argument('-le', '--lsabgc_expansion', action='store_true', help='Run lsaBGC-AutoExpansion with default parameters. Assumes either "--bigscape_results" or\n"--lsabgc_cluster" is specified.', default=False, required=False)
     parser.add_argument('-c', '--cores', type=int,
                         help="Total number of cores/threads to use for running OrthoFinder2/prodigal.", required=False,
                         default=1)
@@ -174,7 +178,7 @@ def lsaBGC_Ready():
     # create logging object
     log_file = outdir + 'Progress.log'
     logObject = util.createLoggerObject(log_file)
-    logObject.info("Saving parameters for future provedance.")
+    logObject.info("Saving parameters for future records.")
     parameters_file = outdir + 'Parameter_Inputs.txt'
     parameter_values = [genome_listing_file, antismash_listing_file, outdir, additional_genome_listing_file,
                         genomes_as_genbanks, bigscape_results_dir, annotate, run_lsabgc_cluster, run_lsabgc_expansion,
@@ -192,6 +196,34 @@ def lsaBGC_Ready():
     if format_prediction == 'mixed':
         logObject.error('Format of genomes provided is not consistently FASTA or Genbank, please check input.')
         raise RuntimeError('Format of genomes provided is not consistently FASTA or Genbank, please check input.')
+
+    if len(sample_genomes) > 300:
+        logObject.warning('Over 300 primary genomes specified! Consider de-replicating further as this will produce a lot of small files and require certain environmental conditions to be set to allow parallel reading of files. Waiting 5 seconds before proceeding.')
+        sleep(5)
+    if len(sample_genomes) > 500:
+        logObject.error('Currently the number of primary genomes allowed is 500, which will produce 250,000 files during all-vs-all alignment by OrthoFinder2. Please dereplicate the primary number of genomes further to avoid excesive file creation and runtime.')
+        raise RuntimeError('Currently the number of primary genomes allowed is 500, which will produce 250,000 files during all-vs-all alignment by OrthoFinder2. Please dereplicate the primary number of genomes further to avoid excesive file creation and runtime.')
+
+    # Check ulimit settings!
+
+    try:
+        num_genomes = len(sample_genomes)
+        num_files = num_genomes*num_genomes
+        uH = subprocess.check_output('ulimit -Hn', shell=True)
+        uS = subprocess.check_output('ulimit -Sn', shell=True)
+        uH = int(uH.decode('utf-8').strip())
+        uS = int(uS.decode('utf-8').strip())
+        if num_files > uS:
+            logObject.error("Too many files will be produced and need to be read at once by OrthoFinder2. Luckily, you can resolve this quite easily via: ulimit -n 250000 . After running the command rerun lsaBGC-Ready.py and you should not get stuck here again.")
+            raise RuntimeError("Too many files will be produced and need to be read at once by OrthoFinder2. Luckily, you can resolve this quite easily via: ulimit -n 250000 . After running the command rerun lsaBGC-Ready.py and you should not get stuck here again.")
+        if num_files > uH:
+            logObject.error("Too many files will be produced and need to be read at once by OrthoFinder2. Your system requires root privs to change this, which I do not recommend. See the following OrthoFinder2 Github issue for more details: https://github.com/davidemms/OrthoFinder/issues/384")
+            raise RuntimeError("Too many files will be produced and need to be read at once by OrthoFinder2. Your system requires root privs to change this, which I do not recommend. See the following OrthoFinder2 Github issue for more details: https://github.com/davidemms/OrthoFinder/issues/384")
+        if num_files < uS and num_files < uH:
+            logObject.info("Great news! You have correctly set ulimit settings and we believe OrthoFinder2 should be able to run smoothly!")
+    except:
+        logObject.error("Difficulties validating ulimit settings are properly set to allow for successful OrthoFinder2 run.")
+        raise RuntimeError("Difficulties validating ulimit settings are properly set to allow for successful OrthoFinder2 run.")
 
     proteomes_directory = outdir + 'Predicted_Proteomes_Initial/'
     util.setupReadyDirectory([proteomes_directory])
@@ -321,14 +353,15 @@ def lsaBGC_Ready():
     primary_sample_annotation_listing_handle.close()
     additional_sample_annotation_listing_handle.close()
 
-    # Step 9: Process BiG-SCAPE Results and Create GCF Listings (if provided by user) or run lsaBGC-Cluster if requested.
+    # Step 9: Process BiG-SCAPE Results and Create GCF Listings (if provided by user) or Run lsaBGC-Cluster if requested.
     gcf_listings_directory = None
     if bigscape_results_dir != None:
         bigscape_reformat_directory = outdir + 'BiG_SCAPE_Results_Reformatted/'
         gcf_listings_directory = bigscape_reformat_directory + 'GCF_Listings/'
         if not os.path.isdir(bigscape_reformat_directory) or not os.path.isdir(gcf_listings_directory):
             util.setupReadyDirectory([bigscape_reformat_directory, gcf_listings_directory])
-        util.createGCFListingsDirectory(sample_bgcs, bgc_to_sample, bigscape_results_dir, gcf_listings_directory, logObject)
+        util.createGCFListingsDirectory(sample_bgcs, bgc_to_sample, bigscape_results_dir, gcf_listings_directory,
+                                        logObject)
     elif run_lsabgc_cluster:
         lsabgc_cluster_results_dir = outdir + 'lsaBGC_Cluster_Results/'
         lsabgc_cluster_cmd = ['lsaBGC-Cluster.py', '-b', primary_bgc_listing_file, '-m', primary_orthofinder_matrix_file,
