@@ -80,17 +80,16 @@ def create_parser():
                         help='Tab-delimited, two column file listing antiSMASH results for primary samples (those from the\n"--genome_listing" argument), where the first column is the sample/isolate/genome name the second\nis the full path to an antiSMASH BGC prediction in Genbank format.',
                         required=True)
     parser.add_argument('-o', '--output_directory', help='Parent output/workspace directory.', required=True)
-    parser.add_argument('-b', '--bigscape_results', help='Path to BiG-SCAPE results directory of antiSMASH predicted in complete genomes. Please make sure the sample names match what is provided for "--genome_listings".', required=False,
+    parser.add_argument('-b', '--bigscape_results', help='Path to BiG-SCAPE results directory of antiSMASH predicted in primary\ngenomes.Please make sure the sample names match what is provided for "--genome_listings".', required=False,
                         default=None)
-    parser.add_argument('-d', '--additional_genome_listing', help='Tab-delimited, two column file for samples with additional/draft genomes (same format as for the "--genome_listing" argument). The genomes/BGCs of these samples won\'t be used in ortholog-grouping of proteins and clustering of BGCs, but will simply have gene calling run for them. This will enable more sensitive/expanded detection of GCF instances later using lsaBGC-Expansion/AutoExpansion.',
+    parser.add_argument('-d', '--additional_genome_listing', help='Tab-delimited, two column file for samples with additional/draft\ngenomes (same format as for the "--genome_listing" argument). The genomes/BGCs of these\nsamples won\'t be used in ortholog-grouping of proteins and clustering of BGCs, but will simply have gene\ncalling run for them. This will enable more sensitive/expanded detection of GCF instances later\nusing lsaBGC-Expansion/AutoExpansion.',
                         required=False, default=None)
     parser.add_argument('-a', '--annotate', action='store_true',
                         help='Perform annotation of BGC proteins using KOfam HMM profiles.', required=False, default=False)
-    parser.add_argument('-g', '--genomes_as_genbanks', action='store_true',
-                        help='Genomes used for initial antiSMASH analysis were in Genbank format with CDS features which have protein translations included.',
+    parser.add_argument('-g', '--genomes_as_genbanks', action='store_true', help='Genomes used for initial antiSMASH analysis were in Genbank format with CDS features\nwhich have protein translations included.',
                         default=False, required=False)
-    parser.add_argument('-lc', '--lsabgc_cluster', action='store_true', help='Run lsaBGC-Cluster with default parameters. Note, we recommend running lsaBGC-Cluster manually and exploring parameters through its ability to generate a user-report for setting clustering parameters.', required=False, default=False)
-    parser.add_argument('-le', '--lsabgc_expansion', action='store_true', help='Run lsaBGC-AutoExpansion with default parameters. Assumes either "--bigscape_results" or "--lsabgc_cluster" is specified.', default=False, required=False)
+    parser.add_argument('-lc', '--lsabgc_cluster', action='store_true', help='Run lsaBGC-Cluster with default parameters. Note, we recommend running lsaBGC-Cluster manually\nand exploring parameters through its ability to generate a user-report for setting clustering parameters.', required=False, default=False)
+    parser.add_argument('-le', '--lsabgc_expansion', action='store_true', help='Run lsaBGC-AutoExpansion with default parameters. Assumes either "--bigscape_results" or\n"--lsabgc_cluster" is specified.', default=False, required=False)
     parser.add_argument('-c', '--cores', type=int,
                         help="Total number of cores/threads to use for running OrthoFinder2/prodigal.", required=False,
                         default=1)
