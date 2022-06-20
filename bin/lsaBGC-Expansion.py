@@ -133,7 +133,7 @@ def lsaBGC_Expansion():
     logObject = util.createLoggerObject(log_file)
 
     # Step 0: Log input arguments and update reference and query FASTA files.
-    logObject.info("Saving parameters for future provedance.")
+    logObject.info("Saving parameters for future records.")
     parameters_file = outdir + 'Parameter_Inputs.txt'
     parameter_values = [gcf_listing_file, orthofinder_matrix_file, initial_listing_file, expansion_listing_file, outdir,
                         gcf_id, cores, min_segment_size, min_segment_core_size, syntenic_correlation_threshold,

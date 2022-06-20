@@ -111,7 +111,7 @@ def lsaBGC_Cluster():
 	logObject = util.createLoggerObject(log_file)
 
 	# Step 0: Log input arguments and update reference and query FASTA files.
-	logObject.info("Saving parameters for future provedance.")
+	logObject.info("Saving parameters for future records.")
 	parameters_file = outdir + 'Parameter_Inputs.txt'
 	parameter_values = [bgc_listings_file, orthofinder_matrix_file, outdir, cores, mcl_inflation, jaccard_cutoff,
 						syntenic_correlation_cutoff, run_parameter_tests, split_by_annotation]

@@ -123,7 +123,7 @@ def lsaBGC_DiscoVary():
     logObject = util.createLoggerObject(log_file)
 
     # Log input arguments and update reference and query FASTA files.
-    logObject.info("Saving parameters for future provedance.")
+    logObject.info("Saving parameters for future records.")
     parameters_file = outdir + 'Parameter_Inputs.txt'
     parameter_values = [gcf_listing_file, orthofinder_matrix_file, paired_end_sequencing_file, outdir, gcf_id,
                         len(core_hg_set) > 0, cores]

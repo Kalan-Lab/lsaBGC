@@ -440,7 +440,7 @@ class GCF(Pan):
 		if self.logObject:
 			self.logObject.info('Plotting completed (I think successfully)!')
 
-	def constructCodonAlignments(self, outdir, cores=1, only_scc=False, list_alignments=False, filter_outliers=False):
+	def constructCodonAlignments(self, outdir, cores=1, only_scc=False, list_alignments=False, filter_outliers=False, use_magus=True):
 		"""
 		Function to automate construction of codon alignments. This function first extracts protein and nucleotide sequnces
 		from BGC Genbanks, then creates protein alignments for each homolog group using MAFFT, and finally converts those
@@ -504,7 +504,7 @@ class GCF(Pan):
 				#if len([x for x in gene_sequences.keys() if len(x.split('|')[1].split('_')[0]) == 3]) == 0: continue
 				if filter_outliers:
 					gene_sequences = util.determineOutliersByGeneLength(gene_sequences, self.logObject)
-				inputs.append([hg, gene_sequences, nucl_seq_dir, prot_seq_dir, prot_alg_dir, codo_alg_dir, cores, self.logObject])
+				inputs.append([hg, gene_sequences, nucl_seq_dir, prot_seq_dir, prot_alg_dir, codo_alg_dir, cores, use_magus, self.logObject])
 
 			p = multiprocessing.Pool(pool_size)
 			p.map(create_codon_msas, inputs)
@@ -3137,7 +3137,7 @@ def create_codon_msas(inputs):
 	of codon alignments for each homolog group of interest in the GCF.
 	:param inputs: list of inputs passed in by GCF.constructCodonAlignments().
 	"""
-	hg, gene_sequences, nucl_seq_dir, prot_seq_dir, prot_alg_dir, codo_alg_dir, cores, logObject = inputs
+	hg, gene_sequences, nucl_seq_dir, prot_seq_dir, prot_alg_dir, codo_alg_dir, cores, use_magus, logObject = inputs
 
 	hg_nucl_fasta = nucl_seq_dir + '/' + hg + '.fna'
 	hg_prot_fasta = prot_seq_dir + '/' + hg + '.faa'
@@ -3155,10 +3155,15 @@ def create_codon_msas(inputs):
 	hg_prot_handle.close()
 
 	mafft_cmd = ['mafft', '--thread', str(cores), '--maxiterate', '1000', '--localpair', hg_prot_fasta, '>', hg_prot_msa]
+	rm_cmd = None
+	if use_magus:
+		tmp_outdir = prot_alg_dir + 'tmp_' + hg + '/'
+		mafft_cmd = ['magus', '-d', tmp_outdir, '-i', hg_prot_fasta, '-o', hg_prot_msa, '-np', str(cores)]
+		rm_cmd = ['rm', '-r', tmp_outdir]
 	pal2nal_cmd = ['pal2nal.pl', hg_prot_msa, hg_nucl_fasta, '-output', 'fasta', '>', hg_codo_msa]
 
 	if logObject:
-		logObject.info('Running mafft with the following command: %s' % ' '.join(mafft_cmd))
+		logObject.info('Running mafft/magus with the following command: %s' % ' '.join(mafft_cmd))
 	try:
 		subprocess.call(' '.join(mafft_cmd), shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
 						executable='/bin/bash')
@@ -3183,6 +3188,9 @@ def create_codon_msas(inputs):
 			logObject.error(traceback.format_exc())
 		raise RuntimeError('Had an issue running: %s' % ' '.join(pal2nal_cmd))
 
+	if rm_cmd != None:
+		logObject.info("Removing tmp output directory for MAGUS.")
+		os.system(' '.join(rm_cmd))
 	if logObject:
 		logObject.info('Achieved codon alignment for homolog group %s' % hg)
 

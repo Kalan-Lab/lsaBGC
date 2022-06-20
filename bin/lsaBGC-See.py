@@ -112,7 +112,7 @@ def lsaBGC_See():
     logObject = util.createLoggerObject(log_file)
 
     # Log input arguments and update reference and query FASTA files.
-    logObject.info("Saving parameters for future provedance.")
+    logObject.info("Saving parameters for future records.")
     parameters_file = outdir + 'Parameter_Inputs.txt'
     parameter_values = [gcf_listing_file, orthofinder_matrix_file, outdir, gcf_id, species_phylogeny, cores, sample_set_file,
                         create_gcf_phylogeny, only_scc]

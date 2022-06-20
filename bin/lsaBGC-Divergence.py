@@ -119,7 +119,7 @@ def lsaBGC_Divergence():
     logObject = util.createLoggerObject(log_file)
 
     # Log input arguments and update reference and query FASTA files.
-    logObject.info("Saving parameters for future provedance.")
+    logObject.info("Saving parameters for future records.")
     parameters_file = outdir + 'Parameter_Inputs.txt'
     parameter_values = [gcf_listing_file, input_listing_file, codon_alignments_file, outdir,
                         gcf_id, sample_set_file, precomputed_gw_similarity_results, comparem_used, cores]
