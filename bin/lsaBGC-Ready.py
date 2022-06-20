@@ -60,7 +60,7 @@ def create_parser():
 	BiG-SCAPE results are not provided, users have the option to run lsaBGC-Cluster instead which implements algorithms
 	designed for clustering complete instances of BGCs from completed/finished genomic assemblies.
 
-	Note, OrthoFinder2 - if requested - is performed for reduced predicted proteomes which only contain BGC embedded 
+	Note, OrthoFinder2 is performed for reduced predicted proteomes which only contain BGC embedded 
 	proteins. Genome-wide paralogs for orthogroups are subsequently identified by using orthogroup specific cutoffs
 	based on the percent identity and coverage thresholds determined for each orthogroup (the minimum perc. id and 
 	coverage observed within BGC proteins belonging to the same orthgroup).
@@ -74,10 +74,10 @@ def create_parser():
 	""", formatter_class=argparse.RawTextHelpFormatter)
 
     parser.add_argument('-i', '--genome_listing',
-                        help='Tab-delimited, two column file for primary samples (ideally with high-quality or complete genomes) where the first column is the sample/isolate/genome name and the second is the full path to the genome file (Genbank or FASTA)',
+                        help='Tab-delimited, two column file for primary samples (ideally with high-quality or complete genomes)\nwhere the first column is the sample/isolate/genome name and the second is the\nfull path to the genome file (Genbank or FASTA)',
                         required=True)
     parser.add_argument('-l', '--antismash_listing',
-                        help='Tab-delimited, two column file listing antiSMASH results for primary samples (those from the "--genome_listing" argument), where the first column is the sample/isolate/genome name the second is the full path to an antiSMASH BGC prediction in Genbank format.',
+                        help='Tab-delimited, two column file listing antiSMASH results for primary samples (those from the\n"--genome_listing" argument), where the first column is the sample/isolate/genome name the second\nis the full path to an antiSMASH BGC prediction in Genbank format.',
                         required=True)
     parser.add_argument('-o', '--output_directory', help='Parent output/workspace directory.', required=True)
     parser.add_argument('-b', '--bigscape_results', help='Path to BiG-SCAPE results directory of antiSMASH predicted in complete genomes. Please make sure the sample names match what is provided for "--genome_listings".', required=False,
