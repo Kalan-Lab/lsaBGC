@@ -9,6 +9,7 @@ based annotation. It consists of 8 independent programs: `lsaBGC-Ready.py`, `lsa
 ![](https://github.com/Kalan-Lab/lsaBGC/blob/main/docs/images/lsaBGC1.1_Simplified.png)
 
 ## Major Updates 
+* Jun 19, 2022 - Have set MAGUS as the default protein alignment method (highly scalable wrapper of mafft) + updated notes on scalability.
 * Jun 18, 2022 - Updated [`lsaBGC-AutoAnalyze.py`](https://github.com/Kalan-Lab/lsaBGC/wiki/13.-The-lsaBGC-AutoAnalyze-Workflow) (automated lsaBGC analysis for each GCF) for better integration into new framework based around `lsaBGC-Ready.py`. 
 * Jun 14, 2022 - Added [note on scalability](#user-content-notes-on-scalability), below on this page, and future plans to address them.
 * Jun 09, 2022 - Fixed issues with `lsaBGC-Ready.py` & New Tutorial check it out [here](https://github.com/Kalan-Lab/lsaBGC/wiki/03.-Tutorial:-Exploring-BGCs-in-Cutibacterium)!
@@ -45,15 +46,17 @@ On the [Installation wiki page](https://github.com/Kalan-Lab/lsaBGC/wiki/01.-Ins
 
 ## Notes on Scalability:
 
-Currently, the primary/core set of samples/genomes used to define BGCs should not exceed 300 samples. This is because OrthoFinder2 performs all-vs-all alignments between genomes and will produce a lot of files. To resolve this limitation in the future, I am looking into developing stratedgies to make OrthoFinder2 more scalable (such as performing all-vs-all diamond alignments via a reflexive alignment to a single giant file with all proteins from all genomes - diamond gains a speed boost + avoids writing a lot of files) or using alternate software, though OrthoFinder2 has some immense benefits for accurate clustering that would be great to retain. For most genera, the 300 upper limit should work well after dereplication of genomes to remove redundancy. lsaBGC-AutoExpansion can then be used at high-scale to find homologous instances to GCFs defined from primary genomes in addtiional/draft genomes. 
+Updated 06/19/2022
 
-Additionally, currently `lsaBGC-PopGene.py` can also take a long time to run when more than 300 genomes are provided. Dereplication of input genomes should definitely be performed prior to using this program however to more appropriately caclulate evolutionary and population genetic statistics. We plan to resolve this limitation regardless using [MAGUS](https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1008950) in the near future, which allows for fast alignment of up to a million sequences through a divide-and-conquer type approach. 
+Currently, the primary/core set of samples/genomes used to define BGCs should not exceed 500 samples (<300 recommended). This is because OrthoFinder2 performs all-vs-all alignments between genomes and will produce a lot of files and have an exceedingly long runtime. OrthoFinder2 developers are considering increasing throughput of the method; however, such alterations are noted to require greater memory usage. For most genera, the 500 upper limit should work well after dereplication of genomes (at 99% identity) to remove redundancy. We recommend using the [drep] program to perform such dereplication. lsaBGC-AutoExpansion can then be used at high-scale to find homologous instances to GCFs defined from primary genomes in addtiional/draft genomes. 
+
+MAGUS (a divide and conquer wrapper of MAFFT) is now the default for performing protein alignments and greatly expedites the process!
 
 ## Future Updates Planned and of High Priority:
 
 * Update algorithms to have options to work with DeepBGC + GECCO BGC predictions.
 * Incorporate eukaryotic gene calling in `lsaBGC-Ready.py` to allow application to fungi + plants.
-* Incorporate MAGUS for protein sequence alignments. Make codon sequence alignments a seperate program. 
+* Simplify the caclulation of Beta-RD statistic and required dependencies. 
 
 ## Acknowledgements:
 
