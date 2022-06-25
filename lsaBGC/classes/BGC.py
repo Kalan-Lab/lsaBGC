@@ -81,9 +81,16 @@ class BGC:
 						except:
 							product = "hypothetical protein"
 
+						rule_based_bgc_cds = False
+						try:
+							if 'rule-based-clusters' in feature.qualifiers.get('gene_functions')[0]:
+								rule_based_bgc_cds = True
+						except:
+							pass
+
 						grange = set(range(start, end + 1))
 						core_overlap = False
-						if len(grange.intersection(core_positions)) > 0:
+						if len(grange.intersection(core_positions)) > 0 and rule_based_bgc_cds:
 							core_overlap = True
 							core_genes.add(lt)
 

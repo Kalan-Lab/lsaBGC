@@ -52,7 +52,7 @@ def create_parser():
 	This program will cluster BGCs found by AntiSMASH using MCL based on similarity exhibited in ortholog group presence/
 	absence data. Clustering uses MCL.""", formatter_class=argparse.RawTextHelpFormatter)
 
-	parser.add_argument('-b', '--bgc_listings', help='BGC listing file. Tab delimited: 1st column contains path to AntiSMASH BGC Genbank and 2nd column contains sample name.', required=True)
+	parser.add_argument('-b', '--bgc_listings', help='BGC listing file. Tab delimited 2-column file: (1) sample name (2) path to predicted BGC in Genbank format.', required=True)
 	parser.add_argument('-m', '--orthofinder_matrix', help="OrthoFinder matrix.", required=True)
 	parser.add_argument('-o', '--output_directory', help="Output directory.", required=True)
 	parser.add_argument('-c', '--cores', type=int, help="Number of cores to use for MCL step.", required=False, default=1)

@@ -112,6 +112,9 @@ class GCF(Pan):
 				if len(samples_with_any_copy) > 0 and float(sample_with_hg_as_protocluster_core)/len(samples_with_any_copy) >= 0.5:
 					self.protocluster_core_homologs.add(hg)
 
+			self.logObject.info("Conserved Core Set of Homolog Groups:\t" + '; '.join(self.core_homologs))
+			self.logObject.info("Conserved Single-Copy Set of Homolog Groups:\t" + '; '.join(self.scc_homologs))
+			self.logObject.info("Proto-Core / Rule Based Homolog Groups:\t" + '; '.join(self.protocluster_core_homologs))
 		except Exception as e:
 			if self.logObject:
 				self.logObject.error("Issues with identifying key homolog groups.")
@@ -988,7 +991,7 @@ class GCF(Pan):
 	def identifyGCFInstances(self, outdir, sample_prokka_data, orthofinder_matrix_file, min_size=5, min_core_size=3,
 							 gcf_to_gcf_transition_prob=0.9, background_to_background_transition_prob=0.9,
 							 syntenic_correlation_threshold=0.8, surround_gene_max=5, no_orthogroup_matrix=False,
-							 cores=1, block_size=3000):
+							 loose_search=False, cores=1, block_size=3000):
 		"""
 		Function to search for instances of GCF in sample using HMM based approach based on homolog groups as characters,
 		"part of GCF" and "not part of GCF" as states - all trained on initial BGCs constituting GCF as identified by
@@ -1127,7 +1130,14 @@ class GCF(Pan):
 					hgs_ordered_dict[scaffold] = hgs_ordered
 					lts_ordered_dict[scaffold] = lts_ordered
 
-				identify_gcf_segments_input.append([bgc_info_dir, bgc_genbanks_dir, sample, sample_prokka_data[sample], sample_lt_to_evalue[sample], dict(self.hmmscan_results_lenient[sample]), model, lts_ordered_dict, hgs_ordered_dict, dict(simplified_comp_gene_info), dict(self.gene_location[sample]), dict(self.gene_id_to_order[sample]), dict(self.gene_order_to_id[sample]), self.protocluster_core_homologs, self.core_homologs, self.boundary_genes[sample], specific_hgs, dict(self.bgc_genes), dict(self.gene_to_hg), min_size, min_core_size, surround_gene_max, syntenic_correlation_threshold])
+				identify_gcf_segments_input.append([bgc_info_dir, bgc_genbanks_dir, sample, sample_prokka_data[sample],
+													sample_lt_to_evalue[sample], dict(self.hmmscan_results_lenient[sample]),
+													model, lts_ordered_dict, hgs_ordered_dict, dict(simplified_comp_gene_info),
+													dict(self.gene_location[sample]), dict(self.gene_id_to_order[sample]),
+													dict(self.gene_order_to_id[sample]), self.protocluster_core_homologs,
+													self.core_homologs, self.boundary_genes[sample], specific_hgs,
+													dict(self.bgc_genes), dict(self.gene_to_hg), min_size, min_core_size,
+													surround_gene_max, syntenic_correlation_threshold, loose_flag])
 			with multiprocessing.Manager() as manager:
 				with manager.Pool(cores) as pool:
 					pool.map(identify_gcf_instances, identify_gcf_segments_input)
@@ -3195,7 +3205,7 @@ def create_codon_msas(inputs):
 		logObject.info('Achieved codon alignment for homolog group %s' % hg)
 
 def identify_gcf_instances(input_args):
-	bgc_info_dir, bgc_genbanks_dir, sample, sample_prokka_data, sample_lt_to_evalue, hmmscan_results_lenient, model, lts_ordered_dict, hgs_ordered_dict, comp_gene_info, gene_location, gene_id_to_order, gene_order_to_id, protocluster_core_homologs, core_homologs, boundary_genes, specific_hgs, bgc_genes, gene_to_hg, min_size, min_core_size, surround_gene_max, syntenic_correlation_threshold = input_args
+	bgc_info_dir, bgc_genbanks_dir, sample, sample_prokka_data, sample_lt_to_evalue, hmmscan_results_lenient, model, lts_ordered_dict, hgs_ordered_dict, comp_gene_info, gene_location, gene_id_to_order, gene_order_to_id, protocluster_core_homologs, core_homologs, boundary_genes, specific_hgs, bgc_genes, gene_to_hg, min_size, min_core_size, surround_gene_max, syntenic_correlation_threshold, loose_flag = input_args
 
 	sample_gcf_predictions = []
 	sample_bgc_ids = 1
@@ -3321,10 +3331,11 @@ def identify_gcf_instances(input_args):
 		if len(cumulative_edge_hgs) >= min_size and len(cumulative_edge_hgs.intersection(core_homologs)) >= min_core_size:
 			sample_gcf_predictions_filtered += sample_edge_gcf_predictions_filtered
 
-	protocore_gene_found = False
-	for gcf_segment in sample_gcf_predictions_filtered:
-		if gcf_segment[-1]: protocore_gene_found = True
-	if not protocore_gene_found: return
+	if not loose_flag:
+		protocore_gene_found = False
+		for gcf_segment in sample_gcf_predictions_filtered:
+			if gcf_segment[-1]: protocore_gene_found = True
+		if not protocore_gene_found: return
 
 	bgc_sample_listing_handle = open(bgc_info_dir + sample + '.bgcs.txt', 'w')
 	bgc_hg_evalue_handle = open(bgc_info_dir + sample + '.hg_evalues.txt', 'w')
