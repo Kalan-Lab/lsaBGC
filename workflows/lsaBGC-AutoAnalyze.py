@@ -68,7 +68,7 @@ def create_parser():
 	""", formatter_class=argparse.RawTextHelpFormatter)
 
 	parser.add_argument('-o', '--output_directory', help="Parent output/workspace directory.", required=True)
-	parser.add_argument('-l', '--input_listing', help="Path to tab delimited file listing: (1) sample name (2) path to Prokka Genbank and (3) path to Prokka predicted proteome. This file is produced by lsaBGC-Process.py.", required=False, default=None)
+	parser.add_argument('-l', '--input_listing', help="Path to tab delimited file listing: (1) sample name\n(2) path to whole-genome Genbank and (3) path to whole-genome predicted proteome\n(an output of lsaBGC-Ready.py or lsaBGC-AutoExpansion.py).", required=False, default=None)
 	parser.add_argument('-g', '--gcf_listing_dir', help='Directory with GCF listing files.', required=True)
 	parser.add_argument('-m', '--orthofinder_matrix', help="OrthoFinder homolog group by sample matrix.", required=True)
 	parser.add_argument('-k', '--sample_set', help="Sample set to keep in analysis. Should be file with one sample id per line.", required=False)

@@ -43,6 +43,7 @@ def setup_annot_dbs():
     # download files in requested directory
     try:
         os.chdir(download_path)
+        print('Setting up KO database!')
         os.system('wget ftp://ftp.genome.jp/pub/db/kofam/ko_list.gz')
         os.system('wget ftp://ftp.genome.jp/pub/db/kofam/profiles.tar.gz')
         os.system('gunzip ko_list.gz')
@@ -62,6 +63,8 @@ def setup_annot_dbs():
         listing_handle.write(ko_annot_info_file + '\t' + ko_phmm_file + '\n')
         listing_handle.close()
         os.system('rm -rf %s %s' % (download_path + 'profiles/', download_path + 'profiles.tar.gz'))
+
+
     except:
         sys.stderr.write('Error: issues with downloading or seting up annotation database files! Please post to Github issues if unable to figure out!\n')
 

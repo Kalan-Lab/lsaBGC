@@ -50,6 +50,8 @@ def create_parser():
 	
 	This program will automatically run or create task files for running Prokka (gene calling and annotation), 
 	antiSMASH (biosynthetic gene cluster annotation), and OrthoFinder (de novo ortholog group construction).
+
+	NO LONGER RECOMMENDED!!! CONSIDER USING LSABGC-READY INSTEAD!
 	""", formatter_class=argparse.RawTextHelpFormatter)
 
 	parser.add_argument('-a', '--assembly_listing', type=str,

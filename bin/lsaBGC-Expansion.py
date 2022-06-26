@@ -59,20 +59,22 @@ def create_parser():
 	checks to filter out false-positive findings.
 	""", formatter_class=argparse.RawTextHelpFormatter)
 
-    parser.add_argument('-g', '--gcf_listing', help='BGC listings file for a gcf. Tab delimited: 1st column lists sample name while the 2nd column is the path to an AntiSMASH BGC in Genbank format.', required=True)
+    parser.add_argument('-g', '--gcf_listing', help='BGC listings file for a gcf. Tab delimited: 1st column lists sample\nname while the 2nd column is the path to an AntiSMASH BGC in Genbank format.', required=True)
     parser.add_argument('-m', '--orthofinder_matrix', help="OrthoFinder matrix.", required=True)
     parser.add_argument('-i', '--gcf_id', help="GCF identifier.", required=False, default='GCF_X')
-    parser.add_argument('-l', '--initial_listing', type=str, help="Tab delimited text file for samples with three columns: (1) sample name (2) Prokka generated Genbank file (*.gbk), and (3) Prokka generated predicted-proteome file (*.faa). Please remove troublesome characters in the sample name.", required=True)
-    parser.add_argument('-e', '--expansion_listing', type=str, help="Tab delimited text file for samples in the expansion set with three columns: (1) sample name (2) Prokka generated Genbank file (*.gbk), and (3) Prokka generated predicted-proteome file (*.faa). Please remove troublesome characters in the sample name.", required=True)
+    parser.add_argument('-l', '--initial_listing', type=str, help="Tab delimited text file for primary samples with three columns: (1) sample name\n(2) path to whole-genome generated Genbank file (*.gbk), and (3)path to whole-genome generated\npredicted-proteome file (*.faa).", required=True)
+    parser.add_argument('-e', '--expansion_listing', type=str, help="Tab delimited text file for additional/draft samples in the expansion set with three columns: (1) sample name\n(2)path to whole-genome Genbank file (*.gbk), and (3)path to whole-genome\npredicted-proteome file (*.faa).", required=True)
     parser.add_argument('-o', '--output_directory', help="Path to output directory.", required=True)
-    parser.add_argument('-ms', '--min_segment_size', type=float, help="The minimum number of homolog groups needed to report discrete segments of the GCF. Default is 5.", required=False, default=5)
-    parser.add_argument('-mcs', '--min_segment_core_size', type=float, help="The minimum number of core (to the known instances of the GCF) homololog groups needed to report discrete segments of the GCF. Default is 3.", required=False, default=3)
-    parser.add_argument('-sct', '--syntenic_correlation_threshold', type=float, help="The minimum syntenic correlation needed to at least one known GCF instance to report segment.", required=False, default=0.8)
-    parser.add_argument('-tg', '--transition_from_gcf_to_gcf', type=float, help="GCF to GCF state transition probability for HMM. Should be between 0.0 and 1.0. Default is 0.9.", required=False, default=0.9)
-    parser.add_argument('-tb', '--transition_from_bg_to_bg', type=float, help="Background to background state transition probability for HMM. Should be between 0.0 and 1.0. Default is 0.9.", required=False, default=0.9)
+    parser.add_argument('-ms', '--min_segment_size', type=float, help="The minimum number of homolog groups (>3) needed to report discrete segments of the GCF. Default is 5.", required=False, default=5)
+    parser.add_argument('-mcs', '--min_segment_core_size', type=float, help="The minimum number of core (to the known instances of the GCF) homololog groups needed\nto report discrete segments of the GCF. Default is 3.", required=False, default=3)
+    parser.add_argument('-sct', '--syntenic_correlation_threshold', type=float, help="The minimum syntenic correlation needed to at least one known\nGCF instance to report segment.", required=False, default=0.8)
+    parser.add_argument('-tg', '--transition_from_gcf_to_gcf', type=float, help="GCF to GCF state transition probability for HMM. Should be between\n0.0 and 1.0. Default is 0.9.", required=False, default=0.9)
+    parser.add_argument('-tb', '--transition_from_bg_to_bg', type=float, help="Background to background state transition probability for HMM. Should be\nbetween 0.0 and 1.0. Default is 0.9.", required=False, default=0.9)
     parser.add_argument('-c', '--cores', type=int, help="The number of cores to use.", required=False, default=1)
-    parser.add_argument('-q', '--quick_mode', action='store_true', help="Run in quick-mode. Instead of running HMMScan for each homolog group, a consensus sequence is emitted and Diamond is used for searching instead. Method inspired by Melnyk et al. 2019", required=False, default=False)
+    parser.add_argument('-q', '--quick_mode', action='store_true', help="Run in quick-mode. Instead of running HMMScan for each homolog group, a consensus\nsequence is emitted and Diamond is used for searching instead. Method inspired by Melnyk et al. 2019", required=False, default=False)
     parser.add_argument('-no', '--no_orthogroup_matrix', action='store_true', help="Avoid writing the updated OrthoFinder matrix at the end.", required=False, default=False)
+    parser.add_argument('-w', '--loose', action='store_true', help="Remove requirement for proto-core/rule-based homolog group being detected in a single\nneighborhood for GCF to be reported as present.", required=False, default=False)
+    parser.add_argument('-ch', '--protocore_homologs', nargs="+", help="List of homolog group identifiers comprising the core of the BGC/GCF of which at\nleast one is required for GCF to be reported. Please provide as space-seperated list\nwith quotes surrounding: \"OG1 OG2 ...\"", required=False, default=[])
     parser.add_argument('-z', '--pickle_expansion_annotation_data', help="Pickle file with serialization of annotation data in the expansion listing file.", required=False, default=None)
 
     args = parser.parse_args()
@@ -124,6 +126,8 @@ def lsaBGC_Expansion():
     quick_mode = myargs.quick_mode
     no_orthogroup_matrix = myargs.no_orthogroup_matrix
     pickle_expansion_annotation_data_file = myargs.pickle_expansion_annotation_data
+    protocore_hg_set = myargs.protocore_homologs
+    loose_flag = myargs.loose
 
     """
     START WORKFLOW
@@ -138,7 +142,7 @@ def lsaBGC_Expansion():
     parameter_values = [gcf_listing_file, orthofinder_matrix_file, initial_listing_file, expansion_listing_file, outdir,
                         gcf_id, cores, min_segment_size, min_segment_core_size, syntenic_correlation_threshold,
                         transition_from_gcf_to_gcf, transition_from_bg_to_bg, quick_mode, no_orthogroup_matrix,
-                        pickle_expansion_annotation_data_file]
+                        pickle_expansion_annotation_data_file, protocore_hg_set, loose_flag]
     parameter_names = ["GCF Listing File", "OrthoFinder Orthogroups.csv File",
                        "Listing File of Prokka Annotation Files for Initial Set of Samples",
                        "Listing File of Prokka Annotation Files for Expansion/Additional Set of Samples",
@@ -147,7 +151,9 @@ def lsaBGC_Expansion():
                        "HMM Transition Probability from GCF to GCF",
                        "HMM Transition Probability from Background to Background", "Run Expansion in Quick Mode?",
                        "Skip rewriting Expanded OrthoGroup CSV File?",
-                       "Pickle File with Annotation Data in Expansion Listing for Quick Loading"]
+                       "Pickle File with Annotation Data in Expansion Listing for Quick Loading",
+                       "Proto-Core Set of Homolog Group(s) Manually Specified by User.",
+                       "No Rule-Based/Proto-Core Homolog Group Required for GCF Reporting?"]
     util.logParametersToFile(parameters_file, parameter_names, parameter_values)
     logObject.info("Done saving parameters!")
 
@@ -164,6 +170,8 @@ def lsaBGC_Expansion():
     gene_to_hg, hg_genes, hg_median_copy_count, hg_prop_multi_copy = util.parseOrthoFinderMatrix(orthofinder_matrix_file, GCF_Object.pan_genes)
     GCF_Object.inputHomologyInformation(gene_to_hg, hg_genes, hg_median_copy_count, hg_prop_multi_copy)
     GCF_Object.identifyKeyHomologGroups()
+    if len(protocore_hg_set) > 0:
+        GCF_Object.protocluster_core_homologs = set(protocore_hg_set)
     logObject.info("Successfully parsed homolog matrix.")
 
     # Step 3: Process annotation files related to input and expanded sample sets
@@ -190,7 +198,7 @@ def lsaBGC_Expansion():
                                     gcf_to_gcf_transition_prob=transition_from_gcf_to_gcf,
                                     background_to_background_transition_prob=transition_from_bg_to_bg,
                                     syntenic_correlation_threshold=syntenic_correlation_threshold,
-                                    no_orthogroup_matrix=no_orthogroup_matrix, cores=cores)
+                                    no_orthogroup_matrix=no_orthogroup_matrix, loose_search=loose_flag, cores=cores)
     logObject.info("Successfully found new instances of GCF in new sample set.")
 
     # Close logging object and exit

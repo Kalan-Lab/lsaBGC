@@ -61,7 +61,7 @@ def create_parser():
     parser.add_argument('-g', '--gcf_listing', help='BGC specifications file. Tab delimited: 1st column contains path to AntiSMASH BGC Genbank and 2nd column contains sample name.', required=True)
     parser.add_argument('-s', '--sequencing_readsets_listing', help="Sequencing data specifications file. Tab delimited: 1st column contains metagenomic sample name, whereas 2nd, 3rd, and so on columns contain full paths to sequencing reads.", required=True)
     parser.add_argument('-i', '--gcf_id', help="GCF identifier.", required=False, default='GCF_X')
-    parser.add_argument('-l', '--input_listing', type=str, help="Tab delimited text file for samples with three columns: (1) sample name (2) Prokka generated Genbank file (*.gbk), and (3) Prokka generated predicted-proteome file (*.faa). Please remove troublesome characters in the sample name.")
+    parser.add_argument('-l', '--input_listing', type=str, help="Tab delimited text file for samples with three columns: (1) sample name\n(2) path to whole-genome generated Genbank file (*.gbk), and (3)path to whole-genome generated\npredicted-proteome file (*.faa).", required=True)
     parser.add_argument('-m', '--orthofinder_matrix', help="OrthoFinder matrix.", required=True)
     parser.add_argument('-o', '--output_directory', help="Prefix for output files.", required=True)
     parser.add_argument('-a', '--codon_alignments', help="File listing the codon alignments for each homolog group in the GCF. Can be found as part of PopGene output.", required=True)

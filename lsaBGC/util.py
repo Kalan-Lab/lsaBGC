@@ -1308,7 +1308,7 @@ def performKOFamAnnotation(sample_bgc_proteins, bgc_prot_directory, ko_annot_dir
 					if i == 0:
 						conf = ' (High Confidence)'
 						if hit[1] == -1E10:
-							conf = ' (Low Confidence : e-val: ' + str(hit[2]) + ')'
+							conf = ' (Low Confidence : e-val < 1e-10)'
 						best_hits[pi] = hit[0] + ': ' + ko_descriptions[hit[0]] + conf
 
 			for bgc in sample_bgc_proteins[sample]:
