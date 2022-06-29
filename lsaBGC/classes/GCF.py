@@ -3168,7 +3168,7 @@ def create_codon_msas(inputs):
 	rm_cmd = None
 	if use_magus:
 		tmp_outdir = prot_alg_dir + 'tmp_' + hg + '/'
-		mafft_cmd = ['magus', '-d', tmp_outdir, '-i', hg_prot_fasta, '-o', hg_prot_msa, '-np', str(cores)]
+		mafft_cmd = ['magus', '-d', tmp_outdir, '-i', hg_prot_fasta, '-o', hg_prot_msa, '-np', str(cores), '-r', '1']
 		rm_cmd = ['rm', '-r', tmp_outdir]
 	pal2nal_cmd = ['pal2nal.pl', hg_prot_msa, hg_nucl_fasta, '-output', 'fasta', '>', hg_codo_msa]
 
