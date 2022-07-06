@@ -1174,12 +1174,14 @@ def processAntiSMASHGenbanks(antismash_listing_file, antismash_bgcs_directory, p
 
 				scaff_id, scaff_start = [None]*2
 				with open(og_bgc_genbank) as obgf:
-					for i, line in enumerate(obgf):
-						line = line.strip()
-						ls = line.split()
-						if i == 0:
+					for i, l in enumerate(obgf):
+						l = l.strip()
+						ls = l.split()
+						if l.startswith("VERSION"):
 							scaff_id = ls[1]
-						if line.startswith("Orig. start"):
+						if l.startswith("Original ID"):
+							scaff_id = ls[3]
+						if l.startswith("Orig. start"):
 							scaff_start = int(ls[3])
 
 				with open(og_bgc_genbank) as obgf:
