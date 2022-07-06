@@ -136,7 +136,7 @@ def lsaBGC_Ready():
 	PARSE OPTIONAL INPUTS
 	"""
 
-    additional_genome_listing_file = os.path.abspath(myargs.additional_genome_listing)
+    additional_genome_listing_file = myargs.additional_genome_listing
     cores = myargs.cores
     genomes_as_genbanks = myargs.genomes_as_genbanks
     bigscape_results_dir = myargs.bigscape_results
@@ -146,10 +146,12 @@ def lsaBGC_Ready():
     keep_intermediates = myargs.keep_intermediates
     skip_primary_expansion = myargs.skip_primary_expansion
 
-    try:
-        assert (os.path.isfile(additional_genome_listing_file))
-    except:
-        raise RuntimeError('Issue with reading genome listing file for samples with additional genomic assemblies.')
+    if additional_genome_listing_file != None:
+        try:
+            additional_genome_listing_file = os.path.abspath(additional_genome_listing_file)
+            assert (os.path.isfile(additional_genome_listing_file))
+        except:
+            raise RuntimeError('Issue with reading genome listing file for samples with additional genomic assemblies.')
 
     if bigscape_results_dir != None:
         try:
