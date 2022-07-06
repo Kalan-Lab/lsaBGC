@@ -66,6 +66,9 @@ def create_parser():
 
 	parser.add_argument('-i', '--input_antismash_dir', help='Path to genomic assembly in FASTA format.', required=True)
 	parser.add_argument('-f', '--filter_incomplete', action='store_true', help='Filter out incomplete BGCs (those found on contig edges.', required=False, default=False)
+	parser.add_argument('-p', '--bgc_prediction_software',
+						help='Software used to predict BGCs (Options: antiSMASH, DeepBGC, GECCO). Default is antiSMASH.',
+						default='antiSMASH', required=False)
 	args = parser.parse_args()
 	return args
 
@@ -88,10 +91,13 @@ def siftAndPrint():
 		raise RuntimeError('Cannot find input directory of antiSMASH results.')
 
 	filter_incomplete_flag = myargs.filter_incomplete
+	prediction_software = myargs.prediction_software
 
 	"""
 	START WORKFLOW
 	"""
+
+
 
 	for full_file_name in glob.glob(input_antismash_dir + "*/*region*.gbk"):
 		sample = full_file_name.split('/')[-2]
@@ -104,6 +110,8 @@ def siftAndPrint():
 
 		if not filter_incomplete_flag or (filter_incomplete_flag and not contig_edge_flag):
 			print(sample + '\t' + full_file_name)
+
+
 
 if __name__ == '__main__':
 	siftAndPrint()

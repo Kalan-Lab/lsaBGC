@@ -53,8 +53,8 @@ def create_parser():
 	Author: Rauf Salamzade
 	Affiliation: Kalan Lab, UW Madison, Department of Medical Microbiology and Immunology
 
-	Program to run prodigal gene calling and then reformat the resulting genbank and predicted proteome to feature 
-	locus tags provided and for the genbank, include features needed/expected by lsaBGC.
+	Program to run prodigal gene calling and then create a genbank file with CDS features. Final genome-wide predicted 
+	proteomes + genbank will be edited to have locus tags provided with the "-l" option. 
 	""", formatter_class=argparse.RawTextHelpFormatter)
 
 	parser.add_argument('-i', '--input_genomic_fasta', help='Path to genomic assembly in FASTA format.', required=True)
@@ -103,9 +103,9 @@ def prodigalAndReformat():
 	START WORKFLOW
 	"""
 
-	# Step 1: Run Prodigal
-	og_prod_pred_prot_file = outdir + sample_name + '.original_predicted_proteome'
+	# Step 1: Run Prodigal (if needed)
 
+	og_prod_pred_prot_file = outdir + sample_name + '.original_predicted_proteome'
 	prodigal_cmd = ['prodigal', '-i', input_genomic_fasta_file, '-a', og_prod_pred_prot_file]
 	subprocess.call(' '.join(prodigal_cmd), shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, executable='/bin/bash')
 

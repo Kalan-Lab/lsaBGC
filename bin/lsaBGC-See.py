@@ -54,15 +54,24 @@ def create_parser():
 	available, it will also create a phylogeny based on single copy core genes of the GCF.
 	""", formatter_class=argparse.RawTextHelpFormatter)
 
-    parser.add_argument('-g', '--gcf_listing', help='BGC listings file for a gcf. Tab delimited: 1st column lists sample name while the 2nd column is the path to an AntiSMASH BGC in Genbank format.', required=True)
+    parser.add_argument('-g', '--gcf_listing',
+                        help='BGC listings file for a gcf. Tab delimited: 1st column lists sample name while the 2nd column is the path to an AntiSMASH BGC in Genbank format.', required=True)
     parser.add_argument('-m', '--orthofinder_matrix', help="OrthoFinder matrix.", required=True)
     parser.add_argument('-o', '--output_directory', help="Output directory.", required=True)
     parser.add_argument('-i', '--gcf_id', help="GCF identifier.", required=False, default='GCF_X')
     parser.add_argument('-s', '--species_phylogeny', help="The species phylogeny in Newick format.", required=False, default=None)
     parser.add_argument('-c', '--cores', type=int, help="Number of cores to use for MCL step.", required=False, default=1)
-    parser.add_argument('-k', '--sample_set', help="Sample set to keep in analysis. Should be file with one sample id per line.", required=False)
-    parser.add_argument('-p', '--create_gcf_phylogeny', action='store_true', help="Create phylogeny from sequences of homolog groups in GCF.", required=False, default=False)
-    parser.add_argument('-f', '--only_scc', action='store_true', help="Use only single-copy-core homolog groups for constructing GCF phylogeny.", required=False, default=False)
+    parser.add_argument('-k', '--sample_set',
+                        help="Sample set to keep in analysis. Should be file with one sample id per line.", required=False)
+    parser.add_argument('-y', '--create_gcf_phylogeny', action='store_true',
+                        help="Create phylogeny from sequences of homolog groups in GCF.", required=False, default=False)
+    parser.add_argument('-f', '--only_scc', action='store_true',
+                        help="Use only single-copy-core homolog groups for constructing GCF phylogeny.", required=False,
+                        default=False)
+    parser.add_argumetn('-p', '--prediction_software',
+                        help='Prediction software. Default is antiSMASH. Options are: antiSMASH, DeepBGC, or GECCO.',
+                        default='antiSMASH', required=False)
+
     args = parser.parse_args()
     return args
 
