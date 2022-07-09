@@ -116,7 +116,7 @@ def lsaBGC_PopGene():
     regular_mafft = myargs.regular_mafft
 
     try:
-        assert (bgc_prediction_software in set('ANTISMASH', 'DEEPBGC', 'GECCO'))
+        assert (bgc_prediction_software in set(['ANTISMASH', 'DEEPBGC', 'GECCO']))
     except:
         raise RuntimeError('BGC prediction software option is not a valid option.')
 

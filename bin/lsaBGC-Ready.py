@@ -164,7 +164,7 @@ def lsaBGC_Ready():
     skip_primary_expansion = myargs.skip_primary_expansion
 
     try:
-        assert(bgc_prediction_software in set('ANTISMASH', 'DEEPBGC', 'GECCO'))
+        assert(bgc_prediction_software in set(['ANTISMASH', 'DEEPBGC', 'GECCO']))
     except:
         raise RuntimeError('BGC prediction software option is not a valid option.')
 

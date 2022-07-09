@@ -101,6 +101,12 @@ def lsaBGC_Refiner():
     first_boundary_homolog = myargs.first_boundary_homolog
     second_boundary_homolog = myargs.second_boundary_homolog
 
+
+    try:
+        assert(bgc_prediction_software in set(['ANTISMASH', 'DEEPBGC', 'GECCO']))
+    except:
+        raise RuntimeError('BGC prediction software option is not a valid option.')
+
     """
     START WORKFLOW
     """

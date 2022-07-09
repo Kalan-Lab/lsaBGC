@@ -113,6 +113,12 @@ def lsaBGC_See():
     create_gcf_phylogeny = myargs.create_gcf_phylogeny
     only_scc = myargs.only_scc
 
+
+    try:
+        assert(bgc_prediction_software in set(['ANTISMASH', 'DEEPBGC', 'GECCO']))
+    except:
+        raise RuntimeError('BGC prediction software option is not a valid option.')
+
     """
     START WORKFLOW
     """

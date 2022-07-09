@@ -118,7 +118,7 @@ def lsaBGC_DiscoVary():
     cores = myargs.cores
 
     try:
-        assert (bgc_prediction_software in set('ANTISMASH', 'DEEPBGC', 'GECCO'))
+        assert (bgc_prediction_software in set(['ANTISMASH', 'DEEPBGC', 'GECCO']))
     except:
         raise RuntimeError('BGC prediction software option is not a valid option.')
 
