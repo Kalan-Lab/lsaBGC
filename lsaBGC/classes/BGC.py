@@ -163,7 +163,7 @@ class BGC:
 					if feature.type == 'PFAM_domain':
 						start = min([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')]) + 1
 						end = max([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')])
-						asDomain = "NA"
+						aSDomain = "NA"
 						description = "NA"
 						deepbgc_score = 0.0
 						try:
@@ -178,7 +178,7 @@ class BGC:
 							deepbgc_score = float(feature.qualifiers.get('deepbgc_score')[0])
 						except:
 							pass
-						domain_score[asDomain + '|' + str(start) + '|' + str(end)] = deepbgc_score
+						domain_score[aSDomain + '|' + str(start) + '|' + str(end)] = deepbgc_score
 						domains.append({'start': start + 1, 'end': end, 'type': feature.type, 'aSDomain': aSDomain, 'description': description})
 					elif feature.type == 'cluster':
 						product_class = "NA"
