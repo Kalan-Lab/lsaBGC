@@ -208,6 +208,8 @@ class BGC:
 			if i <= num_total_domains*0.1:
 				core_domains.add(d[0])
 
+		print(domain_score)
+		print(core_domains)
 		# sys.stderr.write('Processing %s\n' % self.bgc_genbank)
 		genes = {}
 		core_genes = set([])
