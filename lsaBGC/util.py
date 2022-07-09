@@ -1191,7 +1191,7 @@ def processBGCGenbanks(bgc_listing_file, bgc_prediction_software, sample_genomes
 				bgc_seq = None
 				with open(og_bgc_genbank) as obgf:
 					for rec in SeqIO.parse(obgf, 'genbank'):
-						rec.id = str(rec.seq.upper())
+						bgc_seq = str(rec.seq.upper())
 
 				scaff_id, scaff_start = [None]*2
 				with open(sample_genomes[sample]) as off:
