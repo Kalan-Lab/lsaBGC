@@ -233,6 +233,7 @@ class BGC:
 						gene_domains = []
 						core_overlap = False
 						for d in domains:
+							print(d)
 							drange = set(range(d['start'], d['end'] + 1))
 							if len(drange.intersection(grange)) > 0:
 								gene_domains.append(d)
