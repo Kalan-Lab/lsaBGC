@@ -208,7 +208,7 @@ def lsaBGC_Ready():
                         bgc_prediction_software, orthofinder_mode, bigscape_results_dir, annotate, run_lsabgc_cluster,
                         run_lsabgc_expansion, keep_intermediates, cores]
     parameter_names = ["Primary Genome Listing File", "BGC Predictions Genbanks Listing File", "Output Directory",
-                       "Additional Genome Listing File", "",
+                       "Additional Genome Listing File", "BGC Prediction Software", "OrthoFinder Mode",
                        "BiG-SCAPE Results Directory", "Perform KOfam Annotation?", "Run lsaBGC-Cluster Analysis?",
                        "Run lsaBGC-AutoExpansion Analysis?", "Keep Intermediate Files/Directories?", "Number of Cores"]
     util.logParametersToFile(parameters_file, parameter_names, parameter_values)
