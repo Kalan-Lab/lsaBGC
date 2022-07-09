@@ -56,7 +56,7 @@ def create_parser():
 	estimated genome-wide ANI, for all pairs of samples featuring a BGC belonging to a focal GCF of interest.
 	""", formatter_class=argparse.RawTextHelpFormatter)
 
-    parser.add_argument('-g', '--gcf_listing', help='BGC specifications file. Tab delimited: 1st column contains path to AntiSMASH BGC Genbank and 2nd column contains sample name.', required=True)
+    parser.add_argument('-g', '--gcf_listing', help='BGC specifications file. Tab delimited: 1st column contains path to BGC Genbank and 2nd column contains sample name.', required=True)
     parser.add_argument('-l', '--input_listing', help="Path to tab delimited file listing: (1) sample name (2) path to Prokka Genbank and (3) path to Prokka predicted proteome. This file is produced by lsaBGC-Process.py.", required=True)
     parser.add_argument('-a', '--codon_alignments', help="File listing the codon alignments for each homolog group in the GCF. Can be found as part of PopGene output.", required=True)
     parser.add_argument('-f', '--precomputed_gw_similarity_results', help="Path to precomputed FastANI/CompareM ANI/AAI calculations. Should be tab delimited file with ", required=False)
@@ -186,6 +186,12 @@ def lsaBGC_Divergence():
         logObject.error(error_message)
         logObject.error(traceback.format_exc())
         raise RuntimeError(error_message)
+
+    # Write checkpoint file for lsaBGC-AutoAnalyze.py
+    checkpoint_file = outdir + 'CHECKPOINT.txt'
+    checkpoint_handle = open(checkpoint_file, 'w')
+    checkpoint_handle.write('lsaBGC-Divergence completed successfully!')
+    checkpoint_handle.close()
 
     # Close logging object and exit
     util.closeLoggerObject(logObject)

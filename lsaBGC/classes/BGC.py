@@ -17,7 +17,6 @@ class BGC:
 		self.cluster_information = None
 
 	def parseGECCO(self, comprehensive_parsing=True, flank_size=2000):
-		bgc_info = []
 		domains = []
 		full_sequence = ""
 		domain_evalues = {}
@@ -153,7 +152,6 @@ class BGC:
 
 
 	def parseDeepBGC(self, comprehensive_parsing=True, flank_size=2000):
-		bgc_info = []
 		domains = []
 		full_sequence = ""
 		domain_score = {}
@@ -376,8 +374,7 @@ class BGC:
 
 						gene_order[lt] = start
 
-						prot_seq, nucl_seq, nucl_seq_with_flanks, relative_start, relative_end, gene_domains = [
-																												   None] * 6
+						prot_seq, nucl_seq, nucl_seq_with_flanks, relative_start, relative_end, gene_domains = [None] * 6
 						if comprehensive_parsing:
 							prot_seq = feature.qualifiers.get('translation')[0]
 							gene_domains = []

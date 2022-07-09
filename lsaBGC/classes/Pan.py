@@ -80,7 +80,7 @@ class Pan:
 		self.pair_relations_txt_file = None
 		self.bgc_to_gcf_map_file = None
 
-	def readInBGCGenbanks(self, comprehensive_parsing=True, prune_set=None, prediction_method='antiSMASH'):
+	def readInBGCGenbanks(self, comprehensive_parsing=True, prune_set=None, prediction_method='ANTISMASH'):
 		"""
 		Function to parse file listing location of BGC Genbanks.
 

@@ -69,12 +69,6 @@ def create_parser():
     
 	ALGORITHMIC OVERVIEWS/CONSIDERATIONS:
 	***************************************************************************************************************** 
-    -*-  To run lsaBGC-Ready.py with fungal/plant genomes please provide full Genbanks within the "--genome_listing" 
-         and "--additional_genome_listing" specification files (these are *.gbff files). The full Genbanks will have 
-         gene-calling already performed (though not systematically using the same algorithm which is well known to cause
-         issues with comparative genomics). This is to avoid the requirement of species-specific training information 
-         needed for most eukaryotic gene calling.
-
     -*-  OrthoFinder2 modes:
             * Genome_Wide: Run OrthoFinder2 as intended with all primary sample full genome-wide proteomes.
               [LOW-THROUGHPUT (<200 Genomes)]
@@ -311,9 +305,9 @@ def lsaBGC_Ready():
     if bgc_prediction_software == 'DEEPBGC':
         deepbgc_split_directory = outdir + 'Split_DeepBGC_Genbanks/'
         util.setupReadyDirectory([deepbgc_split_directory])
-        bgc_genbank_listing_file = util.splitDeepBGCPredictions(bgc_genbank_listing_file, deepbgc_split_directory)
+        bgc_genbank_listing_file = util.splitDeepBGCGenbank(bgc_genbank_listing_file, deepbgc_split_directory, outdir, logObject)
     sample_bgcs, bgc_to_sample = util.processBGCGenbanks(bgc_genbank_listing_file, bgc_prediction_software,
-                                                         bgcs_directory, proteomes_directory, logObject)
+                                                         sample_genomes, bgcs_directory, proteomes_directory, logObject)
 
     # Step 4: Extract BGC proteins from full predicted proteomes
     bgc_prot_directory = outdir + 'BGC_Proteins_per_Sample/'
@@ -452,7 +446,8 @@ def lsaBGC_Ready():
             raise RuntimeError('Had an issue running: %s' % ' '.join(lsabgc_expansion_cmd))
 
     # Step 11: Create Final Results Directory
-    util.selectFinalResultsAndCleanUp(outdir, fin_outdir, logObject)
+    if not keep_intermediates:
+        util.selectFinalResultsAndCleanUp(outdir, fin_outdir, logObject)
 
     # Close logging object and exit
     util.closeLoggerObject(logObject)

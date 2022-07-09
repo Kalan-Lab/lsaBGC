@@ -49,12 +49,13 @@ def create_parser():
 	Author: Rauf Salamzade
 	Affiliation: Kalan Lab, UW Madison, Department of Medical Microbiology and Immunology
 
-	This program will cluster BGCs found by AntiSMASH using MCL based on similarity exhibited in ortholog group presence/
+	This program will cluster BGC Genbanks using MCL based on similarity exhibited in ortholog group presence/
 	absence data. Clustering uses MCL.""", formatter_class=argparse.RawTextHelpFormatter)
 
 	parser.add_argument('-b', '--bgc_listings', help='BGC listing file. Tab delimited 2-column file: (1) sample name (2) path to predicted BGC in Genbank format.', required=True)
 	parser.add_argument('-m', '--orthofinder_matrix', help="OrthoFinder matrix.", required=True)
 	parser.add_argument('-o', '--output_directory', help="Output directory.", required=True)
+	parser.add_argument('-p', '--bgc_prediction_software', help='Software used to predict BGCs (Options: antiSMASH, DeepBGC, GECCO).\nDefault is antiSMASH.', default='antiSMASH', required=False)
 	parser.add_argument('-c', '--cores', type=int, help="Number of cores to use for MCL step.", required=False, default=1)
 	parser.add_argument('-i', '--mcl_inflation', type=float, help="Inflation parameter to be used for MCL.", required=False, default=1.4)
 	parser.add_argument('-j', '--jaccard_cutoff', type=float, help="Cutoff for Jaccard similarity of homolog groups shared between two BGCs.", required=False, default=50.0)
@@ -95,12 +96,18 @@ def lsaBGC_Cluster():
 	PARSE OPTIONAL INPUTS
 	"""
 
+	bgc_prediction_software = myargs.bgc_prediction_software.upper()
 	cores = myargs.cores
 	mcl_inflation = myargs.mcl_inflation
 	jaccard_cutoff = myargs.jaccard_cutoff
 	syntenic_correlation_cutoff = myargs.syntenic_correlation_cutoff
 	run_parameter_tests = myargs.run_parameter_tests
 	split_by_annotation = myargs.split_by_annotation
+
+	try:
+		assert (bgc_prediction_software in set('ANTISMASH', 'DEEPBGC', 'GECCO'))
+	except:
+		raise RuntimeError('BGC prediction software option is not a valid option.')
 
 	"""
 	START WORKFLOW
@@ -113,11 +120,12 @@ def lsaBGC_Cluster():
 	# Step 0: Log input arguments and update reference and query FASTA files.
 	logObject.info("Saving parameters for future records.")
 	parameters_file = outdir + 'Parameter_Inputs.txt'
-	parameter_values = [bgc_listings_file, orthofinder_matrix_file, outdir, cores, mcl_inflation, jaccard_cutoff,
-						syntenic_correlation_cutoff, run_parameter_tests, split_by_annotation]
-	parameter_names = ["BGC Listing File", "OrthoFinder Orthogroups.csv File", "Output Directory", "Cores",
-					   "MCL Inflation Parameter", "Jaccard Similarity Cutoff", "Syntenic Correlation Coefficient Cutoff",
-					   "Run Inflation Parameter Tests?", "Split BGCs into Annotation Categories First Prior to Clustering?"]
+	parameter_values = [bgc_listings_file, orthofinder_matrix_file, outdir, bgc_prediction_software, cores, mcl_inflation,
+						jaccard_cutoff, syntenic_correlation_cutoff, run_parameter_tests, split_by_annotation]
+	parameter_names = ["BGC Listing File", "OrthoFinder Orthogroups.csv File", "Output Directory",
+					   "BGC Prediction Method", "Cores", "MCL Inflation Parameter", "Jaccard Similarity Cutoff",
+					   "Syntenic Correlation Coefficient Cutoff", "Run Inflation Parameter Tests?",
+					   "Split BGCs into Annotation Categories First Prior to Clustering?"]
 	util.logParametersToFile(parameters_file, parameter_names, parameter_values)
 	logObject.info("Done saving parameters!")
 
@@ -126,7 +134,7 @@ def lsaBGC_Cluster():
 
 	# Step 1: Parse BGCs from Listing File
 	logObject.info("Starting to process BGC Genbanks from listing file.")
-	Pan_Object.readInBGCGenbanks(comprehensive_parsing=False)
+	Pan_Object.readInBGCGenbanks(comprehensive_parsing=False, prediction_method=bgc_prediction_software)
 	logObject.info("Successfully parsed BGC Genbanks.")
 
 	# Step 2: Parse OrthoFinder Homolog vs Sample Matrix

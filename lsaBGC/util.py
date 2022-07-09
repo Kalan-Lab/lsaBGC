@@ -1127,8 +1127,30 @@ def extractProteins(sample_genomes, proteomes_directory, logObject):
 
 	return sample_proteomes
 
+def splitDeepBGCGenbank(bgc_genbank_listing_file, deepbgc_split_directory, outdir, logObject):
+	updated_bgc_genbank_listing_file = outdir + 'DeepBGC_Genbanks_Split_Listing.txt'
+	updated_bgc_genbank_listing_handle = open(updated_bgc_genbank_listing_file, 'w')
+	try:
+		with open(bgc_genbank_listing_file) as obglf:
+			for line in obglf:
+				sample, bgc = line.strip().split('\t')
+				logObject.info('Splitting DeepBGC Genbank %s for sample %s.' % (bgc, sample))
+				with open(bgc) as obgbk:
+					for rec in SeqIO.parse(obgbk, 'genbank'):
+						out_gbk = deepbgc_split_directory + rec.id.replace('.', '_') + '.gbk'
+						updated_bgc_genbank_listing_handle.write(sample + '\t' + out_gbk + '\n')
+						out_gbk_handle = open(out_gbk, 'w')
+						SeqIO.write(rec, out_gbk_handle, 'genbank')
+						out_gbk_handle.close()
+		updated_bgc_genbank_listing_handle.close()
+	except Exception as e:
+			logObject.error("Problem with parsing Genbank for sample %s, likely at least one CDS feature does not have both a locus_tag or product sequence." % sample)
+			logObject.error(traceback.format_exc())
+			raise RuntimeError(traceback.format_exc())
 
-def processBGCGenbanks(bgc_listing_file, bgc_prediction_software, antismash_bgcs_directory, proteomes_directory, logObject):
+	return updated_bgc_genbank_listing_file
+
+def processBGCGenbanks(bgc_listing_file, bgc_prediction_software, sample_genomes, antismash_bgcs_directory, proteomes_directory, logObject):
 	"""
 	Creates local versions of BGC prediction Genbanks where proteins have locus tags updated.
 	"""
@@ -1166,20 +1188,22 @@ def processBGCGenbanks(bgc_listing_file, bgc_prediction_software, antismash_bgcs
 				bgc_to_sample[cp_bgc_genbank] = sample
 				cp_bgc_genbank_handle = open(cp_bgc_genbank, 'w')
 
-				scaff_id, scaff_start = [None]*2
+				bgc_seq = None
 				with open(og_bgc_genbank) as obgf:
-					for i, l in enumerate(obgf):
-						l = l.strip()
-						ls = line.split()
-						if l.startswith("VERSION"):
-							scaff_id = ls[1]
-						if l.startswith("Original ID"):
-							scaff_id = ls[3]
-						if l.startswith("Orig. start"):
-							scaff_start = int(ls[3])
+					for rec in SeqIO.parse(obgf, 'genbank'):
+						rec.id = str(rec.seq.upper())
+
+				scaff_id, scaff_start = [None]*2
+				with open(sample_genomes[sample]) as off:
+					for rec in SeqIO.parse(off, 'genbank'):
+						if bgc_seq in str(rec.seq).upper():
+							scaff_id = rec.id
+							scaff_start = str(rec.seq).find(bgc_seq)
 
 				with open(og_bgc_genbank) as obgf:
 					for rec in SeqIO.parse(obgf, 'genbank'):
+						rec.name = scaff_id
+						rec.description = 'BGC prediction on scaffold %s by %s, starts at: %d' % (scaff_id, bgc_prediction_software, scaff_start)
 						rec.id = scaff_id
 						updated_rec = copy.deepcopy(rec)
 						updated_features = []
@@ -1217,18 +1241,10 @@ def extractProteinsFromBGCs(sample_bgcs, bgc_prot_directory, logObject):
 			samp_bgc_prot_file = bgc_prot_directory + sample + '.faa'
 			samp_bgc_prot_handle = open(samp_bgc_prot_file, 'w')
 			for bgc in sample_bgcs[sample]:
-				scaff_id, scaff_start = [None]*2
-				with open(bgc) as obgf:
-					for i, line in enumerate(obgf):
-						line = line.strip()
-						ls = line.split()
-						if i == 0:
-							scaff_id = ls[1]
-						if line.startswith("Orig. start"):
-							scaff_start = int(ls[3])
-
 				with open(bgc) as obf:
 					for rec in SeqIO.parse(obf, 'genbank'):
+						scaff_id = rec.id
+						scaff_start = int(rec.description.split()[-1].strip())
 						for feature in rec.features:
 							if feature.type == 'CDS':
 								prot_lt = feature.qualifiers.get('locus_tag')[0]
@@ -1505,15 +1521,10 @@ def incorporateBGCProteinsIntoProteomesAndGenbanks(sample_genomes, sample_bgc_pr
 						if rec.id in bgc_prots_1x:
 							sample_lts_to_add_protein_sequences[rec.id] = [rec.description, str(rec.seq)]
 
-				scaff_id, scaff_start = [None]*2
-				with open(bgc) as obgf:
-					for i, line in enumerate(obgf):
-						line = line.strip()
-						ls = line.split()
-						if i == 0: scaff_id = ls[1]
-						if line.startswith("Orig. start"): scaff_start = int(ls[3])
 				with open(bgc) as obf:
 					for rec in SeqIO.parse(obf, 'genbank'):
+						scaff_id = rec.id
+						scaff_start = int(rec.description.split()[-1].split())
 						for feature in rec.features:
 							if feature.type=='CDS':
 								prot_lt = feature.qualifiers.get('locus_tag')[0]

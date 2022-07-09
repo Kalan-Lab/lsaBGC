@@ -67,6 +67,8 @@ def create_parser():
 	parser.add_argument('-l', '--initial_listing', type=str, help="Path to tab delimited text file for samples with three columns: (1) sample name (2) Prokka generated Genbank file (*.gbk), and (3) Prokka generated predicted-proteome file (*.faa). Please remove troublesome characters in the sample name.", required=True)
 	parser.add_argument('-e', '--expansion_listing', help="Path to tab delimited file listing: (1) sample name (2) path to Prokka Genbank and (3) path to Prokka predicted proteome. This file is produced by lsaBGC-AutoProcess.py.", required=True)
 	parser.add_argument('-o', '--output_directory', help="Parent output/workspace directory.", required=True)
+	parser.add_argument('-i', '--gcf_id', help="GCF identifier.", required=False, default='GCF_X')
+	parser.add_argument('-p', '--bgc_prediction_software', help='Software used to predict BGCs (Options: antiSMASH, DeepBGC, GECCO).\nDefault is antiSMASH.', default='antiSMASH', required=False)
 	parser.add_argument('-q', '--quick_mode', action='store_true', help='Whether to run lsaBGC-Expansion in quick mode?', required=False, default=False)
 	parser.add_argument('-z', '--pickle_expansion_annotation_data', help="Pickle file with serialization of annotation data in the expansion listing file.", required=False, default=None)
 	parser.add_argument('-c', '--cores', type=int, help="Total number of cores to use.", required=False, default=1)
@@ -107,8 +109,14 @@ def lsaBGC_AutoExpansion():
 	"""
 
 	cores = myargs.cores
+	bgc_prediction_software = myargs.bgc_prediction_software.upper()
 	quick_mode = myargs.quick_mode
 	pickle_expansion_annotation_data_file = myargs.pickle_expansion_annotation_data
+
+	try:
+		assert (bgc_prediction_software in set('ANTISMASH', 'DEEPBGC', 'GECCO'))
+	except:
+		raise RuntimeError('BGC prediction software option is not a valid option.')
 
 	"""
 	START WORKFLOW
@@ -122,12 +130,13 @@ def lsaBGC_AutoExpansion():
 	logObject.info("Saving parameters for easier determination of results' provenance in the future.")
 	parameters_file = outdir + 'Parameter_Inputs.txt'
 	parameter_values = [gcf_listing_dir, initial_listing_file,
-						expansion_listing_file, original_orthofinder_matrix_file, outdir, pickle_expansion_annotation_data_file, quick_mode, cores]
+						expansion_listing_file, original_orthofinder_matrix_file, outdir,
+						pickle_expansion_annotation_data_file, quick_mode, bgc_prediction_software, cores]
 	parameter_names = ["GCF Listings Directory", "Listing File of Prokka Annotation Files for Initial Set of Samples",
 					   "Listing File of Prokka Annotation Files for Expansion/Additional Set of Samples",
 					   "OrthoFinder Homolog Matrix", "Output Directory",
 					   "Pickle File with Annotation Data in Expansion Listing for Quick Loading",
-					   "Run in Quick Mode?", "Cores"]
+					   "Run in Quick Mode?", "BGC Prediction Software", "Cores"]
 	util.logParametersToFile(parameters_file, parameter_names, parameter_values)
 	logObject.info("Done saving parameters!")
 
@@ -152,7 +161,7 @@ def lsaBGC_AutoExpansion():
 			for line in oglf:
 				line = line.strip()
 				sample, bgc_gbk_path = line.split('\t')
-				BGC_Object = BGC(bgc_gbk_path, bgc_gbk_path)
+				BGC_Object = BGC(bgc_gbk_path, bgc_gbk_path, prediction_method=bgc_prediction_software)
 				BGC_Object.parseGenbanks(comprehensive_parsing=False)
 				curr_bgc_lts = set(BGC_Object.gene_information.keys())
 				for lt in curr_bgc_lts:
@@ -168,8 +177,8 @@ def lsaBGC_AutoExpansion():
 		gcf_exp_outdir = exp_outdir + gcf_id + '/'
 		if not os.path.isdir(gcf_exp_outdir):
 			cmd = ['lsaBGC-Expansion.py', '-g', gcf_listing_file, '-m', orthofinder_matrix_file, '-l',
-				   initial_listing_file, '-e', expansion_listing_file, '-o', gcf_exp_outdir, '-i', gcf_id,
-			   	   '-c', str(cores)]
+				   initial_listing_file, '-p', bgc_prediction_software, '-e', expansion_listing_file,
+				   '-o', gcf_exp_outdir, '-i', gcf_id, '-c', str(cores)]
 			if quick_mode:
 				cmd += ['-q']
 			if pickle_expansion_annotation_data_file:
@@ -308,7 +317,7 @@ def lsaBGC_AutoExpansion():
 				if (bgc_gbk_path in bgcs_to_discard) and (not bgc_gbk_path in original_gcfs): continue
 				final_expanded_gcf_listing_handle.write(line + '\n')
 				if bgc_gbk_path in original_gcfs: continue
-				BGC_Object = BGC(bgc_gbk_path, bgc_gbk_path)
+				BGC_Object = BGC(bgc_gbk_path, bgc_gbk_path, prediction_method=bgc_prediction_software)
 				BGC_Object.parseGenbanks(comprehensive_parsing=False)
 				curr_bgc_lts = set(BGC_Object.gene_information.keys())
 				sample = util.cleanUpSampleName(sample)

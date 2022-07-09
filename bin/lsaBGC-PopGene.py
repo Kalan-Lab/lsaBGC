@@ -60,7 +60,8 @@ def create_parser():
     parser.add_argument('-o', '--output_directory', help="Path to output directory.", required=True)
     parser.add_argument('-k', '--sample_set', help="Sample set to keep in analysis. Should be file with one sample id per line.", required=False)
     parser.add_argument('-s', '--species_phylogeny', help="The species phylogeny in Newick format. Specifies that dN/dS should be calculated by comparing extant homolog-group sequences to ancestral state reconstruction. Does not currently work!!!", required=False, default=None)
-    parser.add_argument('-p', '--population_classification', help='Popualation classifications for each sample. Tab delemited: 1st column lists sample name while the 2nd column is an identifier for the population the sample belongs to.', required=False, default=None)
+    parser.add_argument('-u', '--population_classification', help='Popualation classifications for each sample. Tab delemited: 1st column lists sample name while the 2nd column is an identifier for the population the sample belongs to.', required=False, default=None)
+    parser.add_argument('-p', '--bgc_prediction_software', help='Software used to predict BGCs (Options: antiSMASH, DeepBGC, GECCO).\nDefault is antiSMASH.', default='antiSMASH', required=False)
     parser.add_argument('-c', '--cores', type=int, help="The number of cores to use.", required=False, default=1)
     parser.add_argument('-d', '--regular_mafft', action='store_true', help="Run mafft --linsi and not the MAGUS divide-and-conquer approach which allows for scalability and more efficient computing.", default=False, required=False)
     parser.add_argument('-e', '--each_pop', action='store_true', help='Run analyses individually for each population as well.', required=False, default=False)
@@ -105,6 +106,7 @@ def lsaBGC_PopGene():
     species_phylogeny = myargs.species_phylogeny
     sample_set_file = myargs.sample_set
     gcf_id = myargs.gcf_id
+    bgc_prediction_software = myargs.bgc_prediction_software.upper()
     cores = myargs.cores
     population_classification_file = myargs.population_classification
     run_for_each_pop = myargs.each_pop
@@ -112,6 +114,11 @@ def lsaBGC_PopGene():
     precomputed_gw_similarity_results = myargs.precomputed_gw_similarity_results
     comparem_used = myargs.comparem_used
     regular_mafft = myargs.regular_mafft
+
+    try:
+        assert (bgc_prediction_software in set('ANTISMASH', 'DEEPBGC', 'GECCO'))
+    except:
+        raise RuntimeError('BGC prediction software option is not a valid option.')
 
     """
     START WORKFLOW
@@ -123,11 +130,11 @@ def lsaBGC_PopGene():
     # Log input arguments and update reference and query FASTA files.
     logObject.info("Saving parameters for future records.")
     parameters_file = outdir + 'Parameter_Inputs.txt'
-    parameter_values = [gcf_listing_file, orthofinder_matrix_file, outdir, gcf_id, population_classification_file,
-                        sample_set_file, species_phylogeny, run_for_each_pop, filter_for_outliers, precomputed_gw_similarity_results,
-                        comparem_used, regular_mafft, cores]
+    parameter_values = [gcf_listing_file, orthofinder_matrix_file, outdir, gcf_id, bgc_prediction_software,
+                        population_classification_file, sample_set_file, species_phylogeny, run_for_each_pop,
+                        filter_for_outliers, precomputed_gw_similarity_results, comparem_used, regular_mafft, cores]
     parameter_names = ["GCF Listing File", "OrthoFinder Orthogroups.csv File", "Output Directory", "GCF Identifier",
-                       "Populations Specification/Listing File", "Sample Retention Set",
+                       "BGC Prediction Software", "Populations Specification/Listing File", "Sample Retention Set",
                        "Species Phylogeny Newick File", "Run Analysis for Each Population",
                        "Filter for Outlier Homolog Group Instances", "Precomputed FastANI/CompareM Similarities File",
                        "AAI Similarity Instead of ANI", "Use Regular MAFFT - not MAGUS?", "Cores"]
@@ -159,7 +166,8 @@ def lsaBGC_PopGene():
 
     # Step 1: Process GCF listings file
     logObject.info("Processing BGC Genbanks from GCF listing file.")
-    GCF_Object.readInBGCGenbanks(comprehensive_parsing=True, prune_set=sample_retention_set)
+    GCF_Object.readInBGCGenbanks(comprehensive_parsing=True, prune_set=sample_retention_set,
+                                 prediction_method=bgc_prediction_software)
     logObject.info("Successfully parsed BGC Genbanks and associated with unique IDs.")
 
     # Step 2: Parse OrthoFinder Homolog vs Sample Matrix
@@ -202,6 +210,12 @@ def lsaBGC_PopGene():
         if filter_for_outliers:
             GCF_Object.runPopulationGeneticsAnalysis(outdir, cores=cores, population=None, filter_outliers=True, population_analysis_on=population_analysis_on, gw_pairwise_similarities=gw_pairwise_similarities, comparem_used=comparem_used, species_phylogeny=species_phylogeny)
     logObject.info("Successfully ran population genetics and evolutionary analyses of each codon alignment.")
+
+    # Write checkpoint file for lsaBGC-AutoAnalyze.py
+    checkpoint_file = outdir + 'CHECKPOINT.txt'
+    checkpoint_handle = open(checkpoint_file, 'w')
+    checkpoint_handle.write('lsaBGC-PopGene completed successfully!')
+    checkpoint_handle.close()
 
     # Close logging object and exit
     util.closeLoggerObject(logObject)
