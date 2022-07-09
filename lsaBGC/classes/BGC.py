@@ -27,7 +27,7 @@ class BGC:
 					if feature.type == 'misc_feature':
 						start = min([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')]) + 1
 						end = max([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')])
-						asDomain = "NA"
+						aSDomain = "NA"
 						description = "NA"
 						evalue = 1e10
 						try:
@@ -42,7 +42,7 @@ class BGC:
 							evalue = [float(x.split(': ')[1].strip()) for x in feature.qualifiers.get('note') if x.startswith('e-value')][0]
 						except:
 							pass
-						domain_evalues[asDomain + '|' + str(start) + '|' + str(end)] = evalue
+						domain_evalues[aSDomain + '|' + str(start+1) + '|' + str(end)] = evalue
 						domains.append({'start': start + 1, 'end': end, 'type': feature.type, 'aSDomain': aSDomain, 'description': description})
 
 		product = "NA"
@@ -87,13 +87,13 @@ class BGC:
 							drange = set(range(d['start'], d['end'] + 1))
 							if len(drange.intersection(grange)) > 0:
 								gene_domains.append(d)
-								if (d['asDomain'] + '|' + str(d['start']) + '|' + str(d['end'])) in core_domains:
+								if (d['aSDomain'] + '|' + str(d['start']) + '|' + str(d['end'])) in core_domains:
 									core_overlap = True
 									core_genes.add(lt)
 
 						gene_order[lt] = start
 
-						prot_seq, nucl_seq, nucl_seq_with_flanks, relative_start, relative_end, gene_domains = [None] * 6
+						prot_seq, nucl_seq, nucl_seq_with_flanks, relative_start, relative_end = [None] * 5
 						if comprehensive_parsing:
 							prot_seq = feature.qualifiers.get('translation')[0]
 
@@ -178,7 +178,7 @@ class BGC:
 							deepbgc_score = float(feature.qualifiers.get('deepbgc_score')[0])
 						except:
 							pass
-						domain_score[aSDomain + '|' + str(start) + '|' + str(end)] = deepbgc_score
+						domain_score[aSDomain + '|' + str(start+1) + '|' + str(end)] = deepbgc_score
 						domains.append({'start': start + 1, 'end': end, 'type': feature.type, 'aSDomain': aSDomain, 'description': description})
 					elif feature.type == 'cluster':
 						product_class = "NA"
@@ -208,8 +208,6 @@ class BGC:
 			if i <= num_total_domains*0.1:
 				core_domains.add(d[0])
 
-		print(domain_score)
-		print(core_domains)
 		# sys.stderr.write('Processing %s\n' % self.bgc_genbank)
 		genes = {}
 		core_genes = set([])
@@ -236,7 +234,6 @@ class BGC:
 							drange = set(range(d['start'], d['end'] + 1))
 							if len(drange.intersection(grange)) > 0:
 								gene_domains.append(d)
-								print(d['aSDomain'] + '|' + str(d['start']) + '|' + str(d['end']))
 								if (d['aSDomain'] + '|' + str(d['start']) + '|' + str(d['end'])) in core_domains:
 									core_overlap = True
 									core_genes.add(lt)
