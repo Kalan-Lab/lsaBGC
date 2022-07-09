@@ -65,10 +65,12 @@ def create_parser():
 	""", formatter_class=argparse.RawTextHelpFormatter)
 
 	parser.add_argument('-i', '--input_antismash_dir', help='Path to genomic assembly in FASTA format.', required=True)
-	parser.add_argument('-f', '--filter_incomplete', action='store_true', help='Filter out incomplete BGCs (those found on contig edges.', required=False, default=False)
 	parser.add_argument('-p', '--bgc_prediction_software',
 						help='Software used to predict BGCs (Options: antiSMASH, DeepBGC, GECCO). Default is antiSMASH.',
 						default='antiSMASH', required=False)
+	parser.add_argument('-f', '--filter_incomplete', action='store_true',
+						help='Filter out incomplete BGCs (those found on contig edges. Only works for antiSMASH predictions.',
+						required=False, default=False)
 	args = parser.parse_args()
 	return args
 
@@ -83,23 +85,22 @@ def siftAndPrint():
 	"""
 	myargs = create_parser()
 
-	input_antismash_dir = os.path.abspath(myargs.input_antismash_dir) + '/'
+	input_bgc_dir = os.path.abspath(myargs.input_bgc_dir) + '/'
 
 	try:
-		assert(os.path.isdir(input_antismash_dir))
+		assert(os.path.isdir(input_bgc_dir))
 	except:
-		raise RuntimeError('Cannot find input directory of antiSMASH results.')
+		raise RuntimeError('Cannot find input directory with BGC predictions results.')
 
 	filter_incomplete_flag = myargs.filter_incomplete
-	prediction_software = myargs.prediction_software
+	bgc_prediction_software = myargs.bgc_prediction_software.upper()
 
 	"""
 	START WORKFLOW
 	"""
 
 
-
-	for full_file_name in glob.glob(input_antismash_dir + "*/*region*.gbk"):
+	for full_file_name in glob.glob(input_bgc_dir + "*/*region*.gbk"):
 		sample = full_file_name.split('/')[-2]
 		contig_edge_flag = False
 		with open(full_file_name) as offn:
