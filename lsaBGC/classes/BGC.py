@@ -233,20 +233,17 @@ class BGC:
 						gene_domains = []
 						core_overlap = False
 						for d in domains:
-							print(d)
 							drange = set(range(d['start'], d['end'] + 1))
-							print(drange)
-							print(grange)
 							if len(drange.intersection(grange)) > 0:
-								print('hey')
 								gene_domains.append(d)
+								print(d['aSDomain'] + '|' + str(d['start']) + '|' + str(d['end']))
 								if (d['aSDomain'] + '|' + str(d['start']) + '|' + str(d['end'])) in core_domains:
 									core_overlap = True
 									core_genes.add(lt)
 
 						gene_order[lt] = start
 
-						prot_seq, nucl_seq, nucl_seq_with_flanks, relative_start, relative_end, gene_domains = [None] * 6
+						prot_seq, nucl_seq, nucl_seq_with_flanks, relative_start, relative_end = [None] * 5
 						if comprehensive_parsing:
 							flank_start = start - flank_size
 							flank_end = end + flank_size
