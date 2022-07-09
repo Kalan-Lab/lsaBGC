@@ -114,7 +114,7 @@ def lsaBGC_AutoExpansion():
 	pickle_expansion_annotation_data_file = myargs.pickle_expansion_annotation_data
 
 	try:
-		assert (bgc_prediction_software in set('ANTISMASH', 'DEEPBGC', 'GECCO'))
+		assert (bgc_prediction_software in set(['ANTISMASH', 'DEEPBGC', 'GECCO']))
 	except:
 		raise RuntimeError('BGC prediction software option is not a valid option.')
 
