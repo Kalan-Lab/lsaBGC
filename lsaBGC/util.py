@@ -1509,8 +1509,10 @@ def incorporateBGCProteinsIntoProteomesAndGenbanks(sample_bgc_proteins, sample_g
 				bgc_listing_handle.write(sample + '\t' + bgc + '\n')
 
 				bgc_prots = sample_bgc_proteins[sample][bgc]
+				print(bgc_prots)
 				bgc_prots_1x = set([x for x in bgc_prots if x.split('_')[1][0] == '1'])
-
+				print(bgc_prots_1x)
+				print('-------------------------')
 				bgc_prot_file = bgc_prot_directory + sample + '.faa'
 				bgc_prot_to_location = {}
 				with open(bgc_prot_file) as obpf:

@@ -119,7 +119,7 @@ def siftAndPrint():
 			sample = full_file_name.split('/')[-2]
 			print(sample + '\t' + full_file_name)
 	elif bgc_prediction_software == 'GECCO':
-		for full_file_name in glob.glob(input_bgc_dir + "*/_cluster_*.gbk"):
+		for full_file_name in glob.glob(input_bgc_dir + "*/*_cluster_*.gbk"):
 			sample = full_file_name.split('/')[-2]
 			print(sample + '\t' + full_file_name)
 
