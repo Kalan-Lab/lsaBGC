@@ -83,7 +83,7 @@ def siftAndPrint():
 	"""
 	myargs = create_parser()
 
-	input_bgc_dir = os.path.abspath(myargs.input_bgc_dir) + '/'
+	input_bgc_dir = os.path.abspath(myargs.input_dir) + '/'
 
 	try:
 		assert(os.path.isdir(input_bgc_dir))
