@@ -416,7 +416,8 @@ def lsaBGC_Ready():
     elif run_lsabgc_cluster:
         lsabgc_cluster_results_dir = outdir + 'lsaBGC_Cluster_Results/'
         lsabgc_cluster_cmd = ['lsaBGC-Cluster.py', '-b', primary_bgc_listing_file, '-m', primary_orthofinder_matrix_file,
-                              '-c', str(cores), '-o', lsabgc_cluster_results_dir, '-r', '0.7', '-i', '4.0', '-j', '20.0']
+                              '-c', str(cores), '-o', lsabgc_cluster_results_dir, '-r', '0.7', '-i', '4.0', '-j',
+                              '20.0', '-p', bgc_prediction_software]
         try:
             subprocess.call(' '.join(lsabgc_cluster_cmd), shell=True, stdout=subprocess.DEVNULL,
                             stderr=subprocess.DEVNULL,
@@ -438,7 +439,7 @@ def lsaBGC_Ready():
         lsabgc_expansion_cmd = ['lsaBGC-AutoExpansion.py', '-g', gcf_listings_directory, '-m',
                                int_outdir + 'Orthogroups.tsv', '-l', int_outdir + 'Primary_Sample_Annotation_Files.txt',
                                '-e', int_outdir + 'Additional_Sample_Annotation_Files.txt', '-q', '-c', str(cores),
-                               '-o', lsabgc_expansion_results_dir]
+                               '-o', lsabgc_expansion_results_dir, '-p', bgc_prediction_software]
         try:
             subprocess.call(' '.join(lsabgc_expansion_cmd), shell=True, stdout=subprocess.DEVNULL,
                             stderr=subprocess.DEVNULL,

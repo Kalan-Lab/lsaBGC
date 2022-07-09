@@ -120,8 +120,6 @@ class Pan:
 					self.bgc_sample[bgc_id] = sample
 					self.sample_bgcs[sample].add(bgc_id)
 					self.bgc_product[bgc_id] = [x['product'] for x in BGC_Object.cluster_information]
-					print('BGC_Product')
-					print(self.bgc_product)
 					self.bgc_core_counts[bgc_id] = BGC_Object.cluster_information[0]['count_core_gene_groups']
 
 					if self.logObject:
