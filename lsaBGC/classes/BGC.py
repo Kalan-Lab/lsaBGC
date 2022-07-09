@@ -242,8 +242,6 @@ class BGC:
 
 						prot_seq, nucl_seq, nucl_seq_with_flanks, relative_start, relative_end, gene_domains = [None] * 6
 						if comprehensive_parsing:
-							prot_seq = feature.qualifiers.get('translation')[0]
-
 							flank_start = start - flank_size
 							flank_end = end + flank_size
 
@@ -273,6 +271,8 @@ class BGC:
 								nucl_seq_with_flanks = str(Seq(nucl_seq_with_flanks).reverse_complement())
 								relative_start = nucl_seq_with_flanks.find(nucl_seq)
 								relative_end = relative_start + gene_length
+
+							prot_seq = Seq(nucl_seq).translate()
 
 						genes[lt] = {'bgc_name': self.bgc_id, 'start': start, 'end': end, 'direction': direction,
 									 'product': product, 'prot_seq': prot_seq, 'nucl_seq': nucl_seq,
