@@ -235,6 +235,8 @@ class BGC:
 						for d in domains:
 							print(d)
 							drange = set(range(d['start'], d['end'] + 1))
+							print(drange)
+							print(grange)
 							if len(drange.intersection(grange)) > 0:
 								gene_domains.append(d)
 								if (d['aSDomain'] + '|' + str(d['start']) + '|' + str(d['end'])) in core_domains:
