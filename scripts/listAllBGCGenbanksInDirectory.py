@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-### Program: listaAllBGCGenbanksInDirectory.py
+### Program: listAllBGCGenbanksInDirectory.py
 ### Author: Rauf Salamzade
 ### Kalan Lab
 ### UW Madison, Department of Medical Microbiology and Immunology
@@ -42,7 +42,7 @@ import glob
 def create_parser():
 	""" Parse arguments """
 	parser = argparse.ArgumentParser(description="""
-	Program: listaAllBGCGenbanksInDirectory.py
+	Program: listAllBGCGenbanksInDirectory.py
 	Author: Rauf Salamzade
 	Affiliation: Kalan Lab, UW Madison, Department of Medical Microbiology and Immunology
 
