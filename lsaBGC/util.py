@@ -1152,8 +1152,7 @@ def splitDeepBGCGenbank(bgc_genbank_listing_file, deepbgc_split_directory, outdi
 									nucl_seq = str(rec.seq)[start - 1:]
 								if direction == '-':
 									nucl_seq = str(Seq(nucl_seq).reverse_complement())
-								print(nucl_seq)
-								feature.qualifiers.get('translation')[0] = Seq(nucl_seq).translate()
+								feature.qualifiers['translation'] = Seq(nucl_seq).translate()
 						out_gbk = deepbgc_split_directory + rec.id.replace('.', '_') + '.gbk'
 						updated_bgc_genbank_listing_handle.write(sample + '\t' + out_gbk + '\n')
 						out_gbk_handle = open(out_gbk, 'w')
