@@ -379,7 +379,7 @@ def lsaBGC_Ready():
             line = line.strip()
             s,gbk,faa = line.split('\t')
             prim_samps_with_bgcs.add(s)
-            if additional_genome_listing_file != None or not skip_primary_expansion:
+            if additional_genome_listing_file != None and not skip_primary_expansion:
                 additional_lines_to_append.append(line)
 
     # handle some primary genomes not having any BGC predictions!
@@ -394,12 +394,12 @@ def lsaBGC_Ready():
         os.system('cp %s %s' % (faa, fin_faa))
         os.system('cp %s %s' % (gbk, fin_gbk))
         primary_sample_annotation_listing_handle.write(s + '\t' + fin_gbk + '\t' + fin_faa + '\n')
-        if additional_genome_listing_file != None or not skip_primary_expansion:
+        if additional_genome_listing_file != None and not skip_primary_expansion:
             additional_lines_to_append.append(s + '\t' + fin_gbk + '\t' + fin_faa)
 
     primary_sample_annotation_listing_handle.close()
 
-    if additional_genome_listing_file != None or not skip_primary_expansion:
+    if additional_genome_listing_file != None and not skip_primary_expansion:
         additional_sample_annotation_listing_handle = open(additional_sample_annotation_listing_file, 'a+')
         additional_sample_annotation_listing_handle.write('\n'.join(additional_lines_to_append) + '\n')
         additional_sample_annotation_listing_handle.close()

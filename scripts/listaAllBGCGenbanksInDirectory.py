@@ -117,10 +117,13 @@ def siftAndPrint():
 			if not filter_incomplete_flag or (filter_incomplete_flag and not contig_edge_flag):
 				print(sample + '\t' + full_file_name)
 	elif bgc_prediction_software == 'DEEPBGC':
-
+		for full_file_name in glob.glob(input_bgc_dir + "*/*bgc.gbk"):
+			sample = full_file_name.split('/')[-2]
+			print(sample + '\t' + full_file_name)
 	elif bgc_prediction_software == 'GECCO':
-
-
+		for full_file_name in glob.glob(input_bgc_dir + "*/_cluster_*.gbk"):
+			sample = full_file_name.split('/')[-2]
+			print(sample + '\t' + full_file_name)
 
 if __name__ == '__main__':
 	siftAndPrint()
