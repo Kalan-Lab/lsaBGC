@@ -272,7 +272,10 @@ class BGC:
 								relative_start = nucl_seq_with_flanks.find(nucl_seq)
 								relative_end = relative_start + gene_length
 
-							prot_seq = Seq(nucl_seq).translate()
+							try:
+								prot_seq = feature.qualifiers.get('translation')[0]
+							except:
+								prot_seq = Seq(nucl_seq).translate()
 
 						genes[lt] = {'bgc_name': self.bgc_id, 'start': start, 'end': end, 'direction': direction,
 									 'product': product, 'prot_seq': prot_seq, 'nucl_seq': nucl_seq,

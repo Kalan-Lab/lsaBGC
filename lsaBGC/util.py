@@ -1106,25 +1106,29 @@ def extractProteins(sample_genomes, proteomes_directory, logObject):
 	"""
 
 	sample_proteomes = {}
-	for sample in sample_genomes:
-		sample_gbk = sample_genomes[sample]
-		sample_faa = proteomes_directory + sample + '.faa'
-		sample_faa_handle = open(sample_faa, 'w')
-		try:
-			with open(sample_gbk) as osgf:
-				for rec in SeqIO.parse(osgf, 'genbank'):
-					for feature in rec.features:
-						if feature.type == "CDS":
-							lt = feature.qualifiers.get('locus_tag')[0]
-							product = feature.qualifiers.get('product')[0]
-							sample_faa_handle.write('>' + lt + '\n' + product + '\n')
-		except Exception as e:
-			logObject.error("Problem with parsing Genbank for sample %s, likely at least one CDS feature does not have both a locus_tag or product sequence." % sample)
+	try:
+		for sample in sample_genomes:
+			sample_gbk = sample_genomes[sample]
+			sample_faa = proteomes_directory + sample + '.faa'
+			sample_faa_handle = open(sample_faa, 'w')
+			try:
+				with open(sample_gbk) as osgf:
+					for rec in SeqIO.parse(osgf, 'genbank'):
+						for feature in rec.features:
+							if feature.type == "CDS":
+								lt = feature.qualifiers.get('locus_tag')[0]
+								translation = feature.qualifiers.get('translation')[0]
+								sample_faa_handle.write('>' + lt + '\n' + translation + '\n')
+			except Exception as e:
+				logObject.error("Problem with parsing Genbank for sample %s, likely at least one CDS feature does not have both a locus_tag or product sequence." % sample)
+				logObject.error(traceback.format_exc())
+				raise RuntimeError(traceback.format_exc())
+			sample_faa_handle.close()
+			sample_proteomes[sample] = sample_faa
+	except Exception as e:
+			logObject.error("Problem with parsing genome-wide Genbanks.")
 			logObject.error(traceback.format_exc())
 			raise RuntimeError(traceback.format_exc())
-		sample_faa_handle.close()
-		sample_proteomes[sample] = sample_faa
-
 	return sample_proteomes
 
 def splitDeepBGCGenbank(bgc_genbank_listing_file, deepbgc_split_directory, outdir, logObject):
@@ -1137,6 +1141,18 @@ def splitDeepBGCGenbank(bgc_genbank_listing_file, deepbgc_split_directory, outdi
 				logObject.info('Splitting DeepBGC Genbank %s for sample %s.' % (bgc, sample))
 				with open(bgc) as obgbk:
 					for rec in SeqIO.parse(obgbk, 'genbank'):
+						for feature in rec.features:
+							if feature.type == "CDS":
+								start = min([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')]) + 1
+								end = max([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')])
+								direction = str(feature.location).split('(')[1].split(')')[0]
+								if end:
+									nucl_seq = str(rec.seq)[start - 1:end]
+								else:
+									nucl_seq = str(rec.seq)[start - 1:]
+								if direction == '-':
+									nucl_seq = str(Seq(nucl_seq).reverse_complement())
+								feature.qualifiers.get('translation')[0] = Seq(nucl_seq).translate()
 						out_gbk = deepbgc_split_directory + rec.id.replace('.', '_') + '.gbk'
 						updated_bgc_genbank_listing_handle.write(sample + '\t' + out_gbk + '\n')
 						out_gbk_handle = open(out_gbk, 'w')
@@ -1144,7 +1160,7 @@ def splitDeepBGCGenbank(bgc_genbank_listing_file, deepbgc_split_directory, outdi
 						out_gbk_handle.close()
 		updated_bgc_genbank_listing_handle.close()
 	except Exception as e:
-			logObject.error("Problem with parsing Genbank for sample %s, likely at least one CDS feature does not have both a locus_tag or product sequence." % sample)
+			logObject.error("Problem with parsing DeepBGC Genbanks to split.")
 			logObject.error(traceback.format_exc())
 			raise RuntimeError(traceback.format_exc())
 
