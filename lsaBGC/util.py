@@ -1694,15 +1694,10 @@ def identifyParalogsAndCreateResultFiles(samp_hg_lts, lt_to_hg, sample_bgc_prote
 						if rec.id in bgc_prots_1x:
 							sample_lts_to_add_protein_sequences[rec.id] = [rec.description, str(rec.seq)]
 
-				scaff_id, scaff_start = [None]*2
-				with open(bgc) as obgf:
-					for i, line in enumerate(obgf):
-						line = line.strip()
-						ls = line.split()
-						if i == 0: scaff_id = ls[1]
-						if line.startswith("Orig. start"): scaff_start = int(ls[3])
 				with open(bgc) as obf:
 					for rec in SeqIO.parse(obf, 'genbank'):
+						scaff_id = rec.id
+						scaff_start = int(rec.description.split()[-1].strip())
 						for feature in rec.features:
 							if feature.type=='CDS':
 								prot_lt = feature.qualifiers.get('locus_tag')[0]

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-### Program: recursivelyIdentifyAntiSMASHbgcGenbanks.py
+### Program: listaAllBGCGenbanksInDirectory.py
 ### Author: Rauf Salamzade
 ### Kalan Lab
 ### UW Madison, Department of Medical Microbiology and Immunology
@@ -42,7 +42,7 @@ import glob
 def create_parser():
 	""" Parse arguments """
 	parser = argparse.ArgumentParser(description="""
-	Program: recursivelyIdentifyAntiSMASHbgcGenbanks.py
+	Program: listaAllBGCGenbanksInDirectory.py
 	Author: Rauf Salamzade
 	Affiliation: Kalan Lab, UW Madison, Department of Medical Microbiology and Immunology
 
@@ -95,22 +95,30 @@ def siftAndPrint():
 	filter_incomplete_flag = myargs.filter_incomplete
 	bgc_prediction_software = myargs.bgc_prediction_software.upper()
 
+	try:
+		assert (bgc_prediction_software in set(['ANTISMASH', 'DEEPBGC', 'GECCO']))
+	except:
+		raise RuntimeError('BGC prediction software option is not a valid option.')
+
 	"""
 	START WORKFLOW
 	"""
 
+	if bgc_prediction_software == 'ANTISMASH':
+		for full_file_name in glob.glob(input_bgc_dir + "*/*region*.gbk"):
+			sample = full_file_name.split('/')[-2]
+			contig_edge_flag = False
+			with open(full_file_name) as offn:
+				for line in offn:
+					line = line.strip()
+					if '/contig_edge="True"' in line:
+						contig_edge_flag = True
 
-	for full_file_name in glob.glob(input_bgc_dir + "*/*region*.gbk"):
-		sample = full_file_name.split('/')[-2]
-		contig_edge_flag = False
-		with open(full_file_name) as offn:
-			for line in offn:
-				line = line.strip()
-				if '/contig_edge="True"' in line:
-					contig_edge_flag = True
+			if not filter_incomplete_flag or (filter_incomplete_flag and not contig_edge_flag):
+				print(sample + '\t' + full_file_name)
+	elif bgc_prediction_software == 'DEEPBGC':
 
-		if not filter_incomplete_flag or (filter_incomplete_flag and not contig_edge_flag):
-			print(sample + '\t' + full_file_name)
+	elif bgc_prediction_software == 'GECCO':
 
 
 

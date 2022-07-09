@@ -43,7 +43,7 @@ import sys
 def create_parser():
     """ Parse arguments """
     parser = argparse.ArgumentParser(description="""
-	Program: recursivelyIdentifyAntiSMASHbgcGenbanks.py
+	Program: listaAllBGCGenbanksInDirectory.py
 	Author: Rauf Salamzade
 	Affiliation: Kalan Lab, UW Madison, Department of Medical Microbiology and Immunology
 
