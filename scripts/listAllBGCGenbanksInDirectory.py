@@ -46,10 +46,10 @@ def create_parser():
 	Author: Rauf Salamzade
 	Affiliation: Kalan Lab, UW Madison, Department of Medical Microbiology and Immunology
 
-	Program to create AntiSMASH BGC Genbanks listing file needed for lsaBGC-Ready.py. Provided a directory 
-	with AntiSMASH results for a set of samples, it will create a two-column, tab-delimited listing file where
-	the first column is the sample name and the second is the full path to an individual BGC for the sample. E.g.
-	suppose the following setup:
+	Program to create BGC Genbanks listing file needed for lsaBGC-Ready.py. Provided a directory with BGC prediction 
+	results (from antiSMASH, DeepBGC, or GECCO) for a set of samples, it will create a two-column, tab-delimited listing 
+	file where the first column is the sample name and the second is the full path to an individual BGC genbank for the 
+	sample. E.g. suppose the following setup:
 	
 	./AntiSMASH-General-Dir/Sample-Name-1/Sample-Name-1_Scaffold-1.region0001.gbk
 	./AntiSMASH-General-Dir/Sample-Name-1/Sample-Name-1_Scaffold-5.region0007.gbk
@@ -60,11 +60,9 @@ def create_parser():
 	Sample-Name-1 <tab> /full-path-to/AntiSMASH-General-Dir/Sample-Name-1/Sample-Name-1_Scaffold-1.region0001.gbk
 	Sample-Name-1 <tab> /full-path-to/AntiSMASH-General-Dir/Sample-Name-1/Sample-Name-1_Scaffold-5.region0007.gbk
 	Sample-Name-2 <tab> /full-path-to/AntiSMASH-General-Dir/Sample-Name-1/Sample-Name-1_Scaffold-1.region0002.gbk
-
-	Note, for files to be considered as BGC Genbanks, they must end with *.gbk and feature ".region" in the file name.
 	""", formatter_class=argparse.RawTextHelpFormatter)
 
-	parser.add_argument('-i', '--input_antismash_dir', help='Path to genomic assembly in FASTA format.', required=True)
+	parser.add_argument('-i', '--input_dir', help='Input directory which contains all BGC prediction results.', required=True)
 	parser.add_argument('-p', '--bgc_prediction_software',
 						help='Software used to predict BGCs (Options: antiSMASH, DeepBGC, GECCO). Default is antiSMASH.',
 						default='antiSMASH', required=False)
