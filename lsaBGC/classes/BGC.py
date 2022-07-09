@@ -234,7 +234,7 @@ class BGC:
 							drange = set(range(d['start'], d['end'] + 1))
 							if len(drange.intersection(grange)) > 0:
 								gene_domains.append(d)
-								if (d['asDomain'] + '|' + str(d['start']) + '|' + str(d['end'])) in core_domains:
+								if (d['aSDomain'] + '|' + str(d['start']) + '|' + str(d['end'])) in core_domains:
 									core_overlap = True
 									core_genes.add(lt)
 
