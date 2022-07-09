@@ -1484,7 +1484,7 @@ def updateSampleGenomesWithGenbanks(genbanks_directory):
 	return sample_genomes
 
 
-def incorporateBGCProteinsIntoProteomesAndGenbanks(sample_genomes, sample_bgc_proteins, protein_annotations, bgc_prot_directory,
+def incorporateBGCProteinsIntoProteomesAndGenbanks(sample_bgc_proteins, sample_genomes, protein_annotations, bgc_prot_directory,
 												   proteomes_directory, final_proteomes_directory, final_genbanks_directory,
                                                     sample_listing_file, bgc_listing_file, logObject):
 	sample_listing_handle = open(sample_listing_file, 'w')
