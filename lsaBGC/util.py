@@ -1490,6 +1490,7 @@ def incorporateBGCProteinsIntoProteomesAndGenbanks(sample_genomes, sample_bgc_pr
 	sample_listing_handle = open(sample_listing_file, 'w')
 	bgc_listing_handle = open(bgc_listing_file, 'w')
 	try:
+		print(sample_bgc_proteins)
 		for sample in sample_bgc_proteins:
 
 			gw_prot_file = proteomes_directory + sample + '.faa'
@@ -1505,6 +1506,9 @@ def incorporateBGCProteinsIntoProteomesAndGenbanks(sample_genomes, sample_bgc_pr
 			sample_lts_to_add_protein_sequences = {}
 			sample_lts_to_add_genbank_features = defaultdict(list)
 			for bgc in sample_bgc_proteins[sample]:
+				print(sample_bgc_proteins[sample])
+				print(sample)
+				print('------')
 
 				bgc_listing_handle.write(sample + '\t' + bgc + '\n')
 
