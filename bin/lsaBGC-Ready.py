@@ -313,7 +313,7 @@ def lsaBGC_Ready():
     bgc_prot_directory = outdir + 'BGC_Proteins_per_Sample/'
     util.setupReadyDirectory([bgc_prot_directory])
 
-    sample_bgc_proteins = util.extractProteinsFromBGCBGCs(sample_bgcs, bgc_prot_directory, logObject)
+    sample_bgc_proteins = util.extractProteinsFromBGCs(sample_bgcs, bgc_prot_directory, logObject)
 
     # Step 5: Perform KOfam annotation if requested and update BGCs (including references to them)
     protein_annotations = None
