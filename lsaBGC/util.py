@@ -1528,7 +1528,7 @@ def incorporateBGCProteinsIntoProteomesAndGenbanks(sample_bgc_proteins, sample_g
 				with open(bgc) as obf:
 					for rec in SeqIO.parse(obf, 'genbank'):
 						scaff_id = rec.id
-						scaff_start = int(rec.description.split()[-1].split())
+						scaff_start = int(rec.description.split()[-1].strip())
 						for feature in rec.features:
 							if feature.type=='CDS':
 								prot_lt = feature.qualifiers.get('locus_tag')[0]
