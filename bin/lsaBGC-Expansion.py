@@ -206,7 +206,7 @@ def lsaBGC_Expansion():
                                     gcf_to_gcf_transition_prob=transition_from_gcf_to_gcf,
                                     background_to_background_transition_prob=transition_from_bg_to_bg,
                                     syntenic_correlation_threshold=syntenic_correlation_threshold,
-                                    no_orthogroup_matrix=no_orthogroup_matrix, loose_search=loose_flag, cores=cores)
+                                    no_orthogroup_matrix=no_orthogroup_matrix, loose_flag=loose_flag, cores=cores)
     logObject.info("Successfully found new instances of GCF in new sample set.")
 
     # Close logging object and exit

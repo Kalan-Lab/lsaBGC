@@ -991,7 +991,7 @@ class GCF(Pan):
 	def identifyGCFInstances(self, outdir, sample_prokka_data, orthofinder_matrix_file, min_size=5, min_core_size=3,
 							 gcf_to_gcf_transition_prob=0.9, background_to_background_transition_prob=0.9,
 							 syntenic_correlation_threshold=0.8, surround_gene_max=5, no_orthogroup_matrix=False,
-							 bgc_prediction_method='ANTISMASH', loose_search=False, cores=1, block_size=3000):
+							 bgc_prediction_method='ANTISMASH', loose_flag=False, cores=1, block_size=3000):
 		"""
 		Function to search for instances of GCF in sample using HMM based approach based on homolog groups as characters,
 		"part of GCF" and "not part of GCF" as states - all trained on initial BGCs constituting GCF as identified by
