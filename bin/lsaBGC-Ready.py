@@ -101,7 +101,7 @@ def create_parser():
     parser.add_argument('-b', '--bigscape_results', help='Path to BiG-SCAPE results directory of antiSMASH/DeepBGC/GECCO results predicted in primary\ngenomes.Please make sure the sample names match what is provided for "--genome_listings".', required=False,
                         default=None)
     parser.add_argument('-o', '--output_directory', help='Parent output/workspace directory.', required=True)
-    parser.add_argument('-m', '--orthofinder_mode', help='Method for running OrthoFinder2. (Options: Genome_Wide, BGC_Only). Default is BGC_Only.')
+    parser.add_argument('-m', '--orthofinder_mode', help='Method for running OrthoFinder2. (Options: Genome_Wide, BGC_Only). Default is BGC_Only.', required=False, default='BGC_Only')
     parser.add_argument('-a', '--annotate', action='store_true',
                         help='Perform annotation of BGC proteins using KOfam HMM profiles.', required=False, default=False)
     parser.add_argument('-lc', '--lsabgc_cluster', action='store_true', help='Run lsaBGC-Cluster with default parameters. Note, we recommend running lsaBGC-Cluster manually\nand exploring parameters through its ability to generate a user-report for setting clustering parameters.', required=False, default=False)
