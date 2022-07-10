@@ -197,7 +197,7 @@ def determineSeqSimProteinAlignment(protein_alignment_file):
 		for i, rec in enumerate(SeqIO.parse(ocaf, 'fasta')):
 			protein_sequences[rec.id] = str(rec.seq).upper()
 
-	pair_seq_matching = defaultdict(lambda: defaultdict(lambda: 0.0))
+	pair_seq_matching = defaultdict(lambda: defaultdict(lambda: 1.0))
 	for i, g1 in enumerate(protein_sequences):
 		s1 = g1.split('|')[0]
 		g1s = protein_sequences[g1]
