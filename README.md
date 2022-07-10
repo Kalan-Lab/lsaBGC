@@ -80,7 +80,7 @@ Additionally we suggest checking out additional [test cases](https://github.com/
 
 Updated 06/19/2022
 
-lsaBGC strives for large-scalability and high-throughput, however, the core of the framework requires defining ortholog groups and involves all vs. all comparisons for the primary genome set. It is therefore recommended that users first select a distributed set of representative, "primary" genomes for their taxa (which can be done via genome dereplication, check out [derep](https://github.com/MrOlm/drep)!). Then treat the rest of the genomes as "additional" (this can be 1000s of genomes - we run expansion up to ~15,000 Staphylococci!). 
+lsaBGC strives for large-scalability and high-throughput, however, the core of the framework requires defining ortholog groups and involves all vs. all comparisons for the primary genome set. It is therefore recommended that users first select a distributed set of representative, "primary" genomes for their taxa (which can be done via genome dereplication, check out [drep](https://github.com/MrOlm/drep)!). Then treat the rest of the genomes as "additional" (this can be 1000s of genomes - we run expansion up to ~15,000 Staphylococci!). 
 
 For evolutionary statistics calculations, codon alignments are now built using MAGUS (a divide and conquer wrapper of MAFFT) by default! 
 
