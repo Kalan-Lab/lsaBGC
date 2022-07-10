@@ -314,7 +314,7 @@ def lsaBGC_AutoAnalyze():
 				   '-i', gcf_id, '-s', species_phylogeny_file, '-p', bgc_prediction_software, '-c', str(cores)]
 			try:
 				util.run_cmd(cmd, logObject)
-				assert(os.path.isfile())
+				assert(os.path.isfile(lsabgc_see_checkpoint))
 			except Exception as e:
 				logObject.warning("lsaBGC-See.py was unsuccessful for GCF %s" % gcf_id)
 				sys.stderr.write("Warning: lsaBGC-See.py was unsuccessful for GCF %s\n" % gcf_id)
@@ -333,6 +333,7 @@ def lsaBGC_AutoAnalyze():
 				cmd += ['-u', population_listing_file]
 			try:
 				util.run_cmd(cmd, logObject, stderr=sys.stderr, stdout=sys.stdout)
+				assert(os.path.isfile(lsabgc_popgene_checkpoint))
 			except Exception as e:
 				logObject.warning("lsaBGC-PopGene.py was unsuccessful for GCF %s" % gcf_id)
 				sys.stderr.write("Warning: lsaBGC-PopGene.py was unsuccessful for GCF %s\n" % gcf_id)
@@ -348,6 +349,7 @@ def lsaBGC_AutoAnalyze():
 				   expected_distances]
 			try:
 				util.run_cmd(cmd, logObject)
+				assert(os.path.isfile(lsabgc_divergence_checkpoint))
 			except Exception as e:
 				logObject.warning("lsaBGC-Divergence.py was unsuccessful for GCF %s" % gcf_id)
 				sys.stderr.write("Warning: lsaBGC-Divergence.py was unsuccessful for GCF %s\n" % gcf_id)
@@ -364,6 +366,7 @@ def lsaBGC_AutoAnalyze():
 					   gcf_pop_outdir + 'Codon_Alignments_Listings.txt', '-l', input_listing_file]
 				try:
 					util.run_cmd(cmd, logObject, stderr=sys.stderr, stdout=sys.stdout)
+					assert (os.path.isfile(lsabgc_discovary_checkpoint))
 				except Exception as e:
 					logObject.warning("lsaBGC-DiscoVary.py was unsuccessful for GCF %s" % gcf_id)
 					sys.stderr.write("Warning: lsaBGC-DiscoVary.py was unsuccessful for GCF %s\n" % gcf_id)

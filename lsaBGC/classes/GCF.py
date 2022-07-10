@@ -954,7 +954,7 @@ class GCF(Pan):
 				sample_population_local = dict(sample_population_local)
 			inputs.append([self.gcf_id, gcf_product_summary, hg, codon_alignment_fasta, popgen_dir, plots_dir, self.comp_gene_info,
 						   self.hg_genes, self.bgc_sample, self.hg_prop_multi_copy, dict(self.hg_order_scores),
-						   gw_pairwise_similarities, comparem_used, sample_population_local, population,
+						   gw_pairwise_similarities, use_translation, sample_population_local, population,
 						   species_phylogeny, sample_size, self.logObject])
 
 		p = multiprocessing.Pool(cores)
