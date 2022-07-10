@@ -53,9 +53,7 @@ def create_parser():
 	This program will construct a reference database of alleles for each homolog group within a GCF, afterwards
 	it will map raw paired-end Illumina sequencing data to each non-redundant instance of a homolog group and 
 	report: (i) support for different alleles of homolog groups being present in the reads and (ii) identify any
-	novel SNVs.
-	
-	TODO: add option to print out individual jobs for parallelization on HPC.
+	novel SNVs.	
 	""", formatter_class=argparse.RawTextHelpFormatter)
 
     parser.add_argument('-g', '--gcf_listing', help='BGC specifications file. Tab delimited: 1st column contains path to BGC Genbanks and 2nd column contains sample name.', required=True)
@@ -67,7 +65,7 @@ def create_parser():
     parser.add_argument('-a', '--codon_alignments', help="File listing the codon alignments for each homolog group in the GCF.\nCan be found as part of PopGene output.", required=True)
     parser.add_argument('-p', '--bgc_prediction_software', help='Software used to predict BGCs (Options: antiSMASH, DeepBGC, GECCO).\nDefault is antiSMASH.', default='antiSMASH', required=False)
     parser.add_argument('-ch', '--core_homologs', nargs="+", help="List of homolog group identifiers comprising the core of the BGC/GCF.", required=False, default=[])
-    parser.add_argument('-ap', '--allow_phasing', action='store_true', help="Allow phasing with DESMAN. Requires manual installation of DESMAN (not through conda).", default=False)
+    parser.add_argument('-ap', '--allow_phasing', action='store_true', help="Allow phasing with DESMAN. Requires manual installation of\nDESMAN (not through conda) and $PATH to be updated.", default=False)
     parser.add_argument('-c', '--cores', type=int, help="The number of cores to use.", required=False, default=1)
 
     args = parser.parse_args()

@@ -1934,7 +1934,7 @@ def createGCFListingsDirectory(sample_bgcs, bgc_to_sample, bigscape_results_dir,
 		logObject.error(traceback.format_exc())
 		raise RuntimeError(traceback.format_exc())
 
-def updateAntiSMASHGenbanksToIncludeAnnotations(protein_annotations, bgc_to_sample, sample_bgc_proteins, antismash_bgcs_directory, antismash_bgcs_directory_updated, logObject):
+def updateBGCGenbanksToIncludeAnnotations(protein_annotations, bgc_to_sample, sample_bgc_proteins, antismash_bgcs_directory, antismash_bgcs_directory_updated, logObject):
 	sample_bgcs_updated = defaultdict(set)
 	bgc_to_sample_updated = {}
 	sample_bgc_proteins_update = defaultdict(lambda: defaultdict(set))

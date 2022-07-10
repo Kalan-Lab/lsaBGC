@@ -73,7 +73,7 @@ def create_parser():
 	parser.add_argument('-m', '--orthofinder_matrix', help="OrthoFinder homolog group by sample matrix.", required=True)
 	parser.add_argument('-k', '--sample_set', help="Sample set to keep in analysis. Should be file with one sample id per line.", required=False)
 	parser.add_argument('-s', '--species_phylogeny', help="Path to species phylogeny. If not provided a FastANI based neighborjoining tree will be constructed and used.", default=None, required=False)
-	parser.add_argument('-w', '--genome_wide_distances', help="Path to file listing genome-wide distances between genomes/samples. This is the Genome-Wide_Estimates.txt file produced by the computeGenomeWideEstimates.py script")
+	parser.add_argument('-w', '--expected_distances', help="Path to file listing expected distances between genomes/samples. This is the Genome-Wide_Estimates.txt file produced by the computeGenomeWideEstimates.py script")
 	parser.add_argument('-r', '--aai', action='store_true', help='AAI was used to compute genome wise distances instead of ANI. E.g. if CompareM was used.')
 	parser.add_argument('-p', '--bgc_prediction_software', help='Software used to predict BGCs (Options: antiSMASH, DeepBGC, GECCO).\nDefault is antiSMASH.', default='antiSMASH', required=False)
 	parser.add_argument('-u', '--populations', help='Path to user defined populations/groupings file. Tab delimited with 2 columns: (1) sample name and (2) group identifier.', required=False, default=None)
