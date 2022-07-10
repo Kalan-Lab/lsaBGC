@@ -46,6 +46,7 @@ import subprocess
 import traceback
 import multiprocessing
 import math
+os.environ['OMP_NUM_THREADS']='4'
 
 lsaBGC_main_directory = '/'.join(os.path.realpath(__file__).split('/')[:-2]) + '/'
 
