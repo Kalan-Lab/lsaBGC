@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 # Step 0: Uncompress test_case.tar.gz and cd into it.
+rm -rf test_case/
 tar -zxvf test_case.tar.gz 
 cd test_case/
 
@@ -15,7 +16,7 @@ listAllBGCGenbanksInDirectory.py -i Primary_Genome_AntiSMASH_Results/ -p antiSMA
 # Step 3: run lsaBGC-Ready.py - with clustering of primary genome BGCs, expansion to 
 #         additional genomes, and phylogeny construction set to automatically run.
 lsaBGC-Ready.py -i Primary_Genomes_Listing.txt -d Additional_Genomes_Listing.txt \
-	-l Primary_Genome_BGC_Genbanks_Listing.txt -p antiSMASH -a -m BGC_Only \
+	-l Primary_Genome_BGC_Genbanks_Listing.txt -p antiSMASH -m BGC_Only \
 	-c 8 -t -lc -le -o lsaBGC_Ready_Results/
 
 # Step 4: run lsaBGC-AutoAnalyze.py - automatically run analytical programs for
