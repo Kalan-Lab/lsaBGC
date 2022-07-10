@@ -59,12 +59,13 @@ def create_parser():
 	checks to filter out false-positive findings.
 	""", formatter_class=argparse.RawTextHelpFormatter)
 
-    parser.add_argument('-g', '--gcf_listing', help='BGC listings file for a gcf. Tab delimited: 1st column lists sample\nname while the 2nd column is the path to an AntiSMASH BGC in Genbank format.', required=True)
+    parser.add_argument('-g', '--gcf_listing', help='BGC listings file for a gcf. Tab delimited: 1st column lists sample\nname while the 2nd column is the path to a BGC prediction in Genbank format.', required=True)
     parser.add_argument('-m', '--orthofinder_matrix', help="OrthoFinder matrix.", required=True)
-    parser.add_argument('-i', '--gcf_id', help="GCF identifier.", required=False, default='GCF_X')
     parser.add_argument('-l', '--initial_listing', type=str, help="Tab delimited text file for primary samples with three columns: (1) sample name\n(2) path to whole-genome generated Genbank file (*.gbk), and (3)path to whole-genome generated\npredicted-proteome file (*.faa).", required=True)
     parser.add_argument('-e', '--expansion_listing', type=str, help="Tab delimited text file for additional/draft samples in the expansion set with three columns: (1) sample name\n(2)path to whole-genome Genbank file (*.gbk), and (3)path to whole-genome\npredicted-proteome file (*.faa).", required=True)
     parser.add_argument('-o', '--output_directory', help="Path to output directory.", required=True)
+    parser.add_argument('-i', '--gcf_id', help="GCF identifier.", required=False, default='GCF_X')
+    parser.add_argument('-p', '--bgc_prediction_software', help='Software used to predict BGCs (Options: antiSMASH, DeepBGC, GECCO).\nDefault is antiSMASH.', default='antiSMASH', required=False)
     parser.add_argument('-ms', '--min_segment_size', type=float, help="The minimum number of homolog groups (>3) needed to report discrete segments of the GCF. Default is 5.", required=False, default=5)
     parser.add_argument('-mcs', '--min_segment_core_size', type=float, help="The minimum number of core (to the known instances of the GCF) homololog groups needed\nto report discrete segments of the GCF. Default is 3.", required=False, default=3)
     parser.add_argument('-sct', '--syntenic_correlation_threshold', type=float, help="The minimum syntenic correlation needed to at least one known\nGCF instance to report segment.", required=False, default=0.8)
@@ -117,6 +118,7 @@ def lsaBGC_Expansion():
     """
 
     gcf_id = myargs.gcf_id
+    bgc_prediction_software = myargs.bgc_prediction_software.upper()
     cores = myargs.cores
     min_segment_size = myargs.min_segment_size
     min_segment_core_size = myargs.min_segment_core_size
@@ -129,6 +131,11 @@ def lsaBGC_Expansion():
     protocore_hg_set = myargs.protocore_homologs
     loose_flag = myargs.loose
 
+    try:
+        assert (bgc_prediction_software in set(['ANTISMASH', 'DEEPBGC', 'GECCO']))
+    except:
+        raise RuntimeError('BGC prediction software option is not a valid option.')
+
     """
     START WORKFLOW
     """
@@ -140,14 +147,15 @@ def lsaBGC_Expansion():
     logObject.info("Saving parameters for future records.")
     parameters_file = outdir + 'Parameter_Inputs.txt'
     parameter_values = [gcf_listing_file, orthofinder_matrix_file, initial_listing_file, expansion_listing_file, outdir,
-                        gcf_id, cores, min_segment_size, min_segment_core_size, syntenic_correlation_threshold,
-                        transition_from_gcf_to_gcf, transition_from_bg_to_bg, quick_mode, no_orthogroup_matrix,
-                        pickle_expansion_annotation_data_file, protocore_hg_set, loose_flag]
+                        gcf_id, bgc_prediction_software, cores, min_segment_size, min_segment_core_size,
+                        syntenic_correlation_threshold, transition_from_gcf_to_gcf, transition_from_bg_to_bg,
+                        quick_mode, no_orthogroup_matrix, pickle_expansion_annotation_data_file, protocore_hg_set,
+                        loose_flag]
     parameter_names = ["GCF Listing File", "OrthoFinder Orthogroups.csv File",
                        "Listing File of Prokka Annotation Files for Initial Set of Samples",
                        "Listing File of Prokka Annotation Files for Expansion/Additional Set of Samples",
-                       "Output Directory", "GCF Identifier", "Cores", "Minimum Size of Segments",
-                       "Minimum Core Size of Segments", "Syntenic Correlation Threshold",
+                       "Output Directory", "GCF Identifier", "BGC Prediction Software", "Cores",
+                       "Minimum Size of Segments", "Minimum Core Size of Segments", "Syntenic Correlation Threshold",
                        "HMM Transition Probability from GCF to GCF",
                        "HMM Transition Probability from Background to Background", "Run Expansion in Quick Mode?",
                        "Skip rewriting Expanded OrthoGroup CSV File?",
@@ -162,7 +170,7 @@ def lsaBGC_Expansion():
 
     # Step 1: Process GCF listings file
     logObject.info("Processing BGC Genbanks from GCF listing file.")
-    GCF_Object.readInBGCGenbanks(comprehensive_parsing=True)
+    GCF_Object.readInBGCGenbanks(comprehensive_parsing=True, prediction_method=bgc_prediction_software)
     logObject.info("Successfully parsed BGC Genbanks and associated with unique IDs.")
 
     # Step 2: Parse OrthoFinder Homolog vs Sample Matrix and associate each homolog group with a color
@@ -198,7 +206,7 @@ def lsaBGC_Expansion():
                                     gcf_to_gcf_transition_prob=transition_from_gcf_to_gcf,
                                     background_to_background_transition_prob=transition_from_bg_to_bg,
                                     syntenic_correlation_threshold=syntenic_correlation_threshold,
-                                    no_orthogroup_matrix=no_orthogroup_matrix, loose_search=loose_flag, cores=cores)
+                                    no_orthogroup_matrix=no_orthogroup_matrix, loose_flag=loose_flag, cores=cores)
     logObject.info("Successfully found new instances of GCF in new sample set.")
 
     # Close logging object and exit

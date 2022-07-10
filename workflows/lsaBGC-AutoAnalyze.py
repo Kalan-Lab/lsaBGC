@@ -68,15 +68,15 @@ def create_parser():
 	""", formatter_class=argparse.RawTextHelpFormatter)
 
 	parser.add_argument('-o', '--output_directory', help="Parent output/workspace directory.", required=True)
-	parser.add_argument('-l', '--input_listing', help="Path to tab delimited file listing: (1) sample name\n(2) path to whole-genome Genbank and (3) path to whole-genome predicted proteome\n(an output of lsaBGC-Ready.py or lsaBGC-AutoExpansion.py).", required=False, default=None)
+	parser.add_argument('-i', '--input_listing', help="Path to tab delimited file listing: (1) sample name\n(2) path to whole-genome Genbank and (3) path to whole-genome predicted proteome\n(an output of lsaBGC-Ready.py or lsaBGC-AutoExpansion.py).", required=False, default=None)
 	parser.add_argument('-g', '--gcf_listing_dir', help='Directory with GCF listing files.', required=True)
 	parser.add_argument('-m', '--orthofinder_matrix', help="OrthoFinder homolog group by sample matrix.", required=True)
 	parser.add_argument('-k', '--sample_set', help="Sample set to keep in analysis. Should be file with one sample id per line.", required=False)
 	parser.add_argument('-s', '--species_phylogeny', help="Path to species phylogeny. If not provided a FastANI based neighborjoining tree will be constructed and used.", default=None, required=False)
-	parser.add_argument('-w', '--genome_wide_distances', help="Path to file listing genome-wide distances between genomes/samples. This is the Genome-Wide_Estimates.txt file produced by the computeGenomeWideEstimates.py script")
-	parser.add_argument('-r', '--aai', action='store_true', help='AAI was used to compute genome wise distances instead of ANI. E.g. if CompareM was used.')
-	parser.add_argument('-p', '--populations', help='Path to user defined populations/groupings file. Tab delimited with 2 columns: (1) sample name and (2) group identifier.', required=False, default=None)
-	parser.add_argument('-i', '--discovary_input_listing', help="Sequencing readsets for DiscoVary analysis. Tab delimited file listing: (1) sample name, (2) forward readset, (3) reverse readset for metagenomic/isolate sequencing data.", required=False, default=None)
+	parser.add_argument('-w', '--expected_distances', help="Path to file listing expected distances between genomes/samples. This is\ncomputed most easily by running lsaBGC-Ready.py with '-t' specified, which will estimate\nsample to sample differences based on alignment used to create species phylogeny.", required=True)
+	parser.add_argument('-p', '--bgc_prediction_software', help='Software used to predict BGCs (Options: antiSMASH, DeepBGC, GECCO).\nDefault is antiSMASH.', default='antiSMASH', required=False)
+	parser.add_argument('-u', '--populations', help='Path to user defined populations/groupings file. Tab delimited with 2 columns: (1) sample name and (2) group identifier.', required=False, default=None)
+	parser.add_argument('-l', '--discovary_input_listing', help="Sequencing readsets for DiscoVary analysis. Tab delimited file listing: (1) sample name, (2) forward readset, (3) reverse readset for metagenomic/isolate sequencing data.", required=False, default=None)
 	parser.add_argument('-n', '--discovary_analysis_name', help="Identifier/name for DiscoVary. Not providing this parameter will avoid running lsaBGC-DiscoVary step.", required=False, default=None)
 	parser.add_argument('-c', '--cores', type=int, help="Total number of cores to use.", required=False, default=1)
 
@@ -150,13 +150,18 @@ def lsaBGC_AutoAnalyze():
 	"""
 
 	sample_set_file = myargs.sample_set
+	bgc_prediction_software = myargs.bgc_prediction_software.upper()
 	species_phylogeny_file = myargs.species_phylogeny
-	genomewide_distances_file = myargs.genome_wide_distances
-	aai_flag = myargs.aai
+	expected_distances = myargs.expected_distances
 	population_listing_file = myargs.populations
 	discovary_analysis_id = myargs.discovary_analysis_name
 	discovary_input_listing = myargs.discovary_input_listing
 	cores = myargs.cores
+
+	try:
+		assert (bgc_prediction_software in set(['ANTISMASH', 'DEEPBGC', 'GECCO']))
+	except:
+		raise RuntimeError('BGC prediction software option is not a valid option.')
 
 	if species_phylogeny_file != None:
 		try:
@@ -164,10 +169,10 @@ def lsaBGC_AutoAnalyze():
 		except:
 			raise RuntimeError('Species phylogeny provided either does not exist or is not in the proper format. Exiting now ...')
 
-	if genomewide_distances_file != None:
+	if expected_distances != None:
 		try:
-			assert(os.path.isfile(genomewide_distances_file))
-			with open(genomewide_distances_file) as ogdf:
+			assert(os.path.isfile(expected_distances))
+			with open(expected_distances) as ogdf:
 				for line in ogdf:
 					line = line.strip()
 					sample_1, sample_2, gen_est = line.split('\t')
@@ -215,13 +220,14 @@ def lsaBGC_AutoAnalyze():
 	logObject.info("Saving parameters for easier determination of results' provenance in the future.")
 	parameters_file = outdir + 'Parameter_Inputs.txt'
 	parameter_values = [gcf_listing_dir, input_listing_file, original_orthofinder_matrix_file, outdir,
-						species_phylogeny_file, genomewide_distances_file, aai_flag, population_listing_file,
-						discovary_analysis_id, discovary_input_listing, sample_set_file, cores]
+						species_phylogeny_file, expected_distances, population_listing_file,
+						discovary_analysis_id, discovary_input_listing, bgc_prediction_software, sample_set_file, cores]
 	parameter_names = ["GCF Listings Directory", "Listing File of Sample Annotation Files for Initial Set of Samples",
 					   "OrthoFinder Homolog Matrix", "Output Directory", "Species Phylogeny File in Newick Format",
-					   "File with GenomeWide Distance Estimations", "CompareM AAI Was Used for GenomeWide Distance Estimations?",
+					   "File with Expected Sample to Sample Amino Acid Distance Estimations",
 					   "Clade/Population Listings File", "DiscoVary Analysis ID",
-					   "DiscoVary Sequencing Data Location Specification File", "Sample Retention Set", "Cores"]
+					   "DiscoVary Sequencing Data Location Specification File", "BGC Prediction Software",
+					   "Sample Retention Set", "Cores"]
 	util.logParametersToFile(parameters_file, parameter_names, parameter_values)
 	logObject.info("Done saving parameters!")
 
@@ -259,17 +265,17 @@ def lsaBGC_AutoAnalyze():
 		input_listing_file = update_input_listing_file
 		gcf_listing_dir = update_gcf_listing_dir
 
-		if genomewide_distances_file != None:
-			update_genomewide_distances_file = outdir + 'GenomeWide_Distance_Estimates.Pruned.txt'
-			update_genomewide_distances_handle = open(update_genomewide_distances_file, 'w')
-			with open(genomewide_distances_file) as ogdf:
+		if expected_distances != None:
+			update_expected_distances_file = outdir + 'Expected_Distance_Estimates.Pruned.txt'
+			update_expected_distances_handle = open(update_expected_distances_file, 'w')
+			with open(expected_distances) as ogdf:
 				for line in ogdf:
 					line = line.strip()
 					sample_1, sample_2, gw_est = line.split('\t')
 					if sample_1 in sample_retention_set and sample_2 in sample_retention_set:
-						update_genomewide_distances_handle.write(line + '\n')
-			update_genomewide_distances_handle.close()
-			genomewide_distances_file = update_genomewide_distances_file
+						update_expected_distances_handle.write(line + '\n')
+			update_expected_distances_handle.close()
+			expected_distances = update_expected_distances_file
 
 	if population_listing_file and species_phylogeny_file:
 		populations_on_tree_pdf = outdir + 'Populations_on_Species_Tree.pdf'
@@ -300,46 +306,50 @@ def lsaBGC_AutoAnalyze():
 
 		# 1. Run lsaBGC-See.py
 		gcf_see_outdir = see_outdir + gcf_id + '/'
-		if not os.path.isdir(gcf_see_outdir):
+		lsabgc_see_checkpoint = gcf_see_outdir + 'CHECKPOINT.txt'
+		if not os.path.isfile(lsabgc_see_checkpoint):
+			os.system('rm -rf %s' % gcf_see_outdir)
 			os.system('mkdir %s' % gcf_see_outdir)
 			cmd = ['lsaBGC-See.py', '-g', gcf_listing_file, '-m', orthofinder_matrix_file, '-o', gcf_see_outdir,
-				   '-i', gcf_id, '-s', species_phylogeny_file, '-p', '-c', str(cores)]
+				   '-i', gcf_id, '-s', species_phylogeny_file, '-p', bgc_prediction_software, '-c', str(cores)]
 			try:
 				util.run_cmd(cmd, logObject)
+				assert(os.path.isfile(lsabgc_see_checkpoint))
 			except Exception as e:
 				logObject.warning("lsaBGC-See.py was unsuccessful for GCF %s" % gcf_id)
 				sys.stderr.write("Warning: lsaBGC-See.py was unsuccessful for GCF %s\n" % gcf_id)
 
 		# 2. Run lsaBGC-PopGene.py
 		gcf_pop_outdir = pop_outdir + gcf_id + '/'
-		if not os.path.isdir(gcf_pop_outdir):
+		lsabgc_popgene_checkpoint = gcf_pop_outdir + 'CHECKPOINT.txt'
+		if not os.path.isfile(lsabgc_popgene_checkpoint):
+			os.system('rm -rf %s' % gcf_pop_outdir)
 			os.system('mkdir %s' % gcf_pop_outdir)
 			cmd = ['lsaBGC-PopGene.py', '-g', gcf_listing_file, '-m', orthofinder_matrix_file, '-o', gcf_pop_outdir,
-				   '-i', gcf_id, '-c', str(cores)]
-			if genomewide_distances_file != None:
-				cmd += ['-f', genomewide_distances_file]
+				   '-i', gcf_id, '-p', bgc_prediction_software, '-c', str(cores)]
+			if expected_distances != None:
+				cmd += ['-w', expected_distances]
 			if population_listing_file != None:
-				cmd += ['-p', population_listing_file]
-			if aai_flag:
-				cmd += ['-cm']
+				cmd += ['-u', population_listing_file]
 			try:
 				util.run_cmd(cmd, logObject, stderr=sys.stderr, stdout=sys.stdout)
+				assert(os.path.isfile(lsabgc_popgene_checkpoint))
 			except Exception as e:
 				logObject.warning("lsaBGC-PopGene.py was unsuccessful for GCF %s" % gcf_id)
 				sys.stderr.write("Warning: lsaBGC-PopGene.py was unsuccessful for GCF %s\n" % gcf_id)
 
 		# 3. Run lsaBGC-Divergence.py
 		gcf_div_outdir = div_outdir + gcf_id + '/'
-		if not os.path.isdir(gcf_div_outdir):
+		lsabgc_divergence_checkpoint = gcf_div_outdir + 'CHECKPOINT.txt'
+		if not os.path.isfile(lsabgc_divergence_checkpoint) and expected_distances:
+			os.system('rm -rf %s' % gcf_div_outdir)
 			os.system('mkdir %s' % gcf_div_outdir)
 			cmd = ['lsaBGC-Divergence.py', '-g', gcf_listing_file, '-l', input_listing_file, '-o', gcf_div_outdir,
-				   '-i', gcf_id, '-a',	gcf_pop_outdir + 'Codon_Alignments_Listings.txt', '-c', str(cores)]
-			if genomewide_distances_file != None:
-				cmd += ['-f', genomewide_distances_file]
-			if aai_flag:
-				cmd += ['-cm']
+				   '-i', gcf_id, '-a',	gcf_pop_outdir + 'Codon_Alignments_Listings.txt', '-c', str(cores),'-w',
+				   expected_distances]
 			try:
 				util.run_cmd(cmd, logObject)
+				assert(os.path.isfile(lsabgc_divergence_checkpoint))
 			except Exception as e:
 				logObject.warning("lsaBGC-Divergence.py was unsuccessful for GCF %s" % gcf_id)
 				sys.stderr.write("Warning: lsaBGC-Divergence.py was unsuccessful for GCF %s\n" % gcf_id)
@@ -347,13 +357,16 @@ def lsaBGC_AutoAnalyze():
 		# 4. Run lsaBGC-DiscoVary.py
 		if discovary_analysis_id and discovary_input_listing:
 			gcf_dis_outdir = dis_outdir + gcf_id + '/'
-			if not os.path.isdir(gcf_dis_outdir):
+			lsabgc_discovary_checkpoint = gcf_dis_outdir + 'CHECKPOINT.txt'
+			if not os.path.isfile(lsabgc_discovary_checkpoint):
+				os.system('rm -rf %s' % gcf_dis_outdir)
 				os.system('mkdir %s' % gcf_dis_outdir)
 				cmd = ['lsaBGC-DiscoVary.py', '-g', gcf_listing_file, '-m', orthofinder_matrix_file, '-o',
 					   gcf_dis_outdir, '-i', gcf_id, '-c', str(cores), '-p', discovary_input_listing, '-a',
 					   gcf_pop_outdir + 'Codon_Alignments_Listings.txt', '-l', input_listing_file]
 				try:
 					util.run_cmd(cmd, logObject, stderr=sys.stderr, stdout=sys.stdout)
+					assert (os.path.isfile(lsabgc_discovary_checkpoint))
 				except Exception as e:
 					logObject.warning("lsaBGC-DiscoVary.py was unsuccessful for GCF %s" % gcf_id)
 					sys.stderr.write("Warning: lsaBGC-DiscoVary.py was unsuccessful for GCF %s\n" % gcf_id)

@@ -9,6 +9,8 @@ based annotation. It consists of 8 independent programs: `lsaBGC-Ready.py`, `lsa
 ![](https://github.com/Kalan-Lab/lsaBGC/blob/main/docs/images/lsaBGC1.1_Simplified.png)
 
 ## Major Updates 
+
+* Jul 10, 2022 - Several updates. Fixed small issues with smooth running of new framework. Removed some dependencies and have added GToTree for creating species phylogeny + estimated sample to sample amino acid expected divergences. New small test dataset now included in this repo for immediate testing + much simplified installation guide. Most major change is that lsaBGC now works with DeepBGC and GECCO predictions! lsaBGC's backend relies on 'proto-core homolog groups' / 'rule-based key domains' determined by AntiSMASH, to get around the absence of such marker genes/domains in DeepBGC and GECCO predictions, domains in the highest 10% of deebgc_scores or lowest 10% of e-values are treated as "proto-core" and used in `lsaBGC-AutoExpansion.py`/`lsaBGC-DiscoVary.py` as well as highlighted/treated as the "core" in `lsaBGC-PopGene.py` reports.
 * Jun 26, 2022 - Added "loose" mode to `lsaBGC-Expansion.py` and option for users to manually define "protocore" homolog groups. Also, "protocore" homolog groups for a GCF now must have "rule-based" marker to exclude MGEs like transposons which insert within protocore regions of BGCs.
 * Jun 19, 2022 - Have set MAGUS as the default protein alignment method (highly scalable wrapper of mafft) + updated notes on scalability.
 * Jun 18, 2022 - Updated [`lsaBGC-AutoAnalyze.py`](https://github.com/Kalan-Lab/lsaBGC/wiki/13.-The-lsaBGC-AutoAnalyze-Workflow) (automated lsaBGC analysis for each GCF) for better integration into new framework based around `lsaBGC-Ready.py`. 
@@ -22,42 +24,70 @@ based annotation. It consists of 8 independent programs: `lsaBGC-Ready.py`, `lsa
 Documentation can currently be found on this Github repo's wiki: https://github.com/Kalan-Lab/lsaBGC/wiki
 
 1. [Background on lsaBGC - what it does and does not do](https://github.com/Kalan-Lab/lsaBGC/wiki/00.-Background)
-2. [Installation Guide](https://github.com/Kalan-Lab/lsaBGC/wiki/01.-Installation)
-3. [The Object Oriented Core of lsaBGC](https://github.com/Kalan-Lab/lsaBGC/wiki/02.-The-Object-Oriented-Core-of-lsaBGC)
-4. [Tutorial: Exploring BGCs in Cutibacterium](https://github.com/Kalan-Lab/lsaBGC/wiki/03.-Tutorial:-Exploring-BGCs-in-Cutibacterium)
-5. [Generating Required Inputs for lsaBGC](https://github.com/Kalan-Lab/lsaBGC/wiki/04.-Generating-Required-Inputs-for-lsaBGC)
-6. [Clustering BGCs into GCFs](https://github.com/Kalan-Lab/lsaBGC/wiki/05.-Clustering-BGCs-into-GCFs)
-7. [Refinement of BGCs Belonging to GCF](https://github.com/Kalan-Lab/lsaBGC/wiki/06.-Refinement-of-BGCs-Belonging--to-GCF)
-8. [Visualizing GCFs Across Phylogenies](https://github.com/Kalan-Lab/lsaBGC/wiki/07.-Visualizing-GCFs-Across-Phylogenies)
-9. [High throughput Detection of New GCF Instances Across Draft Genome Assemblies](https://github.com/Kalan-Lab/lsaBGC/wiki/08.-High-throughput-Detection-of-New-GCF-Instances-Across-Draft-Genome-Assemblies)
-10. [Assessing Evolutionary Linkage of BGCs with their Genome wide Contexts](https://github.com/Kalan-Lab/lsaBGC/wiki/09.-Assessing-Evolutionary-Linkage-of-BGCs-with-their-Genome-wide-Contexts)
-11. [Population Genetics Analysis of Genes Found in a GCF](https://github.com/Kalan-Lab/lsaBGC/wiki/10.-Population-Genetics-Analysis-of-Genes-Found-in-a-GCF)
-12. [Discovering Novel Variations in GCF Genes from Raw Sequencing Reads]()
-13. [Benchmarking Gene Detection through Expansion vs. DiscoVary](https://github.com/Kalan-Lab/lsaBGC/wiki/14.-Benchmarking-Gene-Detection-through-Expansion-vs.-DiscoVary)
-14. [The lsaBGC AutoAnalyze Workflow](https://github.com/Kalan-Lab/lsaBGC/wiki/13.-The-lsaBGC-AutoAnalyze-Workflow)
-15. [Running test datasets for core lsaBGC programs](https://github.com/Kalan-Lab/lsaBGC_Ckefir_Testing_Cases)
+2. [The Object Oriented Core of lsaBGC](https://github.com/Kalan-Lab/lsaBGC/wiki/02.-The-Object-Oriented-Core-of-lsaBGC)
+3. [Tutorial: Exploring BGCs in Cutibacterium](https://github.com/Kalan-Lab/lsaBGC/wiki/03.-Tutorial:-Exploring-BGCs-in-Cutibacterium)
+4. [Generating Required Inputs for lsaBGC](https://github.com/Kalan-Lab/lsaBGC/wiki/04.-Generating-Required-Inputs-for-lsaBGC)
+5. [Clustering BGCs into GCFs](https://github.com/Kalan-Lab/lsaBGC/wiki/05.-Clustering-BGCs-into-GCFs)
+6. [Refinement of BGCs Belonging to GCF](https://github.com/Kalan-Lab/lsaBGC/wiki/06.-Refinement-of-BGCs-Belonging--to-GCF)
+7. [Visualizing GCFs Across Phylogenies](https://github.com/Kalan-Lab/lsaBGC/wiki/07.-Visualizing-GCFs-Across-Phylogenies)
+8. [High throughput Detection of New GCF Instances Across Draft Genome Assemblies](https://github.com/Kalan-Lab/lsaBGC/wiki/08.-High-throughput-Detection-of-New-GCF-Instances-Across-Draft-Genome-Assemblies)
+9. [Assessing Evolutionary Linkage of BGCs with their Genome wide Contexts](https://github.com/Kalan-Lab/lsaBGC/wiki/09.-Assessing-Evolutionary-Linkage-of-BGCs-with-their-Genome-wide-Contexts)
+10. [Population Genetics Analysis of Genes Found in a GCF](https://github.com/Kalan-Lab/lsaBGC/wiki/10.-Population-Genetics-Analysis-of-Genes-Found-in-a-GCF)
+11. [Discovering Novel Variations in GCF Genes from Raw Sequencing Reads]()
+12. [Benchmarking Gene Detection through Expansion vs. DiscoVary](https://github.com/Kalan-Lab/lsaBGC/wiki/14.-Benchmarking-Gene-Detection-through-Expansion-vs.-DiscoVary)
+13. [The lsaBGC AutoAnalyze Workflow](https://github.com/Kalan-Lab/lsaBGC/wiki/13.-The-lsaBGC-AutoAnalyze-Workflow)
+14. [Running test datasets for core lsaBGC programs](https://github.com/Kalan-Lab/lsaBGC_Ckefir_Testing_Cases)
 
 *Documentation moving to "Read the Docs" soon!*
 
 ## Installation:
 
-Installation is performed via Conda and should take ~5-10 minutes. We are happy to attempt to address issues with installation if any arise, please open a Git Issues case.
+Installation can be performed via conda and should take ~5-10 minutes and has been tested on both unix (specifically Ubuntu) and macOS. We are happy to attempt to address issues with installation if any arise, please open a Git Issues case:
 
-On the [Installation wiki page](https://github.com/Kalan-Lab/lsaBGC/wiki/01.-Installation), you can find a step-by-step guide and bash scripts for automated installation are provided. [Test cases](https://github.com/Kalan-Lab/lsaBGC_Ckefir_Testing_Cases) to demonstrate individual programs are available along with a more [comprehensive tutorial](https://github.com/Kalan-Lab/lsaBGC/wiki/03.-Tutorial:-Exploring-BGCs-in-Cutibacterium) to showcase the use of the suite and relations between core programs.
+```
+# 1. clone Git repo and cd into it!
+git clone https://github.com/Kalan-Lab/lsaBGC
+cd lsaBGC/
+
+# 2. create conda environment using yaml file and activate it!
+conda env create -f lsaBGC_env.yml -p /path/to/lsaBGC_conda_env/
+conda activate /path/to/lsaBGC_conda_env/
+
+# 3. complete python installation with the following commands:
+python setup.py install
+pip install -e .
+```
+
+Optional, but recommended, command to download KOfams (+ other databases in the near future):
+
+```
+# Warning: can take ~5-10 minutes!
+# within lsaBGC Git repo with conda environment activated:
+setup_annotation_dbs.py
+```
+
+Additional, information pertaining to installation can be found at: [Installation Guide](https://github.com/Kalan-Lab/lsaBGC/wiki/01.-Installation)
+
+A small test case is provided here and can be run after installation by simply issuing:
+
+```
+bash run_tests.sh
+```
+
+Additionally we suggest checking out additional [test cases](https://github.com/Kalan-Lab/lsaBGC_Ckefir_Testing_Cases) to demonstrate usage of individual programs along with expected outputs from commands. We also have a [quick start + walk-through tutorial](https://github.com/Kalan-Lab/lsaBGC/wiki/03.-Tutorial:-Exploring-BGCs-in-Cutibacterium) Wiki page to showcase the use of the suite and relations between core programs.
 
 ## Notes on Scalability:
 
 Updated 06/19/2022
 
-Currently, the primary/core set of samples/genomes used to define BGCs should not exceed 500 samples (<300 recommended). This is because OrthoFinder2 performs all-vs-all alignments between genomes and will produce a lot of files and have an exceedingly long runtime. OrthoFinder2 developers are considering increasing throughput of the method; however, such alterations are noted to require greater memory usage. For most genera, the 500 upper limit should work well after dereplication of genomes (at 99% identity) to remove redundancy. We recommend using the [drep] program to perform such dereplication. lsaBGC-AutoExpansion can then be used at high-scale to find homologous instances to GCFs defined from primary genomes in addtiional/draft genomes. 
+lsaBGC strives for large-scalability and high-throughput, however, the core of the framework requires defining ortholog groups and involves all vs. all comparisons for the primary genome set. It is therefore recommended that users first select a distributed set of representative, "primary" genomes for their taxa (which can be done via genome dereplication, check out [drep](https://github.com/MrOlm/drep)!). Then treat the rest of the genomes as "additional" (this can be 1000s of genomes - we run expansion up to ~15,000 Staphylococci!). 
 
-MAGUS (a divide and conquer wrapper of MAFFT) is now the default for performing protein alignments and greatly expedites the process!
+For evolutionary statistics calculations, codon alignments are now built using MAGUS (a divide and conquer wrapper of MAFFT) by default! 
 
 ## Future Updates Planned and of High Priority:
 
-* Update algorithms to have options to work with DeepBGC + GECCO BGC predictions.
-* Incorporate eukaryotic gene calling in `lsaBGC-Ready.py` to allow application to fungi + plants.
-* Simplify the caclulation of Beta-RD statistic and required dependencies. 
+* Get `lsaBGC-Ready.py` working for fungi + plants.
+* Incorporate additional/update evolutionary statistics in `lsaBGC-PopGene.py`! 
 
 ## Acknowledgements:
 

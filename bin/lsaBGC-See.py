@@ -54,15 +54,23 @@ def create_parser():
 	available, it will also create a phylogeny based on single copy core genes of the GCF.
 	""", formatter_class=argparse.RawTextHelpFormatter)
 
-    parser.add_argument('-g', '--gcf_listing', help='BGC listings file for a gcf. Tab delimited: 1st column lists sample name while the 2nd column is the path to an AntiSMASH BGC in Genbank format.', required=True)
+    parser.add_argument('-g', '--gcf_listing',
+                        help='BGC listings file for a gcf. Tab delimited: 1st column lists sample name while the 2nd column is the path to a BGC prediction in Genbank format.', required=True)
     parser.add_argument('-m', '--orthofinder_matrix', help="OrthoFinder matrix.", required=True)
     parser.add_argument('-o', '--output_directory', help="Output directory.", required=True)
     parser.add_argument('-i', '--gcf_id', help="GCF identifier.", required=False, default='GCF_X')
     parser.add_argument('-s', '--species_phylogeny', help="The species phylogeny in Newick format.", required=False, default=None)
+    parser.add_argument('-p', '--bgc_prediction_software', help='Software used to predict BGCs (Options: antiSMASH, DeepBGC, GECCO).\nDefault is antiSMASH.', default='antiSMASH', required=False)
     parser.add_argument('-c', '--cores', type=int, help="Number of cores to use for MCL step.", required=False, default=1)
-    parser.add_argument('-k', '--sample_set', help="Sample set to keep in analysis. Should be file with one sample id per line.", required=False)
-    parser.add_argument('-p', '--create_gcf_phylogeny', action='store_true', help="Create phylogeny from sequences of homolog groups in GCF.", required=False, default=False)
-    parser.add_argument('-f', '--only_scc', action='store_true', help="Use only single-copy-core homolog groups for constructing GCF phylogeny.", required=False, default=False)
+    parser.add_argument('-k', '--sample_set',
+                        help="Sample set to keep in analysis. Should be file with one sample id per line.", required=False)
+    parser.add_argument('-y', '--create_gcf_phylogeny', action='store_true',
+                        help="Create phylogeny from sequences of homolog groups in GCF.", required=False, default=False)
+    parser.add_argument('-f', '--only_scc', action='store_true',
+                        help="Use only single-copy-core homolog groups for constructing GCF phylogeny.", required=False,
+                        default=False)
+
+
     args = parser.parse_args()
     return args
 
@@ -98,11 +106,18 @@ def lsaBGC_See():
     """
 
     sample_set_file = myargs.sample_set
+    bgc_prediction_software = myargs.bgc_prediction_software.upper()
     gcf_id = myargs.gcf_id
     species_phylogeny = myargs.species_phylogeny
     cores = myargs.cores
     create_gcf_phylogeny = myargs.create_gcf_phylogeny
     only_scc = myargs.only_scc
+
+
+    try:
+        assert(bgc_prediction_software in set(['ANTISMASH', 'DEEPBGC', 'GECCO']))
+    except:
+        raise RuntimeError('BGC prediction software option is not a valid option.')
 
     """
     START WORKFLOW
@@ -114,11 +129,11 @@ def lsaBGC_See():
     # Log input arguments and update reference and query FASTA files.
     logObject.info("Saving parameters for future records.")
     parameters_file = outdir + 'Parameter_Inputs.txt'
-    parameter_values = [gcf_listing_file, orthofinder_matrix_file, outdir, gcf_id, species_phylogeny, cores, sample_set_file,
-                        create_gcf_phylogeny, only_scc]
+    parameter_values = [gcf_listing_file, orthofinder_matrix_file, outdir, gcf_id, species_phylogeny, cores,
+                        sample_set_file, bgc_prediction_software, create_gcf_phylogeny, only_scc]
     parameter_names = ["GCF Listing File", "OrthoFinder Orthogroups.csv File", "Output Directory", "GCF Identifier",
-                       "Species Phylogeny Newick File", "Sample Retention Set", "Cores", "Create GCF Phylogeny?",
-                       "Use only SCC Homolog Groups for Creating GCF Phylogeny?"]
+                       "Species Phylogeny Newick File", "Sample Retention Set", "Cores", "BGC Prediction Identifier",
+                       "Create GCF Phylogeny?", "Use only SCC Homolog Groups for Creating GCF Phylogeny?"]
     util.logParametersToFile(parameters_file, parameter_names, parameter_values)
     logObject.info("Done saving parameters!")
 
@@ -130,7 +145,8 @@ def lsaBGC_See():
 
     # Step 1: Process GCF listings file
     logObject.info("Processing BGC Genbanks from GCF listing file.")
-    GCF_Object.readInBGCGenbanks(comprehensive_parsing=True, prune_set=sample_retention_set)
+    GCF_Object.readInBGCGenbanks(comprehensive_parsing=True, prune_set=sample_retention_set,
+                                 prediction_method=bgc_prediction_software)
     logObject.info("Successfully parsed BGC Genbanks and associated with unique IDs.")
 
     # Step 2: If species phylogeny was provided, edit it to feature duplicate leaves for isolates which have multiple
@@ -175,6 +191,12 @@ def lsaBGC_See():
                                     outdir + 'BGCs_Visualization.heatmap.txt',
                                     outdir + 'BGC_SCCs_Concatenated.edited.nwk',
                                     outdir + 'BGC_Visualization.BGC_phylogeny.pdf')
+
+    # Write checkpoint file for lsaBGC-AutoAnalyze.py
+    checkpoint_file = outdir + 'CHECKPOINT.txt'
+    checkpoint_handle = open(checkpoint_file, 'w')
+    checkpoint_handle.write('lsaBGC-See completed successfully!')
+    checkpoint_handle.close()
 
     # Close logging object and exit
     util.closeLoggerObject(logObject)

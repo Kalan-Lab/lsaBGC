@@ -191,6 +191,36 @@ def determineNonUniqueRegionsAlongCodonAlignment(outdir, initial_sample_prokka_d
 			logObject.error(traceback.format_exc())
 		raise RuntimeError(traceback.format_exc())
 
+def determineSeqSimProteinAlignment(protein_alignment_file):
+	protein_sequences = {}
+	with open(protein_alignment_file) as ocaf:
+		for i, rec in enumerate(SeqIO.parse(ocaf, 'fasta')):
+			protein_sequences[rec.id] = str(rec.seq).upper()
+
+	pair_seq_matching = defaultdict(lambda: defaultdict(lambda: 1.0))
+	for i, g1 in enumerate(protein_sequences):
+		s1 = g1.split('|')[0]
+		g1s = protein_sequences[g1]
+		for j, g2 in enumerate(protein_sequences):
+			if i >= j: continue
+			s2 = g2.split('|')[0]
+			if s1 == s2: continue
+			g2s = protein_sequences[g2]
+			tot_comp_pos = 0
+			match_pos = 0
+			for pos, g1a in enumerate(g1s):
+				g2a = g2s[pos]
+				if g1a != '-' or g2a != '-':
+					tot_comp_pos += 1
+					if g1a == g2a:
+						match_pos += 1
+			general_matching_percentage = float(match_pos)/float(tot_comp_pos)
+			if pair_seq_matching[s1][s2] < general_matching_percentage and pair_seq_matching[s2][s1] < general_matching_percentage:
+				pair_seq_matching[s1][s2] = general_matching_percentage
+				pair_seq_matching[s2][s1] = general_matching_percentage
+
+	return pair_seq_matching
+
 def determineSeqSimCodonAlignment(codon_alignment_file, use_translation=False):
 	gene_sequences = {}
 	with open(codon_alignment_file) as ocaf:
@@ -1106,44 +1136,76 @@ def extractProteins(sample_genomes, proteomes_directory, logObject):
 	"""
 
 	sample_proteomes = {}
-	for sample in sample_genomes:
-		sample_gbk = sample_genomes[sample]
-		sample_faa = proteomes_directory + sample + '.faa'
-		sample_faa_handle = open(sample_faa, 'w')
-		try:
-			with open(sample_gbk) as osgf:
-				for rec in SeqIO.parse(osgf, 'genbank'):
-					for feature in rec.features:
-						if feature.type == "CDS":
-							lt = feature.qualifiers.get('locus_tag')[0]
-							product = feature.qualifiers.get('product')[0]
-							sample_faa_handle.write('>' + lt + '\n' + product + '\n')
-		except Exception as e:
-			logObject.error("Problem with parsing Genbank for sample %s, likely at least one CDS feature does not have both a locus_tag or product sequence." % sample)
+	try:
+		for sample in sample_genomes:
+			sample_gbk = sample_genomes[sample]
+			sample_faa = proteomes_directory + sample + '.faa'
+			sample_faa_handle = open(sample_faa, 'w')
+			try:
+				with open(sample_gbk) as osgf:
+					for rec in SeqIO.parse(osgf, 'genbank'):
+						for feature in rec.features:
+							if feature.type == "CDS":
+								lt = feature.qualifiers.get('locus_tag')[0]
+								translation = feature.qualifiers.get('translation')[0]
+								sample_faa_handle.write('>' + lt + '\n' + translation + '\n')
+			except Exception as e:
+				logObject.error("Problem with parsing Genbank for sample %s, likely at least one CDS feature does not have both a locus_tag or product sequence." % sample)
+				logObject.error(traceback.format_exc())
+				raise RuntimeError(traceback.format_exc())
+			sample_faa_handle.close()
+			sample_proteomes[sample] = sample_faa
+	except Exception as e:
+			logObject.error("Problem with parsing genome-wide Genbanks.")
 			logObject.error(traceback.format_exc())
 			raise RuntimeError(traceback.format_exc())
-		sample_faa_handle.close()
-		sample_proteomes[sample] = sample_faa
-
 	return sample_proteomes
 
+def splitDeepBGCGenbank(bgc_genbank_listing_file, deepbgc_split_directory, outdir, logObject):
+	updated_bgc_genbank_listing_file = outdir + 'DeepBGC_Genbanks_Split_Listing.txt'
+	updated_bgc_genbank_listing_handle = open(updated_bgc_genbank_listing_file, 'w')
+	try:
+		with open(bgc_genbank_listing_file) as obglf:
+			for line in obglf:
+				sample, bgc = line.strip().split('\t')
+				logObject.info('Splitting DeepBGC Genbank %s for sample %s.' % (bgc, sample))
+				with open(bgc) as obgbk:
+					for rec in SeqIO.parse(obgbk, 'genbank'):
+						for feature in rec.features:
+							if feature.type == "CDS":
+								start = min([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')]) + 1
+								end = max([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')])
+								direction = str(feature.location).split('(')[1].split(')')[0]
+								if end:
+									nucl_seq = str(rec.seq)[start - 1:end]
+								else:
+									nucl_seq = str(rec.seq)[start - 1:]
+								if direction == '-':
+									nucl_seq = str(Seq(nucl_seq).reverse_complement())
+								feature.qualifiers['translation'] = Seq(nucl_seq).translate()
+						out_gbk = deepbgc_split_directory + rec.id.replace('.', '_') + '.gbk'
+						updated_bgc_genbank_listing_handle.write(sample + '\t' + out_gbk + '\n')
+						out_gbk_handle = open(out_gbk, 'w')
+						SeqIO.write(rec, out_gbk_handle, 'genbank')
+						out_gbk_handle.close()
+		updated_bgc_genbank_listing_handle.close()
+	except Exception as e:
+			logObject.error("Problem with parsing DeepBGC Genbanks to split.")
+			logObject.error(traceback.format_exc())
+			raise RuntimeError(traceback.format_exc())
 
-def processAntiSMASHGenbanks(antismash_listing_file, antismash_bgcs_directory, proteomes_directory, logObject):
+	return updated_bgc_genbank_listing_file
+
+def processBGCGenbanks(bgc_listing_file, bgc_prediction_software, sample_genomes, antismash_bgcs_directory, proteomes_directory, logObject):
 	"""
-	Creates local versions of AntiSMASH BGC Genbanks where proteins have locus tags updated.
-
-	:param antismash_listing_file:
-	:param antismash_bgcs_directory:
-	:param proteomes_directory:
-	:param logObject:
-	:return:
+	Creates local versions of BGC prediction Genbanks where proteins have locus tags updated.
 	"""
 
 	sample_bgcs = defaultdict(set)
 	bgc_to_sample = {}
 	sample_protein_iter = defaultdict(lambda: 10000)
 	try:
-		with open(antismash_listing_file) as oalf:
+		with open(bgc_listing_file) as oalf:
 			for line in oalf:
 				line = line.strip()
 				sample, og_bgc_genbank = line.split('\t')
@@ -1172,20 +1234,23 @@ def processAntiSMASHGenbanks(antismash_listing_file, antismash_bgcs_directory, p
 				bgc_to_sample[cp_bgc_genbank] = sample
 				cp_bgc_genbank_handle = open(cp_bgc_genbank, 'w')
 
-				scaff_id, scaff_start = [None]*2
+				bgc_seq = None
 				with open(og_bgc_genbank) as obgf:
-					for i, l in enumerate(obgf):
-						l = l.strip()
-						ls = l.split()
-						if l.startswith("VERSION"):
-							scaff_id = ls[1]
-						if l.startswith("Original ID"):
-							scaff_id = ls[3]
-						if l.startswith("Orig. start"):
-							scaff_start = int(ls[3])
+					for rec in SeqIO.parse(obgf, 'genbank'):
+						bgc_seq = str(rec.seq.upper())
+
+				scaff_id, scaff_start = [None]*2
+				with open(sample_genomes[sample]) as off:
+					for rec in SeqIO.parse(off, 'genbank'):
+						if bgc_seq in str(rec.seq).upper():
+							scaff_id = rec.id
+							scaff_start = str(rec.seq).find(bgc_seq)
 
 				with open(og_bgc_genbank) as obgf:
 					for rec in SeqIO.parse(obgf, 'genbank'):
+						rec.name = scaff_id
+						rec.description = 'BGC prediction on scaffold %s by %s, starts at: %d' % (scaff_id, bgc_prediction_software, scaff_start)
+						rec.id = scaff_id
 						updated_rec = copy.deepcopy(rec)
 						updated_features = []
 						for feature in rec.features:
@@ -1209,33 +1274,25 @@ def processAntiSMASHGenbanks(antismash_listing_file, antismash_bgcs_directory, p
 						SeqIO.write(updated_rec, cp_bgc_genbank_handle, 'genbank')
 				cp_bgc_genbank_handle.close()
 	except Exception as e:
-		logObject.error("Problem with parsing antiSMASH BGC listings.")
+		logObject.error("Problem with parsing BGC Genbank listings.")
 		logObject.error(traceback.format_exc())
 		raise RuntimeError(traceback.format_exc())
 	return([sample_bgcs, bgc_to_sample])
 
 
-def extractProteinsFromAntiSMASHBGCs(sample_bgcs, bgc_prot_directory, logObject):
+def extractProteinsFromBGCs(sample_bgcs, bgc_prot_directory, logObject):
 	sample_bgc_prots = defaultdict(lambda: defaultdict(set))
 	try:
 		for sample in sample_bgcs:
 			samp_bgc_prot_file = bgc_prot_directory + sample + '.faa'
 			samp_bgc_prot_handle = open(samp_bgc_prot_file, 'w')
 			for bgc in sample_bgcs[sample]:
-				scaff_id, scaff_start = [None]*2
-				with open(bgc) as obgf:
-					for i, line in enumerate(obgf):
-						line = line.strip()
-						ls = line.split()
-						if i == 0:
-							scaff_id = ls[1]
-						if line.startswith("Orig. start"):
-							scaff_start = int(ls[3])
-
 				with open(bgc) as obf:
 					for rec in SeqIO.parse(obf, 'genbank'):
+						scaff_id = rec.id
+						scaff_start = int(rec.description.split()[-1].strip())
 						for feature in rec.features:
-							if feature.type=='CDS':
+							if feature.type == 'CDS':
 								prot_lt = feature.qualifiers.get('locus_tag')[0]
 								prot_seq = str(feature.qualifiers.get('translation')[0]).replace('*', '')
 								start = scaff_start + min([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')]) + 1
@@ -1463,8 +1520,142 @@ def determineParalogyThresholds(orthofinder_bgc_matrix_file, bgc_prot_directory,
 	os.system('rm -rf %s %s' % (tmp_hg_seq_dir, tmp_hg_dia_dir))
 	return [samp_hg_lts, lt_to_hg, paralogy_thresholds]
 
+def updateSampleGenomesWithGenbanks(genbanks_directory):
+	sample_genomes = {}
+	for f in os.listdir(genbanks_directory):
+		if not f.endswith('.gbk'): continue
+		gbk = genbanks_directory + f
+		sample = f.split('.gbk')[0]
+		sample_genomes[sample] = gbk
+	return sample_genomes
+
+
+def incorporateBGCProteinsIntoProteomesAndGenbanks(sample_bgc_proteins, sample_genomes, protein_annotations, bgc_prot_directory,
+												   proteomes_directory, final_proteomes_directory, final_genbanks_directory,
+                                                    sample_listing_file, bgc_listing_file, logObject):
+	sample_listing_handle = open(sample_listing_file, 'w')
+	bgc_listing_handle = open(bgc_listing_file, 'w')
+	try:
+		for sample in sample_bgc_proteins:
+
+			gw_prot_file = proteomes_directory + sample + '.faa'
+			gw_prot_to_location = {}
+			scaff_glts = defaultdict(set)
+			with open(gw_prot_file) as ogpf:
+				for rec in SeqIO.parse(ogpf, 'fasta'):
+					gw_prot_to_location[rec.id] = [rec.description.split()[1], int(rec.description.split()[2]),
+												   int(rec.description.split()[3])]
+					scaff_glts[rec.description.split()[1]].add(rec.id)
+
+			sample_lts_to_prune = set([])
+			sample_lts_to_add_protein_sequences = {}
+			sample_lts_to_add_genbank_features = defaultdict(list)
+			for bgc in sample_bgc_proteins[sample]:
+
+				bgc_listing_handle.write(sample + '\t' + bgc + '\n')
+
+				bgc_prots = sample_bgc_proteins[sample][bgc]
+				print(bgc_prots)
+				bgc_prots_1x = set([x for x in bgc_prots if x.split('_')[1][0] == '1'])
+				print(bgc_prots_1x)
+				print('-------------------------')
+				bgc_prot_file = bgc_prot_directory + sample + '.faa'
+				bgc_prot_to_location = {}
+				with open(bgc_prot_file) as obpf:
+					for rec in SeqIO.parse(obpf, 'fasta'):
+						bgc_prot_to_location[rec.id] = [rec.description.split()[1],
+														int(rec.description.split()[2]),
+														int(rec.description.split()[3])]
+						if rec.id in bgc_prots_1x:
+							sample_lts_to_add_protein_sequences[rec.id] = [rec.description, str(rec.seq)]
+
+				with open(bgc) as obf:
+					for rec in SeqIO.parse(obf, 'genbank'):
+						scaff_id = rec.id
+						scaff_start = int(rec.description.split()[-1].strip())
+						for feature in rec.features:
+							if feature.type=='CDS':
+								prot_lt = feature.qualifiers.get('locus_tag')[0]
+								start = scaff_start + min([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')]) + 1
+								end = scaff_start + max([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')])
+								direction = str(feature.location).split('(')[1].split(')')[0]
+								dir = 1
+								if direction == '-': dir = -1
+								if prot_lt in bgc_prots_1x:
+									feature.location = FeatureLocation(start - 1, end, strand=dir)
+									sample_lts_to_add_genbank_features[scaff_id].append(feature)
+
+				for blt in bgc_prots_1x:
+					blt_scaff, blt_start, blt_end = bgc_prot_to_location[blt]
+					blt_range = set(range(blt_start, blt_end + 1))
+					for glt in scaff_glts:
+						glt_scaff, glt_start, glt_end = gw_prot_to_location[glt]
+						glt_range = set(range(glt_start, glt_end+1))
+						if glt_scaff == blt_scaff and float(len(blt_range.intersection(glt_range)))/float(len(glt_range)) >= 0.25:
+							sample_lts_to_prune.add(glt)
+
+			final_gw_sample_faa = final_proteomes_directory + sample + '.faa'
+			final_gw_sample_gbk = final_genbanks_directory + sample + '.gbk'
+
+			sample_listing_handle.write(sample + '\t' + final_gw_sample_gbk + '\t' + final_gw_sample_faa + '\n')
+
+			faa_handle = open(final_gw_sample_faa, 'w')
+			with open(proteomes_directory + sample + '.faa') as of:
+				for rec in SeqIO.parse(of, 'fasta'):
+					if not rec.id in sample_lts_to_prune:
+						faa_handle.write('>' + rec.description + '\n' + str(rec.seq) + '\n')
+			for rec in sample_lts_to_add_protein_sequences.items():
+				faa_handle.write('>' + rec[1][0] + '\n' + str(rec[1][1]) + '\n')
+			faa_handle.close()
+
+			gbk_handle = open(final_gw_sample_gbk, 'w')
+			with open(sample_genomes[sample]) as og:
+				for rec in SeqIO.parse(og, 'genbank'):
+					updated_features = []
+					cds_iter = 0
+					starts = []
+					for feature in rec.features:
+						if feature.type == 'CDS':
+							prot_lt = feature.qualifiers.get('locus_tag')[0]
+							if protein_annotations == None:
+								feature.qualifiers['product'] = 'hypothetical protein'
+							else:
+								feature.qualifiers['product'] = [protein_annotations[sample][prot_lt]]
+							feature.qualifiers.move_to_end('translation')
+							if prot_lt in sample_lts_to_prune: continue
+							updated_features.append(feature)
+							start = min([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')])
+							starts.append([cds_iter, start])
+							cds_iter += 1
+					for feature in sample_lts_to_add_genbank_features[rec.id]:
+						if feature.type == 'CDS':
+							prot_lt = feature.qualifiers.get('locus_tag')[0]
+							if protein_annotations == None:
+								feature.qualifiers['product'] = 'hypothetical protein'
+							else:
+								feature.qualifiers['product'] = [protein_annotations[sample][prot_lt]]
+							feature.qualifiers.move_to_end('translation')
+							updated_features.append(feature)
+							start = min([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')])
+							starts.append([cds_iter, start])
+							cds_iter += 1
+					sorted_updated_features = []
+					for sort_i in sorted(starts, key=itemgetter(1)):
+						sorted_updated_features.append(updated_features[sort_i[0]])
+					rec.features = sorted_updated_features
+					SeqIO.write(rec, gbk_handle, 'genbank')
+			gbk_handle.close()
+
+	except Exception as e:
+		logObject.error("Problem with creating updated.")
+		logObject.error(traceback.format_exc())
+		raise RuntimeError(traceback.format_exc())
+
+	sample_listing_handle.close()
+	bgc_listing_handle.close()
+
 def identifyParalogsAndCreateResultFiles(samp_hg_lts, lt_to_hg, sample_bgc_proteins, paralogy_thresholds, protein_annotations,
-							  bgc_prot_directory, blast_directory, proteomes_directory, genbanks_directory, final_proteomes_directory,
+							  bgc_prot_directory, blast_directory, proteomes_directory, sample_genomes, final_proteomes_directory,
 							  final_genbanks_directory, sample_listing_file, bgc_listing_file, orthofinder_matrix_file, logObject, cores=1):
 
 
@@ -1551,15 +1742,10 @@ def identifyParalogsAndCreateResultFiles(samp_hg_lts, lt_to_hg, sample_bgc_prote
 						if rec.id in bgc_prots_1x:
 							sample_lts_to_add_protein_sequences[rec.id] = [rec.description, str(rec.seq)]
 
-				scaff_id, scaff_start = [None]*2
-				with open(bgc) as obgf:
-					for i, line in enumerate(obgf):
-						line = line.strip()
-						ls = line.split()
-						if i == 0: scaff_id = ls[1]
-						if line.startswith("Orig. start"): scaff_start = int(ls[3])
 				with open(bgc) as obf:
 					for rec in SeqIO.parse(obf, 'genbank'):
+						scaff_id = rec.id
+						scaff_start = int(rec.description.split()[-1].strip())
 						for feature in rec.features:
 							if feature.type=='CDS':
 								prot_lt = feature.qualifiers.get('locus_tag')[0]
@@ -1600,7 +1786,7 @@ def identifyParalogsAndCreateResultFiles(samp_hg_lts, lt_to_hg, sample_bgc_prote
 			faa_handle.close()
 
 			gbk_handle = open(final_gw_sample_gbk, 'w')
-			with open(genbanks_directory + sample + '.gbk') as og:
+			with open(sample_genomes[sample]) as og:
 				for rec in SeqIO.parse(og, 'genbank'):
 					updated_features = []
 					cds_iter = 0
@@ -1748,7 +1934,7 @@ def createGCFListingsDirectory(sample_bgcs, bgc_to_sample, bigscape_results_dir,
 		logObject.error(traceback.format_exc())
 		raise RuntimeError(traceback.format_exc())
 
-def updateAntiSMASHGenbanksToIncludeAnnotations(protein_annotations, bgc_to_sample, sample_bgc_proteins, antismash_bgcs_directory, antismash_bgcs_directory_updated, logObject):
+def updateBGCGenbanksToIncludeAnnotations(protein_annotations, bgc_to_sample, sample_bgc_proteins, antismash_bgcs_directory, antismash_bgcs_directory_updated, logObject):
 	sample_bgcs_updated = defaultdict(set)
 	bgc_to_sample_updated = {}
 	sample_bgc_proteins_update = defaultdict(lambda: defaultdict(set))
@@ -1791,17 +1977,23 @@ def updateAntiSMASHGenbanksToIncludeAnnotations(protein_annotations, bgc_to_samp
 def selectFinalResultsAndCleanUp(outdir, fin_outdir, logObject):
 	try:
 		delete_set = set(['BLASTing_of_Ortholog_Groups', 'OrthoFinder2_Results', 'KOfam_Annotations',
-						  'AntiSMASH_BGCs_Retagged', 'Prodigal_Gene_Calling_Additional', 'Predicted_Proteomes_Initial',
+						  'Prodigal_Gene_Calling_Additional', 'Predicted_Proteomes_Initial',
 						  'Prodigal_Gene_Calling', 'Genomic_Genbanks_Initial'])
 		for fd in os.listdir(outdir):
 			if os.path.isfile(fd): continue
 			subdir = outdir + fd + '/'
 			if fd in delete_set:
 				os.system('rm -rf %s' % subdir)
+		if os.path.isdir(outdir + 'BGCs_Retagged_and_Updated'):
+			os.system('rm -rf %s' % outdir + 'BGCs_Retagged')
 		if os.path.isdir(outdir + 'lsaBGC_AutoExpansion_Results/'):
 			os.system('ln -s %s %s' % (outdir + 'lsaBGC_AutoExpansion_Results/Updated_GCF_Listings/', fin_outdir + 'Expanded_GCF_Listings'))
 			os.system('ln -s %s %s' % (outdir + 'lsaBGC_AutoExpansion_Results/Orthogroups.expanded.tsv', fin_outdir + 'Expanded_Orthogroups.tsv'))
 			os.system('ln -s %s %s' % (outdir + 'lsaBGC_AutoExpansion_Results/Sample_Annotation_Files.txt', fin_outdir + 'Expanded_Sample_Annotation_Files.txt'))
+			if os.path.isfile(outdir + 'Intermediate_Files/GToTree_output.tre'):
+				os.system('ln -s %s %s' % (outdir + 'Intermediate_Files/GToTree_output.tre', fin_outdir))
+			if os.path.isfile(outdir + 'Intermediate_Files/GToTree_Expected_Differences.txt'):
+				os.system('ln -s %s %s' % (outdir + 'Intermediate_Files/GToTree_Expected_Differences.txt', fin_outdir))
 		else:
 			os.system('ln -s %s %s' % (outdir + 'Intermediate_Files/*', fin_outdir))
 			if os.path.isdir(outdir + 'BiG_SCAPE_Results_Reformatted/'):
@@ -1815,6 +2007,7 @@ def selectFinalResultsAndCleanUp(outdir, fin_outdir, logObject):
 
 def setupReadyDirectory(directories):
 	try:
+		assert(type(directories) is list)
 		for d in directories:
 			if os.path.isdir(d):
 				os.system('rm -rf %s' % d)

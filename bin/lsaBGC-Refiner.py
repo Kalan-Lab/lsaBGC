@@ -55,10 +55,11 @@ def create_parser():
 	described in: https://msystems.asm.org/content/6/2/e00057-21/article-info 
 	""", formatter_class=argparse.RawTextHelpFormatter)
 
-    parser.add_argument('-g', '--gcf_listing', help='BGC listings file for a gcf. Tab delimited: 1st column lists sample name while the 2nd column is the path to an AntiSMASH BGC in Genbank format.', required=True)
+    parser.add_argument('-g', '--gcf_listing', help='BGC listings file for a gcf. Tab delimited: 1st column lists sample name while the 2nd column is the path to a BGC prediction in Genbank format.', required=True)
     parser.add_argument('-m', '--orthofinder_matrix', help="OrthoFinder homolog by sample matrix.", required=True)
     parser.add_argument('-i', '--gcf_id', help="GCF identifier.", required=False, default='GCF_X')
     parser.add_argument('-o', '--output_directory', help="Output directory.", required=True)
+    parser.add_argument('-p', '--bgc_prediction_software', help='Software used to predict BGCs (Options: antiSMASH, DeepBGC, GECCO).\nDefault is antiSMASH.', default='antiSMASH', required=False)
     parser.add_argument('-b1', '--first_boundary_homolog', help="Identifier for the first homolog group to be used as boundary for pruning BGCs..", required=True)
     parser.add_argument('-b2', '--second_boundary_homolog', help="Identifier for the second homolog group to be used as boundary for pruning BGCs.", required=True)
     args = parser.parse_args()
@@ -96,8 +97,15 @@ def lsaBGC_Refiner():
     """
 
     gcf_id = myargs.gcf_id
+    bgc_prediction_software = myargs.bgc_prediction_software.upper()
     first_boundary_homolog = myargs.first_boundary_homolog
     second_boundary_homolog = myargs.second_boundary_homolog
+
+
+    try:
+        assert(bgc_prediction_software in set(['ANTISMASH', 'DEEPBGC', 'GECCO']))
+    except:
+        raise RuntimeError('BGC prediction software option is not a valid option.')
 
     """
     START WORKFLOW
@@ -109,9 +117,10 @@ def lsaBGC_Refiner():
     # Step 0: Log input arguments and update reference and query FASTA files.
     logObject.info("Saving parameters for future records.")
     parameters_file = outdir + 'Parameter_Inputs.txt'
-    parameter_values = [gcf_listing_file, orthofinder_matrix_file, outdir, gcf_id, first_boundary_homolog, second_boundary_homolog]
+    parameter_values = [gcf_listing_file, orthofinder_matrix_file, outdir, gcf_id, bgc_prediction_software,
+                        first_boundary_homolog, second_boundary_homolog]
     parameter_names = ["GCF Listing File", "OrthoFinder Orthogroups.csv File", "Output Directory", "GCF Identifier",
-                       "First Boundary Homolog", "Second Boundary Homolog"]
+                       "BGC Prediction Software", "First Boundary Homolog", "Second Boundary Homolog"]
     util.logParametersToFile(parameters_file, parameter_names, parameter_values)
     logObject.info("Done saving parameters!")
 
@@ -120,7 +129,7 @@ def lsaBGC_Refiner():
 
     # Step 1: Process GCF listings file
     logObject.info("Processing BGC Genbanks from GCF listing file.")
-    GCF_Object.readInBGCGenbanks(comprehensive_parsing=True)
+    GCF_Object.readInBGCGenbanks(comprehensive_parsing=True, prediction_method=bgc_prediction_software)
     logObject.info("Successfully parsed BGC Genbanks and associated with unique IDs.")
 
     # Step 2: Parse OrthoFinder Homolog vs Sample Matrix

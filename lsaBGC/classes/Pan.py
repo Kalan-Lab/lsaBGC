@@ -80,7 +80,7 @@ class Pan:
 		self.pair_relations_txt_file = None
 		self.bgc_to_gcf_map_file = None
 
-	def readInBGCGenbanks(self, comprehensive_parsing=True, prune_set=None):
+	def readInBGCGenbanks(self, comprehensive_parsing=True, prune_set=None, prediction_method='ANTISMASH'):
 		"""
 		Function to parse file listing location of BGC Genbanks.
 
@@ -109,7 +109,8 @@ class Pan:
 					sample_index[sample] += 1
 
 					# Parse genbank using
-					BGC_Object = BGC(gbk, bgc_id, comprehensive_parsing=comprehensive_parsing)
+					BGC_Object = BGC(gbk, bgc_id, prediction_method=prediction_method)
+					BGC_Object.parseGenbanks(comprehensive_parsing=comprehensive_parsing)
 					self.pan_bgcs[bgc_id] = BGC_Object
 					self.comp_gene_info.update(BGC_Object.gene_information)
 					self.bgc_info[bgc_id] = BGC_Object.cluster_information

@@ -53,20 +53,19 @@ def create_parser():
 	This program will construct a reference database of alleles for each homolog group within a GCF, afterwards
 	it will map raw paired-end Illumina sequencing data to each non-redundant instance of a homolog group and 
 	report: (i) support for different alleles of homolog groups being present in the reads and (ii) identify any
-	novel SNVs.
-	
-	TODO: add option to print out individual jobs for parallelization on HPC.
+	novel SNVs.	
 	""", formatter_class=argparse.RawTextHelpFormatter)
 
-    parser.add_argument('-g', '--gcf_listing', help='BGC specifications file. Tab delimited: 1st column contains path to AntiSMASH BGC Genbank and 2nd column contains sample name.', required=True)
+    parser.add_argument('-g', '--gcf_listing', help='BGC specifications file. Tab delimited: 1st column contains path to BGC Genbanks and 2nd column contains sample name.', required=True)
     parser.add_argument('-s', '--sequencing_readsets_listing', help="Sequencing data specifications file. Tab delimited: 1st column contains metagenomic sample name, whereas 2nd, 3rd, and so on columns contain full paths to sequencing reads.", required=True)
     parser.add_argument('-i', '--gcf_id', help="GCF identifier.", required=False, default='GCF_X')
     parser.add_argument('-l', '--input_listing', type=str, help="Tab delimited text file for samples with three columns: (1) sample name\n(2) path to whole-genome generated Genbank file (*.gbk), and (3)path to whole-genome generated\npredicted-proteome file (*.faa).", required=True)
     parser.add_argument('-m', '--orthofinder_matrix', help="OrthoFinder matrix.", required=True)
     parser.add_argument('-o', '--output_directory', help="Prefix for output files.", required=True)
-    parser.add_argument('-a', '--codon_alignments', help="File listing the codon alignments for each homolog group in the GCF. Can be found as part of PopGene output.", required=True)
+    parser.add_argument('-a', '--codon_alignments', help="File listing the codon alignments for each homolog group in the GCF.\nCan be found as part of PopGene output.", required=True)
+    parser.add_argument('-p', '--bgc_prediction_software', help='Software used to predict BGCs (Options: antiSMASH, DeepBGC, GECCO).\nDefault is antiSMASH.', default='antiSMASH', required=False)
     parser.add_argument('-ch', '--core_homologs', nargs="+", help="List of homolog group identifiers comprising the core of the BGC/GCF.", required=False, default=[])
-    parser.add_argument('-ap', '--allow_phasing', action='store_true', help="Allow phasing with DESMAN. Requires manual installation of DESMAN (not through conda).", default=False)
+    parser.add_argument('-ap', '--allow_phasing', action='store_true', help="Allow phasing with DESMAN. Requires manual installation of\nDESMAN (not through conda) and $PATH to be updated.", default=False)
     parser.add_argument('-c', '--cores', type=int, help="The number of cores to use.", required=False, default=1)
 
     args = parser.parse_args()
@@ -110,10 +109,16 @@ def lsaBGC_DiscoVary():
     PARSE OPTIONAL INPUTS
     """
 
+    bgc_prediction_software = myargs.bgc_prediction_software.upper()
     gcf_id = myargs.gcf_id
     allow_phasing = myargs.allow_phasing
     core_hg_set = myargs.core_homologs
     cores = myargs.cores
+
+    try:
+        assert (bgc_prediction_software in set(['ANTISMASH', 'DEEPBGC', 'GECCO']))
+    except:
+        raise RuntimeError('BGC prediction software option is not a valid option.')
 
     """
     START WORKFLOW
@@ -126,9 +131,10 @@ def lsaBGC_DiscoVary():
     logObject.info("Saving parameters for future records.")
     parameters_file = outdir + 'Parameter_Inputs.txt'
     parameter_values = [gcf_listing_file, orthofinder_matrix_file, paired_end_sequencing_file, outdir, gcf_id,
-                        len(core_hg_set) > 0, cores]
+                        bgc_prediction_software, len(core_hg_set) > 0, cores]
     parameter_names = ["GCF Listing File", "OrthoFinder Orthogroups.csv File", "Paired-Sequencing Listing File",
-                       "Output Directory", "GCF Identifier", "Core Homologs Manually Provided", "Cores"]
+                       "Output Directory", "GCF Identifier", "BGC Prediction Software",
+                       "Core Homologs Manually Provided", "Cores"]
     util.logParametersToFile(parameters_file, parameter_names, parameter_values)
     logObject.info("Done saving parameters!")
 
@@ -137,7 +143,7 @@ def lsaBGC_DiscoVary():
 
     # Step 1: Process GCF listings file
     logObject.info("Processing BGC Genbanks from GCF listing file.")
-    GCF_Object.readInBGCGenbanks(comprehensive_parsing=True)
+    GCF_Object.readInBGCGenbanks(comprehensive_parsing=True, prediction_method=bgc_prediction_software)
     logObject.info("Successfully parsed BGC Genbanks and associated with unique IDs.")
 
     # Step 2: Parse OrthoFinder Homolog vs Sample Matrix and associate each homolog group with a color
@@ -202,6 +208,12 @@ def lsaBGC_DiscoVary():
     logObject.info("Determining pairwise differences in BGC content between samples.")
     GCF_Object.calculatePairwiseDifferences(paired_end_sequencing_file, results_outdir, outdir)
     logObject.info("Successfully calculated pairwise differences between samples.")
+
+    # Write checkpoint file for lsaBGC-AutoAnalyze.py
+    checkpoint_file = outdir + 'CHECKPOINT.txt'
+    checkpoint_handle = open(checkpoint_file, 'w')
+    checkpoint_handle.write('lsaBGC-DiscoVary completed successfully!')
+    checkpoint_handle.close()
 
     # Close logging object and exit
     util.closeLoggerObject(logObject)
