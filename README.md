@@ -42,7 +42,7 @@ Documentation can currently be found on this Github repo's wiki: https://github.
 
 ## Installation:
 
-Installation can be performed via conda and should take ~5-10 minutes. We are happy to attempt to address issues with installation if any arise, please open a Git Issues case:
+Installation can be performed via conda and should take ~5-10 minutes and has been tested on both unix (specifically Ubuntu) and macOS. We are happy to attempt to address issues with installation if any arise, please open a Git Issues case:
 
 ```
 # 1. clone Git repo and cd into it!
@@ -55,12 +55,13 @@ conda activate /path/to/lsaBGC_conda_env/
 
 # 3. complete python installation with the following commands:
 python setup.py install
-pip install .
+pip install -e .
 ```
 
 Optional, but recommended, command to download KOfams (+ other databases in the near future):
 
 ```
+# Warning: can take ~5-10 minutes!
 # within lsaBGC Git repo with conda environment activated:
 setup_annotation_dbs.py
 ```
