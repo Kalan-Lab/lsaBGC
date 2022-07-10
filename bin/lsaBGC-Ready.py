@@ -478,8 +478,8 @@ def lsaBGC_Ready():
         gtotree_outdir = outdir + 'GToTree_output/'
         # muscle will use 20 cores, quite annoying
         parallel_jobs = max(math.floor(cores / 4), 1)
-        gtotree_cmd = ['GToTree', '-A', proteome_listing_file, '-H', gtotree_model, '-n', '4', '-j', '-M', '4',
-                       str(parallel_jobs), '-o', gtotree_outdir]
+        gtotree_cmd = ['GToTree', '-A', proteome_listing_file, '-H', gtotree_model, '-n', '4', '-j', str(parallel_jobs),
+                       '-M', '4', '-o', gtotree_outdir]
         guiding_tree_file = gtotree_outdir + 'GToTree_output.tre'
         protein_msa_file = gtotree_outdir + 'Aligned_SCGs.faa'
         logObject.info('Running GToTree: %s' % ' '.join(gtotree_cmd))
