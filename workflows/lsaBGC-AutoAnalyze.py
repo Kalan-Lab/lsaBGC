@@ -152,7 +152,7 @@ def lsaBGC_AutoAnalyze():
 	sample_set_file = myargs.sample_set
 	bgc_prediction_software = myargs.bgc_prediction_software.upper()
 	species_phylogeny_file = myargs.species_phylogeny
-	genomewide_distances_file = myargs.genome_wide_distances
+	expected_distances = myargs.expected_distances
 	population_listing_file = myargs.populations
 	discovary_analysis_id = myargs.discovary_analysis_name
 	discovary_input_listing = myargs.discovary_input_listing
@@ -169,10 +169,10 @@ def lsaBGC_AutoAnalyze():
 		except:
 			raise RuntimeError('Species phylogeny provided either does not exist or is not in the proper format. Exiting now ...')
 
-	if genomewide_distances_file != None:
+	if expected_distances != None:
 		try:
-			assert(os.path.isfile(genomewide_distances_file))
-			with open(genomewide_distances_file) as ogdf:
+			assert(os.path.isfile(expected_distances))
+			with open(expected_distances) as ogdf:
 				for line in ogdf:
 					line = line.strip()
 					sample_1, sample_2, gen_est = line.split('\t')
@@ -220,7 +220,7 @@ def lsaBGC_AutoAnalyze():
 	logObject.info("Saving parameters for easier determination of results' provenance in the future.")
 	parameters_file = outdir + 'Parameter_Inputs.txt'
 	parameter_values = [gcf_listing_dir, input_listing_file, original_orthofinder_matrix_file, outdir,
-						species_phylogeny_file, genomewide_distances_file, population_listing_file,
+						species_phylogeny_file, expected_distances, population_listing_file,
 						discovary_analysis_id, discovary_input_listing, bgc_prediction_software, sample_set_file, cores]
 	parameter_names = ["GCF Listings Directory", "Listing File of Sample Annotation Files for Initial Set of Samples",
 					   "OrthoFinder Homolog Matrix", "Output Directory", "Species Phylogeny File in Newick Format",
@@ -265,17 +265,17 @@ def lsaBGC_AutoAnalyze():
 		input_listing_file = update_input_listing_file
 		gcf_listing_dir = update_gcf_listing_dir
 
-		if genomewide_distances_file != None:
-			update_genomewide_distances_file = outdir + 'GenomeWide_Distance_Estimates.Pruned.txt'
-			update_genomewide_distances_handle = open(update_genomewide_distances_file, 'w')
-			with open(genomewide_distances_file) as ogdf:
+		if expected_distances != None:
+			update_expected_distances_file = outdir + 'Expected_Distance_Estimates.Pruned.txt'
+			update_expected_distances_handle = open(update_expected_distances_file, 'w')
+			with open(expected_distances) as ogdf:
 				for line in ogdf:
 					line = line.strip()
 					sample_1, sample_2, gw_est = line.split('\t')
 					if sample_1 in sample_retention_set and sample_2 in sample_retention_set:
-						update_genomewide_distances_handle.write(line + '\n')
-			update_genomewide_distances_handle.close()
-			genomewide_distances_file = update_genomewide_distances_file
+						update_expected_distances_handle.write(line + '\n')
+			update_expected_distances_handle.close()
+			expected_distances = update_expected_distances_file
 
 	if population_listing_file and species_phylogeny_file:
 		populations_on_tree_pdf = outdir + 'Populations_on_Species_Tree.pdf'
@@ -327,8 +327,8 @@ def lsaBGC_AutoAnalyze():
 			os.system('mkdir %s' % gcf_pop_outdir)
 			cmd = ['lsaBGC-PopGene.py', '-g', gcf_listing_file, '-m', orthofinder_matrix_file, '-o', gcf_pop_outdir,
 				   '-i', gcf_id, '-p', bgc_prediction_software, '-c', str(cores)]
-			if genomewide_distances_file != None:
-				cmd += ['-f', genomewide_distances_file]
+			if expected_distances != None:
+				cmd += ['-w', expected_distances]
 			if population_listing_file != None:
 				cmd += ['-u', population_listing_file]
 			try:
@@ -340,13 +340,12 @@ def lsaBGC_AutoAnalyze():
 		# 3. Run lsaBGC-Divergence.py
 		gcf_div_outdir = div_outdir + gcf_id + '/'
 		lsabgc_divergence_checkpoint = gcf_div_outdir + 'CHECKPOINT.txt'
-		if not os.path.isfile(lsabgc_divergence_checkpoint):
+		if not os.path.isfile(lsabgc_divergence_checkpoint) and expected_distances:
 			os.system('rm -rf %s' % gcf_div_outdir)
 			os.system('mkdir %s' % gcf_div_outdir)
 			cmd = ['lsaBGC-Divergence.py', '-g', gcf_listing_file, '-l', input_listing_file, '-o', gcf_div_outdir,
-				   '-i', gcf_id, '-a',	gcf_pop_outdir + 'Codon_Alignments_Listings.txt', '-c', str(cores)]
-			if genomewide_distances_file != None:
-				cmd += ['-f', genomewide_distances_file]
+				   '-i', gcf_id, '-a',	gcf_pop_outdir + 'Codon_Alignments_Listings.txt', '-c', str(cores),'-w',
+				   expected_distances]
 			try:
 				util.run_cmd(cmd, logObject)
 			except Exception as e:
