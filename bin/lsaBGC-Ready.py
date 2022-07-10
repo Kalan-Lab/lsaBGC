@@ -502,7 +502,7 @@ def lsaBGC_Ready():
         expected_diff_handle.close()
 
         mv_guiding_tree_file = int_outdir + 'GToTree_output.tre'
-        os.system('mv %s %s' % (guiding_tree_file,))
+        os.system('mv %s %s' % (guiding_tree_file, int_outdir))
 
     # Step 12: Create Final Results Directory
     if not keep_intermediates:
