@@ -51,15 +51,14 @@ On the [Installation wiki page](https://github.com/Kalan-Lab/lsaBGC/wiki/01.-Ins
 
 Updated 06/19/2022
 
-Currently, the primary/core set of samples/genomes used to define BGCs should not exceed 500 samples (<300 recommended). This is because OrthoFinder2 performs all-vs-all alignments between genomes and will produce a lot of files and have an exceedingly long runtime. OrthoFinder2 developers are considering increasing throughput of the method; however, such alterations are noted to require greater memory usage. For most genera, the 500 upper limit should work well after dereplication of genomes (at 99% identity) to remove redundancy. We recommend using the [drep] program to perform such dereplication. lsaBGC-AutoExpansion can then be used at high-scale to find homologous instances to GCFs defined from primary genomes in addtiional/draft genomes. 
+lsaBGC strives for large-scalability and high-throughput, however, the core of the framework requires defining ortholog groups and involves all vs. all comparisons for the primary genome set. It is therefore recommended that users first select a distributed set of representative, "primary" genomes for their taxa (which can be done via genome dereplication, check out [derep](https://github.com/MrOlm/drep)!). Then treat the rest of the genomes as "additional" (this can be 1000s of genomes - we run expansion up to ~15,000 Staphylococci!). 
 
-MAGUS (a divide and conquer wrapper of MAFFT) is now the default for performing protein alignments and greatly expedites the process!
+For evolutionary statistics calculations, codon alignments are now built using MAGUS (a divide and conquer wrapper of MAFFT) by default! 
 
 ## Future Updates Planned and of High Priority:
 
-* Update algorithms to have options to work with DeepBGC + GECCO BGC predictions.
-* Incorporate eukaryotic gene calling in `lsaBGC-Ready.py` to allow application to fungi + plants.
-* Simplify the caclulation of Beta-RD statistic and required dependencies. 
+* Get `lsaBGC-Ready.py` working for fungi + plants.
+* Incorporate additional/update evolutionary statistics in `lsaBGC-PopGene.py`! 
 
 ## Acknowledgements:
 
