@@ -10,7 +10,7 @@ based annotation. It consists of 8 independent programs: `lsaBGC-Ready.py`, `lsa
 
 ## Major Updates 
 
-* Jul 10, 2022 - Several updates. Fixed small issues with smooth running of new framework. Removed some dependencies and have added GToTree for creating species phylogeny + estimated sample to sample amino acid expected divergences. New small test dataset now included in this repo for immediate testing + much simplified installation guide. Most major change is that lsaBGC now works with DeepBGC and GECCO predictions! lsaBGC's backend relies on 'proto-core homolog groups' / 'rule-based key domains' determined by AntiSMASH, to get around the absence of such marker genes/domains in DeepBGC and GECCO predictions, domains in the highest 10% of deebgc_scores or lowest 10% of e-values are treated as "proto-core" and used in `lsaBGC-AutoExpansion.py`/`lsaBGC-DiscoVary.py` as well as highlighted/treated as the "core" in `lsaBGC-PopGene.py` reports.
+* Jul 10, 2022 - Several updates made. Fixed small issues with smooth running of new framework, `lsaBGC-Ready.py`. Removed some dependencies and have added GToTree for creating species phylogeny + estimated sample to sample amino acid expected divergences. New small test dataset now included in this repo for immediate testing + much simplified installation guide. Most major change is that lsaBGC now works with DeepBGC and GECCO predictions! lsaBGC's backend relies on 'proto-core homolog groups' / 'rule-based key domains' determined by AntiSMASH, to get around the absence of such marker genes/domains in DeepBGC and GECCO predictions, domains in the highest 10% of deebgc_scores or lowest 10% of e-values are treated as "proto-core" and used in `lsaBGC-AutoExpansion.py`/`lsaBGC-DiscoVary.py` as well as highlighted/treated as the "core" in `lsaBGC-PopGene.py` reports.
 * Jun 26, 2022 - Added "loose" mode to `lsaBGC-Expansion.py` and option for users to manually define "protocore" homolog groups. Also, "protocore" homolog groups for a GCF now must have "rule-based" marker to exclude MGEs like transposons which insert within protocore regions of BGCs.
 * Jun 19, 2022 - Have set MAGUS as the default protein alignment method (highly scalable wrapper of mafft) + updated notes on scalability.
 * Jun 18, 2022 - Updated [`lsaBGC-AutoAnalyze.py`](https://github.com/Kalan-Lab/lsaBGC/wiki/13.-The-lsaBGC-AutoAnalyze-Workflow) (automated lsaBGC analysis for each GCF) for better integration into new framework based around `lsaBGC-Ready.py`. 
@@ -68,7 +68,7 @@ setup_annotation_dbs.py
 
 Additional, information pertaining to installation can be found at: [Installation Guide](https://github.com/Kalan-Lab/lsaBGC/wiki/01.-Installation)
 
-A small test case is provided here and can be run after installation by simply issuing:
+A small test case is provided here and can be run after installation by simply issuing (takes around ~10 minutes using 8 cores):
 
 ```
 bash run_tests.sh
@@ -80,7 +80,7 @@ Additionally we suggest checking out additional [test cases](https://github.com/
 
 Updated 06/19/2022
 
-lsaBGC strives for large-scalability and high-throughput, however, the core of the framework requires defining ortholog groups and involves all vs. all comparisons for the primary genome set. It is therefore recommended that users first select a distributed set of representative, "primary" genomes for their taxa (which can be done via genome dereplication, check out [drep](https://github.com/MrOlm/drep)!). Then treat the rest of the genomes as "additional" (this can be 1000s of genomes - we run expansion up to ~15,000 Staphylococci!). 
+lsaBGC strives for large-scalability and is designed to be high-throughput. We previously ran it on >15,000 Staphylococci. However, it is recommended that the number of "Primary" genomes not exceed 300 (or 500 at most!) because de novo ortholog grouping is performed for this set (an all vs. all procedure). It is therefore recommended that users first select a distributed set of representative, "primary" genomes for their taxa of interest (which can be done via genome dereplication, check out [drep](https://github.com/MrOlm/drep)!). Then treat the rest of the genomes as "additional" (this can be 1000s of genomes!).
 
 For evolutionary statistics calculations, codon alignments are now built using MAGUS (a divide and conquer wrapper of MAFFT) by default! 
 
