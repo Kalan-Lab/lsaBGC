@@ -249,13 +249,15 @@ def lsaBGC_Ready():
         num_files = num_genomes*num_genomes
         uH = subprocess.check_output('ulimit -Hn', shell=True)
         uS = subprocess.check_output('ulimit -Sn', shell=True)
-        uH = int(uH.decode('utf-8').strip())
-        uS = int(uS.decode('utf-8').strip())
+        uH = uH.decode('utf-8').strip()
+        uS = uS.decode('utf-8').strip()
         if uH != 'unlimited':
             uH = int(uH)
         else:
             uH = 1e15
         if uS != 'unlimited':
+            uS = int(uS)
+        else:
             uS = 1e15
         if num_files > uS:
             logObject.error("Too many files will be produced and need to be read at once by OrthoFinder2. Luckily, you can resolve this quite easily via: ulimit -n 250000 . After running the command rerun lsaBGC-Ready.py and you should not get stuck here again.")
