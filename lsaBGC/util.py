@@ -191,6 +191,36 @@ def determineNonUniqueRegionsAlongCodonAlignment(outdir, initial_sample_prokka_d
 			logObject.error(traceback.format_exc())
 		raise RuntimeError(traceback.format_exc())
 
+def determineSeqSimProteinAlignment(protein_alignment_file):
+	protein_sequences = {}
+	with open(protein_alignment_file) as ocaf:
+		for i, rec in enumerate(SeqIO.parse(ocaf, 'fasta')):
+			protein_sequences[rec.id] = str(rec.seq).upper()
+
+	pair_seq_matching = defaultdict(lambda: defaultdict(lambda: 0.0))
+	for i, g1 in enumerate(protein_sequences):
+		s1 = g1.split('|')[0]
+		g1s = protein_sequences[g1]
+		for j, g2 in enumerate(protein_sequences):
+			if i >= j: continue
+			s2 = g2.split('|')[0]
+			if s1 == s2: continue
+			g2s = protein_sequences[g2]
+			tot_comp_pos = 0
+			match_pos = 0
+			for pos, g1a in enumerate(g1s):
+				g2a = g2s[pos]
+				if g1a != '-' or g2a != '-':
+					tot_comp_pos += 1
+					if g1a == g2a:
+						match_pos += 1
+			general_matching_percentage = float(match_pos)/float(tot_comp_pos)
+			if pair_seq_matching[s1][s2] < general_matching_percentage and pair_seq_matching[s2][s1] < general_matching_percentage:
+				pair_seq_matching[s1][s2] = general_matching_percentage
+				pair_seq_matching[s2][s1] = general_matching_percentage
+
+	return pair_seq_matching
+
 def determineSeqSimCodonAlignment(codon_alignment_file, use_translation=False):
 	gene_sequences = {}
 	with open(codon_alignment_file) as ocaf:
@@ -1960,6 +1990,10 @@ def selectFinalResultsAndCleanUp(outdir, fin_outdir, logObject):
 			os.system('ln -s %s %s' % (outdir + 'lsaBGC_AutoExpansion_Results/Updated_GCF_Listings/', fin_outdir + 'Expanded_GCF_Listings'))
 			os.system('ln -s %s %s' % (outdir + 'lsaBGC_AutoExpansion_Results/Orthogroups.expanded.tsv', fin_outdir + 'Expanded_Orthogroups.tsv'))
 			os.system('ln -s %s %s' % (outdir + 'lsaBGC_AutoExpansion_Results/Sample_Annotation_Files.txt', fin_outdir + 'Expanded_Sample_Annotation_Files.txt'))
+			if os.isfile(outdir + 'Intermediate_Files/GToTree_output.tre'):
+				os.system('ln -s %s %s' % (outdir + 'Intermediate_Files/GToTree_output.tre', fin_outdir))
+			if os.isfile(outdir + 'Intermediate_Files/GToTree_Expected_Differences.txt'):
+				os.system('ln -s %s %s' % (outdir + 'Intermediate_Files/GToTree_Expected_Differences.txt', fin_outdir))
 		else:
 			os.system('ln -s %s %s' % (outdir + 'Intermediate_Files/*', fin_outdir))
 			if os.path.isdir(outdir + 'BiG_SCAPE_Results_Reformatted/'):
