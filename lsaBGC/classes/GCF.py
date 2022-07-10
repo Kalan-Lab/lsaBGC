@@ -886,7 +886,7 @@ class GCF(Pan):
 				self.logObject.error(traceback.format_exc())
 			raise RuntimeError(traceback.format_exc())
 
-	def runPopulationGeneticsAnalysis(self, outdir, cores=1, population=None, filter_outliers=False, population_analysis_on=False, gw_pairwise_similarities=None, comparem_used=False, species_phylogeny=None, sample_size=1000):
+	def runPopulationGeneticsAnalysis(self, outdir, cores=1, population=None, filter_outliers=False, population_analysis_on=False, gw_pairwise_similarities=None, use_translation=True, species_phylogeny=None, sample_size=1000):
 		"""
 		Wrapper function which serves to parallelize population genetics analysis.
 

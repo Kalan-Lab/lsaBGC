@@ -54,7 +54,7 @@ def create_parser():
 	observed in BGCs belonging to a single GCF.
 	""", formatter_class=argparse.RawTextHelpFormatter)
 
-    parser.add_argument('-g', '--gcf_listing', help='BGC listings file for a gcf. Tab delimited: 1st column lists sample name while the 2nd column is the path to an AntiSMASH BGC in Genbank format.', required=True)
+    parser.add_argument('-g', '--gcf_listing', help='BGC listings file for a gcf. Tab delimited: 1st column lists sample name while the 2nd column is the path to a BGC prediction in Genbank format.', required=True)
     parser.add_argument('-m', '--orthofinder_matrix', help="OrthoFinder matrix.", required=True)
     parser.add_argument('-i', '--gcf_id', help="GCF identifier.", required=False, default='GCF_X')
     parser.add_argument('-o', '--output_directory', help="Path to output directory.", required=True)
@@ -66,8 +66,7 @@ def create_parser():
     parser.add_argument('-d', '--regular_mafft', action='store_true', help="Run mafft --linsi and not the MAGUS divide-and-conquer approach which allows for scalability and more efficient computing.", default=False, required=False)
     parser.add_argument('-e', '--each_pop', action='store_true', help='Run analyses individually for each population as well.', required=False, default=False)
     parser.add_argument('-t', '--filter_for_outliers', action='store_true', help='Filter instances of homolog groups which deviate too much from the median gene length observed for the initial set of proteins.', required=False, default=False)
-    parser.add_argument('-f', '--precomputed_gw_similarity_results', help="Path to precomputed FastANI/CompareM ANI/AAI calculations. Should be tab delimited file with ", required=False)
-    parser.add_argument('-cm', '--comparem_used', action='store_true', help='CompareM was used for genome-wide similarity estimates so protein similarity should similarly be computed for GCF-associated genes.', required=False, default=False)
+    parser.add_argument('-w', '--expected_distances', help="Path to file listing expected distances between genomes/samples. This is\ncomputed most easily by running lsaBGC-Ready.py with '-t' specified, which will estimate\nsample to sample differences based on alignment used to create species phylogeny.", required=False, default=None)
     args = parser.parse_args()
 
     return args
@@ -111,8 +110,7 @@ def lsaBGC_PopGene():
     population_classification_file = myargs.population_classification
     run_for_each_pop = myargs.each_pop
     filter_for_outliers = myargs.filter_for_outliers
-    precomputed_gw_similarity_results = myargs.precomputed_gw_similarity_results
-    comparem_used = myargs.comparem_used
+    expected_distances = myargs.expected_distances
     regular_mafft = myargs.regular_mafft
 
     try:
@@ -132,11 +130,11 @@ def lsaBGC_PopGene():
     parameters_file = outdir + 'Parameter_Inputs.txt'
     parameter_values = [gcf_listing_file, orthofinder_matrix_file, outdir, gcf_id, bgc_prediction_software,
                         population_classification_file, sample_set_file, species_phylogeny, run_for_each_pop,
-                        filter_for_outliers, precomputed_gw_similarity_results, comparem_used, regular_mafft, cores]
+                        filter_for_outliers, expected_distances, regular_mafft, cores]
     parameter_names = ["GCF Listing File", "OrthoFinder Orthogroups.csv File", "Output Directory", "GCF Identifier",
                        "BGC Prediction Software", "Populations Specification/Listing File", "Sample Retention Set",
                        "Species Phylogeny Newick File", "Run Analysis for Each Population",
-                       "Filter for Outlier Homolog Group Instances", "Precomputed FastANI/CompareM Similarities File",
+                       "Filter for Outlier Homolog Group Instances", "File with Expected Amino Acid Differences Between Genomes/Samples",
                        "AAI Similarity Instead of ANI", "Use Regular MAFFT - not MAGUS?", "Cores"]
     util.logParametersToFile(parameters_file, parameter_names, parameter_values)
     logObject.info("Done saving parameters!")
@@ -149,10 +147,10 @@ def lsaBGC_PopGene():
 
     # Step 0B: (Optional) Parse sample to sample genome-wide relationships
     gw_pairwise_similarities = None
-    if precomputed_gw_similarity_results and os.path.isfile(precomputed_gw_similarity_results):
+    if expected_distances and os.path.isfile(expected_distances):
         try:
             gw_pairwise_similarities = defaultdict(lambda: defaultdict(float))
-            with open(precomputed_gw_similarity_results) as of:
+            with open(expected_distances) as of:
                 for line in of:
                     line = line.strip()
                     ls = line.split('\t')
@@ -160,7 +158,7 @@ def lsaBGC_PopGene():
                     sim = float(sim)
                     gw_pairwise_similarities[s1][s2] = sim
         except Exception as e:
-            error_message = 'Had issues reading the output of FastANI/CompareM results in file: %s' % precomputed_gw_similarity_results
+            error_message = 'Had issues reading the output of expected distances results in file: %s' % expected_distances
             logObject.error(error_message)
             raise RuntimeError(error_message)
 
@@ -202,13 +200,13 @@ def lsaBGC_PopGene():
         population_analysis_on = True
     if run_for_each_pop:
         for pop in populations:
-            GCF_Object.runPopulationGeneticsAnalysis(outdir, cores=cores, population=pop, filter_outliers=False, population_analysis_on=population_analysis_on, gw_pairwise_similarities=gw_pairwise_similarities, comparem_used=comparem_used, species_phylogeny=species_phylogeny)
+            GCF_Object.runPopulationGeneticsAnalysis(outdir, cores=cores, population=pop, filter_outliers=False, population_analysis_on=population_analysis_on, gw_pairwise_similarities=gw_pairwise_similarities, use_translation=True, species_phylogeny=species_phylogeny)
             if filter_for_outliers:
-                GCF_Object.runPopulationGeneticsAnalysis(outdir, cores=cores, population=pop, filter_outliers=True, population_analysis_on=population_analysis_on, gw_pairwise_similarities=gw_pairwise_similarities, comparem_used=comparem_used, species_phylogeny=species_phylogeny)
+                GCF_Object.runPopulationGeneticsAnalysis(outdir, cores=cores, population=pop, filter_outliers=True, population_analysis_on=population_analysis_on, gw_pairwise_similarities=gw_pairwise_similarities, use_translation=True, species_phylogeny=species_phylogeny)
     else:
-        GCF_Object.runPopulationGeneticsAnalysis(outdir, cores=cores, population=None, filter_outliers=False, population_analysis_on=population_analysis_on, gw_pairwise_similarities=gw_pairwise_similarities, comparem_used=comparem_used, species_phylogeny=species_phylogeny)
+        GCF_Object.runPopulationGeneticsAnalysis(outdir, cores=cores, population=None, filter_outliers=False, population_analysis_on=population_analysis_on, gw_pairwise_similarities=gw_pairwise_similarities, use_translation=True, species_phylogeny=species_phylogeny)
         if filter_for_outliers:
-            GCF_Object.runPopulationGeneticsAnalysis(outdir, cores=cores, population=None, filter_outliers=True, population_analysis_on=population_analysis_on, gw_pairwise_similarities=gw_pairwise_similarities, comparem_used=comparem_used, species_phylogeny=species_phylogeny)
+            GCF_Object.runPopulationGeneticsAnalysis(outdir, cores=cores, population=None, filter_outliers=True, population_analysis_on=population_analysis_on, gw_pairwise_similarities=gw_pairwise_similarities, use_translation=True, species_phylogeny=species_phylogeny)
     logObject.info("Successfully ran population genetics and evolutionary analyses of each codon alignment.")
 
     # Write checkpoint file for lsaBGC-AutoAnalyze.py

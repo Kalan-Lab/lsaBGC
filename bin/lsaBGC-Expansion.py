@@ -59,7 +59,7 @@ def create_parser():
 	checks to filter out false-positive findings.
 	""", formatter_class=argparse.RawTextHelpFormatter)
 
-    parser.add_argument('-g', '--gcf_listing', help='BGC listings file for a gcf. Tab delimited: 1st column lists sample\nname while the 2nd column is the path to an AntiSMASH BGC in Genbank format.', required=True)
+    parser.add_argument('-g', '--gcf_listing', help='BGC listings file for a gcf. Tab delimited: 1st column lists sample\nname while the 2nd column is the path to a BGC prediction in Genbank format.', required=True)
     parser.add_argument('-m', '--orthofinder_matrix', help="OrthoFinder matrix.", required=True)
     parser.add_argument('-l', '--initial_listing', type=str, help="Tab delimited text file for primary samples with three columns: (1) sample name\n(2) path to whole-genome generated Genbank file (*.gbk), and (3)path to whole-genome generated\npredicted-proteome file (*.faa).", required=True)
     parser.add_argument('-e', '--expansion_listing', type=str, help="Tab delimited text file for additional/draft samples in the expansion set with three columns: (1) sample name\n(2)path to whole-genome Genbank file (*.gbk), and (3)path to whole-genome\npredicted-proteome file (*.faa).", required=True)
