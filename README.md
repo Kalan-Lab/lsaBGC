@@ -43,9 +43,21 @@ Documentation can currently be found on this Github repo's wiki: https://github.
 
 ## Installation:
 
-Installation is performed via Conda and should take ~5-10 minutes. We are happy to attempt to address issues with installation if any arise, please open a Git Issues case.
+Installation can be performed via conda and should take ~5-10 minutes. We are happy to attempt to address issues with installation if any arise, please open a Git Issues case:
 
-On the [Installation wiki page](https://github.com/Kalan-Lab/lsaBGC/wiki/01.-Installation), you can find a step-by-step guide and bash scripts for automated installation are provided. [Test cases](https://github.com/Kalan-Lab/lsaBGC_Ckefir_Testing_Cases) to demonstrate individual programs are available along with a more [comprehensive tutorial](https://github.com/Kalan-Lab/lsaBGC/wiki/03.-Tutorial:-Exploring-BGCs-in-Cutibacterium) to showcase the use of the suite and relations between core programs.
+```
+
+```
+
+Additional, information for 
+
+A small test case is provided here and can be run after installation by simply issuing:
+
+```
+bash run_tests.sh
+```
+
+Additionally we suggest checking out additional [test cases](https://github.com/Kalan-Lab/lsaBGC_Ckefir_Testing_Cases) to demonstrate usage of individual programs along with expected outputs from commands. We also have a [quick start + walk-through tutorial](https://github.com/Kalan-Lab/lsaBGC/wiki/03.-Tutorial:-Exploring-BGCs-in-Cutibacterium) Wiki page to showcase the use of the suite and relations between core programs.
 
 ## Notes on Scalability:
 
