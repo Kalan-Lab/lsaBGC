@@ -45,6 +45,7 @@ from lsaBGC import util
 import subprocess
 import traceback
 import multiprocessing
+import math
 
 lsaBGC_main_directory = '/'.join(os.path.realpath(__file__).split('/')[:-2]) + '/'
 
@@ -62,7 +63,7 @@ def create_parser():
 	completed/finished genomic assemblies.
 
     There are scripts from creating input listing files from AntiSMASH result directories and directories with 
-    genomes (recursivelyIdentifyBGCGenbanks.py & listAllGenomesInDirectory.py) if you don't want 
+    genomes (listAllBGCGenbanksInDirectory.py & listAllGenomesInDirectory.py) if you don't want 
     to write them yourself. The listing files as inputs instead of directories help ensure that sample mapping 
     between genomes (FASTA or Genbank) and BGC Genbanks and should be manually investigated to ensure proper
     linking.
@@ -104,6 +105,8 @@ def create_parser():
     parser.add_argument('-m', '--orthofinder_mode', help='Method for running OrthoFinder2. (Options: Genome_Wide, BGC_Only). Default is BGC_Only.', required=False, default='BGC_Only')
     parser.add_argument('-a', '--annotate', action='store_true',
                         help='Perform annotation of BGC proteins using KOfam HMM profiles.', required=False, default=False)
+    parser.add_argument('-t', '--run_gtotree', action='store_true', help='Whether to create phylogeny and expected sample-vs-sample\ndivergence for downstream analyses using GToTree.', required=False, default=False)
+    parser.add_argument('-gtm', '--gtotree_model', help='Set of core genes to use for phylogeny construction in GToTree. Default is Universal_Hug_et_al', required=False, default="Universal_Hug_et_al")
     parser.add_argument('-lc', '--lsabgc_cluster', action='store_true', help='Run lsaBGC-Cluster with default parameters. Note, we recommend running lsaBGC-Cluster manually\nand exploring parameters through its ability to generate a user-report for setting clustering parameters.', required=False, default=False)
     parser.add_argument('-le', '--lsabgc_expansion', action='store_true', help='Run lsaBGC-AutoExpansion with default parameters. Assumes either "--bigscape_results" or\n"--lsabgc_cluster" is specified.', default=False, required=False)
     parser.add_argument('-c', '--cores', type=int,
@@ -154,6 +157,8 @@ def lsaBGC_Ready():
 
     additional_genome_listing_file = myargs.additional_genome_listing
     bgc_prediction_software = myargs.bgc_prediction_software.upper()
+    run_gtotree = myargs.run_gtotree
+    gtotree_model = myargs.gtotree_model
     orthofinder_mode = myargs.orthofinder_mode
     cores = myargs.cores
     bigscape_results_dir = myargs.bigscape_results
@@ -167,6 +172,14 @@ def lsaBGC_Ready():
         assert(bgc_prediction_software in set(['ANTISMASH', 'DEEPBGC', 'GECCO']))
     except:
         raise RuntimeError('BGC prediction software option is not a valid option.')
+
+    try:
+        assert(gtotree_model in set(['Actinobacteria', 'Alphaproteobacteria', 'Bacteria', 'Archaea',
+                                     'Bacteria_and_Archaea', 'Bacteroidetes', 'Betaproteobacteria', 'Chlamydiae',
+                                     'Cyanobacteria', 'Epsilonproteobacteria', 'Firmicutes', 'Gammaproteobacteria',
+                                     'Proteobacteria', 'Tenericutes', 'Universal_Hug_et_al']))
+    except:
+        raise RuntimeError('Model for GToTree specified is not a valid model!')
 
     if additional_genome_listing_file != None:
         try:
@@ -452,7 +465,46 @@ def lsaBGC_Ready():
                 logObject.error(traceback.format_exc())
             raise RuntimeError('Had an issue running: %s' % ' '.join(lsabgc_expansion_cmd))
 
-    # Step 11: Create Final Results Directory
+    # Step 11: Create Tree / Phylogeny for Downstream Analyses
+    if run_gtotree:
+        proteome_listing_file = outdir + 'All_Proteomes.txt'
+        proteome_listing_handle = open(proteome_listing_file, 'w')
+        proteome_directories = [proteomes_directory, additional_proteomes_directory]
+        for pd in proteome_directories:
+            for f in os.listdir(pd):
+                proteome_listing_handle.write(pd + f + '\n')
+        proteome_listing_handle.close()
+
+        gtotree_outdir = outdir + 'GToTree_output/'
+        # muscle will use 20 cores, quite annoying
+        parallel_jobs = max(math.floor(cores / 4), 1)
+        gtotree_cmd = ['GToTree', '-A', proteome_listing_file, '-H', gtotree_model, '-n', '4', '-j', '-M', '4',
+                       str(parallel_jobs), '-o', gtotree_outdir]
+        guiding_tree_file = gtotree_outdir + 'GToTree_output.tre'
+        protein_msa_file = gtotree_outdir + 'Aligned_SCGs.faa'
+        logObject.info('Running GToTree: %s' % ' '.join(gtotree_cmd))
+        try:
+            subprocess.call(' '.join(gtotree_cmd), shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                            executable='/bin/bash')
+            logObject.info('Successfully ran: %s' % ' '.join(gtotree_cmd))
+            assert (os.path.isfile(guiding_tree_file) and os.path.isfile(protein_msa_file))
+        except:
+            logObject.error('Had an issue running: %s' % ' '.join(gtotree_cmd))
+            logObject.error(traceback.format_exc())
+            raise RuntimeError('Had an issue running: %s' % ' '.join(gtotree_cmd))
+
+        pair_seq_matching = util.determineSeqSimProteinAlignment(protein_msa_file)
+        expected_diff_file = int_outdir + 'GToTree_Expected_Differences.txt'
+        expected_diff_handle = open(expected_diff_file, 'w')
+        for s1 in pair_seq_matching:
+            for s2 in pair_seq_matching:
+                expected_diff_handle.write(s1 + '\t' + s2 + '\t' + str(pair_seq_matching[s1][s2]) + '\n')
+        expected_diff_handle.close()
+
+        mv_guiding_tree_file = int_outdir + 'GToTree_output.tre'
+        os.system('mv %s %s' % (guiding_tree_file,))
+
+    # Step 12: Create Final Results Directory
     if not keep_intermediates:
         util.selectFinalResultsAndCleanUp(outdir, fin_outdir, logObject)
 
