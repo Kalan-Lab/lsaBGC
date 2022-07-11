@@ -44,8 +44,11 @@ class BGC:
 					pass
 				domain_evalues[aSDomain + '|' + str(start+1) + '|' + str(end)] = evalue
 				domains.append({'start': start + 1, 'end': end, 'type': feature.type, 'aSDomain': aSDomain, 'description': description})
-
-		product = rec.annotations['structured_comment']['GECCO-Data']['biosyn_class']
+		product = 'NA'
+		try:
+			product = rec.annotations['structured_comment']['GECCO-Data']['biosyn_class']
+		except:
+			pass
 		bgc_info = [{'prediction_method': self.prediction_method, 'detection_rule': 'NA', 'product': product, 'contig_edge': 'NA', 'full_sequence': full_sequence}]
 
 		# determine top 10% of domains with lowest e-values
