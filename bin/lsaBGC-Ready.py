@@ -46,6 +46,7 @@ import subprocess
 import traceback
 import multiprocessing
 import math
+from ete3 import Tree
 os.environ['OMP_NUM_THREADS']='4'
 
 lsaBGC_main_directory = '/'.join(os.path.realpath(__file__).split('/')[:-2]) + '/'
@@ -511,7 +512,15 @@ def lsaBGC_Ready():
         expected_diff_handle.close()
 
         mv_guiding_tree_file = int_outdir + 'GToTree_output.tre'
-        os.system('mv %s %s' % (guiding_tree_file, int_outdir))
+        os.system('mv %s %s' % (guiding_tree_file, mv_guiding_tree_file))
+
+        sample_retain_file = int_outdir + 'Samples_in_GToTree_Tree.txt'
+        sample_retain_handle = open(sample_retain_file, 'w')
+        t = Tree(mv_guiding_tree_file)
+        for leaf in t:
+            sample_retain_handle.write(str(leaf).strip('\n').lstrip('-') + '\n')
+        sample_retain_handle.close()
+        t.close()
 
     # Step 12: Create Final Results Directory
     if not keep_intermediates:

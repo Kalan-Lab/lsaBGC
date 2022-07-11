@@ -1994,6 +1994,8 @@ def selectFinalResultsAndCleanUp(outdir, fin_outdir, logObject):
 				os.system('ln -s %s %s' % (outdir + 'Intermediate_Files/GToTree_output.tre', fin_outdir))
 			if os.path.isfile(outdir + 'Intermediate_Files/GToTree_Expected_Differences.txt'):
 				os.system('ln -s %s %s' % (outdir + 'Intermediate_Files/GToTree_Expected_Differences.txt', fin_outdir))
+			if os.path.isfile(outdir + 'Intermediate_Files/Samples_in_GToTree_Tree.txt'):
+				os.system('ln -s %s %s' % (outdir + 'Intermediate_Files/Samples_in_GToTree_Tree.txt'))
 		else:
 			os.system('ln -s %s %s' % (outdir + 'Intermediate_Files/*', fin_outdir))
 			if os.path.isdir(outdir + 'BiG_SCAPE_Results_Reformatted/'):
