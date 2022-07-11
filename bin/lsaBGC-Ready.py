@@ -520,7 +520,6 @@ def lsaBGC_Ready():
         for leaf in t:
             sample_retain_handle.write(str(leaf).strip('\n').lstrip('-') + '\n')
         sample_retain_handle.close()
-        t.close()
 
     # Step 12: Create Final Results Directory
     if not keep_intermediates:
