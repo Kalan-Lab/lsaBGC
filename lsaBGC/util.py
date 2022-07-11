@@ -194,14 +194,14 @@ def determineNonUniqueRegionsAlongCodonAlignment(outdir, initial_sample_prokka_d
 def determineSeqSimProteinAlignment(protein_alignment_file):
 	protein_sequences = {}
 	with open(protein_alignment_file) as ocaf:
-		for i, rec in enumerate(SeqIO.parse(ocaf, 'fasta')):
+		for rec in SeqIO.parse(ocaf, 'fasta'):
 			protein_sequences[rec.id] = str(rec.seq).upper()
 
-	pair_seq_matching = defaultdict(lambda: defaultdict(lambda: 1.0))
-	for i, g1 in enumerate(protein_sequences):
+	pair_seq_matching = defaultdict(lambda: defaultdict(lambda: 0.0))
+	for i, g1 in enumerate(sorted(protein_sequences)):
 		s1 = g1.split('|')[0]
 		g1s = protein_sequences[g1]
-		for j, g2 in enumerate(protein_sequences):
+		for j, g2 in enumerate(sorted(protein_sequences)):
 			if i >= j: continue
 			s2 = g2.split('|')[0]
 			if s1 == s2: continue
@@ -231,10 +231,10 @@ def determineSeqSimCodonAlignment(codon_alignment_file, use_translation=False):
 				gene_sequences[rec.id] = str(rec.seq).upper()
 
 	pair_seq_matching = defaultdict(lambda: defaultdict(lambda: 0.0))
-	for i, g1 in enumerate(gene_sequences):
+	for i, g1 in enumerate(sorted(gene_sequences)):
 		s1 = g1.split('|')[0]
 		g1s = gene_sequences[g1]
-		for j, g2 in enumerate(gene_sequences):
+		for j, g2 in enumerate(sorted(gene_sequences)):
 			if i >= j: continue
 			s2 = g2.split('|')[0]
 			if s1 == s2: continue
@@ -1992,8 +1992,10 @@ def selectFinalResultsAndCleanUp(outdir, fin_outdir, logObject):
 			os.system('ln -s %s %s' % (outdir + 'lsaBGC_AutoExpansion_Results/Sample_Annotation_Files.txt', fin_outdir + 'Expanded_Sample_Annotation_Files.txt'))
 			if os.path.isfile(outdir + 'Intermediate_Files/GToTree_output.tre'):
 				os.system('ln -s %s %s' % (outdir + 'Intermediate_Files/GToTree_output.tre', fin_outdir))
-			if os.path.isfile(outdir + 'Intermediate_Files/GToTree_Expected_Differences.txt'):
-				os.system('ln -s %s %s' % (outdir + 'Intermediate_Files/GToTree_Expected_Differences.txt', fin_outdir))
+			if os.path.isfile(outdir + 'Intermediate_Files/GToTree_Expected_Similarities.txt'):
+				os.system('ln -s %s %s' % (outdir + 'Intermediate_Files/GToTree_Expected_Similarities.txt', fin_outdir))
+			if os.path.isfile(outdir + 'Intermediate_Files/Samples_in_GToTree_Tree.txt'):
+				os.system('ln -s %s %s' % (outdir + 'Intermediate_Files/Samples_in_GToTree_Tree.txt', fin_outdir))
 		else:
 			os.system('ln -s %s %s' % (outdir + 'Intermediate_Files/*', fin_outdir))
 			if os.path.isdir(outdir + 'BiG_SCAPE_Results_Reformatted/'):

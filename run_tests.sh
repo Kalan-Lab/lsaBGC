@@ -27,5 +27,6 @@ lsaBGC-AutoAnalyze.py -i lsaBGC_Ready_Results/Final_Results/Expanded_Sample_Anno
 	-g lsaBGC_Ready_Results/Final_Results/Expanded_GCF_Listings/ \
 	-m lsaBGC_Ready_Results/Final_Results/Expanded_Orthogroups.tsv \
 	-s lsaBGC_Ready_Results/Final_Results/GToTree_output.tre \
-	-w lsaBGC_Ready_Results/Final_Results/GToTree_Expected_Differences.txt \
-	-u Genome_to_Species_Mapping.txt -c 8 -o lsaBGC_AutoAnalyze_Results/
+	-w lsaBGC_Ready_Results/Final_Results/GToTree_Expected_Similarities.txt \
+	-k lsaBGC_Ready_Results/Final_Results/Samples_in_GToTree_Tree.txt \
+	-u Genome_to_Species_Mapping.txt -c 8 -o lsaBGC_AutoAnalyze_Results/ \

@@ -46,6 +46,7 @@ import subprocess
 import traceback
 import multiprocessing
 import math
+from ete3 import Tree
 os.environ['OMP_NUM_THREADS']='4'
 
 lsaBGC_main_directory = '/'.join(os.path.realpath(__file__).split('/')[:-2]) + '/'
@@ -503,15 +504,24 @@ def lsaBGC_Ready():
             raise RuntimeError('Had an issue running: %s' % ' '.join(gtotree_cmd))
 
         pair_seq_matching = util.determineSeqSimProteinAlignment(protein_msa_file)
-        expected_diff_file = int_outdir + 'GToTree_Expected_Differences.txt'
+        expected_diff_file = int_outdir + 'GToTree_Expected_Similarities.txt'
         expected_diff_handle = open(expected_diff_file, 'w')
         for s1 in pair_seq_matching:
             for s2 in pair_seq_matching:
-                expected_diff_handle.write(s1 + '\t' + s2 + '\t' + str(pair_seq_matching[s1][s2]) + '\n')
+                exp_sim = str(pair_seq_matching[s1][s2])
+                if s1 == s2: exp_sim = '1.0'
+                expected_diff_handle.write(s1 + '\t' + s2 + '\t' + exp_sim + '\n')
         expected_diff_handle.close()
 
         mv_guiding_tree_file = int_outdir + 'GToTree_output.tre'
-        os.system('mv %s %s' % (guiding_tree_file, int_outdir))
+        os.system('mv %s %s' % (guiding_tree_file, mv_guiding_tree_file))
+
+        sample_retain_file = int_outdir + 'Samples_in_GToTree_Tree.txt'
+        sample_retain_handle = open(sample_retain_file, 'w')
+        t = Tree(mv_guiding_tree_file)
+        for leaf in t:
+            sample_retain_handle.write(str(leaf).strip('\n').lstrip('-') + '\n')
+        sample_retain_handle.close()
 
     # Step 12: Create Final Results Directory
     if not keep_intermediates:

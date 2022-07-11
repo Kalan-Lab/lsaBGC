@@ -73,7 +73,7 @@ def create_parser():
 	parser.add_argument('-m', '--orthofinder_matrix', help="OrthoFinder homolog group by sample matrix.", required=True)
 	parser.add_argument('-k', '--sample_set', help="Sample set to keep in analysis. Should be file with one sample id per line.", required=False)
 	parser.add_argument('-s', '--species_phylogeny', help="Path to species phylogeny. If not provided a FastANI based neighborjoining tree will be constructed and used.", default=None, required=False)
-	parser.add_argument('-w', '--expected_distances', help="Path to file listing expected distances between genomes/samples. This is\ncomputed most easily by running lsaBGC-Ready.py with '-t' specified, which will estimate\nsample to sample differences based on alignment used to create species phylogeny.", required=True)
+	parser.add_argument('-w', '--expected_similarities', help="Path to file listing expected similarities between genomes/samples. This is\ncomputed most easily by running lsaBGC-Ready.py with '-t' specified, which will estimate\nsample to sample similarities based on alignment used to create species phylogeny.", required=True)
 	parser.add_argument('-p', '--bgc_prediction_software', help='Software used to predict BGCs (Options: antiSMASH, DeepBGC, GECCO).\nDefault is antiSMASH.', default='antiSMASH', required=False)
 	parser.add_argument('-u', '--populations', help='Path to user defined populations/groupings file. Tab delimited with 2 columns: (1) sample name and (2) group identifier.', required=False, default=None)
 	parser.add_argument('-l', '--discovary_input_listing', help="Sequencing readsets for DiscoVary analysis. Tab delimited file listing: (1) sample name, (2) forward readset, (3) reverse readset for metagenomic/isolate sequencing data.", required=False, default=None)
@@ -152,7 +152,7 @@ def lsaBGC_AutoAnalyze():
 	sample_set_file = myargs.sample_set
 	bgc_prediction_software = myargs.bgc_prediction_software.upper()
 	species_phylogeny_file = myargs.species_phylogeny
-	expected_distances = myargs.expected_distances
+	expected_distances = myargs.expected_similarities
 	population_listing_file = myargs.populations
 	discovary_analysis_id = myargs.discovary_analysis_name
 	discovary_input_listing = myargs.discovary_input_listing
@@ -266,7 +266,7 @@ def lsaBGC_AutoAnalyze():
 		gcf_listing_dir = update_gcf_listing_dir
 
 		if expected_distances != None:
-			update_expected_distances_file = outdir + 'Expected_Distance_Estimates.Pruned.txt'
+			update_expected_distances_file = outdir + 'Expected_Similarities_Estimates.Pruned.txt'
 			update_expected_distances_handle = open(update_expected_distances_file, 'w')
 			with open(expected_distances) as ogdf:
 				for line in ogdf:
@@ -442,7 +442,7 @@ def lsaBGC_AutoAnalyze():
 						samps_accounted.add(samp)
 						total_samples_accounted.add(samp)
 						gcf_consensus_sim_plot_lines.append(gcf_id + '\t' + gcf_id.split('_')[1] + '\t' + hg + '\t' + hg_ordering[hg] + '\t' + samp + '\t' + str(diff))
-				for samp in all_samples:
+				for samp in sample_retention_set:
 					if not samp in samps_accounted:
 						gcf_consensus_sim_plot_lines.append(gcf_id + '\t' + gcf_id.split('_')[1] + '\t' + hg + '\t' + hg_ordering[hg] + '\t' + samp + '\t' + "NA")
 
