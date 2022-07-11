@@ -266,7 +266,7 @@ def lsaBGC_AutoAnalyze():
 		gcf_listing_dir = update_gcf_listing_dir
 
 		if expected_distances != None:
-			update_expected_distances_file = outdir + 'Expected_Distance_Estimates.Pruned.txt'
+			update_expected_distances_file = outdir + 'Expected_Similarities_Estimates.Pruned.txt'
 			update_expected_distances_handle = open(update_expected_distances_file, 'w')
 			with open(expected_distances) as ogdf:
 				for line in ogdf:
@@ -442,7 +442,7 @@ def lsaBGC_AutoAnalyze():
 						samps_accounted.add(samp)
 						total_samples_accounted.add(samp)
 						gcf_consensus_sim_plot_lines.append(gcf_id + '\t' + gcf_id.split('_')[1] + '\t' + hg + '\t' + hg_ordering[hg] + '\t' + samp + '\t' + str(diff))
-				for samp in all_samples:
+				for samp in sample_retention_set:
 					if not samp in samps_accounted:
 						gcf_consensus_sim_plot_lines.append(gcf_id + '\t' + gcf_id.split('_')[1] + '\t' + hg + '\t' + hg_ordering[hg] + '\t' + samp + '\t' + "NA")
 
