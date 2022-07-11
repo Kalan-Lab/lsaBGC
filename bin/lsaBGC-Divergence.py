@@ -60,7 +60,7 @@ def create_parser():
     parser.add_argument('-g', '--gcf_listing', help='BGC specifications file. Tab delimited: 1st column contains path to BGC Genbank and 2nd column contains sample name.', required=True)
     parser.add_argument('-l', '--input_listing', help="Path to tab delimited file listing: (1) sample name (2) path to Prokka Genbank and (3) path to Prokka predicted proteome. This file is produced by lsaBGC-Process.py.", required=True)
     parser.add_argument('-a', '--codon_alignments', help="File listing the codon alignments for each homolog group in the GCF. Can be found as part of PopGene output.", required=True)
-    parser.add_argument('-w', '--expected_distances', help="Path to file listing expected distances between genomes/samples. This is\ncomputed most easily by running lsaBGC-Ready.py with '-t' specified, which will estimate\nsample to sample differences based on alignment used to create species phylogeny.", required=True)
+    parser.add_argument('-w', '--expected_similarities', help="Path to file listing expected similarities between genomes/samples. This is\ncomputed most easily by running lsaBGC-Ready.py with '-t' specified, which will estimate\nsample to sample similarities based on alignment used to create species phylogeny.", required=True)
     parser.add_argument('-i', '--gcf_id', help="GCF identifier.", required=False, default='GCF_X')
     parser.add_argument('-o', '--output_directory', help="Prefix for output files.", required=True)
     parser.add_argument('-k', '--sample_set', help="Sample set to keep in analysis. Should be file with one sample id per line.", required=False)
@@ -83,7 +83,7 @@ def lsaBGC_Divergence():
     gcf_listing_file = os.path.abspath(myargs.gcf_listing)
     input_listing_file = os.path.abspath(myargs.input_listing)
     codon_alignments_file = os.path.abspath(myargs.codon_alignments)
-    expected_distances = myargs.expected_distances
+    expected_distances = myargs.expected_similarities
     outdir = os.path.abspath(myargs.output_directory) + '/'
 
     ### vet input files quickly

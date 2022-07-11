@@ -66,7 +66,7 @@ def create_parser():
     parser.add_argument('-d', '--regular_mafft', action='store_true', help="Run mafft --linsi and not the MAGUS divide-and-conquer approach which allows for scalability and more efficient computing.", default=False, required=False)
     parser.add_argument('-e', '--each_pop', action='store_true', help='Run analyses individually for each population as well.', required=False, default=False)
     parser.add_argument('-t', '--filter_for_outliers', action='store_true', help='Filter instances of homolog groups which deviate too much from the median gene length observed for the initial set of proteins.', required=False, default=False)
-    parser.add_argument('-w', '--expected_distances', help="Path to file listing expected distances between genomes/samples. This is\ncomputed most easily by running lsaBGC-Ready.py with '-t' specified, which will estimate\nsample to sample differences based on alignment used to create species phylogeny.", required=False, default=None)
+    parser.add_argument('-w', '--expected_similarities', help="Path to file listing expected similarities between genomes/samples. This is\ncomputed most easily by running lsaBGC-Ready.py with '-t' specified, which will estimate\nsample to sample similarities based on alignment used to create species phylogeny.", required=False, default=None)
     args = parser.parse_args()
 
     return args
@@ -110,7 +110,7 @@ def lsaBGC_PopGene():
     population_classification_file = myargs.population_classification
     run_for_each_pop = myargs.each_pop
     filter_for_outliers = myargs.filter_for_outliers
-    expected_distances = myargs.expected_distances
+    expected_distances = myargs.expected_similarities
     regular_mafft = myargs.regular_mafft
 
     try:

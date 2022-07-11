@@ -1992,8 +1992,8 @@ def selectFinalResultsAndCleanUp(outdir, fin_outdir, logObject):
 			os.system('ln -s %s %s' % (outdir + 'lsaBGC_AutoExpansion_Results/Sample_Annotation_Files.txt', fin_outdir + 'Expanded_Sample_Annotation_Files.txt'))
 			if os.path.isfile(outdir + 'Intermediate_Files/GToTree_output.tre'):
 				os.system('ln -s %s %s' % (outdir + 'Intermediate_Files/GToTree_output.tre', fin_outdir))
-			if os.path.isfile(outdir + 'Intermediate_Files/GToTree_Expected_Differences.txt'):
-				os.system('ln -s %s %s' % (outdir + 'Intermediate_Files/GToTree_Expected_Differences.txt', fin_outdir))
+			if os.path.isfile(outdir + 'Intermediate_Files/GToTree_Expected_Similarities.txt'):
+				os.system('ln -s %s %s' % (outdir + 'Intermediate_Files/GToTree_Expected_Similarities.txt', fin_outdir))
 			if os.path.isfile(outdir + 'Intermediate_Files/Samples_in_GToTree_Tree.txt'):
 				os.system('ln -s %s %s' % (outdir + 'Intermediate_Files/Samples_in_GToTree_Tree.txt', fin_outdir))
 		else:
