@@ -18,8 +18,7 @@ class BGC:
 
 	def parseGECCO(self, comprehensive_parsing=True, flank_size=2000):
 		domains = []
-		full_sequence = ""
-		domain_evalues = {}
+		domain_pvalues = {}
 
 		rec = SeqIO.read(self.bgc_genbank, 'genbank')
 		full_sequence = str(rec.seq)
@@ -29,7 +28,7 @@ class BGC:
 				end = feature.location.end
 				aSDomain = "NA"
 				description = "NA"
-				evalue = 1e10
+				pvalue = 1e10
 				try:
 					aSDomain = feature.qualifiers['standard_name'][0]
 				except:
@@ -39,19 +38,24 @@ class BGC:
 				except:
 					pass
 				try:
-					evalue = next(float(x.split(': ')[1]) for x in feature.qualifiers['note'] if x.startswith('e-value'))
+					pvalue = next(float(x.split(': ')[1]) for x in feature.qualifiers['note'] if x.startswith('p-value'))
 				except:
 					pass
-				domain_evalues[aSDomain + '|' + str(start+1) + '|' + str(end)] = evalue
+				domain_pvalues[aSDomain + '|' + str(start+1) + '|' + str(end)] = pvalue
 				domains.append({'start': start + 1, 'end': end, 'type': feature.type, 'aSDomain': aSDomain, 'description': description})
 
-		product = rec.annotations['structured_comment']['GECCO-Data']['biosyn_class']
+		# add try-catch because lsaBGC-Expansion created BGC Genbanks don't have this structure
+		product = 'NA'
+		try:
+			product = rec.annotations['structured_comment']['GECCO-Data']['biosyn_class']
+		except:
+			pass
 		bgc_info = [{'prediction_method': self.prediction_method, 'detection_rule': 'NA', 'product': product, 'contig_edge': 'NA', 'full_sequence': full_sequence}]
 
 		# determine top 10% of domains with lowest e-values
-		num_total_domains = len(domain_evalues)
+		num_total_domains = len(domain_pvalues)
 		core_domains = set([])
-		for i, d in enumerate(sorted(domain_evalues.items(), key=itemgetter(1))):
+		for i, d in enumerate(sorted(domain_pvalues.items(), key=itemgetter(1))):
 			if i <= num_total_domains*0.1:
 				core_domains.add(d[0])
 
