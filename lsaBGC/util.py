@@ -194,14 +194,15 @@ def determineNonUniqueRegionsAlongCodonAlignment(outdir, initial_sample_prokka_d
 def determineSeqSimProteinAlignment(protein_alignment_file):
 	protein_sequences = {}
 	with open(protein_alignment_file) as ocaf:
-		for i, rec in enumerate(SeqIO.parse(ocaf, 'fasta')):
+		for rec in SeqIO.parse(ocaf, 'fasta'):
 			protein_sequences[rec.id] = str(rec.seq).upper()
 
-	pair_seq_matching = defaultdict(lambda: defaultdict(lambda: 1.0))
-	for i, g1 in enumerate(protein_sequences):
+	pair_seq_matching = defaultdict(lambda: defaultdict(lambda: 0.0))
+	for i, g1 in enumerate(sorted(protein_sequences)):
 		s1 = g1.split('|')[0]
 		g1s = protein_sequences[g1]
-		for j, g2 in enumerate(protein_sequences):
+		for j, g2 in enumerate(sorted(protein_sequences)):
+			if i >= j: continue
 			s2 = g2.split('|')[0]
 			if s1 == s2: continue
 			g2s = protein_sequences[g2]
@@ -229,11 +230,11 @@ def determineSeqSimCodonAlignment(codon_alignment_file, use_translation=False):
 			else:
 				gene_sequences[rec.id] = str(rec.seq).upper()
 
-	pair_seq_matching = defaultdict(lambda: defaultdict(lambda: 1.0))
-	for i, g1 in enumerate(gene_sequences):
+	pair_seq_matching = defaultdict(lambda: defaultdict(lambda: 0.0))
+	for i, g1 in enumerate(sorted(gene_sequences)):
 		s1 = g1.split('|')[0]
 		g1s = gene_sequences[g1]
-		for j, g2 in enumerate(gene_sequences):
+		for j, g2 in enumerate(sorted(gene_sequences)):
 			if i >= j: continue
 			s2 = g2.split('|')[0]
 			if s1 == s2: continue
