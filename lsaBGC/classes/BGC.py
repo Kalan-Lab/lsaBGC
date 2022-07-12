@@ -55,7 +55,7 @@ class BGC:
 		# determine top 10% of domains with lowest e-values
 		num_total_domains = len(domain_pvalues)
 		core_domains = set([])
-		for i, d in enumerate(sorted(domain_pvalues.items(), key=itemgetter(1))):
+		for i, d in enumerate(sorted(domain_evalues.items(), key=itemgetter(1))):
 			if i <= num_total_domains*0.1:
 				core_domains.add(d[0])
 
@@ -511,5 +511,5 @@ class BGC:
 					SeqIO.write(updated_rec, rgf_handle, 'genbank')
 			rgf_handle.close()
 		except Exception as e:
-      raise RuntimeError(traceback.format_exc())
+      			raise RuntimeError(traceback.format_exc())
 
