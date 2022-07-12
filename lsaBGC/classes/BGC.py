@@ -53,7 +53,7 @@ class BGC:
 		bgc_info = [{'prediction_method': self.prediction_method, 'detection_rule': 'NA', 'product': product, 'contig_edge': 'NA', 'full_sequence': full_sequence}]
 
 		# determine top 10% of domains with lowest e-values
-		num_total_domains = len(domain_pvalues)
+		num_total_domains = len(domain_evalues)
 		core_domains = set([])
 		for i, d in enumerate(sorted(domain_evalues.items(), key=itemgetter(1))):
 			if i <= num_total_domains*0.1:
