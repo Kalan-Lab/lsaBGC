@@ -10,7 +10,7 @@ based annotation. It consists of 8 independent programs: `lsaBGC-Ready.py`, `lsa
 
 ## Major Updates 
 
-* Jul 12, 2022 - Huge thanks to Martin Larralde for recommendation to update GECCO processing and better identify "protocore"-esque genes in BGCs using CRF weights instead of e-values! Also, have now added a simplified sub-section down below with [notes on the `lsaBGC-PopGene.py` report table](#notes-on-the-lsaBGC-PopGene.py-table-report).
+* Jul 12, 2022 - Huge thanks to Martin Larralde for recommendation to update GECCO processing and better identify "protocore"-esque genes in BGCs using CRF weights instead of e-values! Also, have now added a simplified sub-section down below with [notes on the PopGene report table](#notes-on-the-popgene-table-report).
 * Jul 10, 2022 - Several updates made. Fixed small issues with smooth running of new framework, `lsaBGC-Ready.py`. Removed some dependencies and have added GToTree for creating species phylogeny + estimated sample to sample amino acid expected divergences. New small test dataset now included in this repo for immediate testing + much simplified installation guide. Most major change is that lsaBGC now works with DeepBGC and GECCO predictions! lsaBGC's backend relies on 'proto-core homolog groups' / 'rule-based key domains' determined by AntiSMASH, to get around the absence of such marker genes/domains in DeepBGC and GECCO predictions, domains in the highest 10% of deebgc_scores or lowest 10% of e-values are treated as "proto-core" and used in `lsaBGC-AutoExpansion.py`/`lsaBGC-DiscoVary.py` as well as highlighted/treated as the "core" in `lsaBGC-PopGene.py` reports.
 * Jun 26, 2022 - Added "loose" mode to `lsaBGC-Expansion.py` and option for users to manually define "protocore" homolog groups. Also, "protocore" homolog groups for a GCF now must have "rule-based" marker to exclude MGEs like transposons which insert within protocore regions of BGCs.
 * Jun 19, 2022 - Have set MAGUS as the default protein alignment method (highly scalable wrapper of mafft) + updated notes on scalability.
@@ -95,13 +95,11 @@ A highlight of some key columns in the table after loading into Google sheets:
 
 
 
-For more advanced evolutionary statistics, I recommend primarily consulting the Tajima's D and Median Beta-RD statistics from the `lsaBGC-PopGene.py` report table, the rest are experimental and often times not very informative. 
+For more advanced evolutionary statistics, I recommend primarily consulting the Tajima's D and Median Beta-RD statistics, ***dN/dS & Fst are experimental implementations!!!*** and often times not very informative. 
 
 **Median Beta-RD** is the median value of pairwise calculations of gene divergence to expected divergence for a pair of genomes based on genome-wide values such as ANI/AAI or divergence of single-copy core genes (e.g. ribosomal proteins).
 
 **Tajima's D** can be most intiutively thought of as the proportion of high-frequency to low-frequency/rare minor allele positions along the multiple sequence alignment of a gene. It is thus essential to account for representation bias in your dataset and as such we perform de-replication (check out [drep](https://github.com/MrOlm/drep)) of genomes prior to `lsaBGC-PopGene.py` analysis to properly interpret the statistics.
-
-***dN/dS & Fst are experimental statistics!!!***
 
 In the near future, I plan to incorporate a phylogeny-aware calculation of dN/dS, as well as update other evolutionary / pop-gen stats. Will announce these in major updates as they are incorporated.
 
