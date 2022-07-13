@@ -91,10 +91,6 @@ If you run `lsaBGC-PopGene.py` for an individual GCF or `lsaBGC-AutoAnalyze.py` 
 
 This report is automatically sorted by the consensus order of homolog groups allowing for easy intuitive scrolling. For full information on each column, check out the [data dictionary table](https://github.com/Kalan-Lab/lsaBGC/wiki/10.-Population-Genetics-Analysis-of-Genes-Found-in-a-GCF#data-dictionary) on the `lsaBGC-PopGene.py` wiki.
 
-A highlight of some key columns in the table after loading into Google sheets:
-
-
-
 For more advanced evolutionary statistics, I recommend primarily consulting the Tajima's D and Median Beta-RD statistics, ***dN/dS & Fst are experimental implementations!!!*** and often times not very informative. 
 
 **Median Beta-RD** is the median value of pairwise calculations of gene divergence to expected divergence for a pair of genomes based on genome-wide values such as ANI/AAI or divergence of single-copy core genes (e.g. ribosomal proteins).
@@ -102,6 +98,10 @@ For more advanced evolutionary statistics, I recommend primarily consulting the 
 **Tajima's D** can be most intiutively thought of as the proportion of high-frequency to low-frequency/rare minor allele positions along the multiple sequence alignment of a gene. It is thus essential to account for representation bias in your dataset and as such we perform de-replication (check out [drep](https://github.com/MrOlm/drep)) of genomes prior to `lsaBGC-PopGene.py` analysis to properly interpret the statistics.
 
 In the near future, I plan to incorporate a phylogeny-aware calculation of dN/dS, as well as update other evolutionary / pop-gen stats. Will announce these in major updates as they are incorporated.
+
+A highlight of some key columns in the table after loading into Google sheets:
+
+![image](https://user-images.githubusercontent.com/4260723/178626400-9563427f-d98d-48d6-8b4b-0e9673c6d0cd.png)
 
 ## Notes on Scalability:
 
