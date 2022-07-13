@@ -7,6 +7,10 @@ from Bio.SeqFeature import SeqFeature, FeatureLocation
 from operator import itemgetter
 import traceback
 import copy
+import _pickle as cPickle
+
+lsaBGC_main_directory = '/'.join(os.path.realpath(__file__).split('/')[:-3])
+gecco_pickle_weights_file_file = lsaBGC_main_directory + 'db/GECCO_PF_Weights.pkl'
 
 class BGC:
 	def __init__(self, bgc_genbank, bgc_id, prediction_method='ANTISMASH'):
@@ -18,9 +22,10 @@ class BGC:
 
 	def parseGECCO(self, comprehensive_parsing=True, flank_size=2000):
 		domains = []
-		full_sequence = ""
-		domain_evalues = {}
-    
+		domain_weights = {}
+
+		gecco_pfam_weights_pickle_handle = open(gecco_pickle_weights_file_file, "rb")
+		gecco_pfam_weights = cPickle.load(gecco_pfam_weights_pickle_handle)
 		rec = SeqIO.read(self.bgc_genbank, 'genbank')
 		full_sequence = str(rec.seq)
 		for feature in rec.features:
@@ -29,7 +34,7 @@ class BGC:
 				end = feature.location.end
 				aSDomain = "NA"
 				description = "NA"
-				evalue = 1e10
+				dom_weight = -7
 				try:
 					aSDomain = feature.qualifiers['standard_name'][0]
 				except:
@@ -39,10 +44,10 @@ class BGC:
 				except:
 					pass
 				try:
-					evalue = next(float(x.split(': ')[1]) for x in feature.qualifiers['note'] if x.startswith('e-value'))
+					dom_weight = gecco_pfam_weights[aSDomain]
 				except:
 					pass
-				domain_evalues[aSDomain + '|' + str(start+1) + '|' + str(end)] = evalue
+				domain_weights[aSDomain + '|' + str(start+1) + '|' + str(end)] = dom_weight
 				domains.append({'start': start + 1, 'end': end, 'type': feature.type, 'aSDomain': aSDomain, 'description': description})
 
 		product = 'NA'
@@ -52,10 +57,10 @@ class BGC:
 			pass
 		bgc_info = [{'prediction_method': self.prediction_method, 'detection_rule': 'NA', 'product': product, 'contig_edge': 'NA', 'full_sequence': full_sequence}]
 
-		# determine top 10% of domains with lowest e-values
-		num_total_domains = len(domain_evalues)
+		# determine top 10% of domains with highest GECCO CRF weights (as recommended by Martin Larralde)
+		num_total_domains = len(domain_weights)
 		core_domains = set([])
-		for i, d in enumerate(sorted(domain_evalues.items(), key=itemgetter(1))):
+		for i, d in enumerate(sorted(domain_weights.items(), key=itemgetter(1), reverse=True)):
 			if i <= num_total_domains*0.1:
 				core_domains.add(d[0])
 
