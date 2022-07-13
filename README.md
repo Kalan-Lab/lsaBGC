@@ -85,7 +85,7 @@ The major outputs of the final `lsaBGC-AutoAnalyze.py` run in the resulting fold
 * **GCF_Divergence.pdf** - a boxplot of the Beta-RD values (the divergence of BGCs between pairs of genomes to the expected divergence, i.e. genome-wide ANI/AAI or divergence of single-copy core genes) for each GCF.
 * **See/GCF_X/BGC_Visualization.species_phylogeny.pdf** - for each GCF_X in the `See/` sub-directory you can see a phylogenetic distribution of BGCs belonging to the GCF accounting for BGC splitting within a sample's genome due to assembly fragmentation. These are BGCs detected in the "expansion/additional genomes" set by `lsaBGC-Expansion.py`. 
 
-## Notes on the `lsaBGC-PopGene.py` Table Report
+## Notes on the PopGene Report Table
 
 If you run `lsaBGC-PopGene.py` for an individual GCF or `lsaBGC-AutoAnalyze.py` for all the GCFs one of the major outputs from the suite will be a table with each row corresponding to a homolog group from each GCF.
 

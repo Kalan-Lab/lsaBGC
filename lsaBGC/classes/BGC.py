@@ -10,7 +10,7 @@ import copy
 import _pickle as cPickle
 
 lsaBGC_main_directory = '/'.join(os.path.realpath(__file__).split('/')[:-3])
-gecco_pickle_weights_file_file = lsaBGC_main_directory + 'db/GECCO_PF_Weights.pkl'
+gecco_pickle_weights_file_file = lsaBGC_main_directory + '/db/GECCO_PF_Weights.pkl'
 
 class BGC:
 	def __init__(self, bgc_genbank, bgc_id, prediction_method='ANTISMASH'):
