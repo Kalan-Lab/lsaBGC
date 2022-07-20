@@ -37,13 +37,12 @@
 
 import os
 import sys
+import xlsxwriter
 from time import sleep
 from operator import itemgetter
 import argparse
-import traceback
 from collections import defaultdict
-from ete3 import Tree
-from lsaBGC.classes.Pan import Pan
+from Bio import SeqIO
 from lsaBGC import util
 
 lsaBGC_main_directory = '/'.join(os.path.realpath(__file__).split('/')[:-2])
@@ -217,7 +216,7 @@ def lsaBGC_AutoAnalyze():
 	logObject = util.createLoggerObject(log_file)
 
 	# Step 0: Log input arguments and update reference and query FASTA files.
-	logObject.info("Saving parameters for easier determination of results' provenance in the future.")
+	logObject.info("Saving parameters for easier determination of results basis in the future.")
 	parameters_file = outdir + 'Parameter_Inputs.txt'
 	parameter_values = [gcf_listing_dir, input_listing_file, original_orthofinder_matrix_file, outdir,
 						species_phylogeny_file, expected_distances, population_listing_file,
@@ -253,14 +252,25 @@ def lsaBGC_AutoAnalyze():
 		for g in os.listdir(gcf_listing_dir):
 			update_gcf_listing_file = update_gcf_listing_dir + g
 			update_gcf_listing_handle = open(update_gcf_listing_file, 'w')
+			has_at_least_one_core_BGC_flag = False
 			with open(gcf_listing_dir + g) as ogf:
 				for line in ogf:
 					line = line.strip()
 					sample, bgc_path = line.split('\t')
-					if sample in sample_retention_set:
+					if not has_at_least_one_core_BGC_flag and sample in sample_retention_set:
+						with open(bgc_path) as obp:
+							for rec in SeqIO.parse(obp, 'genbank'):
+								if has_at_least_one_core_BGC_flag: break
+								for feature in rec.features:
+									if feature.type == "CDS":
+										lt = feature.qualifiers.get('locus_tag')[0]
+										if len(lt.split('_')[0]) == 3:
+											has_at_least_one_core_BGC_flag = True
+											break
 						update_gcf_listing_handle.write(line + '\n')
-
 			update_gcf_listing_handle.close()
+			if not has_at_least_one_core_BGC_flag:
+				os.system('rm -f %s' % update_gcf_listing_file)
 
 		input_listing_file = update_input_listing_file
 		gcf_listing_dir = update_gcf_listing_dir
@@ -276,15 +286,6 @@ def lsaBGC_AutoAnalyze():
 						update_expected_distances_handle.write(line + '\n')
 			update_expected_distances_handle.close()
 			expected_distances = update_expected_distances_file
-
-	if population_listing_file and species_phylogeny_file:
-		populations_on_tree_pdf = outdir + 'Populations_on_Species_Tree.pdf'
-		cmd = ['Rscript', RSCRIPT_FOR_POPULATIONS_ON_PHYLO, species_phylogeny_file, population_listing_file, populations_on_tree_pdf]
-		try:
-			util.run_cmd(cmd, logObject)
-		except Exception as e:
-			logObject.error("Had issues showcasing manually defined population labels on phylogeny/tree.")
-			raise RuntimeError("Had issues showcasing manually defined population labels on phylogeny/tree.")
 
 	see_outdir = outdir + 'See/'
 	pop_outdir = outdir + 'PopGene/'
@@ -371,18 +372,29 @@ def lsaBGC_AutoAnalyze():
 					logObject.warning("lsaBGC-DiscoVary.py was unsuccessful for GCF %s" % gcf_id)
 					sys.stderr.write("Warning: lsaBGC-DiscoVary.py was unsuccessful for GCF %s\n" % gcf_id)
 
-	combined_gene_plotting_input_file = outdir + 'GCF_Gene_Plotting_Input.txt'
+	combined_tajimd_plot_input_file = outdir + 'Tajimas_D_Plotting_Input.txt'
+	combined_betard_plot_input_file = outdir + 'Beta-RD_Plotting_Input.txt'
+	combined_conser_plot_input_file = outdir + 'HG_Conservation_Plotting_Input.txt'
+	combined_pmcopy_plot_input_file = outdir + 'HG_Proportion_MultiCopy_Plotting_Input.txt'
 	combined_consensus_similarity_file = outdir + 'GCF_Homolog_Group_Consensus_Sequence_Similarity.txt'
 	combined_divergence_results_file = outdir + 'GCF_Divergences.txt'
 
-	combined_gene_plotting_input_handle = open(combined_gene_plotting_input_file, 'w')
+	combined_tajimd_plot_input_handle = open(combined_tajimd_plot_input_file, 'w')
+	combined_betard_plot_input_handle = open(combined_betard_plot_input_file, 'w')
+	combined_pmcopy_plot_input_handle = open(combined_pmcopy_plot_input_file, 'w')
+	combined_conser_plot_input_handle = open(combined_conser_plot_input_file, 'w')
 	combined_consensus_similarity_handle = open(combined_consensus_similarity_file, 'w')
 	combined_orthoresults_unrefined_handle = open(outdir + 'GCF_Homolog_Group_Information.txt', 'w')
 	combined_divergence_results_handle = open(combined_divergence_results_file, 'w')
 
+	combined_tajimd_plot_input_handle.write('\t'.join(['GCF', 'HG', 'start', 'end', 'con_dir', 'proportion', 'core', 'Tajimas_D']) + '\n')
+	combined_betard_plot_input_handle.write('\t'.join(['GCF', 'HG', 'start', 'end', 'con_dir', 'proportion', 'core', 'Beta_RD']) + '\n')
+	combined_conser_plot_input_handle.write('\t'.join(['GCF', 'HG', 'order', 'core', 'population', 'count']) + '\n')
+	combined_pmcopy_plot_input_handle.write('\t'.join(['GCF', 'HG', 'start', 'end', 'con_dir', 'proportion', 'core', 'Prop_Multi_Copy']) + '\n')
 	if sample_retention_set == None:
 		sample_retention_set = all_samples
 
+	hg_gcfs = defaultdict(set)
 	combined_consensus_similarity_handle.write('\t'.join(['GCF', 'GCF_Order', 'Homolog_Group', 'Homolog_Group_Order', 'label', 'Difference_to_Consensus_Sequence']) + '\n')
 	for i, g in enumerate(os.listdir(gcf_listing_dir)):
 		gcf_id = g.split('.txt')[0]
@@ -397,28 +409,48 @@ def lsaBGC_AutoAnalyze():
 		if os.path.isfile(gcf_pop_results_unrefined): writeToOpenHandle(gcf_pop_results_unrefined, combined_orthoresults_unrefined_handle, include_header)
 		if os.path.isfile(gcf_div_results): writeToOpenHandle(gcf_div_results, combined_divergence_results_handle, include_header)
 
-		data = []
+		hg_data = {}
+		hg_coord_info = []
+		pop_info_available = False
 		with open(gcf_pop_results_unrefined) as ogpru:
 			for j, line in enumerate(ogpru):
 				line = line.strip('\n')
 				ls = line.split('\t')
-				if j == 0 and not include_header: continue
-				elif j == 0 and include_header:
-					if population_listing_file != None:
-						combined_gene_plotting_input_handle.write('\t'.join(ls[:3] + ls[4:7] + ['gene_start', 'gene_stop'] + ls[7:-2]) + '\n')
-					else:
-						combined_gene_plotting_input_handle.write('\t'.join(ls[:3] + ls[4:7] + ['gene_start', 'gene_stop'] + ls[7:-1]) + '\n')
+				if j == 0:
+					if ls[-2] == 'population_proportion_of_members_with_hg':
+						pop_info_available = True
 				elif ls[4] != 'NA':
-					data.append([int(ls[4]), ls])
+					hg = ls[2]
+					con_ord = int(ls[4])
+					con_dir = int(ls[5])
+					med_len = float(ls[7])
+					prop = ls[11]
+					core = ls[8]
+					prop_mc = ls[6]
+					count_data = {'total': int(ls[10])}
+					tajimas_d = ls[13]
+					beta_rd = ls[16]
+					if pop_info_available:
+						count_data = {}
+						for pc in ls[-2].split('|'):
+							pop, pop_freq = pc.split('=')
+							pop_count = float(ls[10])*float(pop_freq)
+							count_data[pop] = pop_count
+					hg_data[hg] = [prop, core, tajimas_d, beta_rd, prop_mc, count_data]
+					hg_coord_info.append([hg, con_ord, con_dir, med_len])
 
 		previous_end = 1
-		for tupls in sorted(data, key=itemgetter(0)):
-			ls = tupls[1]
-			if population_listing_file != None:
-				combined_gene_plotting_input_handle.write('\t'.join(ls[:3] + ls[4:7] + [str(previous_end), str(previous_end + int(float(ls[7])))] + ls[7:-2]) + '\n')
-			else:
-				combined_gene_plotting_input_handle.write('\t'.join(ls[:3] + ls[4:7] + [str(previous_end), str(previous_end + int(float(ls[7])))] + ls[7:-1]) + '\n')
-			previous_end = previous_end + int(float(ls[7])) + 1
+		for tupls in sorted(hg_coord_info, key=itemgetter(1)):
+			hg, con_ord, con_dir, med_len = tupls
+			start = previous_end
+			end = previous_end + int(med_len)
+			prop, core, tajimas_d, beta_rd, prop_mc, count_data = hg_data[hg]
+			combined_tajimd_plot_input_handle.write('\t'.join([str(x) for x in [gcf_id, hg, start, end, con_dir, prop, core, tajimas_d]]) + '\n')
+			combined_betard_plot_input_handle.write('\t'.join([str(x) for x in [gcf_id, hg, start, end, con_dir, prop, core, beta_rd]]) + '\n')
+			combined_pmcopy_plot_input_handle.write('\t'.join([str(x) for x in [gcf_id, hg, start, end, con_dir, prop, core, prop_mc]]) + '\n')
+			for p in count_data:
+				combined_conser_plot_input_handle.write('\t'.join([str(x) for x in [gcf_id, hg, con_ord, core, p, count_data[p]]]) + '\n')
+			previous_end = end + 1
 
 		hg_ordering = defaultdict(lambda: 'NA')
 		with open(gcf_pop_results_unrefined) as ogpru:
@@ -448,7 +480,10 @@ def lsaBGC_AutoAnalyze():
 
 		if float(len(total_samples_accounted))/float(len(sample_retention_set)) >= 0.1:
 			combined_consensus_similarity_handle.write('\n'.join(gcf_consensus_sim_plot_lines) + '\n')
-	combined_gene_plotting_input_handle.close()
+	combined_tajimd_plot_input_handle.close()
+	combined_betard_plot_input_handle.close()
+	combined_pmcopy_plot_input_handle.close()
+	combined_conser_plot_input_handle.close()
 	combined_consensus_similarity_handle.close()
 	combined_orthoresults_unrefined_handle.close()
 	combined_divergence_results_handle.close()
@@ -458,7 +493,7 @@ def lsaBGC_AutoAnalyze():
 	# create big-picture heatmap of presence/sequence-similarity to consensus sequence of homolog groups from each gcf
 	big_picture_heatmap_pdf_file = outdir + 'Consensus_Sequence_Similarity_of_Homolog_Groups.pdf'
 	cmd = ['Rscript', RSCRIPT_FOR_BIGPICTUREHEATMAP, species_phylogeny_file, combined_consensus_similarity_file,
-		   population_listing_file, big_picture_heatmap_pdf_file]
+		   str(population_listing_file), big_picture_heatmap_pdf_file]
 	try:
 		util.run_cmd(cmd, logObject)
 	except Exception as e:
@@ -467,7 +502,8 @@ def lsaBGC_AutoAnalyze():
 
 	# create gcf pop gen stats and conservation plots
 	gcf_gene_views_pdf_file = outdir + 'GCF_Conservation_and_PopStats_Views.pdf'
-	cmd = ['Rscript', RSCRIPT_FOR_GCFGENEPLOTS, combined_gene_plotting_input_file, gcf_gene_views_pdf_file]
+	cmd = ['Rscript', RSCRIPT_FOR_GCFGENEPLOTS, combined_tajimd_plot_input_file, combined_betard_plot_input_file,
+		   combined_pmcopy_plot_input_file, combined_conser_plot_input_file, gcf_gene_views_pdf_file]
 	try:
 		util.run_cmd(cmd, logObject)
 	except Exception as e:
@@ -482,6 +518,51 @@ def lsaBGC_AutoAnalyze():
 	except Exception as e:
 		logObject.error("Had issues with creating GCF vs. genome-wide divergence plots.")
 		raise RuntimeError("Had issues with creating GCF vs. genome-wide divergence plots.")
+
+	hg_gcf_counts = defaultdict(int)
+	for hg in hg_gcfs:
+		hg_gcf_counts[hg] = len(hg_gcfs[hg])
+
+	# create a list of HGs useful to follow up with in CORASON
+	corason_reference_faa_file = outdir + 'CORASON_Queries.faa'
+	corason_reference_faa_handle = open(corason_reference_faa_file, 'w')
+	multi_gcf_hgs_file = outdir + 'Multi_HG_GCFS.txt'
+	multi_gcf_hgs_handle = open(multi_gcf_hgs_file, 'w')
+	multi_gcf_hgs_handle.write('\t'.join(['HG', 'Avoid Because Likely MGE?', 'GCF Count', 'GCFs']) + '\n')
+	for hg in sorted(hg_gcf_counts.items(), key=itemgetter(1), reverse=True):
+		if hg[1] > 1:
+			hg_id = int(hg[0].split('OG')[1])
+			likely_mge = False
+			if hg_id < 100:
+				likely_mge = True
+			multi_gcf_hgs_handle.write(hg[0] + '\t' + str(likely_mge) + '\t' + str(hg[1]) + '\t' + ', '.join(sorted(hg_gcfs[hg])))
+			first_gcf = sorted(hg_gcfs[hg])[0]
+			first_gcf_hg_prot_seq_file = outdir + 'PopGene/' + first_gcf + '/Protein_Sequences/' + hg_id + '.faa'
+			try:
+				with open(first_gcf_hg_prot_seq_file) as ofghpsf:
+					for i, rec in enumerate(SeqIO.parse(ofghpsf, 'fasta')):
+						if i == 0:
+							corason_reference_faa_handle.write('>' + rec.id + '\n' + str(rec.seq) + '\n')
+			except:
+				pass
+	multi_gcf_hgs_handle.close()
+	corason_reference_faa_handle.close()
+
+	# create Excel spreadsheet
+	workbook = xlsxwriter.Workbook(outdir + 'lsaBGC_Pan_Secondary_Metabolome_Overview.xlsx')
+	worksheet1 = workbook.add_worksheet('Overview - Simple')
+	worksheet2 = workbook.add_worksheet('Multi GCF HGs')
+	worksheet3 = workbook.add_worksheet('Overview - Full')
+	workbook.close()
+
+	# clean up final directory:
+	final_results_dir = outdir + 'Final_Results/'
+	inter_results_dir = outdir + 'Intermediate_Results/'
+	util.setupReadyDirectory([final_results_dir, inter_results_dir])
+	for fd in os.listdir(outdir):
+		if os.path.isdir(fd): continue
+		if f.endswith('.pdf') or f.endswith('.xlsx') or f.endswith('.faa'): os.system('mv %s %s' % (outdir + f, final_results_dir))
+		elif f.endswith('.txt'): os.system('mv %s %s' % (outdir + f, inter_results_dir))
 
 	# Close logging object and exit
 	util.closeLoggerObject(logObject)

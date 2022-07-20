@@ -1076,7 +1076,7 @@ def processGenomes(sample_genomes, prodigal_outdir, prodigal_proteomes, prodigal
 			except:
 				raise RuntimeError("Unable to validate successful genbank/predicted-proteome creation for sample %s" % sample)
 	except Exception as e:
-		logObject.error("Problem with creating commands for running Prokka. Exiting now ...")
+		logObject.error("Problem with creating commands for running prodigal via script runProdigalAndMakeProperGenbank.py. Exiting now ...")
 		logObject.error(traceback.format_exc())
 		raise RuntimeError(traceback.format_exc())
 
@@ -1125,41 +1125,43 @@ def parseSampleGenomes(genome_listing_file, logObject):
 		raise RuntimeError(traceback.format_exc())
 
 
-def extractProteins(sample_genomes, proteomes_directory, logObject):
+def processGenomesAsGenbanks(sample_genomes, proteomes_directory, genbanks_directory, gene_name_mapping_outdir,
+							 logObject, cores=1, locus_tag_length=3):
 	"""
-	Extracts CDS/proteins from existing Genbank files.
-
-	:param sample_genomes:
-	:param proteomes_directory:
-	:param lobObject:
-	:return:
+	Extracts CDS/proteins from existing Genbank files and recreates
 	"""
 
-	sample_proteomes = {}
+	sample_genomes_updated = {}
+	process_cmds = []
 	try:
+		alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+		possible_locustags = list(itertools.product(alphabet, repeat=locus_tag_length))
+		for i, sample in enumerate(sample_genomes):
+			sample_genbank = sample_genomes[sample]
+			sample_locus_tag = ''.join(list(possible_locustags[i]))
+
+			process_cmd = ['processAndReformatNCBIGenbanks.py', '-i', sample_genbank, '-s', sample,
+							'-l', sample_locus_tag, '-g', genbanks_directory, '-p', proteomes_directory, '-n',
+						   gene_name_mapping_outdir]
+			process_cmds.append(process_cmd + [logObject])
+
+		p = multiprocessing.Pool(cores)
+		p.map(multiProcess, process_cmds)
+		p.close()
+
 		for sample in sample_genomes:
-			sample_gbk = sample_genomes[sample]
-			sample_faa = proteomes_directory + sample + '.faa'
-			sample_faa_handle = open(sample_faa, 'w')
 			try:
-				with open(sample_gbk) as osgf:
-					for rec in SeqIO.parse(osgf, 'genbank'):
-						for feature in rec.features:
-							if feature.type == "CDS":
-								lt = feature.qualifiers.get('locus_tag')[0]
-								translation = feature.qualifiers.get('translation')[0]
-								sample_faa_handle.write('>' + lt + '\n' + translation + '\n')
-			except Exception as e:
-				logObject.error("Problem with parsing Genbank for sample %s, likely at least one CDS feature does not have both a locus_tag or product sequence." % sample)
-				logObject.error(traceback.format_exc())
-				raise RuntimeError(traceback.format_exc())
-			sample_faa_handle.close()
-			sample_proteomes[sample] = sample_faa
+				assert(os.path.isfile(proteomes_directory + sample + '.faa') and
+					   os.path.isfile(genbanks_directory + sample + '.gbk') and
+					   os.path.isfile(gene_name_mapping_outdir + sample + '.txt'))
+				sample_genomes_updated[sample] = genbanks_directory + sample + '.gbk'
+			except:
+				raise RuntimeError("Unable to validate successful genbank/predicted-proteome creation for sample %s" % sample)
 	except Exception as e:
-			logObject.error("Problem with parsing genome-wide Genbanks.")
-			logObject.error(traceback.format_exc())
-			raise RuntimeError(traceback.format_exc())
-	return sample_proteomes
+		logObject.error("Problem with processing existing Genbanks to (re)create genbanks/proteomes. Exiting now ...")
+		logObject.error(traceback.format_exc())
+		raise RuntimeError(traceback.format_exc())
+	return sample_genomes
 
 def splitDeepBGCGenbank(bgc_genbank_listing_file, deepbgc_split_directory, outdir, logObject):
 	updated_bgc_genbank_listing_file = outdir + 'DeepBGC_Genbanks_Split_Listing.txt'
@@ -1203,7 +1205,7 @@ def processBGCGenbanks(bgc_listing_file, bgc_prediction_software, sample_genomes
 
 	sample_bgcs = defaultdict(set)
 	bgc_to_sample = {}
-	sample_protein_iter = defaultdict(lambda: 10000)
+	sample_protein_iter = defaultdict(lambda: 1000000)
 	try:
 		with open(bgc_listing_file) as oalf:
 			for line in oalf:
@@ -1313,7 +1315,7 @@ def performKOFamAnnotation(sample_bgc_proteins, bgc_prot_directory, ko_annot_dir
 	try:
 		ko_score_cutoffs = {}
 		ko_score_types = {}
-		ko_descriptions = {}
+		ko_descriptions = defaultdict(lambda: "NA")
 		with open(kofam_pro_list) as okpl:
 			for i, line in enumerate(okpl):
 				if i == 0: continue
@@ -1354,20 +1356,20 @@ def performKOFamAnnotation(sample_bgc_proteins, bgc_prot_directory, ko_annot_dir
 					full_eval = float(ls[4])
 					full_score = float(ls[5])
 					dom_score = float(ls[8])
-					if not ko in ko_score_types: continue
-					if ko_score_types[ko] == 'full' and full_score >= ko_score_cutoffs[ko]:
-						hits_per_prot[prot_id].append([ko, -full_score, full_eval])
-					elif ko_score_types[ko] == 'domain' and dom_score >= ko_score_cutoffs[ko]:
-						hits_per_prot[prot_id].append([ko, -dom_score, full_eval])
+					if ko in ko_score_types:
+						if ko_score_types[ko] == 'full' and full_score >= ko_score_cutoffs[ko]:
+							hits_per_prot[prot_id].append([ko, -full_score, full_eval])
+						elif ko_score_types[ko] == 'domain' and dom_score >= ko_score_cutoffs[ko]:
+							hits_per_prot[prot_id].append([ko, -dom_score, full_eval])
 					if full_eval < 1e-20 and full_score > 100.0:
 						hits_per_prot[prot_id].append([ko, -1E10, full_eval])
 			best_hits = defaultdict(lambda: 'NA: hypothetical protein')
 			for pi in hits_per_prot:
-				for i, hit in enumerate(sorted(hits_per_prot[pi], key=operator.itemgetter(1), reverse=False)):
+				for i, hit in enumerate(sorted(hits_per_prot[pi], key=lambda h: (h[1], h[2]), reverse=False)):
 					if i == 0:
 						conf = ' (High Confidence)'
 						if hit[1] == -1E10:
-							conf = ' (Low Confidence : e-val < 1e-10)'
+							conf = ' (Low Confidence : e-val < 1e-20)'
 						best_hits[pi] = hit[0] + ': ' + ko_descriptions[hit[0]] + conf
 
 			for bgc in sample_bgc_proteins[sample]:
@@ -1555,10 +1557,7 @@ def incorporateBGCProteinsIntoProteomesAndGenbanks(sample_bgc_proteins, sample_g
 				bgc_listing_handle.write(sample + '\t' + bgc + '\n')
 
 				bgc_prots = sample_bgc_proteins[sample][bgc]
-				print(bgc_prots)
 				bgc_prots_1x = set([x for x in bgc_prots if x.split('_')[1][0] == '1'])
-				print(bgc_prots_1x)
-				print('-------------------------')
 				bgc_prot_file = bgc_prot_directory + sample + '.faa'
 				bgc_prot_to_location = {}
 				with open(bgc_prot_file) as obpf:

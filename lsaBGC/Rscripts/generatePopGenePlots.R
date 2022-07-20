@@ -11,8 +11,6 @@ positions.dat <- read.table(args[2], header=T, sep='\t')
 # pos     type
 
 max_pos <- max(positions.dat$pos)
-colors <- c("NS" = "#db2c1d", "S" = "#999897")
-names(colors) <- c('NS', 'S')
 
 maj_allele_gg <- ggplot(positions.dat, aes(x=pos, y=(1-maj_allele_freq))) + geom_line() + theme_bw() + xlab("") +
                  ylab("1.0 - Major Allele Frequency") + xlim(0, max_pos+1)
@@ -20,9 +18,6 @@ allele_count_gg <- ggplot(positions.dat, aes(x=pos, y=num_alleles)) + geom_bar(s
                  theme_classic() + xlab("") + ylab("Count of Alleles") + xlim(0, max_pos+1)+ theme(axis.text.x=element_blank(), axis.ticks.x=element_blank())
 site_coverage_gg <- ggplot(positions.dat, aes(x=pos, y=(num_seqs-num_gaps))) + geom_bar(stat='identity', fill='black') +
                  theme_classic() + xlab("") + ylab("Site Coverage") + xlim(0, max_pos+1)+ theme(axis.text.x=element_blank(), axis.ticks.x=element_blank())
-
-#dnds_gg <- ggplot(popgen.dat, aes(x=pos, y=0, color=type)) + geom_point(show.legend=F, alpha=0.7) + theme_void() +
-#          xlab("") + ylab("Variable Positions") + xlim(0, max_pos+1) + scale_color_manual(values=colors)
 
 doms_gg <- ggplot(domains.dat, aes(color=domain, x= min_pos, xend=max_pos, y=reorder(domain, domain_index), yend=reorder(domain, domain_index))) +
            geom_segment(show.legend=F, size=5) + xlab("Position Along MSA") + ylab("Domains") + scale_color_brewer(palette='Set1') + xlim(0, max_pos+1) +

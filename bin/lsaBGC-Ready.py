@@ -273,21 +273,24 @@ def lsaBGC_Ready():
         raise RuntimeError("Difficulties validating ulimit settings are properly set to allow for successful OrthoFinder2 run.")
 
     proteomes_directory = outdir + 'Predicted_Proteomes_Initial/'
-    util.setupReadyDirectory([proteomes_directory])
+    genbanks_directory = outdir + 'Genomic_Genbanks_Initial/'
+    util.setupReadyDirectory([proteomes_directory, genbanks_directory])
 
     if format_prediction == 'fasta':
         ## genomes are provided as FASTAs
         prodigal_outdir = outdir + 'Prodigal_Gene_Calling/'
-        genbanks_directory = outdir + 'Genomic_Genbanks_Initial/'
-        util.setupReadyDirectory([prodigal_outdir, genbanks_directory])
+        util.setupReadyDirectory([prodigal_outdir])
 
         # Note, locus tags of length 3 are used within lsaBGC to mark samples whose BGCs were integral in defining GCFs.
         util.processGenomes(sample_genomes, prodigal_outdir, proteomes_directory, genbanks_directory, logObject,
                             cores=cores, locus_tag_length=3)
         sample_genomes = util.updateSampleGenomesWithGenbanks(genbanks_directory)
     else:
-        ## genomes are provided as Genbanks with CDS features
-        util.extractProteins(sample_genomes, proteomes_directory, logObject)
+        ## genomes are provided as Genbanks with CDS features and no need for de novo gene calling
+        gene_name_mapping_outdir = outdir + 'Mapping_of_New_Gene_Names_to_Original/'
+        util.setupReadyDirectory([gene_name_mapping_outdir])
+
+        util.processGenomesAsGenbanks(sample_genomes, proteomes_directory, genbanks_directory, gene_name_mapping_outdir, logObject, cores=cores, locus_tag_length=3)
 
     # Step 2: Process Additional Genomes
     additional_sample_annotation_listing_file = int_outdir + 'Additional_Sample_Annotation_Files.txt'
@@ -298,11 +301,11 @@ def lsaBGC_Ready():
             raise RuntimeError('Format of additional genomes provided is not consistently FASTA or Genbank, please check input.')
 
         additional_proteomes_directory = outdir + 'Predicted_Proteomes_Additional/'
-        util.setupReadyDirectory([additional_proteomes_directory])
+        additional_genbanks_directory = outdir + 'Genomic_Genbanks_Additional/'
+        util.setupReadyDirectory([additional_proteomes_directory, additional_genbanks_directory])
         if additional_format_prediction == 'fasta':
             additional_prodigal_outdir = outdir + 'Prodigal_Gene_Calling_Additional/'
-            additional_genbanks_directory = outdir + 'Genomic_Genbanks_Additional/'
-            util.setupReadyDirectory([additional_prodigal_outdir, additional_genbanks_directory])
+            util.setupReadyDirectory([additional_prodigal_outdir])
 
             # Note, locus tags of length 4 are used within lsaBGC to mark samples with additional genomes where we ultimately
             # find them via lsaBGC-Expansion.
@@ -310,7 +313,10 @@ def lsaBGC_Ready():
                                 logObject, cores=cores, locus_tag_length=4)
         else:
             # genomes are provided as Genbanks with CDS features
-            util.extractProteins(additional_sample_genomes, additional_proteomes_directory, logObject)
+            gene_name_mapping_outdir = outdir + 'Mapping_of_New_Gene_Names_to_Original/'
+            util.setupReadyDirectory([gene_name_mapping_outdir])
+
+            util.processGenomesAsGenbanks(additional_sample_genomes, additional_proteomes_directory, logObject)
 
         additional_sample_annotation_listing_handle = open(additional_sample_annotation_listing_file, 'w')
         for f in os.listdir(additional_proteomes_directory):

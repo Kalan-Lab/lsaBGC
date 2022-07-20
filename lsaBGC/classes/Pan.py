@@ -109,6 +109,7 @@ class Pan:
 					sample_index[sample] += 1
 
 					# Parse genbank using
+
 					BGC_Object = BGC(gbk, bgc_id, prediction_method=prediction_method)
 					BGC_Object.parseGenbanks(comprehensive_parsing=comprehensive_parsing)
 					self.pan_bgcs[bgc_id] = BGC_Object
