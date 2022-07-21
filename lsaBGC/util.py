@@ -1310,7 +1310,8 @@ def extractProteinsFromBGCs(sample_bgcs, bgc_prot_directory, logObject):
 	return sample_bgc_prots
 
 
-def performKOFamAnnotation(sample_bgc_proteins, bgc_prot_directory, ko_annot_directory, kofam_hmm_file, kofam_pro_list, logObject, cores=1):
+def performKOFamAndPGAPAnnotation(sample_bgc_proteins, bgc_prot_directory, annot_directory, kofam_hmm_file, pgap_hmm_file,
+								  kofam_pro_list, pgap_inf_list, logObject, cores=1):
 	sample_protein_annotations = defaultdict(lambda: defaultdict(lambda: dict))
 	try:
 		ko_score_cutoffs = {}
@@ -1330,23 +1331,39 @@ def performKOFamAnnotation(sample_bgc_proteins, bgc_prot_directory, ko_annot_dir
 				ko_score_types[ko] = profile_type
 				ko_descriptions[ko] = description
 
+		pgap_descriptions = defaultdict(lambda: "NA")
+		with open(pgap_inf_list) as opil:
+			for i, line in enumerate(okpl):
+				if i == 0: continue
+				line = line.strip()
+				ls = line.split('\t')
+				label = ls[2]
+				description = ls[10]
+				pgap_descriptions[label] = description
+
 		hmmsearch_cmds = []
 		for f in os.listdir(bgc_prot_directory):
 			sample = f.split('.faa')[0]
 			prot_file = bgc_prot_directory + f
-			annot_result = ko_annot_directory + sample + '.txt'
-			hmmsearch_cmd = ['hmmsearch', '--cpu', '2', '--tblout', annot_result, kofam_hmm_file,
+			ko_annot_result = annot_directory + sample + '.ko.txt'
+			pgap_annot_result = annot_directory + sample + '.pgap.txt'
+			hmmsearch_ko_cmd = ['hmmsearch', '--cpu', '2', '--tblout', ko_annot_result, kofam_hmm_file,
 						   prot_file, logObject]
-			hmmsearch_cmds.append(hmmsearch_cmd)
+			hmmsearch_pgap_cmd = ['hmmsearch', '--cpu', '2', '--tblout', pgap_annot_result, pgap_hmm_file,
+						   prot_file, logObject]
+			hmmsearch_cmds.append(hmmsearch_ko_cmd)
+			hmmsearch_cmds.append(hmmsearch_pgap_cmd)
 
 		p = multiprocessing.Pool(math.floor(cores/2))
 		p.map(multiProcess, hmmsearch_cmds)
 		p.close()
 
 		for sample in sample_bgc_proteins:
-			annot_result = ko_annot_directory + sample + '.txt'
+			ko_annot_result = annot_directory + sample + '.ko.txt'
+			pgap_annot_result = annot_directory + sample + '.pgap.txt'
 			hits_per_prot = defaultdict(list)
-			with open(annot_result) as orf:
+
+			with open(ko_annot_result) as orf:
 				for line in orf:
 					if line.startswith("#"): continue
 					line = line.strip()
@@ -1358,18 +1375,32 @@ def performKOFamAnnotation(sample_bgc_proteins, bgc_prot_directory, ko_annot_dir
 					dom_score = float(ls[8])
 					if ko in ko_score_types:
 						if ko_score_types[ko] == 'full' and full_score >= ko_score_cutoffs[ko]:
-							hits_per_prot[prot_id].append([ko, -full_score, full_eval])
+							hits_per_prot[prot_id].append([ko, full_score, full_eval])
 						elif ko_score_types[ko] == 'domain' and dom_score >= ko_score_cutoffs[ko]:
-							hits_per_prot[prot_id].append([ko, -dom_score, full_eval])
-					if full_eval < 1e-20 and full_score > 100.0:
-						hits_per_prot[prot_id].append([ko, -1E10, full_eval])
+							hits_per_prot[prot_id].append([ko, dom_score, full_eval])
+					elif full_eval < 1e-10:
+						hits_per_prot[prot_id].append(['ko', ko, -1E10, full_eval])
+
+			with open(pgap_annot_result) as orf:
+				for line in orf:
+					if line.startswith("#"): continue
+					line = line.strip()
+					ls = line.split()
+					pgap = ls[2]
+					prot_id = ls[0]
+					full_eval = float(ls[4])
+					if full_eval < 1e-10:
+						hits_per_prot[prot_id].append(['pgap', pgap, -1E10, full_eval])
+
 			best_hits = defaultdict(lambda: 'NA: hypothetical protein')
 			for pi in hits_per_prot:
-				for i, hit in enumerate(sorted(hits_per_prot[pi], key=lambda h: (h[1], h[2]), reverse=False)):
+				for i, hit in enumerate(sorted(hits_per_prot[pi], key=lambda h: (h[2], h[3]), reverse=False)):
 					if i == 0:
 						conf = ' (High Confidence)'
-						if hit[1] == -1E10:
-							conf = ' (Low Confidence : e-val < 1e-20)'
+						if hit[2] == -1E10 and hit[0] == 'ko':
+							conf = ' (KO; Low Confidence : e-val < 1e-10)'
+						elif hit[2] == -1E10 and hit[0] == 'pgap':
+							conf = ' (PGAP; Low Confidence : e-val < 1e-10)'
 						best_hits[pi] = hit[0] + ': ' + ko_descriptions[hit[0]] + conf
 
 			for bgc in sample_bgc_proteins[sample]:
@@ -1377,7 +1408,7 @@ def performKOFamAnnotation(sample_bgc_proteins, bgc_prot_directory, ko_annot_dir
 					sample_protein_annotations[sample][pi] = best_hits[pi]
 
 	except Exception as e:
-		logObject.error("Issues with performing KOfam based annotations.")
+		logObject.error("Issues with performing KOfam / PGAP based annotations.")
 		logObject.error(traceback.format_exc())
 		raise RuntimeError(traceback.format_exc())
 	return dict(sample_protein_annotations)
@@ -2198,3 +2229,68 @@ def is_numeric(x):
 		return True
 	except:
 		return False
+
+def loadTableInPandaDataFrame(input_file):
+	import panda as pd
+	panda_df = None
+	try:
+		data = []
+		with open(input_file) as oif:
+			for line in oif:
+				line = line.strip('\n')
+				ls = line.split('\t')
+				data.append(ls)
+
+		panda_dict = {}
+		for ls in zip(*data):
+			panda_dict[' '.join(ls[0].split('_'))] = ls[1:]
+
+		panda_df = pd.DataFrame(panda_dict)
+
+	except Exception as e:
+		raise RuntimeError(traceback.format_exc())
+	return panda_df
+
+def loadCustomPopGeneTableInPandaDataFrame(input_file):
+	import panda as pd
+	panda_df = None
+	try:
+		ignore_data_cats = set(['hg_median_copy_count',  'num_of_hg_instances', 'samples_with_hg', 'proportion_variable_sites', 'proportion_nondominant_major_allele', 'median_dn_ds', 'mad_dn_ds', 'all_domains'])
+		data = []
+		with open(input_file) as oif:
+			for line in oif:
+				line = line.strip('\n')
+				ls = line.split('\t')
+				data.append(ls)
+
+		panda_dict = {}
+		for ls in zip(*data):
+			if ls[0] in ignore_data_cats: continue
+			if ls[0] == 'gcf_annotation':
+				panda_dict[ls[0]] = ls[1:]
+
+		panda_df = pd.DataFrame(panda_dict)
+
+	except Exception as e:
+		raise RuntimeError(traceback.format_exc())
+	return panda_df
+
+	gcf_id
+	homolog_group
+	annotation
+	hg_order_index
+	hg_consensus_direction
+	hg_median_copy_count
+	median_gene_length
+	is_core_to_bgc
+	num_of_hg_instances
+	samples_with_hg
+	proportion_of_samples_with_hg
+	ambiguous_sites_proporition
+	Tajimas_D
+	proportion_variable_sites
+	proportion_nondominant_major_allele
+	median_beta_rd
+	median_dn_ds
+	mad_dn_ds
+	all_domains

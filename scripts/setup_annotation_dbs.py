@@ -44,48 +44,54 @@ def setup_annot_dbs():
     try:
         os.chdir(download_path)
 
-        # Download KOfam HMMs
-        print('Setting up KO database!')
-        os.system('wget ftp://ftp.genome.jp/pub/db/kofam/ko_list.gz')
-        os.system('wget ftp://ftp.genome.jp/pub/db/kofam/profiles.tar.gz')
-        os.system('gunzip ko_list.gz')
-        os.system('tar -zxvf profiles.tar.gz')
         ko_annot_info_file = download_path + 'ko_list'
         ko_phmm_file = download_path + 'profile.hmm'
-        assert(os.path.isfile(ko_annot_info_file))
-        assert(os.path.isdir(download_path + 'profiles/'))
 
-        if os.path.isfile(ko_phmm_file):
-            os.system('rm -f %s' % ko_phmm_file)
-        for f in os.listdir(download_path + 'profiles/'):
-            os.system('cat %s >> %s' % (download_path + 'profiles/' + f, ko_phmm_file))
-        assert(os.path.isfile(ko_phmm_file))
-        listing_file = lsaBGC_main_directory + 'db/kofam_location_paths.txt'
-        listing_handle = open(listing_file, 'w')
-        listing_handle.write(ko_annot_info_file + '\t' + ko_phmm_file + '\n')
-        listing_handle.close()
-        os.system('rm -rf %s %s' % (download_path + 'profiles/', download_path + 'profiles.tar.gz'))
+        if not os.path.isfile(ko_annot_info_file) or not os.path.isfile(ko_phmm_file):
+            os.system('rm -f %s' % ko_annot_info_file)
+            # Download KOfam HMMs
+            print('Setting up KO database!')
+            os.system('wget ftp://ftp.genome.jp/pub/db/kofam/ko_list.gz')
+            os.system('wget ftp://ftp.genome.jp/pub/db/kofam/profiles.tar.gz')
+            os.system('gunzip ko_list.gz')
+            os.system('tar -zxvf profiles.tar.gz')
 
-        # Download PGAP HMMs (Includes TIGR)
-        print('Setting up PGAP database!')
-        os.system('wget https://ftp.ncbi.nlm.nih.gov/hmm/current/hmm_PGAP.HMM.tgz')
-        os.system('wget https://ftp.ncbi.nlm.nih.gov/hmm/current/hmm_PGAP.tsv')
-        os.system('tar -zxvf hmm_PGAP.HMM.tgz')
+            assert(os.path.isfile(ko_annot_info_file))
+            assert(os.path.isdir(download_path + 'profiles/'))
+
+            if os.path.isfile(ko_phmm_file):
+                os.system('rm -f %s' % ko_phmm_file)
+            for f in os.listdir(download_path + 'profiles/'):
+                os.system('cat %s >> %s' % (download_path + 'profiles/' + f, ko_phmm_file))
+
+            assert(os.path.isfile(ko_phmm_file))
+            listing_file = lsaBGC_main_directory + 'db/database_location_paths.txt'
+            listing_handle = open(listing_file, 'w')
+            listing_handle.write('ko\t' + ko_annot_info_file + '\t' + ko_phmm_file + '\n')
+            listing_handle.close()
+            os.system('rm -rf %s %s' % (download_path + 'profiles/', download_path + 'profiles.tar.gz'))
+
         pgap_info_file = download_path + 'hmm_PGAP.tsv'
         pgap_hmm_file = download_path + 'PGAP.hmm'
-        assert(os.path.isfile(ko_annot_info_file))
-        assert(os.path.isdir(download_path + 'profiles/'))
 
-        if os.path.isfile(ko_phmm_file):
-            os.system('rm -f %s' % ko_phmm_file)
-        for f in os.listdir(download_path + 'profiles/'):
-            os.system('cat %s >> %s' % (download_path + 'profiles/' + f, ko_phmm_file))
-        assert(os.path.isfile(ko_phmm_file))
-        listing_file = lsaBGC_main_directory + 'db/kofam_location_paths.txt'
-        listing_handle = open(listing_file, 'w')
-        listing_handle.write(ko_annot_info_file + '\t' + ko_phmm_file + '\n')
-        listing_handle.close()
-        os.system('rm -rf %s %s' % (download_path + 'profiles/', download_path + 'profiles.tar.gz'))
+        if not os.path.isfile(pgap_info_file) or not os.path.isfile(pgap_hmm_file):
+            # Download PGAP HMMs (Includes TIGR)
+            print('Setting up PGAP database!')
+            os.system('wget https://ftp.ncbi.nlm.nih.gov/hmm/current/hmm_PGAP.HMM.tgz')
+            os.system('wget https://ftp.ncbi.nlm.nih.gov/hmm/current/hmm_PGAP.tsv')
+            os.system('tar -zxvf hmm_PGAP.HMM.tgz')
+
+            assert(os.path.isfile(pgap_info_file))
+            assert(os.path.isdir(download_path + 'hmm_PGAP/'))
+
+            for f in os.listdir(download_path + 'hmm_PGAP/'):
+                os.system('cat %s >> %s' % (download_path + 'hmm_PGAP/' + f, pgap_hmm_file))
+            assert(os.path.isfile(ko_phmm_file))
+            listing_file = lsaBGC_main_directory + 'db/database_location_paths.txt'
+            listing_handle = open(listing_file, 'a+')
+            listing_handle.write('pgap\t' + pgap_info_file + '\t' + pgap_hmm_file + '\n')
+            listing_handle.close()
+            os.system('rm -rf %s %s' % (download_path + 'hmm_PGAP/', download_path + 'hmm_PGAP.HMM.tgz'))
 
     except:
         sys.stderr.write('Error: issues with downloading or seting up annotation database files! Please post to Github issues if unable to figure out!\n')

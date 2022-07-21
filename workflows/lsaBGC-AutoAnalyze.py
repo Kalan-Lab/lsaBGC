@@ -378,13 +378,14 @@ def lsaBGC_AutoAnalyze():
 	combined_pmcopy_plot_input_file = outdir + 'HG_Proportion_MultiCopy_Plotting_Input.txt'
 	combined_consensus_similarity_file = outdir + 'GCF_Homolog_Group_Consensus_Sequence_Similarity.txt'
 	combined_divergence_results_file = outdir + 'GCF_Divergences.txt'
+	consolidated_popgene_report_file = outdir + 'GCF_Homolog_Group_Information.txt'
 
 	combined_tajimd_plot_input_handle = open(combined_tajimd_plot_input_file, 'w')
 	combined_betard_plot_input_handle = open(combined_betard_plot_input_file, 'w')
 	combined_pmcopy_plot_input_handle = open(combined_pmcopy_plot_input_file, 'w')
 	combined_conser_plot_input_handle = open(combined_conser_plot_input_file, 'w')
 	combined_consensus_similarity_handle = open(combined_consensus_similarity_file, 'w')
-	combined_orthoresults_unrefined_handle = open(outdir + 'GCF_Homolog_Group_Information.txt', 'w')
+	combined_orthoresults_unrefined_handle = open(consolidated_popgene_report_file, 'w')
 	combined_divergence_results_handle = open(combined_divergence_results_file, 'w')
 
 	combined_tajimd_plot_input_handle.write('\t'.join(['GCF', 'HG', 'start', 'end', 'con_dir', 'proportion', 'core', 'Tajimas_D']) + '\n')
@@ -550,9 +551,16 @@ def lsaBGC_AutoAnalyze():
 
 	# create Excel spreadsheet
 	workbook = xlsxwriter.Workbook(outdir + 'lsaBGC_Pan_Secondary_Metabolome_Overview.xlsx')
+	cprf_df = util.loadTableInPandaDataFrame(consolidated_popgene_report_file)
+	cprf_df.to_excel(workbook, sheet='Overview - Full')
+
+	scprf_df = util.loadCustomPopGeneTableInPandaDataFrame(consolidated_popgene_report_file)
+
 	worksheet1 = workbook.add_worksheet('Overview - Simple')
 	worksheet2 = workbook.add_worksheet('Multi GCF HGs')
 	worksheet3 = workbook.add_worksheet('Overview - Full')
+
+
 	workbook.close()
 
 	# clean up final directory:

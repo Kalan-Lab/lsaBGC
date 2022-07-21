@@ -106,7 +106,7 @@ def create_parser():
     parser.add_argument('-o', '--output_directory', help='Parent output/workspace directory.', required=True)
     parser.add_argument('-m', '--orthofinder_mode', help='Method for running OrthoFinder2. (Options: Genome_Wide, BGC_Only). Default is BGC_Only.', required=False, default='BGC_Only')
     parser.add_argument('-a', '--annotate', action='store_true',
-                        help='Perform annotation of BGC proteins using KOfam HMM profiles.', required=False, default=False)
+                        help='Perform annotation of BGC proteins using KOfam and PGAP (including TIGR) HMM profiles.', required=False, default=False)
     parser.add_argument('-t', '--run_gtotree', action='store_true', help='Whether to create phylogeny and expected sample-vs-sample\ndivergence for downstream analyses using GToTree.', required=False, default=False)
     parser.add_argument('-gtm', '--gtotree_model', help='Set of core genes to use for phylogeny construction in GToTree. Default is Universal_Hug_et_al', required=False, default="Universal_Hug_et_al")
     parser.add_argument('-lc', '--lsabgc_cluster', action='store_true', help='Run lsaBGC-Cluster with default parameters. Note, we recommend running lsaBGC-Cluster manually\nand exploring parameters through its ability to generate a user-report for setting clustering parameters.', required=False, default=False)
@@ -199,16 +199,24 @@ def lsaBGC_Ready():
 
     kofam_hmm_file = None
     kofam_pro_list = None
+    pgap_hmm_file = None
+    pgap_inf_list = None
     if annotate:
         try:
-            kofam_db_location = lsaBGC_main_directory + 'db/kofam_location_paths.txt'
-            assert(os.path.isfile(kofam_db_location))
-            with open(kofam_db_location) as okdlf:
-                for line in okdlf:
-                    kofam_pro_list, kofam_hmm_file = line.strip().split('\t')
-                    assert(os.path.isfile(kofam_hmm_file) and os.path.isfile(kofam_pro_list))
+            db_locations = lsaBGC_main_directory + 'db/database_location_paths.txt'
+            assert(os.path.isfile(db_locations))
+            with open(db_locations) as odls:
+                for line in odls:
+                    line = line.strip()
+                    ls = line.split('\t')
+                    if ls[0] == 'ko':
+                        kofam_pro_list, kofam_hmm_file = ls[1:]
+                        assert(os.path.isfile(kofam_hmm_file) and os.path.isfile(kofam_pro_list))
+                    elif ls[0] == 'pgap':
+                        pgap_inf_list, pgap_hmm_file = ls[1:]
+                        assert(os.path.isfile(pgap_hmm_file) and os.path.isfile(pgap_inf_list))
         except:
-            raise RuntimeError("It appears KOfam database was not setup or setup successfully. Please run/rerun the script setup_annotation_dbs.py and report to Github issues if issue persists.")
+            raise RuntimeError("It appears KOfam/PGAP databases were not setup or setup successfully. Please run/rerun the script setup_annotation_dbs.py and report to Github issues if issue persists.")
 
     """
 	START WORKFLOW
@@ -224,7 +232,7 @@ def lsaBGC_Ready():
                         run_lsabgc_expansion, keep_intermediates, cores]
     parameter_names = ["Primary Genome Listing File", "BGC Predictions Genbanks Listing File", "Output Directory",
                        "Additional Genome Listing File", "BGC Prediction Software", "OrthoFinder Mode",
-                       "BiG-SCAPE Results Directory", "Perform KOfam Annotation?", "Run lsaBGC-Cluster Analysis?",
+                       "BiG-SCAPE Results Directory", "Perform KOfam/PGAP Annotation?", "Run lsaBGC-Cluster Analysis?",
                        "Run lsaBGC-AutoExpansion Analysis?", "Keep Intermediate Files/Directories?", "Number of Cores"]
     util.logParametersToFile(parameters_file, parameter_names, parameter_values)
     logObject.info("Done saving parameters!")
@@ -344,14 +352,14 @@ def lsaBGC_Ready():
 
     sample_bgc_proteins = util.extractProteinsFromBGCs(sample_bgcs, bgc_prot_directory, logObject)
 
-    # Step 5: Perform KOfam annotation if requested and update BGCs (including references to them)
+    # Step 5: Perform KOfam/PGAP annotation if requested and update BGCs (including references to them)
     protein_annotations = None
     if annotate:
-        ko_annot_directory = outdir + 'KOfam_Annotations/'
-        if not os.path.isdir(ko_annot_directory): os.system('mkdir %s' % ko_annot_directory)
-        protein_annotations = util.performKOFamAnnotation(sample_bgc_proteins, bgc_prot_directory,
-                                                                       ko_annot_directory, kofam_hmm_file,
-                                                                       kofam_pro_list, logObject, cores=cores)
+        annot_directory = outdir + 'Annotations/'
+        util.setupReadyDirectory([annot_directory])
+        protein_annotations = util.performKOFamAndPGAPAnnotation(sample_bgc_proteins, bgc_prot_directory,
+                                                                       annot_directory, kofam_hmm_file, pgap_hmm_file,
+                                                                       kofam_pro_list, pgap_inf_list, logObject, cores=cores)
         bgcs_directory_updated = outdir + 'BGCs_Retagged_and_Annotated/'
         util.setupReadyDirectory([bgcs_directory_updated])
 
