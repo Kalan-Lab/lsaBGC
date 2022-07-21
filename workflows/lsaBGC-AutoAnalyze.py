@@ -553,11 +553,11 @@ def lsaBGC_AutoAnalyze():
 	workbook = xlsxwriter.Workbook(outdir + 'lsaBGC_Pan_Secondary_Metabolome_Overview.xlsx')
 
 	scprf_df = util.loadCustomPopGeneTableInPandaDataFrame(consolidated_popgene_report_file)
-	scprf_df.to_excel(workbook, sheet='Overview - Simple')
+	scprf_df.to_excel(workbook, sheet_name='Overview - Simple')
 	cprf_df = util.loadTableInPandaDataFrame(multi_gcf_hgs_file)
-	cprf_df.to_excel(workbook, sheet='Multi-GCF HGs')
+	cprf_df.to_excel(workbook, sheet_name='Multi-GCF HGs')
 	cprf_df = util.loadTableInPandaDataFrame(consolidated_popgene_report_file)
-	cprf_df.to_excel(workbook, sheet='Overview - Full')
+	cprf_df.to_excel(workbook, sheet_name='Overview - Full')
 
 	workbook.close()
 
