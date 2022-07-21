@@ -2252,10 +2252,16 @@ def loadTableInPandaDataFrame(input_file):
 	return panda_df
 
 def loadCustomPopGeneTableInPandaDataFrame(input_file):
-	import panda as pd
+	import pandas as pd
 	panda_df = None
 	try:
-		ignore_data_cats = set(['hg_median_copy_count',  'num_of_hg_instances', 'samples_with_hg', 'proportion_variable_sites', 'proportion_nondominant_major_allele', 'median_dn_ds', 'mad_dn_ds', 'all_domains'])
+		ignore_data_cats = {'hg_median_copy_count', 'num_of_hg_instances', 'samples_with_hg',
+							'proportion_variable_sites', 'proportion_nondominant_major_allele', 'median_dn_ds',
+							'mad_dn_ds', 'all_domains', 'most_significant_Fisher_exact_pvalues_presence_absence',
+							'median_Tajimas_D_per_population', 'mad_Tajimas_D_per_population',
+							'most_negative_population_Tajimas_D', 'most_positive_population_Tajimas_D',
+							'population_entropy', 'median_fst_like_estimate',
+							'population_proportion_of_members_with_hg'}
 		data = []
 		with open(input_file) as oif:
 			for line in oif:
@@ -2267,30 +2273,18 @@ def loadCustomPopGeneTableInPandaDataFrame(input_file):
 		for ls in zip(*data):
 			if ls[0] in ignore_data_cats: continue
 			if ls[0] == 'gcf_annotation':
-				panda_dict[ls[0]] = ls[1:]
-
+				updated_ans = []
+				for ans in ls[1:]:
+					upans = []
+					for an in ans.split('; '):
+						if not an.startswith('NA:'):
+							upans.append(an)
+					updated_ans.append('|'.join(upans))
+				panda_dict[' '.join(ls[0].split('_'))] = updated_ans
+			else:
+				panda_dict[' '.join(ls[0].split('_'))] = ls[1:]
 		panda_df = pd.DataFrame(panda_dict)
 
 	except Exception as e:
 		raise RuntimeError(traceback.format_exc())
 	return panda_df
-
-	gcf_id
-	homolog_group
-	annotation
-	hg_order_index
-	hg_consensus_direction
-	hg_median_copy_count
-	median_gene_length
-	is_core_to_bgc
-	num_of_hg_instances
-	samples_with_hg
-	proportion_of_samples_with_hg
-	ambiguous_sites_proporition
-	Tajimas_D
-	proportion_variable_sites
-	proportion_nondominant_major_allele
-	median_beta_rd
-	median_dn_ds
-	mad_dn_ds
-	all_domains

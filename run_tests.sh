@@ -15,9 +15,16 @@ listAllBGCGenbanksInDirectory.py -i Primary_Genome_AntiSMASH_Results/ -p antiSMA
 
 # Step 3: run lsaBGC-Ready.py - with clustering of primary genome BGCs, expansion to 
 #         additional genomes, and phylogeny construction set to automatically run.
-lsaBGC-Ready.py -i Primary_Genomes_Listing.txt -d Additional_Genomes_Listing.txt \
-	-l Primary_Genome_BGC_Genbanks_Listing.txt -p antiSMASH -m BGC_Only \
-	-c 8 -t -lc -le -o lsaBGC_Ready_Results/
+FILE=db/database_location_paths.txt
+if [ -f "$FILE" ]; then
+    lsaBGC-Ready.py -i Primary_Genomes_Listing.txt -d Additional_Genomes_Listing.txt \
+   	-l Primary_Genome_BGC_Genbanks_Listing.txt -p antiSMASH -m BGC_Only \
+	  -c 8 -t -a -lc -le -o lsaBGC_Ready_Results/
+else
+    lsaBGC-Ready.py -i Primary_Genomes_Listing.txt -d Additional_Genomes_Listing.txt \
+	  -l Primary_Genome_BGC_Genbanks_Listing.txt -p antiSMASH -m BGC_Only \
+	  -c 8 -t -lc -le -o lsaBGC_Ready_Results/
+fi
 
 # Step 4: run lsaBGC-AutoAnalyze.py - automatically run analytical programs for
 #         visualization, evolutionary stats computation and single row per 
