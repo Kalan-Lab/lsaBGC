@@ -561,8 +561,8 @@ def lsaBGC_AutoAnalyze():
 	util.setupReadyDirectory([final_results_dir, inter_results_dir])
 	for fd in os.listdir(outdir):
 		if os.path.isdir(fd): continue
-		if f.endswith('.pdf') or f.endswith('.xlsx') or f.endswith('.faa'): os.system('mv %s %s' % (outdir + f, final_results_dir))
-		elif f.endswith('.txt'): os.system('mv %s %s' % (outdir + f, inter_results_dir))
+		if fd.endswith('.pdf') or fd.endswith('.xlsx') or fd.endswith('.faa'): os.system('mv %s %s' % (outdir + fd, final_results_dir))
+		elif fd.endswith('.txt'): os.system('mv %s %s' % (outdir + fd, inter_results_dir))
 
 	# Close logging object and exit
 	util.closeLoggerObject(logObject)
