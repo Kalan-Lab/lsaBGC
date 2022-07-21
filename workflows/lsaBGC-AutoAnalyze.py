@@ -44,6 +44,7 @@ import argparse
 from collections import defaultdict
 from Bio import SeqIO
 from lsaBGC import util
+import pandas as pd
 
 lsaBGC_main_directory = '/'.join(os.path.realpath(__file__).split('/')[:-2])
 RSCRIPT_FOR_NJTREECONSTRUCTION = lsaBGC_main_directory + '/lsaBGC/Rscripts/createNJTree.R'
@@ -550,15 +551,17 @@ def lsaBGC_AutoAnalyze():
 	corason_reference_faa_handle.close()
 
 	# create Excel spreadsheet
-	workbook = xlsxwriter.Workbook(outdir + 'lsaBGC_Pan_Secondary_Metabolome_Overview.xlsx')
+	writer = pd.ExcelWriter(outdir + 'lsaBGC_Pan_Secondary_Metabolome_Overview.xlsx', engine='xlsxwriter')
 
 	scprf_df = util.loadCustomPopGeneTableInPandaDataFrame(consolidated_popgene_report_file)
-	scprf_df.to_excel(workbook, sheet_name='Overview - Simple')
+	scprf_df.to_excel(writer, sheet_name='Overview - Simple')
 	cprf_df = util.loadTableInPandaDataFrame(multi_gcf_hgs_file)
-	cprf_df.to_excel(workbook, sheet_name='Multi-GCF HGs')
+	cprf_df.to_excel(writer, sheet_name='Multi-GCF HGs')
 	cprf_df = util.loadTableInPandaDataFrame(consolidated_popgene_report_file)
-	cprf_df.to_excel(workbook, sheet_name='Overview - Full')
+	cprf_df.to_excel(writer, sheet_name='Overview - Full')
 
+	workbook = writer.book
+	scprf_sheet = writer.sheets['Overview - Simple']
 	workbook.close()
 
 	# clean up final directory:
