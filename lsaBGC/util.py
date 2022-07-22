@@ -2260,8 +2260,7 @@ def loadCustomPopGeneTableInPandaDataFrame(input_file):
 							'mad_dn_ds', 'all_domains', 'most_significant_Fisher_exact_pvalues_presence_absence',
 							'median_Tajimas_D_per_population', 'mad_Tajimas_D_per_population',
 							'most_negative_population_Tajimas_D', 'most_positive_population_Tajimas_D',
-							'population_entropy', 'median_fst_like_estimate',
-							'population_proportion_of_members_with_hg'}
+							'population_entropy', 'median_fst_like_estimate'}
 		data = []
 		with open(input_file) as oif:
 			for line in oif:
@@ -2288,3 +2287,6 @@ def loadCustomPopGeneTableInPandaDataFrame(input_file):
 	except Exception as e:
 		raise RuntimeError(traceback.format_exc())
 	return panda_df
+
+#def updatePandaDFtoNumeric(pandf):
+#	for

@@ -258,6 +258,8 @@ def lsaBGC_AutoAnalyze():
 				for line in ogf:
 					line = line.strip()
 					sample, bgc_path = line.split('\t')
+					if has_at_least_one_core_BGC_flag:
+						update_gcf_listing_handle.write(line + '\n')
 					if not has_at_least_one_core_BGC_flag and sample in sample_retention_set:
 						with open(bgc_path) as obp:
 							for rec in SeqIO.parse(obp, 'genbank'):
