@@ -2231,7 +2231,7 @@ def is_numeric(x):
 		return False
 
 def loadTableInPandaDataFrame(input_file):
-	import panda as pd
+	import pandas as pd
 	panda_df = None
 	try:
 		data = []
