@@ -291,6 +291,8 @@ def lsaBGC_Ready():
 
     # Step 2: Process Additional Genomes
     additional_sample_annotation_listing_file = int_outdir + 'Additional_Sample_Annotation_Files.txt'
+    additional_proteomes_directory = None
+    additional_genbanks_directory = None
     if additional_genome_listing_file != None:
         additional_sample_genomes, additional_format_prediction = util.parseSampleGenomes(additional_genome_listing_file, logObject)
         if additional_format_prediction == 'mixed':
@@ -479,7 +481,9 @@ def lsaBGC_Ready():
     if run_gtotree:
         proteome_listing_file = outdir + 'All_Proteomes.txt'
         proteome_listing_handle = open(proteome_listing_file, 'w')
-        proteome_directories = [proteomes_directory, additional_proteomes_directory]
+        proteome_directories = [proteomes_directory]
+	if additional_proteomes_directory != None:
+	    proteome_directies += [additional_proteomes_directory]
         for pd in proteome_directories:
             for f in os.listdir(pd):
                 proteome_listing_handle.write(pd + f + '\n')
