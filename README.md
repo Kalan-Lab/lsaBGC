@@ -80,8 +80,8 @@ Additionally we suggest checking out additional [test cases](https://github.com/
 The major outputs of the final `lsaBGC-AutoAnalyze.py` run in the resulting folder `test_case/lsaBGC_AutoAnalyze_Results/` include:
 
 * **GCF_Homolog_Group_Information.txt** - a table with each row corresponding to a homolog group for each GCF - gives a quick high-level overview of the pan-secondary metabolome of your microbe of interest that you can filter and scroll through! See below section "Notes on the "lsaBGC-PopGene.py" Table Report" for more information. 
-* **Consensus_Sequence_Similarity_of_Homolog_Groups.pdf** - a PDF showing the phylogenetic distribution of GCFs found in >25% of samples. Coloring represents difference to consensus gene sequences across all samples.
-* **GCF_Conservation_and_PopStats_Views.pdf** - 2 pg PDF report showing gene schemas. Degree of transparency = conservation of gene across BGCs. Coloring corresponds to either Tajima's D or (will probably be getting updated soon to be)
+* **Consensus_Sequence_Similarity_of_Homolog_Groups.pdf** - a PDF showing the phylogenetic distribution of GCFs found in >=10% of samples. Coloring represents difference to consensus gene sequences across all samples.
+* **GCF_Conservation_and_PopStats_Views.pdf** - 2 pg PDF report showing gene schemas. Degree of transparency = conservation of gene across BGCs. Coloring corresponds to either Tajima's D or Beta-RD (will probably be getting updated soon to better accomodate taxa with > 20 GCFs).
 * **GCF_Divergence.pdf** - a boxplot of the Beta-RD values (the divergence of BGCs between pairs of genomes to the expected divergence, i.e. genome-wide ANI/AAI or divergence of single-copy core genes) for each GCF.
 * **See/GCF_X/BGC_Visualization.species_phylogeny.pdf** - for each GCF_X in the `See/` sub-directory you can see a phylogenetic distribution of BGCs belonging to the GCF accounting for BGC splitting within a sample's genome due to assembly fragmentation. These are BGCs detected in the "expansion/additional genomes" set by `lsaBGC-Expansion.py`. 
 
@@ -95,7 +95,7 @@ For more advanced evolutionary statistics, I recommend primarily consulting the 
 
 **Median Beta-RD** is the median value of pairwise calculations of gene divergence to expected divergence for a pair of genomes based on genome-wide values such as ANI/AAI or divergence of single-copy core genes (e.g. ribosomal proteins).
 
-**Tajima's D** can be most intiutively thought of as the proportion of high-frequency to low-frequency/rare minor allele positions along the multiple sequence alignment of a gene. It is thus essential to account for representation bias in your dataset and as such we perform de-replication (check out [drep](https://github.com/MrOlm/drep)) of genomes prior to `lsaBGC-PopGene.py` analysis to properly interpret the statistics.
+**Tajima's D** can be most intiutively thought of as the proportion of high-frequency to low-frequency/rare minor allele positions along the multiple sequence alignment of a gene. It is thus essential to account for representation bias in your dataset and as such we perform de-replication (check out [drep](https://github.com/MrOlm/drep)) of genomes prior to `lsaBGC-PopGene.py`/`lsaBGC-AutoAnalyze.py` analysis to properly compute the statistic.
 
 In the near future, I plan to incorporate a phylogeny-aware calculation of dN/dS, as well as update other evolutionary / pop-gen stats. Will announce these in major updates as they are incorporated.
 
