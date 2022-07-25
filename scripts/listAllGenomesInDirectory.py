@@ -64,7 +64,7 @@ def create_parser():
     parser.add_argument('-o', '--bgc_prediction_dir', help='Path to output directory to list for BGC prediction output.', default='./BGC_Predictions/', required=False)
     parser.add_argument('-p', '--bgc_prediction_software', help='Software used to predict BGCs (Options: antiSMASH, DeepBGC, GECCO).\nDefault is antiSMASH.', default='antiSMASH', required=False)
     parser.add_argument('-c', '--cores', help='Number of cores to specify per job.', required=False, default=4)
-    parser.add_argument('-t', '--taxon', action='store_true', help='Taxon class to provide BGC prediction software, e.g. antiSMASH. Options: bacteri, fungi. Default: bacteria', default="bacteria", required=False)
+    parser.add_argument('-t', '--taxon', help='Taxon class to provide BGC prediction software, e.g. antiSMASH. Options: bacteri, fungi. Default: bacteria', default="bacteria", required=False)
     args = parser.parse_args()
     return args
 
@@ -142,7 +142,7 @@ def siftAndPrint():
                     sample = '.'.join(f.split('.')[:-2])
                 if sample.endswith('_genomic'):
                     sample = sample.split('_genomic')[0]
-                full_file_name = input_genomes_dir + f
+                full_file_name = dirpath + '/' +  f
                 if sample in sample_to_genome:
                     sys.stderr.write('Warning, sample %s has more than one genome, skipping second instance' % sample)
                 else:
@@ -172,7 +172,7 @@ def siftAndPrint():
                 if genome_file.endswith('.gbff.gz') or genome_file.endswith('.gbk.gz') or genome_file.endswith('.gbk') or genome_file.endswith('.gbff'):
                     gene_finding = 'none'
                 bgc_cmd = ['antismash', '--taxon', taxon, '--output-dir', bgc_prediction_dir + sample + '/', '-c',
-                           str(cores), '--genefinding-tool', gene_finding, genome_file]
+                           str(cores), '--genefinding-tool', gene_finding, '--output-basename', sample, genome_file]
             elif bgc_prediction_software == 'DEEPBGC':
                 bgc_cmd = ['deepbgc', 'pipeline', '--output', bgc_prediction_dir + sample + '/', genome_file]
             elif bgc_prediction_software == 'GECCO':

@@ -108,9 +108,13 @@ class Pan:
 						bgc_id = sample + '_' + str(sample_index[sample] + 1)
 					sample_index[sample] += 1
 
+					is_expansion_bgc = False
+					if '_Expansion_BGC' in gbk:
+						is_expansion_bgc = True
+
 					# Parse genbank using
 
-					BGC_Object = BGC(gbk, bgc_id, prediction_method=prediction_method)
+					BGC_Object = BGC(gbk, bgc_id, is_expansion_bgc=is_expansion_bgc, prediction_method=prediction_method)
 					BGC_Object.parseGenbanks(comprehensive_parsing=comprehensive_parsing)
 					self.pan_bgcs[bgc_id] = BGC_Object
 					self.comp_gene_info.update(BGC_Object.gene_information)

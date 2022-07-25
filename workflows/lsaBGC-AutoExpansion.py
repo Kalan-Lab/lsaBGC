@@ -58,8 +58,8 @@ def create_parser():
 	Author: Rauf Salamzade
 	Affiliation: Kalan Lab, UW Madison, Department of Medical Microbiology and Immunology
 
-	Program to run lsaBGC-Expansion on each GCF, resolve conflicts across GCFs, and then consolidate result files.
-
+	Program to run lsaBGC-Expansion on each GCF, resolve conflicts across GCFs, and then consolidate result files when
+	overlapping BGC predictions for different GCFs exist.
 	""", formatter_class=argparse.RawTextHelpFormatter)
 
 	parser.add_argument('-g', '--gcf_listing_dir', help='Directory with GCF listing files.', required=True)
@@ -67,11 +67,11 @@ def create_parser():
 	parser.add_argument('-l', '--initial_listing', type=str, help="Path to tab delimited text file for samples with three columns: (1) sample name (2) Prokka generated Genbank file (*.gbk), and (3) Prokka generated predicted-proteome file (*.faa). Please remove troublesome characters in the sample name.", required=True)
 	parser.add_argument('-e', '--expansion_listing', help="Path to tab delimited file listing: (1) sample name (2) path to Prokka Genbank and (3) path to Prokka predicted proteome. This file is produced by lsaBGC-AutoProcess.py.", required=True)
 	parser.add_argument('-o', '--output_directory', help="Parent output/workspace directory.", required=True)
-	parser.add_argument('-i', '--gcf_id', help="GCF identifier.", required=False, default='GCF_X')
 	parser.add_argument('-p', '--bgc_prediction_software', help='Software used to predict BGCs (Options: antiSMASH, DeepBGC, GECCO).\nDefault is antiSMASH.', default='antiSMASH', required=False)
 	parser.add_argument('-q', '--quick_mode', action='store_true', help='Whether to run lsaBGC-Expansion in quick mode?', required=False, default=False)
 	parser.add_argument('-z', '--pickle_expansion_annotation_data', help="Pickle file with serialization of annotation data in the expansion listing file.", required=False, default=None)
 	parser.add_argument('-c', '--cores', type=int, help="Total number of cores to use.", required=False, default=1)
+	parser.add_argument('-ph', '--protocore_homologs', help="File with manual listings of proto-core homolog groups.\nThis should be provided as 2 column tab-delmited file: (1) GCF id and\n(2) space delmited listing of homolog groups. Automatically\nsets --all_primary flag in exapnsion runs as well.", required=False, default=None)
 
 	args = parser.parse_args()
 	return args
@@ -161,7 +161,10 @@ def lsaBGC_AutoExpansion():
 			for line in oglf:
 				line = line.strip()
 				sample, bgc_gbk_path = line.split('\t')
-				BGC_Object = BGC(bgc_gbk_path, bgc_gbk_path, prediction_method=bgc_prediction_software)
+				expansion_flag = False
+				if '_Expansion_BGC' in bgc_gbk_path:
+					expansion_flag = True
+				BGC_Object = BGC(bgc_gbk_path, bgc_gbk_path, expansion_flag, prediction_method=bgc_prediction_software)
 				BGC_Object.parseGenbanks(comprehensive_parsing=False)
 				curr_bgc_lts = set(BGC_Object.gene_information.keys())
 				for lt in curr_bgc_lts:
@@ -317,7 +320,10 @@ def lsaBGC_AutoExpansion():
 				if (bgc_gbk_path in bgcs_to_discard) and (not bgc_gbk_path in original_gcfs): continue
 				final_expanded_gcf_listing_handle.write(line + '\n')
 				if bgc_gbk_path in original_gcfs: continue
-				BGC_Object = BGC(bgc_gbk_path, bgc_gbk_path, prediction_method=bgc_prediction_software)
+				expansion_flag = False
+				if '_Expansion_BGC' in bgc_gbk_path:
+					expansion_flag = True
+				BGC_Object = BGC(bgc_gbk_path, bgc_gbk_path, expansion_flag, prediction_method=bgc_prediction_software)
 				BGC_Object.parseGenbanks(comprehensive_parsing=False)
 				curr_bgc_lts = set(BGC_Object.gene_information.keys())
 				sample = util.cleanUpSampleName(sample)

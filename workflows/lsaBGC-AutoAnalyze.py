@@ -399,6 +399,7 @@ def lsaBGC_AutoAnalyze():
 		sample_retention_set = all_samples
 
 	hg_gcfs = defaultdict(set)
+	likely_mge_hgs = set([])
 	combined_consensus_similarity_handle.write('\t'.join(['GCF', 'GCF_Order', 'Homolog_Group', 'Homolog_Group_Order', 'label', 'Difference_to_Consensus_Sequence']) + '\n')
 	for i, g in enumerate(os.listdir(gcf_listing_dir)):
 		gcf_id = g.split('.txt')[0]
@@ -425,6 +426,10 @@ def lsaBGC_AutoAnalyze():
 						pop_info_available = True
 				elif ls[4] != 'NA':
 					hg = ls[2]
+					annot = ls[3]
+					if 'transpos' in annot or 'integrase' in annot:
+						likely_mge_hgs.add(hg)
+					hg_gcfs[hg].add(gcf_id)
 					con_ord = int(ls[4])
 					con_dir = int(ls[5])
 					med_len = float(ls[7])
@@ -535,13 +540,12 @@ def lsaBGC_AutoAnalyze():
 	multi_gcf_hgs_handle.write('\t'.join(['HG', 'Avoid Because Likely MGE?', 'GCF Count', 'GCFs']) + '\n')
 	for hg in sorted(hg_gcf_counts.items(), key=itemgetter(1), reverse=True):
 		if hg[1] > 1:
-			hg_id = int(hg[0].split('OG')[1])
 			likely_mge = False
-			if hg_id < 100:
+			if hg[0] in likely_mge_hgs:
 				likely_mge = True
-			multi_gcf_hgs_handle.write(hg[0] + '\t' + str(likely_mge) + '\t' + str(hg[1]) + '\t' + ', '.join(sorted(hg_gcfs[hg])))
-			first_gcf = sorted(hg_gcfs[hg])[0]
-			first_gcf_hg_prot_seq_file = outdir + 'PopGene/' + first_gcf + '/Protein_Sequences/' + hg_id + '.faa'
+			multi_gcf_hgs_handle.write(hg[0] + '\t' + str(likely_mge) + '\t' + str(hg[1]) + '\t' + ', '.join(sorted(hg_gcfs[hg[0]])) + '\n')
+			first_gcf = sorted(hg_gcfs[hg[0]])[0]
+			first_gcf_hg_prot_seq_file = outdir + 'PopGene/' + first_gcf + '/Protein_Sequences/' + hg[0] + '.faa'
 			try:
 				with open(first_gcf_hg_prot_seq_file) as ofghpsf:
 					for i, rec in enumerate(SeqIO.parse(ofghpsf, 'fasta')):
@@ -554,17 +558,22 @@ def lsaBGC_AutoAnalyze():
 
 	# create Excel spreadsheet
 	writer = pd.ExcelWriter(outdir + 'lsaBGC_Pan_Secondary_Metabolome_Overview.xlsx', engine='xlsxwriter')
-
-	scprf_df = util.loadCustomPopGeneTableInPandaDataFrame(consolidated_popgene_report_file)
-	scprf_df.to_excel(writer, sheet_name='Overview - Simple')
-	cprf_df = util.loadTableInPandaDataFrame(multi_gcf_hgs_file)
-	cprf_df.to_excel(writer, sheet_name='Multi-GCF HGs')
-	cprf_df = util.loadTableInPandaDataFrame(consolidated_popgene_report_file)
-	cprf_df.to_excel(writer, sheet_name='Overview - Full')
-
 	workbook = writer.book
-	scprf_sheet = writer.sheets['Overview - Simple']
+	dd_sheet = workbook.add_worksheet('Data Dictionary')
+	dd_sheet.write(0, 0, 'Data Dictionary can be found on lsaBGC\'s Wiki at:')
+	dd_sheet.write(1, 0, 'https://github.com/Kalan-Lab/lsaBGC/wiki/10.-Population-Genetics-Analysis-of-Genes-Found-in-a-GCF#data-dictionary')
+	scprf_df = util.loadCustomPopGeneTableInPandaDataFrame(consolidated_popgene_report_file)
+	scprf_df.to_excel(writer, sheet_name='Overview - Simple', index=False, na_rep="NA")
+	cprf_df = util.loadTableInPandaDataFrame(multi_gcf_hgs_file)
+	cprf_df.to_excel(writer, sheet_name='Multi-GCF HGs', index=False, na_rep="NA")
+	cprf_df = util.loadTableInPandaDataFrame(consolidated_popgene_report_file)
+	cprf_df.to_excel(writer, sheet_name='Overview - Full', index=False, na_rep="NA")
 	workbook.close()
+	writer.close()
+
+	#workbook = writer.book
+	#scprf_sheet = writer.sheets['Overview - Simple']
+	#workbook.close()
 
 	# clean up final directory:
 	final_results_dir = outdir + 'Final_Results/'

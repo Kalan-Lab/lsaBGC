@@ -140,7 +140,7 @@ def prodigalAndReformat():
 			else:
 				pid = str(i+1)
 			new_prot_id = locus_tag + '_' + pid
-			scaffold = '_'.join(rec.id.split('_')[:1])
+			scaffold = '_'.join(rec.id.split('_')[:-1])
 			start = int(rec.description.split(' # ')[1])
 			end = int(rec.description.split(' # ')[2])
 			direction = int(rec.description.split(' # ')[3])
@@ -151,6 +151,8 @@ def prodigalAndReformat():
 			if direction == -1: dir_str = '-'
 			pc_prod_pred_prot_handle.write('>' + new_prot_id + ' ' + scaffold + ' ' + str(start) + ' ' + str(end) + ' ' + dir_str + '\n' + str(rec.seq) + '\n')
 	pc_prod_pred_prot_handle.close()
+
+	print(scaffold_prots.keys())
 
 	# Step 3: Process Prodigal predicted genbank and create polished version with locus tags and protein + nucleotide
 	# sequences

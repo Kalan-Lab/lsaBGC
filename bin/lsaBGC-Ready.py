@@ -74,12 +74,14 @@ def create_parser():
 	***************************************************************************************************************** 
     -*-  OrthoFinder2 modes:
             * Genome_Wide: Run OrthoFinder2 as intended with all primary sample full genome-wide proteomes.
-              [LOW-THROUGHPUT (<200 Genomes)]
+              [LOW-THROUGHPUT (<200 Genomes)]. 
             * BGC_Only: OrthoFinder2 is run across samples/genomes accounting for only BGC embedded proteins. 
               Genome-wide paralogs for orthogroups are subsequently identified by using orthogroup specific cutoffs
               based on the percent identity and coverage thresholds determined for each orthogroup (the minimum 
               perc. id and coverage observed within BGC proteins belonging to the same orthgroup). 
-              [DEFAULT; MEDIUM-THROUGHPUT (>200 but <500 genomes)]
+              [DEFAULT; MEDIUM-THROUGHPUT (>200 but <500 genomes)]. Note, this can result in the same protein
+              being assigned to multiple ortholog groups currently because of the parology search (will aim to fix
+              this soon, but should have minimal effects I believe).
             * COMING SOON: palo - scalable genome-wide orthology determination.
 	   
     -*-  To avoid issues with processing BiG-SCAPE results (if used instead lsaBGC-Cluster.py), please use distinct 
@@ -299,6 +301,7 @@ def lsaBGC_Ready():
         util.setupReadyDirectory([gene_name_mapping_outdir])
 
         util.processGenomesAsGenbanks(sample_genomes, proteomes_directory, genbanks_directory, gene_name_mapping_outdir, logObject, cores=cores, locus_tag_length=3)
+        sample_genomes = util.updateSampleGenomesWithGenbanks(genbanks_directory)
 
     # Step 2: Process Additional Genomes
     additional_sample_annotation_listing_file = int_outdir + 'Additional_Sample_Annotation_Files.txt'
@@ -323,16 +326,14 @@ def lsaBGC_Ready():
             # genomes are provided as Genbanks with CDS features
             gene_name_mapping_outdir = outdir + 'Mapping_of_New_Gene_Names_to_Original/'
             util.setupReadyDirectory([gene_name_mapping_outdir])
-
-            util.processGenomesAsGenbanks(additional_sample_genomes, additional_proteomes_directory, logObject)
+            util.processGenomesAsGenbanks(additional_sample_genomes, additional_proteomes_directory,
+                                          additional_genbanks_directory, gene_name_mapping_outdir, logObject,
+                                          cores=cores, locus_tag_length=4)
 
         additional_sample_annotation_listing_handle = open(additional_sample_annotation_listing_file, 'w')
         for f in os.listdir(additional_proteomes_directory):
             sample = f.split('.faa')[0]
-            if additional_format_prediction == 'fasta':
-                additional_sample_annotation_listing_handle.write(sample + '\t' + additional_genbanks_directory + sample + '.gbk' + '\t' + additional_proteomes_directory + f + '\n')
-            else:
-                additional_sample_annotation_listing_handle.write(sample + '\t' + additional_sample_genomes[sample] + '\t' + additional_proteomes_directory +f + '\n')
+            additional_sample_annotation_listing_handle.write(sample + '\t' + additional_genbanks_directory + sample + '.gbk' + '\t' + additional_proteomes_directory + f + '\n')
         additional_sample_annotation_listing_handle.close()
 
     # Step 3: Process BGC Genbank Results and Add Annotations

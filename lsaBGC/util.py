@@ -16,6 +16,7 @@ from ete3 import Tree
 import itertools
 import math
 import numpy as np
+import gzip
 import pathlib
 import operator
 
@@ -644,37 +645,70 @@ def createBGCGenbank(full_genbank_file, new_genbank_file, scaffold, start_coord,
 
 				updated_features = []
 				for feature in rec.features:
-					start = min([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')])+1
-					end = max([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')])
+					start = None
+					end = None
+					direction = None
+					all_coords = []
+
+					if not 'join' in str(feature.location) and not 'order' in str(feature.location):
+						start = min([int(x.strip('>').strip('<')) for x in str(feature.location)[1:].split(']')[0].split(':')]) + 1
+						end = max([int(x.strip('>').strip('<')) for x in str(feature.location)[1:].split(']')[0].split(':')])
+						direction = str(feature.location).split('(')[1].split(')')[0]
+						all_coords.append([start, end, direction])
+					elif 'order' in str(feature.location):
+						all_starts = []
+						all_ends = []
+						all_directions = []
+						for exon_coord in str(feature.location)[6:-1].split(', '):
+							start = min([int(x.strip('>').strip('<')) for x in exon_coord[1:].split(']')[0].split(':')]) + 1
+							end = max([int(x.strip('>').strip('<')) for x in exon_coord[1:].split(']')[0].split(':')])
+							direction = exon_coord.split('(')[1].split(')')[0]
+							all_starts.append(start)
+							all_ends.append(end)
+							all_directions.append(direction)
+							all_coords.append([start, end, direction])
+						start = min(all_starts)
+						end = max(all_ends)
+					else:
+						all_starts = []
+						all_ends = []
+						all_directions = []
+						for exon_coord in str(feature.location)[5:-1].split(', '):
+							start = min([int(x.strip('>').strip('<')) for x in exon_coord[1:].split(']')[0].split(':')]) + 1
+							end = max([int(x.strip('>').strip('<')) for x in exon_coord[1:].split(']')[0].split(':')])
+							direction = exon_coord.split('(')[1].split(')')[0]
+							all_starts.append(start)
+							all_ends.append(end)
+							all_directions.append(direction)
+							all_coords.append([start, end, direction])
+						start = min(all_starts)
+						end = max(all_ends)
 
 					feature_coords = set(range(start, end + 1))
 					if len(feature_coords.intersection(pruned_coords)) > 0:
-						updated_start = start - start_coord + 1
-						updated_end = end - start_coord + 1
+						fls = []
+						for sc, ec, dc in all_coords:
+							updated_start = sc - start_coord + 1
+							updated_end = ec - start_coord + 1
+							if ec > end_coord:
+								# note overlapping genes in prokaryotes are possible so avoid proteins that overlap
+								# with boundary proteins found by the HMM.
+								if feature.type == 'CDS': continue
+								else: updated_end = end_coord - start_coord + 1#; flag1 = True
+							if sc < start_coord:
+								if feature.type == 'CDS': continue
+								else: updated_start = 1#; flag2 = True
 
-						#flag1 = False; flag2 = False
-
-						if end > end_coord:
-							if feature.type == 'CDS': continue
-							else: updated_end = end_coord - start_coord + 1#; flag1 = True
-						if start < start_coord:
-							if feature.type == 'CDS': continue
-							else: updated_start = 1#; flag2 = True
-
-						strand = 1
-						if '(-)' in str(feature.location):
-							strand = -1
-
-						#if feature.type == 'CDS':
-						#	print(str(full_genbank_file) + '\t' + str(flag1) + '\t' + str(flag2) + '\t' + feature.qualifiers.get('locus_tag')[0] + '\t' +
-						#		  str(strand) + '\t' + str(updated_start) + '\t' + str(updated_end) + '\t' + str(len(filtered_seq[updated_start-1:updated_end]) / 3.0) +
-						#		  '\t' + str(filtered_seq[updated_start - 1:updated_end]))
-
-						updated_location = FeatureLocation(updated_start - 1, updated_end, strand=strand)
-						updated_feature = copy.deepcopy(feature)
-
-						updated_feature.location = updated_location
-						updated_features.append(updated_feature)
+							strand = 1
+							if dc == '-':
+								strand = -1
+							fls.append(FeatureLocation(updated_start -1, updated_end, strand=strand))
+						if len(fls) > 0:
+							updated_location = fls[0]
+							if len(fls) > 1:
+								updated_location = sum(fls)
+							feature.location = updated_location
+							updated_features.append(feature)
 				updated_rec.features = updated_features
 				SeqIO.write(updated_rec, ngf_handle, 'genbank')
 		ngf_handle.close()
@@ -702,32 +736,55 @@ def parseGenbankAndFindBoundaryGenes(inputs):
 	gene_order_to_id = defaultdict(dict)
 
 	sample, sample_genbank, sample_gbk_info = inputs
-	with open(sample_genbank) as osg:
-		for rec in SeqIO.parse(osg, 'genbank'):
-			scaffold = rec.id
-			scaffold_length = len(str(rec.seq))
-			boundary_ranges = set(range(1, distance_to_scaffold_boundary+1)).union(set(range(scaffold_length-distance_to_scaffold_boundary, scaffold_length + 1)))
-			gene_starts = []
-			for feature in rec.features:
-				if not feature.type == 'CDS': continue
-				locus_tag = feature.qualifiers.get('locus_tag')[0]
-				start = min([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')]) + 1
-				end = max([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')])
+	osg = None
+	if sample_genbank.endswith('.gz'):
+		osg = gzip.open(sample_genbank, 'rt')
+	else:
+		osg = open(sample_genbank)
+	for rec in SeqIO.parse(osg, 'genbank'):
+		scaffold = rec.id
+		scaffold_length = len(str(rec.seq))
+		boundary_ranges = set(range(1, distance_to_scaffold_boundary+1)).union(set(range(scaffold_length-distance_to_scaffold_boundary, scaffold_length + 1)))
+		gene_starts = []
+		for feature in rec.features:
+			if not feature.type == 'CDS': continue
+			locus_tag = feature.qualifiers.get('locus_tag')[0]
+
+			start = None
+			end = None
+			direction = None
+			if not 'join' in str(feature.location):
+				start = min([int(x.strip('>').strip('<')) for x in str(feature.location)[1:].split(']')[0].split(':')]) + 1
+				end = max([int(x.strip('>').strip('<')) for x in str(feature.location)[1:].split(']')[0].split(':')])
 				direction = str(feature.location).split('(')[1].split(')')[0]
+			else:
+				all_starts = []
+				all_ends = []
+				all_directions = []
+				for exon_coord in str(feature.location)[5:-1].split(', '):
+					start = min([int(x.strip('>').strip('<')) for x in exon_coord[1:].split(']')[0].split(':')]) + 1
+					end = max([int(x.strip('>').strip('<')) for x in exon_coord[1:].split(']')[0].split(':')])
+					direction = exon_coord.split('(')[1].split(')')[0]
+					all_starts.append(start)
+					all_ends.append(end)
+					all_directions.append(direction)
+				start = min(all_starts)
+				end = max(all_ends)
+				direction = all_directions[0]
 
-				gene_location[locus_tag] = {'scaffold': scaffold, 'start': start, 'end': end, 'direction': direction}
-				scaffold_genes[scaffold].add(locus_tag)
+			gene_location[locus_tag] = {'scaffold': scaffold, 'start': start, 'end': end, 'direction': direction}
+			scaffold_genes[scaffold].add(locus_tag)
 
-				gene_range = set(range(start, end+1))
-				if len(gene_range.intersection(boundary_ranges)) > 0:
-					boundary_genes.add(locus_tag)
+			gene_range = set(range(start, end+1))
+			if len(gene_range.intersection(boundary_ranges)) > 0:
+				boundary_genes.add(locus_tag)
 
-				gene_starts.append([locus_tag, start])
+			gene_starts.append([locus_tag, start])
 
-			for i, g in enumerate(sorted(gene_starts, key=itemgetter(1))):
-				gene_id_to_order[scaffold][g[0]] = i
-				gene_order_to_id[scaffold][i] = g[0]
-
+		for i, g in enumerate(sorted(gene_starts, key=itemgetter(1))):
+			gene_id_to_order[scaffold][g[0]] = i
+			gene_order_to_id[scaffold][i] = g[0]
+	osg.close()
 	sample_gbk_info[sample] = [gene_location, dict(scaffold_genes), boundary_genes, dict(gene_id_to_order), dict(gene_order_to_id)]
 
 def chunks(lst, n):
@@ -1136,10 +1193,27 @@ def processGenomesAsGenbanks(sample_genomes, proteomes_directory, genbanks_direc
 	try:
 		alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 		possible_locustags = list(itertools.product(alphabet, repeat=locus_tag_length))
+		lacking_cds_gbks = set([])
+
 		for i, sample in enumerate(sample_genomes):
 			sample_genbank = sample_genomes[sample]
+			ogh = None
+			if sample_genbank.endswith('.gz'):
+				ogh = gzip.open(sample_genbank, 'rt')
+			else:
+				ogh = open(sample_genbank)
+			cds_flag = False
+			for rec in SeqIO.parse(ogh, 'genbank'):
+				for feature in rec.features:
+					if feature.type == 'CDS':
+						cds_flag = True
+						break
+			ogh.close()
 			sample_locus_tag = ''.join(list(possible_locustags[i]))
-
+			if not cds_flag:
+				lacking_cds_gbks.add(sample)
+				logObject.warning('NCBI genbank file %s for sample %s lacks CDS features' % (sample_genbank, sample))
+				continue
 			process_cmd = ['processAndReformatNCBIGenbanks.py', '-i', sample_genbank, '-s', sample,
 							'-l', sample_locus_tag, '-g', genbanks_directory, '-p', proteomes_directory, '-n',
 						   gene_name_mapping_outdir]
@@ -1150,6 +1224,8 @@ def processGenomesAsGenbanks(sample_genomes, proteomes_directory, genbanks_direc
 		p.close()
 
 		for sample in sample_genomes:
+			if sample in lacking_cds_gbks:
+				continue
 			try:
 				assert(os.path.isfile(proteomes_directory + sample + '.faa') and
 					   os.path.isfile(genbanks_directory + sample + '.gbk') and
@@ -1242,12 +1318,17 @@ def processBGCGenbanks(bgc_listing_file, bgc_prediction_software, sample_genomes
 						bgc_seq = str(rec.seq.upper())
 
 				scaff_id, scaff_start = [None]*2
-				with open(sample_genomes[sample]) as off:
-					for rec in SeqIO.parse(off, 'genbank'):
-						if bgc_seq in str(rec.seq).upper():
-							scaff_id = rec.id
-							scaff_start = str(rec.seq).find(bgc_seq)
-
+				off = None
+				if sample_genomes[sample].endswith('.gz'):
+					off = gzip.open(sample_genomes[sample], 'rt')
+				else:
+					off = open(sample_genomes[sample])
+				for rec in SeqIO.parse(off, 'genbank'):
+					if bgc_seq in str(rec.seq).upper():
+						scaff_id = rec.id
+						scaff_start = str(rec.seq).find(bgc_seq)
+				if off:
+					off.close()
 				with open(og_bgc_genbank) as obgf:
 					for rec in SeqIO.parse(obgf, 'genbank'):
 						rec.name = scaff_id
@@ -1258,8 +1339,33 @@ def processBGCGenbanks(bgc_listing_file, bgc_prediction_software, sample_genomes
 						for feature in rec.features:
 							if feature.type == 'CDS':
 								try:
-									start = scaff_start + min([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')]) + 1
-									end = scaff_start + max([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')])
+									start = None
+									end = None
+									all_starts = []
+									all_ends = []
+									all_directions = []
+									all_coords = []
+									if not 'join' in str(feature.location):
+										start = min(
+											[int(x.strip('>').strip('<')) for x in str(feature.location)[1:].split(']')[0].split(':')]) + 1
+										end = max([int(x.strip('>').strip('<')) for x in str(feature.location)[1:].split(']')[0].split(':')])
+										direction = str(feature.location).split('(')[1].split(')')[0]
+										all_starts.append(start)
+										all_ends.append(end)
+									else:
+										all_starts = []
+										all_ends = []
+										all_directions = []
+										for exon_coord in str(feature.location)[5:-1].split(', '):
+											start = min([int(x.strip('>').strip('<')) for x in exon_coord[1:].split(']')[0].split(':')]) + 1
+											end = max([int(x.strip('>').strip('<')) for x in exon_coord[1:].split(']')[0].split(':')])
+											direction = exon_coord.split('(')[1].split(')')[0]
+											all_starts.append(start)
+											all_ends.append(end)
+									start = min(all_starts)
+									end = max(all_ends)
+									start = scaff_start + start
+									end = scaff_start + end
 									loc_tuple = tuple([scaff_id, str(start), str(end)])
 									prot_seq = str(feature.qualifiers.get('translation')[0]).replace('*', '')
 									prot_id = loc_to_tag[loc_tuple]
@@ -1281,7 +1387,6 @@ def processBGCGenbanks(bgc_listing_file, bgc_prediction_software, sample_genomes
 		raise RuntimeError(traceback.format_exc())
 	return([sample_bgcs, bgc_to_sample])
 
-
 def extractProteinsFromBGCs(sample_bgcs, bgc_prot_directory, logObject):
 	sample_bgc_prots = defaultdict(lambda: defaultdict(set))
 	try:
@@ -1297,9 +1402,36 @@ def extractProteinsFromBGCs(sample_bgcs, bgc_prot_directory, logObject):
 							if feature.type == 'CDS':
 								prot_lt = feature.qualifiers.get('locus_tag')[0]
 								prot_seq = str(feature.qualifiers.get('translation')[0]).replace('*', '')
-								start = scaff_start + min([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')]) + 1
-								end = scaff_start + max([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')])
-								direction = str(feature.location).split('(')[1].split(')')[0]
+								start = None
+								end = None
+								direction = None
+								all_starts = []
+								all_ends = []
+								all_directions = []
+								if not 'join' in str(feature.location):
+									start = min(
+										[int(x.strip('>').strip('<')) for x in str(feature.location)[1:].split(']')[0].split(':')]) + 1
+									end = max([int(x.strip('>').strip('<')) for x in str(feature.location)[1:].split(']')[0].split(':')])
+									direction = str(feature.location).split('(')[1].split(')')[0]
+									all_starts.append(start);
+									all_ends.append(end);
+									all_directions.append(direction)
+								else:
+									all_starts = []
+									all_ends = []
+									all_directions = []
+									for exon_coord in str(feature.location)[5:-1].split(', '):
+										start = min([int(x.strip('>').strip('<')) for x in exon_coord[1:].split(']')[0].split(':')]) + 1
+										end = max([int(x.strip('>').strip('<')) for x in exon_coord[1:].split(']')[0].split(':')])
+										direction = exon_coord.split('(')[1].split(')')[0]
+										all_starts.append(start);
+										all_ends.append(end);
+										all_directions.append(direction)
+								assert (len(set(all_directions)) == 1)
+								start = min(all_starts)
+								end = max(all_ends)
+								direction = all_directions[0]
+
 								sample_bgc_prots[sample][bgc].add(prot_lt)
 								samp_bgc_prot_handle.write('>' + ' '.join([str(x) for x in [prot_lt, scaff_id, start, end, direction]]) + '\n' + prot_seq + '\n')
 			samp_bgc_prot_handle.close()
@@ -1309,10 +1441,9 @@ def extractProteinsFromBGCs(sample_bgcs, bgc_prot_directory, logObject):
 		raise RuntimeError(traceback.format_exc())
 	return sample_bgc_prots
 
-
 def performKOFamAndPGAPAnnotation(sample_bgc_proteins, bgc_prot_directory, annot_directory, kofam_hmm_file, pgap_hmm_file,
 								  kofam_pro_list, pgap_inf_list, logObject, cores=1):
-	sample_protein_annotations = defaultdict(lambda: defaultdict(lambda: dict))
+	sample_protein_annotations = defaultdict(lambda: defaultdict(lambda: "hypothetical protein"))
 	try:
 		ko_score_cutoffs = {}
 		ko_score_types = {}
@@ -1333,7 +1464,7 @@ def performKOFamAndPGAPAnnotation(sample_bgc_proteins, bgc_prot_directory, annot
 
 		pgap_descriptions = defaultdict(lambda: "NA")
 		with open(pgap_inf_list) as opil:
-			for i, line in enumerate(okpl):
+			for i, line in enumerate(opil):
 				if i == 0: continue
 				line = line.strip()
 				ls = line.split('\t')
@@ -1375,11 +1506,11 @@ def performKOFamAndPGAPAnnotation(sample_bgc_proteins, bgc_prot_directory, annot
 					dom_score = float(ls[8])
 					if ko in ko_score_types:
 						if ko_score_types[ko] == 'full' and full_score >= ko_score_cutoffs[ko]:
-							hits_per_prot[prot_id].append([ko, full_score, full_eval])
+							hits_per_prot[prot_id].append(['ko', ko, -full_score, full_eval])
 						elif ko_score_types[ko] == 'domain' and dom_score >= ko_score_cutoffs[ko]:
-							hits_per_prot[prot_id].append([ko, dom_score, full_eval])
-					elif full_eval < 1e-10:
-						hits_per_prot[prot_id].append(['ko', ko, -1E10, full_eval])
+							hits_per_prot[prot_id].append(['ko', ko, -dom_score, full_eval])
+					if full_eval < 1e-10:
+						hits_per_prot[prot_id].append(['ko', ko, 1E10, full_eval])
 
 			with open(pgap_annot_result) as orf:
 				for line in orf:
@@ -1390,18 +1521,21 @@ def performKOFamAndPGAPAnnotation(sample_bgc_proteins, bgc_prot_directory, annot
 					prot_id = ls[0]
 					full_eval = float(ls[4])
 					if full_eval < 1e-10:
-						hits_per_prot[prot_id].append(['pgap', pgap, -1E10, full_eval])
+						hits_per_prot[prot_id].append(['pgap', pgap, 1E10, full_eval])
 
-			best_hits = defaultdict(lambda: 'NA: hypothetical protein')
+			best_hits = defaultdict(lambda: 'hypothetical protein')
 			for pi in hits_per_prot:
 				for i, hit in enumerate(sorted(hits_per_prot[pi], key=lambda h: (h[2], h[3]), reverse=False)):
 					if i == 0:
 						conf = ' (High Confidence)'
-						if hit[2] == -1E10 and hit[0] == 'ko':
+						if hit[2] == 1E10 and hit[0] == 'ko':
 							conf = ' (KO; Low Confidence : e-val < 1e-10)'
-						elif hit[2] == -1E10 and hit[0] == 'pgap':
+						elif hit[2] == 1E10 and hit[0] == 'pgap':
 							conf = ' (PGAP; Low Confidence : e-val < 1e-10)'
-						best_hits[pi] = hit[0] + ': ' + ko_descriptions[hit[0]] + conf
+						if hit[0] == 'ko':
+							best_hits[pi] = hit[1] + ': ' + ko_descriptions[hit[1]] + conf
+						else:
+							best_hits[pi] = hit[1] + ': ' + pgap_descriptions[hit[1]] + conf
 
 			for bgc in sample_bgc_proteins[sample]:
 				for pi in sample_bgc_proteins[sample][bgc]:
@@ -1606,13 +1740,30 @@ def incorporateBGCProteinsIntoProteomesAndGenbanks(sample_bgc_proteins, sample_g
 						for feature in rec.features:
 							if feature.type=='CDS':
 								prot_lt = feature.qualifiers.get('locus_tag')[0]
-								start = scaff_start + min([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')]) + 1
-								end = scaff_start + max([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')])
-								direction = str(feature.location).split('(')[1].split(')')[0]
-								dir = 1
-								if direction == '-': dir = -1
+
+								all_coords = []
+								if not 'join' in str(feature.location):
+									start = scaff_start + min(
+										[int(x.strip('>').strip('<')) for x in str(feature.location)[1:].split(']')[0].split(':')]) + 1
+									end = scaff_start + max([int(x.strip('>').strip('<')) for x in str(feature.location)[1:].split(']')[0].split(':')])
+									direction = str(feature.location).split('(')[1].split(')')[0]
+									all_coords.append([start, end, direction])
+								else:
+									for exon_coord in str(feature.location)[5:-1].split(', '):
+										start = scaff_start + min([int(x.strip('>').strip('<')) for x in exon_coord[1:].split(']')[0].split(':')]) + 1
+										end = scaff_start + max([int(x.strip('>').strip('<')) for x in exon_coord[1:].split(']')[0].split(':')])
+										direction = exon_coord.split('(')[1].split(')')[0]
+										all_coords.append([start, end, direction])
 								if prot_lt in bgc_prots_1x:
-									feature.location = FeatureLocation(start - 1, end, strand=dir)
+									fls = []
+									for sc, ec, dc in all_coords:
+										dir = 1
+										if dc == '-': dir = -1
+										fls.append(FeatureLocation(sc - 1, ec, strand=dir))
+									feat_loc = fls[0]
+									if len(fls) > 1:
+										feat_loc = sum(fls)
+									feature.location = feat_loc
 									sample_lts_to_add_genbank_features[scaff_id].append(feature)
 
 				for blt in bgc_prots_1x:
@@ -1639,42 +1790,64 @@ def incorporateBGCProteinsIntoProteomesAndGenbanks(sample_bgc_proteins, sample_g
 			faa_handle.close()
 
 			gbk_handle = open(final_gw_sample_gbk, 'w')
-			with open(sample_genomes[sample]) as og:
-				for rec in SeqIO.parse(og, 'genbank'):
-					updated_features = []
-					cds_iter = 0
-					starts = []
-					for feature in rec.features:
-						if feature.type == 'CDS':
-							prot_lt = feature.qualifiers.get('locus_tag')[0]
-							if protein_annotations == None:
-								feature.qualifiers['product'] = 'hypothetical protein'
-							else:
-								feature.qualifiers['product'] = [protein_annotations[sample][prot_lt]]
-							feature.qualifiers.move_to_end('translation')
-							if prot_lt in sample_lts_to_prune: continue
-							updated_features.append(feature)
-							start = min([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')])
-							starts.append([cds_iter, start])
-							cds_iter += 1
-					for feature in sample_lts_to_add_genbank_features[rec.id]:
-						if feature.type == 'CDS':
-							prot_lt = feature.qualifiers.get('locus_tag')[0]
-							if protein_annotations == None:
-								feature.qualifiers['product'] = 'hypothetical protein'
-							else:
-								feature.qualifiers['product'] = [protein_annotations[sample][prot_lt]]
-							feature.qualifiers.move_to_end('translation')
-							updated_features.append(feature)
-							start = min([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')])
-							starts.append([cds_iter, start])
-							cds_iter += 1
-					sorted_updated_features = []
-					for sort_i in sorted(starts, key=itemgetter(1)):
-						sorted_updated_features.append(updated_features[sort_i[0]])
-					rec.features = sorted_updated_features
-					SeqIO.write(rec, gbk_handle, 'genbank')
-			gbk_handle.close()
+			og = None
+			if sample_genomes[sample].endswith('.gz'):
+				og = gzip.open(sample_genomes[sample], 'rt')
+			else:
+				og = open(sample_genomes[sample])
+			for rec in SeqIO.parse(og, 'genbank'):
+				updated_features = []
+				cds_iter = 0
+				starts = []
+				for feature in rec.features:
+					if feature.type == 'CDS':
+						prot_lt = feature.qualifiers.get('locus_tag')[0]
+						if protein_annotations == None:
+							feature.qualifiers['product'] = 'hypothetical protein'
+						else:
+							feature.qualifiers['product'] = [protein_annotations[sample][prot_lt]]
+						feature.qualifiers.move_to_end('translation')
+						if prot_lt in sample_lts_to_prune: continue
+						updated_features.append(feature)
+						all_starts = []
+						if not 'join' in str(feature.location):
+							start = min([int(x.strip('>').strip('<')) for x in str(feature.location)[1:].split(']')[0].split(':')]) + 1
+							all_starts.append(start)
+						else:
+							for exon_coord in str(feature.location)[5:-1].split(', '):
+								start = min([int(x.strip('>').strip('<')) for x in exon_coord[1:].split(']')[0].split(':')]) + 1
+								all_starts.append(start)
+						start = min(all_starts)
+						starts.append([cds_iter, start])
+						cds_iter += 1
+				for feature in sample_lts_to_add_genbank_features[rec.id]:
+					if feature.type == 'CDS':
+						prot_lt = feature.qualifiers.get('locus_tag')[0]
+						if protein_annotations == None:
+							feature.qualifiers['product'] = 'hypothetical protein'
+						else:
+							feature.qualifiers['product'] = [protein_annotations[sample][prot_lt]]
+						feature.qualifiers.move_to_end('translation')
+						updated_features.append(feature)
+						all_starts = []
+						if not 'join' in str(feature.location):
+							start = min([int(x.strip('>').strip('<')) for x in str(feature.location)[1:].split(']')[0].split(':')]) + 1
+							all_starts.append(start)
+						else:
+							for exon_coord in str(feature.location)[5:-1].split(', '):
+								start = min([int(x.strip('>').strip('<')) for x in exon_coord[1:].split(']')[0].split(':')]) + 1
+								all_starts.append(start)
+						start = min(all_starts)
+						starts.append([cds_iter, start])
+						cds_iter += 1
+				sorted_updated_features = []
+				for sort_i in sorted(starts, key=itemgetter(1)):
+					sorted_updated_features.append(updated_features[sort_i[0]])
+				rec.features = sorted_updated_features
+				SeqIO.write(rec, gbk_handle, 'genbank')
+		if og != None:
+			og.close()
+		gbk_handle.close()
 
 	except Exception as e:
 		logObject.error("Problem with creating updated.")
@@ -1779,14 +1952,30 @@ def identifyParalogsAndCreateResultFiles(samp_hg_lts, lt_to_hg, sample_bgc_prote
 						for feature in rec.features:
 							if feature.type=='CDS':
 								prot_lt = feature.qualifiers.get('locus_tag')[0]
-								start = scaff_start + min([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')]) + 1
-								end = scaff_start + max([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')])
-								direction = str(feature.location).split('(')[1].split(')')[0]
-								dir = 1
-								if direction == '-': dir = -1
-								if prot_lt in bgc_prots_1x:
-									feature.location = FeatureLocation(start - 1, end, strand=dir)
-									sample_lts_to_add_genbank_features[scaff_id].append(feature)
+								if not prot_lt in bgc_prots_1x: continue
+								all_coords = []
+								if not 'join' in str(feature.location):
+									start = scaff_start + min(
+										[int(x) for x in str(feature.location)[1:].split(']')[0].split(':')]) + 1
+									end = scaff_start + max([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')])
+									direction = str(feature.location).split('(')[1].split(')')[0]
+									all_coords.append([start, end, direction])
+								else:
+									for exon_coord in str(feature.location)[5:-1].split(', '):
+										start = scaff_start + min([int(x.strip('>').strip('<')) for x in exon_coord[1:].split(']')[0].split(':')]) + 1
+										end = scaff_start + max([int(x.strip('>').strip('<')) for x in exon_coord[1:].split(']')[0].split(':')])
+										direction = exon_coord.split('(')[1].split(')')[0]
+										all_coords.append([start, end, direction])
+								fls = []
+								for sc, ec, dc in all_coords:
+									dir = 1
+									if dc == '-': dir = -1
+									fls.append(FeatureLocation(sc - 1, ec, strand=dir))
+								feat_loc = fls[0]
+								if len(fls) > 1:
+									feat_loc = sum(fls)
+								feature.location = feat_loc
+								sample_lts_to_add_genbank_features[scaff_id].append(feature)
 
 				for hg in hg_queries:
 					bgc_hg_lts = hg_queries[hg].intersection(bgc_prots)
@@ -1816,41 +2005,62 @@ def identifyParalogsAndCreateResultFiles(samp_hg_lts, lt_to_hg, sample_bgc_prote
 			faa_handle.close()
 
 			gbk_handle = open(final_gw_sample_gbk, 'w')
-			with open(sample_genomes[sample]) as og:
-				for rec in SeqIO.parse(og, 'genbank'):
-					updated_features = []
-					cds_iter = 0
-					starts = []
-					for feature in rec.features:
-						if feature.type == 'CDS':
-							prot_lt = feature.qualifiers.get('locus_tag')[0]
-							if protein_annotations == None:
-								feature.qualifiers['product'] = 'hypothetical protein'
-							else:
-								feature.qualifiers['product'] = [protein_annotations[sample][prot_lt]]
-							feature.qualifiers.move_to_end('translation')
-							if prot_lt in sample_lts_to_prune: continue
-							updated_features.append(feature)
-							start = min([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')])
-							starts.append([cds_iter, start])
-							cds_iter += 1
-					for feature in sample_lts_to_add_genbank_features[rec.id]:
-						if feature.type == 'CDS':
-							prot_lt = feature.qualifiers.get('locus_tag')[0]
-							if protein_annotations == None:
-								feature.qualifiers['product'] = 'hypothetical protein'
-							else:
-								feature.qualifiers['product'] = [protein_annotations[sample][prot_lt]]
-							feature.qualifiers.move_to_end('translation')
-							updated_features.append(feature)
-							start = min([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')])
-							starts.append([cds_iter, start])
-							cds_iter += 1
-					sorted_updated_features = []
-					for sort_i in sorted(starts, key=itemgetter(1)):
-						sorted_updated_features.append(updated_features[sort_i[0]])
-					rec.features = sorted_updated_features
-					SeqIO.write(rec, gbk_handle, 'genbank')
+			og = None
+			if sample_genomes[sample].endswith('.gz'):
+				og = gzip.open(sample_genomes[sample], 'rt')
+			else:
+				og = open(sample_genomes[sample])
+			for rec in SeqIO.parse(og, 'genbank'):
+				updated_features = []
+				cds_iter = 0
+				starts = []
+				for feature in rec.features:
+					if feature.type == 'CDS':
+						prot_lt = feature.qualifiers.get('locus_tag')[0]
+						if protein_annotations == None:
+							feature.qualifiers['product'] = 'hypothetical protein'
+						else:
+							feature.qualifiers['product'] = [protein_annotations[sample][prot_lt]]
+						feature.qualifiers.move_to_end('translation')
+						if prot_lt in sample_lts_to_prune: continue
+						updated_features.append(feature)
+						all_starts = []
+						if not 'join' in str(feature.location):
+							start = min([int(x.strip('>').strip('<')) for x in str(feature.location)[1:].split(']')[0].split(':')]) + 1
+							all_starts.append(start)
+						else:
+							for exon_coord in str(feature.location)[5:-1].split(', '):
+								start = min([int(x.strip('>').strip('<')) for x in exon_coord[1:].split(']')[0].split(':')]) + 1
+								all_starts.append(start)
+						start = min(all_starts)
+						starts.append([cds_iter, start])
+						cds_iter += 1
+				for feature in sample_lts_to_add_genbank_features[rec.id]:
+					if feature.type == 'CDS':
+						prot_lt = feature.qualifiers.get('locus_tag')[0]
+						if protein_annotations == None:
+							feature.qualifiers['product'] = 'hypothetical protein'
+						else:
+							feature.qualifiers['product'] = [protein_annotations[sample][prot_lt]]
+						feature.qualifiers.move_to_end('translation')
+						updated_features.append(feature)
+						all_starts = []
+						if not 'join' in str(feature.location):
+							start = min([int(x.strip('>').strip('<')) for x in str(feature.location)[1:].split(']')[0].split(':')]) + 1
+							all_starts.append(start)
+						else:
+							for exon_coord in str(feature.location)[5:-1].split(', '):
+								start = min([int(x.strip('>').strip('<')) for x in exon_coord[1:].split(']')[0].split(':')]) + 1
+								all_starts.append(start)
+						start = min(all_starts)
+						starts.append([cds_iter, start])
+						cds_iter += 1
+				sorted_updated_features = []
+				for sort_i in sorted(starts, key=itemgetter(1)):
+					sorted_updated_features.append(updated_features[sort_i[0]])
+				rec.features = sorted_updated_features
+				SeqIO.write(rec, gbk_handle, 'genbank')
+			og.close()
 			gbk_handle.close()
 
 			for hg in samp_hg_lts[sample]:
@@ -2085,8 +2295,12 @@ def is_fasta(fasta):
 	Function to validate if FASTA file is correctly formatted.
 	"""
 	try:
-		with open(fasta) as of:
-			SeqIO.parse(of, 'fasta')
+		if fasta.endswith('.gz'):
+			with gzip.open(fasta, 'rt') as ogf:
+				SeqIO.parse(ogf, 'fasta')
+		else:
+			with open(fasta) as of:
+				SeqIO.parse(of, 'fasta')
 		return True
 	except:
 		return False
@@ -2096,9 +2310,13 @@ def is_genbank(gbk):
 	Function to check in Genbank file is correctly formatted.
 	"""
 	try:
-		assert(gbk.endswith('.gbk') or gbk.endswith('.genbank'))
-		with open(gbk) as of:
-			SeqIO.parse(of, 'genbank')
+		assert(gbk.endswith('.gbk') or gbk.endswith('.gbff') or gbk.endswith('.gbk.gz') or gbk.endswith('.gbff.gz'))
+		if gbk.endswith('.gz'):
+			with gzip.open(gbk, 'rt') as ogf:
+				SeqIO.parse(ogf, 'genbank')
+		else:
+			with open(gbk) as of:
+				SeqIO.parse(of, 'genbank')
 		return True
 	except:
 		return False
@@ -2230,6 +2448,21 @@ def is_numeric(x):
 	except:
 		return False
 
+def castToNumeric(x):
+	try:
+		x = float(x)
+		return(x)
+	except:
+		return float('nan')
+
+numeric_columns = set(['GCF Count', 'hg order index', 'hg consensus direction', 'median gene length',
+					   'proportion of samples with hg', 'proportion of total populations with hg',
+					   'hg median copy count', 'num of hg instances', 'samples with hg', 'ambiguous sites proporition',
+					   'Tajimas D', 'proportion variable sites', 'proportion nondominant major allele', 'median beta rd',
+					   'median dn ds', 'mad dn ds', 'populations with hg', 'proportion of total populations with hg',
+					   'most significant Fisher exact pvalues presence absence', 'median Tajimas D per population',
+					   'mad Tajimas D per population'])
+
 def loadTableInPandaDataFrame(input_file):
 	import pandas as pd
 	panda_df = None
@@ -2243,8 +2476,13 @@ def loadTableInPandaDataFrame(input_file):
 
 		panda_dict = {}
 		for ls in zip(*data):
-			panda_dict[' '.join(ls[0].split('_'))] = ls[1:]
-
+			key = ' '.join(ls[0].split('_'))
+			cast_vals = ls[1:]
+			if key in numeric_columns:
+				cast_vals = []
+				for val in ls[1:]:
+					cast_vals.append(castToNumeric(val))
+			panda_dict[key] = cast_vals
 		panda_df = pd.DataFrame(panda_dict)
 
 	except Exception as e:
@@ -2255,7 +2493,7 @@ def loadCustomPopGeneTableInPandaDataFrame(input_file):
 	import pandas as pd
 	panda_df = None
 	try:
-		ignore_data_cats = {'hg_median_copy_count', 'num_of_hg_instances', 'samples_with_hg',
+		ignore_data_cats = {'hg_median_copy_count', 'num_of_hg_instances', 'proportion_of_total_populations_with_hg',
 							'proportion_variable_sites', 'proportion_nondominant_major_allele', 'median_dn_ds',
 							'mad_dn_ds', 'all_domains', 'most_significant_Fisher_exact_pvalues_presence_absence',
 							'median_Tajimas_D_per_population', 'mad_Tajimas_D_per_population',
@@ -2280,13 +2518,29 @@ def loadCustomPopGeneTableInPandaDataFrame(input_file):
 							upans.append(an)
 					updated_ans.append('|'.join(upans))
 				panda_dict[' '.join(ls[0].split('_'))] = updated_ans
+			elif ls[0] == 'annotation':
+				key = ' '.join(ls[0].split('_'))
+				cleaned_annots = []
+				for val in ls[1:]:
+					ca = []
+					for a in val.split('; '):
+						if a != 'hypothetical protein':
+							ca.append(a)
+					if len(ca) == 0:
+						cleaned_annots.append('hypothetical protein')
+					else:
+						cleaned_annots.append('; '.join(ca))
+				panda_dict[key] = cleaned_annots
 			else:
-				panda_dict[' '.join(ls[0].split('_'))] = ls[1:]
+				key = ' '.join(ls[0].split('_'))
+				cast_vals = ls[1:]
+				if key in numeric_columns:
+					cast_vals = []
+					for val in ls[1:]:
+						cast_vals.append(castToNumeric(val))
+				panda_dict[key] = cast_vals
 		panda_df = pd.DataFrame(panda_dict)
 
 	except Exception as e:
 		raise RuntimeError(traceback.format_exc())
 	return panda_df
-
-#def updatePandaDFtoNumeric(pandf):
-#	for

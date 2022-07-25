@@ -29,7 +29,9 @@ from Bio.codonalign.codonseq import CodonSeq, cal_dn_ds
 from lsaBGC.classes.BGC import BGC
 
 warnings.filterwarnings("ignore")
-mges = set(['transp', 'integrase'])
+# updated 07/22/2022 to have key term be transpos instead of transp - because of transporter now appearing in definitions
+# due to switch from Prokka annotation to custom KO/PGAP annotations
+mges = set(['transpos', 'integrase'])
 purine_alleles = set(['A', 'G'])
 
 lsaBGC_main_directory = '/'.join(os.path.realpath(__file__).split('/')[:-3])
@@ -78,13 +80,13 @@ class GCF(Pan):
 		# these samples do not exhibit enough support for harboring a full BGC for the GC
 		self.avoid_samples = set([])
 
-	def identifyKeyHomologGroups(self):
+	def identifyKeyHomologGroups(self, all_primary=False):
 		try:
 			initial_samples_with_at_least_one_gcf_hg = set([])
 			for hg in self.hg_genes:
 				for gene in self.hg_genes[hg]:
-					if len(gene.split('_')[0]) == 3:
-						gene_info = self.comp_gene_info[gene]
+					gene_info = self.comp_gene_info[gene]
+					if not gene_info['is_expansion_bgc'] or all_primary:
 						bgc_id = gene_info['bgc_name']
 						sample_id = self.bgc_sample[bgc_id]
 						initial_samples_with_at_least_one_gcf_hg.add(sample_id)
@@ -93,13 +95,14 @@ class GCF(Pan):
 				sample_counts = defaultdict(int)
 				sample_with_hg_as_protocluster_core = 0
 				for gene in self.hg_genes[hg]:
-					if len(gene.split('_')[0]) == 3:
-						gene_info = self.comp_gene_info[gene]
+					gene_info = self.comp_gene_info[gene]
+					if not gene_info['is_expansion_bgc'] or all_primary:
 						bgc_id = gene_info['bgc_name']
 						sample_id = self.bgc_sample[bgc_id]
 						sample_counts[sample_id] += 1
 						if gene_info['core_overlap']:
 							sample_with_hg_as_protocluster_core += 1
+
 
 				samples_with_single_copy = set([s[0] for s in sample_counts.items() if s[1] == 1])
 				samples_with_any_copy = set([s[0] for s in sample_counts.items() if s[1] > 0])
@@ -109,6 +112,7 @@ class GCF(Pan):
 					self.scc_homologs.add(hg)
 				if len(samples_with_any_copy.symmetric_difference(initial_samples_with_at_least_one_gcf_hg)) == 0:
 					self.core_homologs.add(hg)
+
 				if len(samples_with_any_copy) > 0 and float(sample_with_hg_as_protocluster_core)/len(samples_with_any_copy) >= 0.5:
 					self.protocluster_core_homologs.add(hg)
 
@@ -792,7 +796,6 @@ class GCF(Pan):
 				raise RuntimeError("Unexpected error, no anchor edge found, could be because no protocore homolog group exists, which shouldn't be the case!")
 				sys.exit(1)
 
-
 			# use to keep track of which HGs have been accounted for already at different steps of assigning order
 			accounted_hgs = set([anchor_edge[0], anchor_edge[1]])
 
@@ -974,7 +977,11 @@ class GCF(Pan):
 						pvals.append(float(ls[-9]))
 						data.append(ls)
 					else:
-						data_for_sorting.append([int(ls[4]), line])
+						con_order = 1E10
+						if util.is_numeric(ls[4]):
+							con_order = int(ls[4])
+						data_for_sorting.append([con_order, line])
+
 		adj_pvals = util.p_adjust_bh(pvals)
 
 		for i, ls in enumerate(data):
@@ -1161,7 +1168,10 @@ class GCF(Pan):
 				for line in obhef:
 					line = line.strip()
 					sample, bgc_gbk_path = line.split('\t')
-					BGC_Object = BGC(bgc_gbk_path, bgc_gbk_path, prediction_method=bgc_prediction_method)
+					is_expansion_flag = False
+					if '_Expansion_BGC_' in bgc_gbk_path:
+						is_expansion_flag = True
+					BGC_Object = BGC(bgc_gbk_path, bgc_gbk_path, is_expansion_flag, prediction_method=bgc_prediction_method)
 					BGC_Object.parseGenbanks(comprehensive_parsing=False)
 					curr_bgc_lts = set(BGC_Object.gene_information.keys())
 					sample = util.cleanUpSampleName(sample)
@@ -2760,6 +2770,7 @@ def popgen_analysis_of_hg(inputs):
 	nondominant_sites  =  set([])
 	position_plot_handle.write('\t'.join(['pos', 'num_seqs', 'num_alleles', 'num_gaps', 'maj_allele_freq']) + '\n')
 
+	# TODO: consider additional filtering using phykit (instead of just filteirng performed in lsaBGC of msas)
 	sample_differences_to_consensus = defaultdict(lambda: defaultdict(int))
 	ambiguous_sites = 0
 	nonambiguous_sites = 0
@@ -2806,60 +2817,78 @@ def popgen_analysis_of_hg(inputs):
 
 	ambiguous_prop = float(ambiguous_sites)/float(ambiguous_sites + nonambiguous_sites)
 
+	# avoid looking at domains if
 	domain_positions_msa = defaultdict(set)
 	domain_min_position_msa = defaultdict(lambda: 1e8)
 	all_domains = set([])
+	domain_plot_handle.write('\t'.join(['domain', 'domain_index', 'min_pos', 'max_pos']) + '\n')
+
+	issue_with_domain_coords = False
+	at_least_one_gene_is_multi_part = False
+	at_least_one_domain_is_multi_part = False
 	for gene in gene_locs:
+		gene_is_multi_part = comp_gene_info[gene]['is_multi_part']
+		if gene_is_multi_part or at_least_one_domain_is_multi_part:
+			at_least_one_gene_is_multi_part = True
+			break
 		gene_start = comp_gene_info[gene]['start']
 		gene_end = comp_gene_info[gene]['end']
 		gene_direction = comp_gene_info[gene]['direction']
-		for domain in comp_gene_info[gene]['gene_domains']:
-			domain_info = domain
+		for domain_info in comp_gene_info[gene]['gene_domains']:
+			dom_is_multi_part = domain_info['is_multi_part']
+			if dom_is_multi_part:
+				at_least_one_domain_is_multi_part = True
+				break
 			if gene_direction == '-':
-				for dom in domain_info:
-					dom_start = domain_info['start']
-					dom_end = domain_info['end']
-					dom_length = dom_end - dom_start
-					dist_to_dom_start = max(dom_start - gene_start, 0)
-					flip_dom_end = gene_end - dist_to_dom_start
-					flip_dom_start = flip_dom_end - dom_length
-					domain_info['start'] = flip_dom_start
-					domain_info['end'] = flip_dom_end
+				dom_start = domain_info['start']
+				dom_end = domain_info['end']
+				dom_length = dom_end - dom_start
+				dist_to_dom_start = max(dom_start - gene_start, 0)
+				flip_dom_end = gene_end - dist_to_dom_start
+				flip_dom_start = flip_dom_end - dom_length
+				domain_info['start'] = flip_dom_start
+				domain_info['end'] = flip_dom_end
 			domain_start = max(domain_info['start'], gene_start)
 			domain_end = min(domain_info['end'], gene_end)
-			domain_name = domain['aSDomain'] + '_|_' + domain['description']
+			domain_name = domain_info['aSDomain'] + '_|_' + domain_info['description']
+
 			relative_start = domain_start - gene_start
-			assert (len(gene_locs[gene]) + 3 >= (domain_end - gene_start))
+			try:
+				assert (len(gene_locs[gene]) + 3 >= (domain_end - gene_start))
+			except:
+				issue_with_domain_coords = True
 			relative_end = min([len(gene_locs[gene]), domain_end - gene_start])
 			domain_range = range(relative_start, relative_end)
 			for pos in domain_range:
 				msa_pos = gene_locs[gene][pos + 1]
-				if domain['type'] == 'PFAM_domain':
+				if domain_info['type'] == 'PFAM_domain':
 					domain_positions_msa[domain_name].add(msa_pos)
 					if domain_min_position_msa[domain_name] > msa_pos:
 						domain_min_position_msa[domain_name] = msa_pos
-			all_domains.add(domain['type'] + '_|_' + domain['aSDomain'] + '_|_' + domain['description'])
+			all_domains.add(domain_info['type'] + '_|_' + domain_info['aSDomain'] + '_|_' + domain_info['description'])
 
-	domain_plot_handle.write('\t'.join(['domain', 'domain_index', 'min_pos', 'max_pos']) + '\n')
-	for i, dom in enumerate(sorted(domain_min_position_msa.items(), key=itemgetter(1))):
-		tmp = []
-		old_pos = None
-		for j, pos in enumerate(sorted(domain_positions_msa[dom[0]])):
-			if j == 0:
-				old_pos = pos - 1
-			if pos - 1 != old_pos:
-				if len(tmp) > 0:
-					min_pos = min(tmp)
-					max_pos = max(tmp)
-					domain_plot_handle.write(
-						'\t'.join([str(x) for x in [dom[0], i, min_pos, max_pos]]) + '\n')
-				tmp = []
-			tmp.append(pos)
-			old_pos = pos
-		if len(tmp) > 0:
-			min_pos = min(tmp)
-			max_pos = max(tmp)
-			domain_plot_handle.write('\t'.join([str(x) for x in [dom[0], i, min_pos, max_pos]]) + '\n')
+	if not at_least_one_domain_is_multi_part and not at_least_one_gene_is_multi_part:
+		if issue_with_domain_coords:
+			raise RuntimeError("Issue with fitting domain coordinates to gene coordinates")
+		for i, dom in enumerate(sorted(domain_min_position_msa.items(), key=itemgetter(1))):
+			tmp = []
+			old_pos = None
+			for j, pos in enumerate(sorted(domain_positions_msa[dom[0]])):
+				if j == 0:
+					old_pos = pos - 1
+				if pos - 1 != old_pos:
+					if len(tmp) > 0:
+						min_pos = min(tmp)
+						max_pos = max(tmp)
+						domain_plot_handle.write('\t'.join([str(x) for x in [dom[0], i, min_pos, max_pos]]) + '\n')
+					tmp = []
+				tmp.append(pos)
+				old_pos = pos
+			if len(tmp) > 0:
+				min_pos = min(tmp)
+				max_pos = max(tmp)
+				domain_plot_handle.write('\t'.join([str(x) for x in [dom[0], i, min_pos, max_pos]]) + '\n')
+
 	domain_plot_handle.close()
 
 	rscript_plot_cmd = ["Rscript", RSCRIPT_FOR_CLUSTER_ASSESSMENT_PLOTTING, domain_plot_file, position_plot_file,
@@ -3341,7 +3370,7 @@ def identify_gcf_instances(input_args):
 	bgc_hg_evalue_handle = open(bgc_info_dir + sample + '.hg_evalues.txt', 'w')
 
 	for gcf_segment in sample_gcf_predictions_filtered:
-		bgc_genbank_file = bgc_genbanks_dir + sample + '_BGC-' + str(sample_bgc_ids) + '.gbk'
+		bgc_genbank_file = bgc_genbanks_dir + sample + '_Expansion_BGC-' + str(sample_bgc_ids) + '.gbk'
 		sample_bgc_ids += 1
 
 		gcf_segment_scaff = gcf_segment[5]

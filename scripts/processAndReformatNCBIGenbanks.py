@@ -120,9 +120,36 @@ def processAndReformatNCBIGenbanks():
 		for rec in SeqIO.parse(oigf, 'genbank'):
 			for feature in rec.features:
 				if feature.type == "CDS":
-					start = min([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')])
-					end = max([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')])
-					direction = str(feature.location).split('(')[1].split(')')[0]
+					all_starts = []
+					all_ends = []
+					all_directions = []
+					all_coords = []
+					if 'order' in str(feature.location):
+						raise RuntimeError('Currently order is not allowed for CDS features in Genbanks. Please consider removing sample %s from analysis and trying again.' % sample_name)
+					if not 'join' in str(feature.location):
+						start = min([int(x.strip('>').strip('<')) for x in str(feature.location)[1:].split(']')[0].split(':')]) + 1
+						end = max([int(x.strip('>').strip('<')) for x in str(feature.location)[1:].split(']')[0].split(':')])
+						direction = str(feature.location).split('(')[1].split(')')[0]
+						all_starts.append(start);
+						all_ends.append(end);
+						all_directions.append(direction)
+						all_coords.append([start, end, direction])
+					else:
+						all_starts = []
+						all_ends = []
+						all_directions = []
+						for exon_coord in str(feature.location)[5:-1].split(', '):
+							start = min([int(x.strip('>').strip('<')) for x in exon_coord[1:].split(']')[0].split(':')]) + 1
+							end = max([int(x.strip('>').strip('<')) for x in exon_coord[1:].split(']')[0].split(':')])
+							direction = exon_coord.split('(')[1].split(')')[0]
+							all_starts.append(start);
+							all_ends.append(end);
+							all_directions.append(direction)
+							all_coords.append([start, end, direction])
+					assert (len(set(all_directions)) == 1)
+					start = min(all_starts)
+					end = max(all_ends)
+					direction = all_directions[0]
 					old_locus_tag = 'NA'
 					prot_seq = ''
 					try:
@@ -132,6 +159,7 @@ def processAndReformatNCBIGenbanks():
 					try:
 						prot_seq = str(feature.qualifiers.get('translation')[0]).replace('*', '')
 					except:
+						raise RuntimeError("Currently only full Genbanks with translations available for each CDS is accepted.")
 						nucl_seq = str(rec.seq)[start-1:end]
 						if direction == '-':
 							nucl_seq = str(Seq(nucl_seq).reverse_complement())
@@ -153,7 +181,7 @@ def processAndReformatNCBIGenbanks():
 					else:
 						new_locus_tag += str(locus_tag_iterator)
 					locus_tag_iterator += 1
-
+					feature.qualifiers['locus_tag'] = new_locus_tag
 					pro_outfile_handle.write('>' + new_locus_tag + ' ' + rec.id + ' ' + str(start) + ' ' + str(end) + ' ' + str(direction) + '\n' + prot_seq + '\n')
 					map_outfile_handle.write(old_locus_tag + '\t' + new_locus_tag + '\n')
 			SeqIO.write(rec, gbk_outfile_handle, 'genbank')
