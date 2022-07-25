@@ -133,7 +133,7 @@ def prodigalAndReformat():
 				pid = '0'+str(i+1)
 
 			new_prot_id = locus_tag + '_' + pid
-			scaffold = '_'.join(rec.id.split('_')[:1])
+			scaffold = '_'.join(rec.id.split('_')[:-1])
 			start = int(rec.description.split(' # ')[1])
 			end = int(rec.description.split(' # ')[2])
 			direction = int(rec.description.split(' # ')[3])
