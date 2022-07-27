@@ -482,8 +482,8 @@ def lsaBGC_Ready():
         proteome_listing_file = outdir + 'All_Proteomes.txt'
         proteome_listing_handle = open(proteome_listing_file, 'w')
         proteome_directories = [proteomes_directory]
-	if additional_proteomes_directory != None:
-	    proteome_directies += [additional_proteomes_directory]
+        if additional_proteomes_directory != None:
+            proteome_directies += [additional_proteomes_directory]
         for pd in proteome_directories:
             for f in os.listdir(pd):
                 proteome_listing_handle.write(pd + f + '\n')
