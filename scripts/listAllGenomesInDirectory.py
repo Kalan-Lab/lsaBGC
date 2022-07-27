@@ -97,6 +97,7 @@ def siftAndPrint():
             sys.stderr.write('Warning, skipping file: %s, does not appear to have suffix expected of nucleotide FASTA files.\n' % f)
         else:
             sample = '.'.join(f.split('.')[:-1])
+            sample = sample.replace('#', '').replace('*', '_').replace(':', '_').replace(';', '_').replace(' ', '_').replace(':', '_').replace('|', '_').replace('"', '_').replace("'", '_').replace("=", "_").replace('-', '_').replace('(', '').replace(')', '').replace('/', '').replace('\\', '').replace('[', '').replace(']', '').replace(',', '')
             full_file_name = input_genomes_dir + f
             print(sample + '\t' + full_file_name)
 
