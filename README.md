@@ -1,6 +1,9 @@
 # *lsa*BGC
 ### Lineage Specific Analysis of Biosynthetic Gene Clusters
 
+[![Preprint](https://img.shields.io/badge/preprint-bioRxiv-darkblue?style=flat-square&maxAge=2678400)](https://www.biorxiv.org/content/10.1101/2022.04.20.488953v2)
+
+
 *lsa*BGC is a modular software suite designed to provide a comprehensive set of functions for investigating and mining for biosynthetic gene cluster diversity across a focal lineage/taxa of interest using AntiSMASH based annotation. It consists of 8 independent programs: `lsaBGC-Ready.py`, `lsaBGC-Cluster.py`, `lsaBGC-Expansion`, `lsaBGC-Refine.py`, `lsaBGC-See.py`, `lsaBGC-PopGene.py`, `lsaBGC-Divergence.py`, and `lsaBGC-DiscoVary.py`.
 
 ![](https://github.com/Kalan-Lab/lsaBGC/blob/main/docs/images/lsaBGC1.1_Simplified.png)
@@ -57,32 +60,33 @@ python setup.py install
 pip install -e .
 ```
 
-Optional, but recommended, command to download KOfams (+ other databases in the near future):
+Optional, but recommended, command to download KOfams + PGAP HMMs for annotation:
 
 ```
-# Warning: can take ~10 minutes!
+# Warning: can take >10 minutes! 
+# Can skip to run tests first to make sure things are working properly.
 # within lsaBGC Git repo with conda environment activated:
 setup_annotation_dbs.py
 ```
 
 Additional, information pertaining to installation can be found at: [Installation Guide](https://github.com/Kalan-Lab/lsaBGC/wiki/01.-Installation)
 
-A small test case is provided here and can be run after installation by simply issuing (takes around ~6 minutes using 4 cores):
+A small test case is provided here and can be run after installation by simply issuing (takes around ~6 minutes using 4 cpus/threads):
 
 ```
-# Warning: uses 4 cores! 
+# Warning: uses 4 cpus/threads! 
 bash run_tests.sh
 ```
 
 Additionally, we suggest checking out additional [test cases](https://github.com/Kalan-Lab/lsaBGC_Ckefir_Testing_Cases) to demonstrate usage of individual programs along with expected outputs from commands. We also have a [quick start + walk-through tutorial Wiki page](https://github.com/Kalan-Lab/lsaBGC/wiki/03.-Quick-Start-&-In-Depth-Tutorial:-Exploring-BGCs-in-Cutibacterium) to showcase the use of the suite and relations between core programs.
 
-The major outputs of the final `lsaBGC-AutoAnalyze.py` run are in the resulting folder `test_case/lsaBGC_AutoAnalyze_Results/Final_Results/` and described on [this wiki page](https://github.com/Kalan-Lab/lsaBGC/wiki/16.-Overview-of-lsaBGC-AutoAnalyze's-Final-Results).
+The major outputs of the final `lsaBGC-AutoAnalyze.py` run are in the resulting folder `test_case/lsaBGC_AutoAnalyze_Results/Final_Results/` and described on [this wiki page](https://github.com/Kalan-Lab/lsaBGC/wiki/16.-Overview-of-lsaBGC-AutoAnalyze's-Final-Results). Examples for the final AutoAnalyze results from an `lsaBGC-Easy.py` run on Cutibacterium avidum can be found [here on Google Drive](https://drive.google.com/drive/u/1/folders/1jHFFOUTd4SbIO-xiGG8MWTZaP1U4RF1j). 
 
 ## Quick Start - using `lsaBGC-Easy.py`
 
 Check out how to use `lsaBGC-Easy.py` on [it's wiki page](https://github.com/Kalan-Lab/lsaBGC/wiki/15.-lsaBGC-Easy-Tutorial:-Combining-lsaBGC-with-ncbi-genome-download)!
 
-![image](https://user-images.githubusercontent.com/4260723/181541888-066b6e0a-682c-4266-b539-e07e36ea91e5.png)
+![image](https://user-images.githubusercontent.com/4260723/181613839-df183cdc-1103-403f-b5d1-889484f52be9.png)
 
 ## Notes on the PopGene Report Table
 
@@ -112,7 +116,6 @@ For evolutionary statistics calculations, codon alignments are now built using M
 
 ## Future Updates Planned and of High Priority:
 
-* Get `lsaBGC-Ready.py` working for fungi + plants.
 * Incorporate additional/update evolutionary statistics in `lsaBGC-PopGene.py`! 
 
 ## Acknowledgements:

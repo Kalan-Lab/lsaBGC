@@ -26,21 +26,21 @@ lsaBGC is made possible by many other tools including:
     - PGAP HMMs: https://pubmed.ncbi.nlm.nih.gov/27342282/
 
 - Protein alignment:
-    - MAFFT:
-    - MAGUS:
-    - MUSCLE (part of GToTree):
+    - MAFFT: https://academic.oup.com/mbe/article/30/4/772/1073398
+    - MAGUS: https://academic.oup.com/bioinformatics/article/37/12/1666/6012350
+    - MUSCLE (part of GToTree): https://www.biorxiv.org/content/10.1101/2021.06.20.449169v1.full
 
 - Visualization software:
-    - ggplot2:
-    - ggtree:
-    - gggeenes:
-    - cowplot:
-    - iTol:
+    - ggplot2: https://ggplot2-book.org/
+    - ggtree: https://besjournals.onlinelibrary.wiley.com/doi/full/10.1111/2041-210X.12628
+    - gggeenes: https://github.com/wilkox/gggenes
+    - cowplot: https://wilkelab.org/cowplot/articles/plot_grid.html
+    - iTol: https://pubmed.ncbi.nlm.nih.gov/30931475/
 
 - Identification of additional GCF instances:
-    - DIAMOND:
-    - pomegranate:
+    - DIAMOND: https://www.nature.com/articles/nmeth.3176
+    - pomegranate: https://www.jmlr.org/papers/volume18/17-636/17-636.pdf
 
 - Metagenomics analysis in lsaBGC-DiscoVary:
-    - Bowtie2:
-    - DESMAN:
+    - Bowtie2: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3322381/
+    - DESMAN: https://genomebiology.biomedcentral.com/articles/10.1186/s13059-017-1309-9
