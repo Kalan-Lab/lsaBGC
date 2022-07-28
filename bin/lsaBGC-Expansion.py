@@ -75,7 +75,8 @@ def create_parser():
     parser.add_argument('-q', '--quick_mode', action='store_true', help="Run in quick-mode. Instead of running HMMScan for each homolog group, a consensus\nsequence is emitted and Diamond is used for searching instead. Method inspired by Melnyk et al. 2019", required=False, default=False)
     parser.add_argument('-no', '--no_orthogroup_matrix', action='store_true', help="Avoid writing the updated OrthoFinder matrix at the end.", required=False, default=False)
     parser.add_argument('-w', '--loose', action='store_true', help="Remove requirement for proto-core/rule-based homolog group being detected in a single\nneighborhood for GCF to be reported as present.", required=False, default=False)
-    parser.add_argument('-ch', '--protocore_homologs', nargs="+", help="List of homolog group identifiers comprising the core of the BGC/GCF of which at\nleast one is required for GCF to be reported. Please provide as space-seperated list\nwith quotes surrounding: \"OG1 OG2 ...\"", required=False, default=[])
+    parser.add_argument('-ph', '--protocore_homologs', nargs="+", help="List of homolog group identifiers comprising the core of the BGC/GCF of which at\nleast one is required for GCF to be reported. Please provide as space-seperated list\nwith quotes surrounding: \"OG1 OG2 ...\"", required=False, default=[])
+    parser.add_argument('-ap', '--all_primary', action='store_true', help='Treat all known GCF instances as primary (use if BGC Genbanks were not processed through lsaBGC-Ready).', required=False, default=False)
     parser.add_argument('-z', '--pickle_expansion_annotation_data', help="Pickle file with serialization of annotation data in the expansion listing file.", required=False, default=None)
 
     args = parser.parse_args()
@@ -130,7 +131,7 @@ def lsaBGC_Expansion():
     pickle_expansion_annotation_data_file = myargs.pickle_expansion_annotation_data
     protocore_hg_set = myargs.protocore_homologs
     loose_flag = myargs.loose
-
+    all_primary_flag = myargs.all_primary
     try:
         assert (bgc_prediction_software in set(['ANTISMASH', 'DEEPBGC', 'GECCO']))
     except:
@@ -150,7 +151,7 @@ def lsaBGC_Expansion():
                         gcf_id, bgc_prediction_software, cores, min_segment_size, min_segment_core_size,
                         syntenic_correlation_threshold, transition_from_gcf_to_gcf, transition_from_bg_to_bg,
                         quick_mode, no_orthogroup_matrix, pickle_expansion_annotation_data_file, protocore_hg_set,
-                        loose_flag]
+                        loose_flag, all_primary_flag]
     parameter_names = ["GCF Listing File", "OrthoFinder Orthogroups.csv File",
                        "Listing File of Prokka Annotation Files for Initial Set of Samples",
                        "Listing File of Prokka Annotation Files for Expansion/Additional Set of Samples",
@@ -161,7 +162,8 @@ def lsaBGC_Expansion():
                        "Skip rewriting Expanded OrthoGroup CSV File?",
                        "Pickle File with Annotation Data in Expansion Listing for Quick Loading",
                        "Proto-Core Set of Homolog Group(s) Manually Specified by User.",
-                       "No Rule-Based/Proto-Core Homolog Group Required for GCF Reporting?"]
+                       "No Rule-Based/Proto-Core Homolog Group Required for GCF Reporting?",
+                       "All BGC instances for GCF should be Treated as Primary?"]
     util.logParametersToFile(parameters_file, parameter_names, parameter_values)
     logObject.info("Done saving parameters!")
 
@@ -177,9 +179,10 @@ def lsaBGC_Expansion():
     logObject.info("Starting to parse OrthoFinder homolog vs sample information.")
     gene_to_hg, hg_genes, hg_median_copy_count, hg_prop_multi_copy = util.parseOrthoFinderMatrix(orthofinder_matrix_file, GCF_Object.pan_genes)
     GCF_Object.inputHomologyInformation(gene_to_hg, hg_genes, hg_median_copy_count, hg_prop_multi_copy)
-    GCF_Object.identifyKeyHomologGroups()
+    GCF_Object.identifyKeyHomologGroups(all_primary=all_primary_flag)
     if len(protocore_hg_set) > 0:
         GCF_Object.protocluster_core_homologs = set(protocore_hg_set)
+        logObject.info("Proto-Core / Rule Based Homolog Groups:\t" + '; '.join(GCF_Object.protocluster_core_homologs))
     logObject.info("Successfully parsed homolog matrix.")
 
     # Step 3: Process annotation files related to input and expanded sample sets

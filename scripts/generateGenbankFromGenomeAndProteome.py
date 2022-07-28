@@ -58,12 +58,10 @@ def create_parser():
 	""", formatter_class=argparse.RawTextHelpFormatter)
 
 	parser.add_argument('-i', '--input_genomic_fasta', help='Path to genomic assembly in FASTA format.', required=True)
-	parser.add_argument('-o', '--output_directory', help='Path to output directory. Should already be created!', required=True)
-	parser.add_argument('-s', '--sample_name', help='Sample name', default='Sample', required=False)
-	parser.add_argument('-l', '--locus_tag', help='Locus tag', default='AAA', required=False)
-
+	parser.add_argument('')
 	args = parser.parse_args()
 	return args
+
 
 def prodigalAndReformat():
 	"""
@@ -83,6 +81,11 @@ def prodigalAndReformat():
 	except:
 		raise RuntimeError('Issue with input genomic assembly file path.')
 
+	try:
+		assert(util.is_fasta(input_genomic_fasta_file))
+	except:
+		raise RuntimeError('Input genomic assembly does not appear to be in FASTA format.')
+
 	if not os.path.isdir(outdir):
 		sys.stderr.write("Output directory does not exist! Please create and retry program.")
 
@@ -97,18 +100,8 @@ def prodigalAndReformat():
 	START WORKFLOW
 	"""
 
-	# check if uncompression needed
-	try:
-		if input_genomic_fasta_file.endswith('.gz'):
-			os.system('cp %s %s' % (input_genomic_fasta_file, outdir))
-			updated_genomic_fasta_file = outdir + input_genomic_fasta_file.split('/')[-1].split('.gz')[0]
-			os.system('gunzip %s' % (updated_genomic_fasta_file + '.gz'))
-			input_genomic_fasta_file = updated_genomic_fasta_file
-		assert(util.is_fasta(input_genomic_fasta_file))
-	except:
-		raise RuntimeError('Input genomic assembly does not appear to be in FASTA format.')
-
 	# Step 1: Run Prodigal (if needed)
+
 	og_prod_pred_prot_file = outdir + sample_name + '.original_predicted_proteome'
 	prodigal_cmd = ['prodigal', '-i', input_genomic_fasta_file, '-a', og_prod_pred_prot_file]
 	subprocess.call(' '.join(prodigal_cmd), shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, executable='/bin/bash')
@@ -139,7 +132,7 @@ def prodigalAndReformat():
 			else:
 				pid = str(i+1)
 			new_prot_id = locus_tag + '_' + pid
-			scaffold = '_'.join(rec.id.split('_')[:-1])
+			scaffold = '_'.join(rec.id.split('_')[:1])
 			start = int(rec.description.split(' # ')[1])
 			end = int(rec.description.split(' # ')[2])
 			direction = int(rec.description.split(' # ')[3])
@@ -150,8 +143,6 @@ def prodigalAndReformat():
 			if direction == -1: dir_str = '-'
 			pc_prod_pred_prot_handle.write('>' + new_prot_id + ' ' + scaffold + ' ' + str(start) + ' ' + str(end) + ' ' + dir_str + '\n' + str(rec.seq) + '\n')
 	pc_prod_pred_prot_handle.close()
-
-	print(scaffold_prots.keys())
 
 	# Step 3: Process Prodigal predicted genbank and create polished version with locus tags and protein + nucleotide
 	# sequences

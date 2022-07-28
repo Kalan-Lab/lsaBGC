@@ -74,12 +74,14 @@ def create_parser():
 	***************************************************************************************************************** 
     -*-  OrthoFinder2 modes:
             * Genome_Wide: Run OrthoFinder2 as intended with all primary sample full genome-wide proteomes.
-              [LOW-THROUGHPUT (<200 Genomes)]
+              [LOW-THROUGHPUT (<200 Genomes)]. 
             * BGC_Only: OrthoFinder2 is run across samples/genomes accounting for only BGC embedded proteins. 
               Genome-wide paralogs for orthogroups are subsequently identified by using orthogroup specific cutoffs
               based on the percent identity and coverage thresholds determined for each orthogroup (the minimum 
               perc. id and coverage observed within BGC proteins belonging to the same orthgroup). 
-              [DEFAULT; MEDIUM-THROUGHPUT (>200 but <500 genomes)]
+              [DEFAULT; MEDIUM-THROUGHPUT (>200 but <500 genomes)]. Note, this can result in the same protein
+              being assigned to multiple ortholog groups currently because of the parology search (will aim to fix
+              this soon, but should have minimal effects I believe).
             * COMING SOON: palo - scalable genome-wide orthology determination.
 	   
     -*-  To avoid issues with processing BiG-SCAPE results (if used instead lsaBGC-Cluster.py), please use distinct 
@@ -106,7 +108,7 @@ def create_parser():
     parser.add_argument('-o', '--output_directory', help='Parent output/workspace directory.', required=True)
     parser.add_argument('-m', '--orthofinder_mode', help='Method for running OrthoFinder2. (Options: Genome_Wide, BGC_Only). Default is BGC_Only.', required=False, default='BGC_Only')
     parser.add_argument('-a', '--annotate', action='store_true',
-                        help='Perform annotation of BGC proteins using KOfam HMM profiles.', required=False, default=False)
+                        help='Perform annotation of BGC proteins using KOfam and PGAP (including TIGR) HMM profiles.', required=False, default=False)
     parser.add_argument('-t', '--run_gtotree', action='store_true', help='Whether to create phylogeny and expected sample-vs-sample\ndivergence for downstream analyses using GToTree.', required=False, default=False)
     parser.add_argument('-gtm', '--gtotree_model', help='Set of core genes to use for phylogeny construction in GToTree. Default is Universal_Hug_et_al', required=False, default="Universal_Hug_et_al")
     parser.add_argument('-lc', '--lsabgc_cluster', action='store_true', help='Run lsaBGC-Cluster with default parameters. Note, we recommend running lsaBGC-Cluster manually\nand exploring parameters through its ability to generate a user-report for setting clustering parameters.', required=False, default=False)
@@ -161,7 +163,7 @@ def lsaBGC_Ready():
     bgc_prediction_software = myargs.bgc_prediction_software.upper()
     run_gtotree = myargs.run_gtotree
     gtotree_model = myargs.gtotree_model
-    orthofinder_mode = myargs.orthofinder_mode
+    orthofinder_mode = myargs.orthofinder_mode.upper()
     cores = myargs.cores
     bigscape_results_dir = myargs.bigscape_results
     annotate = myargs.annotate
@@ -169,6 +171,11 @@ def lsaBGC_Ready():
     run_lsabgc_expansion = myargs.lsabgc_expansion
     keep_intermediates = myargs.keep_intermediates
     skip_primary_expansion = myargs.skip_primary_expansion
+
+    try:
+        assert(orthofinder_mode in set(['GENOME_WIDE', 'BGC_ONLY']))
+    except:
+        raise RuntimeError('BGC prediction software option is not a valid option.')
 
     try:
         assert(bgc_prediction_software in set(['ANTISMASH', 'DEEPBGC', 'GECCO']))
@@ -199,16 +206,24 @@ def lsaBGC_Ready():
 
     kofam_hmm_file = None
     kofam_pro_list = None
+    pgap_hmm_file = None
+    pgap_inf_list = None
     if annotate:
         try:
-            kofam_db_location = lsaBGC_main_directory + 'db/kofam_location_paths.txt'
-            assert(os.path.isfile(kofam_db_location))
-            with open(kofam_db_location) as okdlf:
-                for line in okdlf:
-                    kofam_pro_list, kofam_hmm_file = line.strip().split('\t')
-                    assert(os.path.isfile(kofam_hmm_file) and os.path.isfile(kofam_pro_list))
+            db_locations = lsaBGC_main_directory + 'db/database_location_paths.txt'
+            assert(os.path.isfile(db_locations))
+            with open(db_locations) as odls:
+                for line in odls:
+                    line = line.strip()
+                    ls = line.split('\t')
+                    if ls[0] == 'ko':
+                        kofam_pro_list, kofam_hmm_file = ls[1:]
+                        assert(os.path.isfile(kofam_hmm_file) and os.path.isfile(kofam_pro_list))
+                    elif ls[0] == 'pgap':
+                        pgap_inf_list, pgap_hmm_file = ls[1:]
+                        assert(os.path.isfile(pgap_hmm_file) and os.path.isfile(pgap_inf_list))
         except:
-            raise RuntimeError("It appears KOfam database was not setup or setup successfully. Please run/rerun the script setup_annotation_dbs.py and report to Github issues if issue persists.")
+            raise RuntimeError("It appears KOfam/PGAP databases were not setup or setup successfully. Please run/rerun the script setup_annotation_dbs.py and report to Github issues if issue persists.")
 
     """
 	START WORKFLOW
@@ -224,7 +239,7 @@ def lsaBGC_Ready():
                         run_lsabgc_expansion, keep_intermediates, cores]
     parameter_names = ["Primary Genome Listing File", "BGC Predictions Genbanks Listing File", "Output Directory",
                        "Additional Genome Listing File", "BGC Prediction Software", "OrthoFinder Mode",
-                       "BiG-SCAPE Results Directory", "Perform KOfam Annotation?", "Run lsaBGC-Cluster Analysis?",
+                       "BiG-SCAPE Results Directory", "Perform KOfam/PGAP Annotation?", "Run lsaBGC-Cluster Analysis?",
                        "Run lsaBGC-AutoExpansion Analysis?", "Keep Intermediate Files/Directories?", "Number of Cores"]
     util.logParametersToFile(parameters_file, parameter_names, parameter_values)
     logObject.info("Done saving parameters!")
@@ -273,21 +288,25 @@ def lsaBGC_Ready():
         raise RuntimeError("Difficulties validating ulimit settings are properly set to allow for successful OrthoFinder2 run.")
 
     proteomes_directory = outdir + 'Predicted_Proteomes_Initial/'
-    util.setupReadyDirectory([proteomes_directory])
+    genbanks_directory = outdir + 'Genomic_Genbanks_Initial/'
+    util.setupReadyDirectory([proteomes_directory, genbanks_directory])
 
     if format_prediction == 'fasta':
         ## genomes are provided as FASTAs
         prodigal_outdir = outdir + 'Prodigal_Gene_Calling/'
-        genbanks_directory = outdir + 'Genomic_Genbanks_Initial/'
-        util.setupReadyDirectory([prodigal_outdir, genbanks_directory])
+        util.setupReadyDirectory([prodigal_outdir])
 
         # Note, locus tags of length 3 are used within lsaBGC to mark samples whose BGCs were integral in defining GCFs.
         util.processGenomes(sample_genomes, prodigal_outdir, proteomes_directory, genbanks_directory, logObject,
                             cores=cores, locus_tag_length=3)
         sample_genomes = util.updateSampleGenomesWithGenbanks(genbanks_directory)
     else:
-        ## genomes are provided as Genbanks with CDS features
-        util.extractProteins(sample_genomes, proteomes_directory, logObject)
+        ## genomes are provided as Genbanks with CDS features and no need for de novo gene calling
+        gene_name_mapping_outdir = outdir + 'Mapping_of_New_Gene_Names_to_Original/'
+        util.setupReadyDirectory([gene_name_mapping_outdir])
+
+        util.processGenomesAsGenbanks(sample_genomes, proteomes_directory, genbanks_directory, gene_name_mapping_outdir, logObject, cores=cores, locus_tag_length=3)
+        sample_genomes = util.updateSampleGenomesWithGenbanks(genbanks_directory)
 
     # Step 2: Process Additional Genomes
     additional_sample_annotation_listing_file = int_outdir + 'Additional_Sample_Annotation_Files.txt'
@@ -300,11 +319,11 @@ def lsaBGC_Ready():
             raise RuntimeError('Format of additional genomes provided is not consistently FASTA or Genbank, please check input.')
 
         additional_proteomes_directory = outdir + 'Predicted_Proteomes_Additional/'
-        util.setupReadyDirectory([additional_proteomes_directory])
+        additional_genbanks_directory = outdir + 'Genomic_Genbanks_Additional/'
+        util.setupReadyDirectory([additional_proteomes_directory, additional_genbanks_directory])
         if additional_format_prediction == 'fasta':
             additional_prodigal_outdir = outdir + 'Prodigal_Gene_Calling_Additional/'
-            additional_genbanks_directory = outdir + 'Genomic_Genbanks_Additional/'
-            util.setupReadyDirectory([additional_prodigal_outdir, additional_genbanks_directory])
+            util.setupReadyDirectory([additional_prodigal_outdir])
 
             # Note, locus tags of length 4 are used within lsaBGC to mark samples with additional genomes where we ultimately
             # find them via lsaBGC-Expansion.
@@ -312,15 +331,16 @@ def lsaBGC_Ready():
                                 logObject, cores=cores, locus_tag_length=4)
         else:
             # genomes are provided as Genbanks with CDS features
-            util.extractProteins(additional_sample_genomes, additional_proteomes_directory, logObject)
+            gene_name_mapping_outdir = outdir + 'Mapping_of_New_Gene_Names_to_Original/'
+            util.setupReadyDirectory([gene_name_mapping_outdir])
+            util.processGenomesAsGenbanks(additional_sample_genomes, additional_proteomes_directory,
+                                          additional_genbanks_directory, gene_name_mapping_outdir, logObject,
+                                          cores=cores, locus_tag_length=4)
 
         additional_sample_annotation_listing_handle = open(additional_sample_annotation_listing_file, 'w')
         for f in os.listdir(additional_proteomes_directory):
             sample = f.split('.faa')[0]
-            if additional_format_prediction == 'fasta':
-                additional_sample_annotation_listing_handle.write(sample + '\t' + additional_genbanks_directory + sample + '.gbk' + '\t' + additional_proteomes_directory + f + '\n')
-            else:
-                additional_sample_annotation_listing_handle.write(sample + '\t' + additional_sample_genomes[sample] + '\t' + additional_proteomes_directory +f + '\n')
+            additional_sample_annotation_listing_handle.write(sample + '\t' + additional_genbanks_directory + sample + '.gbk' + '\t' + additional_proteomes_directory + f + '\n')
         additional_sample_annotation_listing_handle.close()
 
     # Step 3: Process BGC Genbank Results and Add Annotations
@@ -340,14 +360,14 @@ def lsaBGC_Ready():
 
     sample_bgc_proteins = util.extractProteinsFromBGCs(sample_bgcs, bgc_prot_directory, logObject)
 
-    # Step 5: Perform KOfam annotation if requested and update BGCs (including references to them)
+    # Step 5: Perform KOfam/PGAP annotation if requested and update BGCs (including references to them)
     protein_annotations = None
     if annotate:
-        ko_annot_directory = outdir + 'KOfam_Annotations/'
-        if not os.path.isdir(ko_annot_directory): os.system('mkdir %s' % ko_annot_directory)
-        protein_annotations = util.performKOFamAnnotation(sample_bgc_proteins, bgc_prot_directory,
-                                                                       ko_annot_directory, kofam_hmm_file,
-                                                                       kofam_pro_list, logObject, cores=cores)
+        annot_directory = outdir + 'Annotations/'
+        util.setupReadyDirectory([annot_directory])
+        protein_annotations = util.performKOFamAndPGAPAnnotation(sample_bgc_proteins, bgc_prot_directory,
+                                                                       annot_directory, kofam_hmm_file, pgap_hmm_file,
+                                                                       kofam_pro_list, pgap_inf_list, logObject, cores=cores)
         bgcs_directory_updated = outdir + 'BGCs_Retagged_and_Annotated/'
         util.setupReadyDirectory([bgcs_directory_updated])
 
@@ -490,7 +510,6 @@ def lsaBGC_Ready():
         proteome_listing_handle.close()
 
         gtotree_outdir = outdir + 'GToTree_output/'
-        # muscle will use 20 cores, quite annoying
         parallel_jobs = max(math.floor(cores / 4), 1)
         gtotree_cmd = ['GToTree', '-A', proteome_listing_file, '-H', gtotree_model, '-n', '4', '-j', str(parallel_jobs),
                        '-M', '4', '-o', gtotree_outdir]

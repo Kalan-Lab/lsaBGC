@@ -26,7 +26,7 @@ names(og_colors) <- c(na.omit(c(genes.sub.data$og)))
 
 print(og_colors)
 
-pdf(pdf_file, height=70, width=30)
+pdf(pdf_file, height=30, width=30)
 gg_tr <- ggtree(phylo.tree)#  + ggplot2::xlim(NA, 1)
 gg_gn <- ggplot(genes.data, aes(xmin = start, xmax = end, y = label, fill = og, forward = forward)) +
           geom_gene_arrow(show.legend=F) + theme_void() + scale_fill_manual(values=og_colors)

@@ -13,9 +13,10 @@ lsaBGC_main_directory = '/'.join(os.path.realpath(__file__).split('/')[:-3])
 gecco_pickle_weights_file_file = lsaBGC_main_directory + '/db/GECCO_PF_Weights.pkl'
 
 class BGC:
-	def __init__(self, bgc_genbank, bgc_id, prediction_method='ANTISMASH'):
+	def __init__(self, bgc_genbank, bgc_id, is_expansion_bgc, prediction_method='ANTISMASH'):
 		self.bgc_genbank = bgc_genbank
 		self.bgc_id = bgc_id
+		self.is_expansion_bgc = is_expansion_bgc
 		self.prediction_method = prediction_method.upper()
 		self.gene_information = None
 		self.cluster_information = None
@@ -48,7 +49,7 @@ class BGC:
 				except:
 					pass
 				domain_weights[aSDomain + '|' + str(start+1) + '|' + str(end)] = dom_weight
-				domains.append({'start': start + 1, 'end': end, 'type': feature.type, 'aSDomain': aSDomain, 'description': description})
+				domains.append({'start': start + 1, 'end': end, 'type': feature.type, 'aSDomain': aSDomain, 'description': description, 'is_multi_part': False})
 
 		product = 'NA'
 		try:
@@ -133,7 +134,8 @@ class BGC:
 							 'product': product, 'prot_seq': prot_seq, 'nucl_seq': nucl_seq,
 							 'nucl_seq_with_flanks': nucl_seq_with_flanks, 'gene_domains': gene_domains,
 							 'core_overlap': core_overlap, 'relative_start': relative_start,
-							 'relative_end': relative_end}
+							 'relative_end': relative_end, 'is_expansion_bgc': self.is_expansion_bgc,
+							 'is_multi_part': False}
 
 		number_of_core_gene_groups = 0
 		tmp = []
@@ -181,7 +183,7 @@ class BGC:
 						except:
 							pass
 						domain_score[aSDomain + '|' + str(start+1) + '|' + str(end)] = deepbgc_score
-						domains.append({'start': start + 1, 'end': end, 'type': feature.type, 'aSDomain': aSDomain, 'description': description})
+						domains.append({'start': start + 1, 'end': end, 'type': feature.type, 'aSDomain': aSDomain, 'description': description, 'is_multi_part': False})
 					elif feature.type == 'cluster':
 						product_class = "NA"
 						product_activity = "NA"
@@ -283,7 +285,8 @@ class BGC:
 									 'product': product, 'prot_seq': prot_seq, 'nucl_seq': nucl_seq,
 									 'nucl_seq_with_flanks': nucl_seq_with_flanks, 'gene_domains': gene_domains,
 									 'core_overlap': core_overlap, 'relative_start': relative_start,
-									 'relative_end': relative_end}
+									 'relative_end': relative_end, 'is_expansion_bgc': self.is_expansion_bgc,
+									 'is_multi_part': False}
 
 		number_of_core_gene_groups = 0
 		tmp = []
@@ -313,8 +316,25 @@ class BGC:
 				full_sequence = str(rec.seq)
 				for feature in rec.features:
 					if comprehensive_parsing and feature.type in domain_feature_types:
-						start = min([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')]) + 1
-						end = max([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')])
+						start = None
+						end = None
+						is_multi_part = False
+						if not 'join' in str(feature.location):
+							start = min([int(x.strip('>').strip('<')) for x in str(feature.location)[1:].split(']')[0].split(':')])
+							end = max([int(x.strip('>').strip('<')) for x in str(feature.location)[1:].split(']')[0].split(':')])
+						else:
+							is_multi_part = True
+							all_starts = []
+							all_ends = []
+							for exon_coord in str(feature.location)[5:-1].split(', '):
+								start = min(
+									[int(x.strip('>').strip('<')) for x in exon_coord[1:].split(']')[0].split(':')])
+								end = max([int(x.strip('>').strip('<')) for x in exon_coord[1:].split(']')[0].split(':')])
+								all_starts.append(start);
+								all_ends.append(end);
+							start = min(all_starts)
+							end = max(all_ends)
+
 						aSDomain = "NA"
 						description = "NA"
 						try:
@@ -325,8 +345,8 @@ class BGC:
 							description = feature.qualifiers.get('description')[0]
 						except:
 							pass
-						domains.append({'start': start + 1, 'end': end, 'type': feature.type, 'aSDomain': aSDomain,
-										'description': description})
+						domains.append({'start': start, 'end': end, 'type': feature.type, 'aSDomain': aSDomain,
+										'description': description, 'is_multi_part': is_multi_part})
 					elif feature.type == 'protocluster':
 						detection_rule = feature.qualifiers.get('detection_rule')[0]
 						try:
@@ -338,9 +358,18 @@ class BGC:
 							{'detection_rule': detection_rule, 'product': product, 'contig_edge': contig_edge,
 							 'full_sequence': str(rec.seq)})
 					elif feature.type == 'proto_core':
-						core_start = min([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')])
-						core_end = max([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')])
-						core_positions = core_positions.union(set(range(core_start + 1, core_end + 1)))
+						if not 'join' in str(feature.location):
+							core_start = min([int(x.strip('>').strip('<')) for x in str(feature.location)[1:].split(']')[0].split(':')])
+							core_end = max([int(x.strip('>').strip('<')) for x in str(feature.location)[1:].split(']')[0].split(':')])
+							core_positions = core_positions.union(set(range(core_start + 1, core_end + 1)))
+						else:
+							core_starts = []							
+							core_ends = []
+							for exon_coord in str(feature.location)[5:-1].split(', '):
+								start = min([int(x.strip('>').strip('<')) for x in exon_coord[1:].split(']')[0].split(':')])
+								end = max([int(x.strip('>').strip('<')) for x in exon_coord[1:].split(']')[0].split(':')])
+								core_starts.append(start); core_ends.append(end)
+							core_positions = core_positions.union(set(range(min(core_starts)+1, max(core_ends)+1)))
 
 		if len(bgc_info) == 0:
 			bgc_info = [
@@ -355,10 +384,31 @@ class BGC:
 				for feature in rec.features:
 					if feature.type == "CDS":
 						lt = feature.qualifiers.get('locus_tag')[0]
-						start = min([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')]) + 1
-						end = max([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')])
-						direction = str(feature.location).split('(')[1].split(')')[0]
-
+						start = None
+						end = None
+						direction = None
+						all_coords = []
+						is_multi_part = False
+						if not 'join' in str(feature.location):
+							start = min([int(x.strip('>').strip('<')) for x in str(feature.location)[1:].split(']')[0].split(':')]) + 1
+							end = max([int(x.strip('>').strip('<')) for x in str(feature.location)[1:].split(']')[0].split(':')])
+							direction = str(feature.location).split('(')[1].split(')')[0]
+							all_coords.append([start, end, direction])
+						else:
+							is_multi_part = True
+							all_starts = []
+							all_ends = []
+							all_directions = []
+							for exon_coord in str(feature.location)[5:-1].split(', '):
+								start = min([int(x.strip('>').strip('<')) for x in exon_coord[1:].split(']')[0].split(':')]) + 1
+								end = max([int(x.strip('>').strip('<')) for x in exon_coord[1:].split(']')[0].split(':')])
+								direction = exon_coord.split('(')[1].split(')')[0]
+								all_starts.append(start); all_ends.append(end); all_directions.append(direction)
+								all_coords.append([start, end, direction])
+							assert(len(set(all_directions)) == 1)
+							start = min(all_starts)
+							end = max(all_ends)
+							direction = all_directions[0]
 						try:
 							product = feature.qualifiers.get('product')[0]
 						except:
@@ -394,13 +444,14 @@ class BGC:
 							if flank_start < 1: flank_start = 1
 
 							if flank_end >= len(full_sequence): flank_end = None
-							if end >= len(full_sequence): end = None
+							if end >= len(full_sequence): end = len(full_sequence)
 
-							if end:
-								nucl_seq = full_sequence[start - 1:end]
-							else:
-								nucl_seq = full_sequence[start - 1:]
-								end = len(full_sequence)
+							nucl_seq = ''
+							for sc, ec, dc in sorted(all_coords, key=itemgetter(0), reverse=False):
+								if ec >= len(full_sequence):
+									nucl_seq += full_sequence[sc - 1:]
+								else:
+									nucl_seq += full_sequence[sc - 1:ec]
 
 							if flank_end:
 								nucl_seq_with_flanks = full_sequence[flank_start - 1:flank_end]
@@ -417,12 +468,18 @@ class BGC:
 								nucl_seq_with_flanks = str(Seq(nucl_seq_with_flanks).reverse_complement())
 								relative_start = nucl_seq_with_flanks.find(nucl_seq)
 								relative_end = relative_start + gene_length
+							#print(self.bgc_genbank)
+							#print(nucl_seq)
+							#print(Seq(nucl_seq).translate())
+							#print(prot_seq)
+							#print('--------------------')
 
 						genes[lt] = {'bgc_name': self.bgc_id, 'start': start, 'end': end, 'direction': direction,
 									 'product': product, 'prot_seq': prot_seq, 'nucl_seq': nucl_seq,
 									 'nucl_seq_with_flanks': nucl_seq_with_flanks, 'gene_domains': gene_domains,
 									 'core_overlap': core_overlap, 'relative_start': relative_start,
-									 'relative_end': relative_end}
+									 'relative_end': relative_end, 'is_multi_part': is_multi_part,
+									 'is_expansion_bgc': self.is_expansion_bgc}
 
 		number_of_core_gene_groups = 0
 		tmp = []
@@ -484,34 +541,77 @@ class BGC:
 
 					updated_features = []
 					for feature in rec.features:
-						start = min([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')])+1
-						end = max([int(x) for x in str(feature.location)[1:].split(']')[0].split(':')])
+						start = None
+						end = None
+						direction = None
+						all_coords = []
+						if not 'join' in str(feature.location) and not 'order' in str(feature.location):
+							start = min([int(x.strip('>').strip('<')) for x in
+										 str(feature.location)[1:].split(']')[0].split(':')]) + 1
+							end = max([int(x.strip('>').strip('<')) for x in
+									   str(feature.location)[1:].split(']')[0].split(':')])
+							direction = str(feature.location).split('(')[1].split(')')[0]
+							all_coords.append([start, end, direction])
+						elif 'order' in str(feature.location):
+							all_starts = []
+							all_ends = []
+							all_directions = []
+							for exon_coord in str(feature.location)[6:-1].split(', '):
+								start = min(
+									[int(x.strip('>').strip('<')) for x in exon_coord[1:].split(']')[0].split(':')]) + 1
+								end = max(
+									[int(x.strip('>').strip('<')) for x in exon_coord[1:].split(']')[0].split(':')])
+								direction = exon_coord.split('(')[1].split(')')[0]
+								all_starts.append(start)
+								all_ends.append(end)
+								all_directions.append(direction)
+								all_coords.append([start, end, direction])
+							start = min(all_starts)
+							end = max(all_ends)
+						else:
+							all_starts = []
+							all_ends = []
+							all_directions = []
+							for exon_coord in str(feature.location)[5:-1].split(', '):
+								start = min(
+									[int(x.strip('>').strip('<')) for x in exon_coord[1:].split(']')[0].split(':')]) + 1
+								end = max(
+									[int(x.strip('>').strip('<')) for x in exon_coord[1:].split(']')[0].split(':')])
+								direction = exon_coord.split('(')[1].split(')')[0]
+								all_starts.append(start)
+								all_ends.append(end)
+								all_directions.append(direction)
+								all_coords.append([start, end, direction])
+							start = min(all_starts)
+							end = max(all_ends)
 
 						feature_coords = set(range(start, end+1))
 						if len(feature_coords.intersection(pruned_coords)) > 0:
-							updated_start = start - start_coord + 1
-							updated_end = end - start_coord + 1
+							fls = []
+							for sc, ec, dc in all_coords:
+								updated_start = sc - start_coord + 1
+								updated_end = ec - start_coord + 1
+								if ec > end_coord:
+									if feature.type == 'CDS':
+										continue
+									else:
+										updated_end = end_coord - start_coord + 1  # ; flag1 = True
+								if sc < start_coord:
+									if feature.type == 'CDS':
+										continue
+									else:
+										updated_start = 1  # ; flag2 = True
 
-							if end > end_coord:
-								if feature.type == 'CDS':
-									continue
-								else:
-									updated_end = end_coord - start_coord + 1
-							if start < start_coord:
-								if feature.type == 'CDS':
-									continue
-								else:
-									updated_start = 1
-
-							strand = 1
-							if '(-)' in str(feature.location):
-								strand = -1
-
-							updated_location = FeatureLocation(updated_start-1, updated_end, strand=strand)
-							updated_feature = copy.deepcopy(feature)
-
-							updated_feature.location = updated_location
-							updated_features.append(updated_feature)
+								strand = 1
+								if dc == '-':
+									strand = -1
+								fls.append(FeatureLocation(updated_start - 1, updated_end, strand=strand))
+							if len(fls) > 0:
+								updated_location = fls[0]
+								if len(fls) > 1:
+									updated_location = sum(fls)
+								feature.location = updated_location
+								updated_features.append(feature)
 					updated_rec.features = updated_features
 					SeqIO.write(updated_rec, rgf_handle, 'genbank')
 			rgf_handle.close()

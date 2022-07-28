@@ -37,5 +37,8 @@ dependencies:
   - conda-forge::pandas=1.4.2
   - bioconda::mash
   - astrobiomike::gtotree
+  - conda-forge::xlsxwriter=3.0.3
+  - bioconda::ncbi-genome-download
+  - bioconda::gecco
   - pip:
       - magus-msa

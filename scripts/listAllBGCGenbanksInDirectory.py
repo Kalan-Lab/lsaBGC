@@ -67,11 +67,10 @@ def create_parser():
 						help='Software used to predict BGCs (Options: antiSMASH, DeepBGC, GECCO). Default is antiSMASH.',
 						default='antiSMASH', required=False)
 	parser.add_argument('-f', '--filter_incomplete', action='store_true',
-						help='Filter out incomplete BGCs (those found on contig edges. Only works for antiSMASH predictions.',
+						help='Filter out incomplete BGCs (those found on contig edges). Only works for antiSMASH predictions.',
 						required=False, default=False)
 	args = parser.parse_args()
 	return args
-
 
 def siftAndPrint():
 	"""
