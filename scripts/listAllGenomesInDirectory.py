@@ -206,7 +206,5 @@ def siftAndPrint():
         else:
             print(sample + '\t' + genome_file)
 
-
-
 if __name__ == '__main__':
     siftAndPrint()
