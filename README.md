@@ -60,10 +60,11 @@ python setup.py install
 pip install -e .
 ```
 
-Optional, but recommended, command to download KOfams (+ other databases in the near future):
+Optional, but recommended, command to download KOfams + PGAP HMMs for annotation:
 
 ```
-# Warning: can take ~10 minutes!
+# Warning: can take >10 minutes! 
+# Can skip to run tests first to make sure things are working properly.
 # within lsaBGC Git repo with conda environment activated:
 setup_annotation_dbs.py
 ```
@@ -79,7 +80,7 @@ bash run_tests.sh
 
 Additionally, we suggest checking out additional [test cases](https://github.com/Kalan-Lab/lsaBGC_Ckefir_Testing_Cases) to demonstrate usage of individual programs along with expected outputs from commands. We also have a [quick start + walk-through tutorial Wiki page](https://github.com/Kalan-Lab/lsaBGC/wiki/03.-Quick-Start-&-In-Depth-Tutorial:-Exploring-BGCs-in-Cutibacterium) to showcase the use of the suite and relations between core programs.
 
-The major outputs of the final `lsaBGC-AutoAnalyze.py` run are in the resulting folder `test_case/lsaBGC_AutoAnalyze_Results/Final_Results/` and described on [this wiki page](https://github.com/Kalan-Lab/lsaBGC/wiki/16.-Overview-of-lsaBGC-AutoAnalyze's-Final-Results).
+The major outputs of the final `lsaBGC-AutoAnalyze.py` run are in the resulting folder `test_case/lsaBGC_AutoAnalyze_Results/Final_Results/` and described on [this wiki page](https://github.com/Kalan-Lab/lsaBGC/wiki/16.-Overview-of-lsaBGC-AutoAnalyze's-Final-Results). Examples for the final AutoAnalyze results from an `lsaBGC-Easy.py` run on Cutibacterium avidum can be found [here on Google Drive](https://drive.google.com/drive/u/1/folders/1jHFFOUTd4SbIO-xiGG8MWTZaP1U4RF1j). 
 
 ## Quick Start - using `lsaBGC-Easy.py`
 
@@ -115,7 +116,6 @@ For evolutionary statistics calculations, codon alignments are now built using M
 
 ## Future Updates Planned and of High Priority:
 
-* Get `lsaBGC-Ready.py` working for fungi + plants.
 * Incorporate additional/update evolutionary statistics in `lsaBGC-PopGene.py`! 
 
 ## Acknowledgements:
