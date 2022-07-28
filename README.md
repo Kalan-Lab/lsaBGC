@@ -71,10 +71,10 @@ setup_annotation_dbs.py
 
 Additional, information pertaining to installation can be found at: [Installation Guide](https://github.com/Kalan-Lab/lsaBGC/wiki/01.-Installation)
 
-A small test case is provided here and can be run after installation by simply issuing (takes around ~6 minutes using 4 cores):
+A small test case is provided here and can be run after installation by simply issuing (takes around ~6 minutes using 4 cpus/threads):
 
 ```
-# Warning: uses 4 cores! 
+# Warning: uses 4 cpus/threads! 
 bash run_tests.sh
 ```
 
@@ -86,7 +86,7 @@ The major outputs of the final `lsaBGC-AutoAnalyze.py` run are in the resulting 
 
 Check out how to use `lsaBGC-Easy.py` on [it's wiki page](https://github.com/Kalan-Lab/lsaBGC/wiki/15.-lsaBGC-Easy-Tutorial:-Combining-lsaBGC-with-ncbi-genome-download)!
 
-![image](https://user-images.githubusercontent.com/4260723/181541888-066b6e0a-682c-4266-b539-e07e36ea91e5.png)
+![image](https://user-images.githubusercontent.com/4260723/181613839-df183cdc-1103-403f-b5d1-889484f52be9.png)
 
 ## Notes on the PopGene Report Table
 
