@@ -57,13 +57,14 @@ def create_parser():
 	Author: Rauf Salamzade
 	Affiliation: Kalan Lab, UW Madison, Department of Medical Microbiology and Immunology
 
-	Prepares additional genomes 
+	Prepares additional genomes for being searched for GCFs using lsaBGC-AutoExpansion/Expansion.
 	""", formatter_class=argparse.RawTextHelpFormatter)
 
 	parser.add_argument('-d', '--additional_genome_listing',
 						help='Tab-delimited, two column file for samples with additional/draft\ngenomes (same format as for the "--genome_listing" argument). The genomes/BGCs of these\nsamples won\'t be used in ortholog-grouping of proteins and clustering of BGCs, but will simply have gene\ncalling run for them. This will enable more sensitive/expanded detection of GCF instances later\nusing lsaBGC-Expansion/AutoExpansion.\nCheck note above about available scripts to automatically create this.',
 						required=True)
 	parser.add_argument('-o', '--output_directory', help='Parent output/workspace directory.', required=True)
+	parser.add_argument('-pa', '--previous_annotation_listing', help='If this is not the first time lsaBGC-AutoExpansion will be run (including if lsaBGC-Ready.py was run with additional genoems), then please provide the previous sample annotation file to infer which locus tags to avoid.', required=False, default=None)
 	parser.add_argument('-c', '--cores', type=int,
 						help="Total number of cores/threads to use for running OrthoFinder2/prodigal.", required=False,
 						default=1)
@@ -76,12 +77,13 @@ def readifyAdditionalGenomes():
 	"""
 
 	"""
-	PARSE REQUIRED INPUTS
+	PARSE ARGUMENTS
 	"""
 	myargs = create_parser()
 
 	outdir = os.path.abspath(myargs.output_directory) + '/'
 	additional_genome_listing_file = myargs.additional_genome_listing
+	previous_annotation_listing_file = myargs.previous_annotation_listing
 	cores = myargs.cores
 
 	if os.path.isdir(outdir):
@@ -94,6 +96,12 @@ def readifyAdditionalGenomes():
 		assert (os.path.isfile(additional_genome_listing_file))
 	except:
 		raise RuntimeError('Issue with reading genome listing file for samples with additional genomic assemblies.')
+
+	if previous_annotation_listing_file:
+		try:
+			assert(os.path.isfile(previous_annotation_listing_file))
+		except:
+			raise RuntimeError('Issue validating the presence of the previous annotation listing file provided.')
 
 	"""
 	START WORKFLOW
@@ -108,6 +116,18 @@ def readifyAdditionalGenomes():
 	parameter_names = ["Additional Genome Listing File", "Output Directory", "Number of Cores"]
 	util.logParametersToFile(parameters_file, parameter_names, parameter_values)
 	logObject.info("Done saving parameters!")
+
+	used_locus_tags = set([])
+	if previous_annotation_listing_file:
+		with open(previous_annotation_listing_file) as opalf:
+			for line in opalf:
+				line = line.strip('\n')
+				sample, gbk, faa = line.split('\t')
+				with open(faa) as ofaa:
+					for i, rec in enumerate(SeqIO.parse(ofaa, 'fasta')):
+						if i == 0:
+							lt = rec.id.split('_')[0]
+							used_locus_tags.add(lt)
 
 	# Step 1: Process Additional Genomes
 	additional_sample_annotation_listing_file = outdir + 'Additional_Sample_Annotation_Files.txt'
@@ -129,14 +149,14 @@ def readifyAdditionalGenomes():
 		# Note, locus tags of length 4 are used within lsaBGC to mark samples with additional genomes where we ultimately
 		# find them via lsaBGC-Expansion.
 		util.processGenomes(additional_sample_genomes, additional_prodigal_outdir, additional_proteomes_directory,
-							additional_genbanks_directory, logObject, cores=cores, locus_tag_length=4)
+							additional_genbanks_directory, logObject, cores=cores, locus_tag_length=4, avoid_locus_tags=used_locus_tags)
 	else:
 		# genomes are provided as Genbanks with CDS features
 		gene_name_mapping_outdir = outdir + 'Mapping_of_New_Gene_Names_to_Original/'
 		util.setupReadyDirectory([gene_name_mapping_outdir])
 		util.processGenomesAsGenbanks(additional_sample_genomes, additional_proteomes_directory,
 									  additional_genbanks_directory, gene_name_mapping_outdir, logObject,
-									  cores=cores, locus_tag_length=4)
+									  cores=cores, locus_tag_length=4, avoid_locus_tags=used_locus_tags)
 
 	additional_sample_annotation_listing_handle = open(additional_sample_annotation_listing_file, 'w')
 	for f in os.listdir(additional_proteomes_directory):

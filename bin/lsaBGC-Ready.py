@@ -163,7 +163,7 @@ def lsaBGC_Ready():
     bgc_prediction_software = myargs.bgc_prediction_software.upper()
     run_gtotree = myargs.run_gtotree
     gtotree_model = myargs.gtotree_model
-    orthofinder_mode = myargs.orthofinder_mode
+    orthofinder_mode = myargs.orthofinder_mode.upper()
     cores = myargs.cores
     bigscape_results_dir = myargs.bigscape_results
     annotate = myargs.annotate
@@ -171,6 +171,11 @@ def lsaBGC_Ready():
     run_lsabgc_expansion = myargs.lsabgc_expansion
     keep_intermediates = myargs.keep_intermediates
     skip_primary_expansion = myargs.skip_primary_expansion
+
+    try:
+        assert(orthofinder_mode in set(['GENOME_WIDE', 'BGC_ONLY']))
+    except:
+        raise RuntimeError('BGC prediction software option is not a valid option.')
 
     try:
         assert(bgc_prediction_software in set(['ANTISMASH', 'DEEPBGC', 'GECCO']))
@@ -305,6 +310,8 @@ def lsaBGC_Ready():
 
     # Step 2: Process Additional Genomes
     additional_sample_annotation_listing_file = int_outdir + 'Additional_Sample_Annotation_Files.txt'
+    additional_proteomes_directory = None
+    additional_genbanks_directory = None
     if additional_genome_listing_file != None:
         additional_sample_genomes, additional_format_prediction = util.parseSampleGenomes(additional_genome_listing_file, logObject)
         if additional_format_prediction == 'mixed':
@@ -494,14 +501,15 @@ def lsaBGC_Ready():
     if run_gtotree:
         proteome_listing_file = outdir + 'All_Proteomes.txt'
         proteome_listing_handle = open(proteome_listing_file, 'w')
-        proteome_directories = [proteomes_directory, additional_proteomes_directory]
+        proteome_directories = [proteomes_directory]
+        if additional_proteomes_directory != None:
+            proteome_directories += [additional_proteomes_directory]
         for pd in proteome_directories:
             for f in os.listdir(pd):
                 proteome_listing_handle.write(pd + f + '\n')
         proteome_listing_handle.close()
 
         gtotree_outdir = outdir + 'GToTree_output/'
-        # muscle will use 20 cores, quite annoying
         parallel_jobs = max(math.floor(cores / 4), 1)
         gtotree_cmd = ['GToTree', '-A', proteome_listing_file, '-H', gtotree_model, '-n', '4', '-j', str(parallel_jobs),
                        '-M', '4', '-o', gtotree_outdir]

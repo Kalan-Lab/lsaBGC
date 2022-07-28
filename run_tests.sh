@@ -19,11 +19,11 @@ FILE=../db/database_location_paths.txt
 if [ -f "$FILE" ]; then
     lsaBGC-Ready.py -i Primary_Genomes_Listing.txt -d Additional_Genomes_Listing.txt \
    	-l Primary_Genome_BGC_Genbanks_Listing.txt -p antiSMASH -m BGC_Only \
-	  -c 40 -t -a -lc -le -o lsaBGC_Ready_Results/
+	  -c 4 -t -a -lc -le -o lsaBGC_Ready_Results/
 else
     lsaBGC-Ready.py -i Primary_Genomes_Listing.txt -d Additional_Genomes_Listing.txt \
-	  -l Primary_Genome_BGC_Genbanks_Listing.txt -p antiSMASH -m BGC_Only \
-	  -c 40 -t -lc -le -o lsaBGC_Ready_Results/
+        -l Primary_Genome_BGC_Genbanks_Listing.txt -p antiSMASH -m BGC_Only \
+          -c 4 -t -lc -le -o lsaBGC_Ready_Results/
 fi
 
 # Step 4: run lsaBGC-AutoAnalyze.py - automatically run analytical programs for
@@ -36,4 +36,4 @@ lsaBGC-AutoAnalyze.py -i lsaBGC_Ready_Results/Final_Results/Expanded_Sample_Anno
 	-s lsaBGC_Ready_Results/Final_Results/GToTree_output.tre \
 	-w lsaBGC_Ready_Results/Final_Results/GToTree_Expected_Similarities.txt \
 	-k lsaBGC_Ready_Results/Final_Results/Samples_in_GToTree_Tree.txt \
-	-u Genome_to_Species_Mapping.txt -c 40 -o lsaBGC_AutoAnalyze_Results/ \
+	-u Genome_to_Species_Mapping.txt -c 4 -o lsaBGC_AutoAnalyze_Results/ \

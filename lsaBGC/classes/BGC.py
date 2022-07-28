@@ -49,7 +49,7 @@ class BGC:
 				except:
 					pass
 				domain_weights[aSDomain + '|' + str(start+1) + '|' + str(end)] = dom_weight
-				domains.append({'start': start + 1, 'end': end, 'type': feature.type, 'aSDomain': aSDomain, 'description': description})
+				domains.append({'start': start + 1, 'end': end, 'type': feature.type, 'aSDomain': aSDomain, 'description': description, 'is_multi_part': False})
 
 		product = 'NA'
 		try:
@@ -134,7 +134,8 @@ class BGC:
 							 'product': product, 'prot_seq': prot_seq, 'nucl_seq': nucl_seq,
 							 'nucl_seq_with_flanks': nucl_seq_with_flanks, 'gene_domains': gene_domains,
 							 'core_overlap': core_overlap, 'relative_start': relative_start,
-							 'relative_end': relative_end, 'is_expansion_bgc': self.is_expansion_bgc}
+							 'relative_end': relative_end, 'is_expansion_bgc': self.is_expansion_bgc,
+							 'is_multi_part': False}
 
 		number_of_core_gene_groups = 0
 		tmp = []
@@ -182,7 +183,7 @@ class BGC:
 						except:
 							pass
 						domain_score[aSDomain + '|' + str(start+1) + '|' + str(end)] = deepbgc_score
-						domains.append({'start': start + 1, 'end': end, 'type': feature.type, 'aSDomain': aSDomain, 'description': description})
+						domains.append({'start': start + 1, 'end': end, 'type': feature.type, 'aSDomain': aSDomain, 'description': description, 'is_multi_part': False})
 					elif feature.type == 'cluster':
 						product_class = "NA"
 						product_activity = "NA"
@@ -284,7 +285,8 @@ class BGC:
 									 'product': product, 'prot_seq': prot_seq, 'nucl_seq': nucl_seq,
 									 'nucl_seq_with_flanks': nucl_seq_with_flanks, 'gene_domains': gene_domains,
 									 'core_overlap': core_overlap, 'relative_start': relative_start,
-									 'relative_end': relative_end, 'is_expansion_bgc': self.is_expansion_bgc}
+									 'relative_end': relative_end, 'is_expansion_bgc': self.is_expansion_bgc,
+									 'is_multi_part': False}
 
 		number_of_core_gene_groups = 0
 		tmp = []
@@ -604,12 +606,12 @@ class BGC:
 								if dc == '-':
 									strand = -1
 								fls.append(FeatureLocation(updated_start - 1, updated_end, strand=strand))
-							updated_location = fls[0]
-							if len(fls) > 1:
-								updated_location = sum(fls)
-							feature.location = updated_location
-							updated_features.append(feature)
-
+							if len(fls) > 0:
+								updated_location = fls[0]
+								if len(fls) > 1:
+									updated_location = sum(fls)
+								feature.location = updated_location
+								updated_features.append(feature)
 					updated_rec.features = updated_features
 					SeqIO.write(updated_rec, rgf_handle, 'genbank')
 			rgf_handle.close()

@@ -71,7 +71,7 @@ def create_parser():
 	parser.add_argument('-q', '--quick_mode', action='store_true', help='Whether to run lsaBGC-Expansion in quick mode?', required=False, default=False)
 	parser.add_argument('-z', '--pickle_expansion_annotation_data', help="Pickle file with serialization of annotation data in the expansion listing file.", required=False, default=None)
 	parser.add_argument('-c', '--cores', type=int, help="Total number of cores to use.", required=False, default=1)
-	parser.add_argument('-ph', '--protocore_homologs', help="File with manual listings of proto-core homolog groups.\nThis should be provided as 2 column tab-delmited file: (1) GCF id and\n(2) space delmited listing of homolog groups. Automatically\nsets --all_primary flag in exapnsion runs as well.", required=False, default=None)
+	parser.add_argument('-ph', '--protocore_homologs', help="File with manual listings of proto-core homolog groups.\nThis should be provided as 2 column tab-delmited file: (1) GCF id and\n(2) space delmited listing of homolog groups.", required=False, default=None)
 
 	args = parser.parse_args()
 	return args
@@ -112,11 +112,20 @@ def lsaBGC_AutoExpansion():
 	bgc_prediction_software = myargs.bgc_prediction_software.upper()
 	quick_mode = myargs.quick_mode
 	pickle_expansion_annotation_data_file = myargs.pickle_expansion_annotation_data
+	protocore_homologs_file = myargs.protocore_homologs
 
 	try:
 		assert (bgc_prediction_software in set(['ANTISMASH', 'DEEPBGC', 'GECCO']))
 	except:
 		raise RuntimeError('BGC prediction software option is not a valid option.')
+
+	if pickle_expansion_annotation_data_file != None:
+		try: assert(os.path.isfile(pickle_expansion_annotation_data_file))
+		except: raise RuntimeError('Issue validating pickle expansion listing file exists.')
+
+	if protocore_homologs_file != None:
+		try: assert(os.path.isfile(protocore_homologs_file))
+		except: raise RuntimeError('Issue validating proto-core homologs file exists.')
 
 	"""
 	START WORKFLOW
@@ -131,14 +140,26 @@ def lsaBGC_AutoExpansion():
 	parameters_file = outdir + 'Parameter_Inputs.txt'
 	parameter_values = [gcf_listing_dir, initial_listing_file,
 						expansion_listing_file, original_orthofinder_matrix_file, outdir,
-						pickle_expansion_annotation_data_file, quick_mode, bgc_prediction_software, cores]
+						pickle_expansion_annotation_data_file, quick_mode, bgc_prediction_software,
+						protocore_homologs_file, cores]
 	parameter_names = ["GCF Listings Directory", "Listing File of Prokka Annotation Files for Initial Set of Samples",
 					   "Listing File of Prokka Annotation Files for Expansion/Additional Set of Samples",
 					   "OrthoFinder Homolog Matrix", "Output Directory",
 					   "Pickle File with Annotation Data in Expansion Listing for Quick Loading",
-					   "Run in Quick Mode?", "BGC Prediction Software", "Cores"]
+					   "Run in Quick Mode?", "BGC Prediction Software", "ProtoCore-Like Homolog Group Specifications",
+					   "Cores"]
 	util.logParametersToFile(parameters_file, parameter_names, parameter_values)
 	logObject.info("Done saving parameters!")
+
+	# parse manual proto-core homolog group specifications if provided
+	protocore_hgs = None
+	if protocore_homologs_file != None:
+		protocore_hgs = {}
+		with open(protocore_homologs_file) as ophf:
+			for line in ophf:
+				line = line.strip('\n')
+				gcf, phgs = line.split('\t')
+				protocore_hgs[gcf] = phgs
 
 	exp_outdir = outdir + 'Expansion/'
 	if not os.path.isdir(exp_outdir): os.system('mkdir %s' % exp_outdir)
@@ -186,6 +207,8 @@ def lsaBGC_AutoExpansion():
 				cmd += ['-q']
 			if pickle_expansion_annotation_data_file:
 				cmd += ['-z', pickle_expansion_annotation_data_file]
+			if protocore_hgs != None:
+				cmd += ['-ph', '"' + protocore_hgs[gcf_id] + '"']
 			try:
 				util.run_cmd(cmd, logObject, stderr=sys.stderr, stdout=sys.stdout)
 			except:

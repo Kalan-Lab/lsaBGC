@@ -65,7 +65,6 @@ def create_parser():
 	args = parser.parse_args()
 	return args
 
-
 def prodigalAndReformat():
 	"""
 	Void function which runs primary workflow for program.

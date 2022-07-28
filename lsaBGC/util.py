@@ -192,7 +192,7 @@ def determineNonUniqueRegionsAlongCodonAlignment(outdir, initial_sample_prokka_d
 			logObject.error(traceback.format_exc())
 		raise RuntimeError(traceback.format_exc())
 
-def determineSeqSimProteinAlignment(protein_alignment_file):
+def determineSeqSimProteinAlignment(protein_alignment_file, use_only_core=True):
 	protein_sequences = {}
 	with open(protein_alignment_file) as ocaf:
 		for rec in SeqIO.parse(ocaf, 'fasta'):
@@ -212,9 +212,10 @@ def determineSeqSimProteinAlignment(protein_alignment_file):
 			for pos, g1a in enumerate(g1s):
 				g2a = g2s[pos]
 				if g1a != '-' or g2a != '-':
-					tot_comp_pos += 1
-					if g1a == g2a:
-						match_pos += 1
+					if not use_only_core or (use_only_core and g1a != '-' and g2a != '-'):
+						tot_comp_pos += 1
+						if g1a == g2a:
+							match_pos += 1
 			general_matching_percentage = float(match_pos)/float(tot_comp_pos)
 			if pair_seq_matching[s1][s2] < general_matching_percentage and pair_seq_matching[s2][s1] < general_matching_percentage:
 				pair_seq_matching[s1][s2] = general_matching_percentage
@@ -1093,7 +1094,7 @@ def multiProcess(input):
 		sys.stderr.write(traceback.format_exc())
 
 
-def processGenomes(sample_genomes, prodigal_outdir, prodigal_proteomes, prodigal_genbanks, logObject, cores=1, locus_tag_length=3):
+def processGenomes(sample_genomes, prodigal_outdir, prodigal_proteomes, prodigal_genbanks, logObject, cores=1, locus_tag_length=3, avoid_locus_tags=set([])):
 	"""
 	Void function to run Prodigal based gene-calling and annotations.
 
@@ -1112,7 +1113,7 @@ def processGenomes(sample_genomes, prodigal_outdir, prodigal_proteomes, prodigal
 	prodigal_cmds = []
 	try:
 		alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-		possible_locustags = list(itertools.product(alphabet, repeat=locus_tag_length))
+		possible_locustags = sorted(list(set([''.join(list(x)) for x in list(itertools.product(alphabet, repeat=locus_tag_length))]).difference(avoid_locus_tags)))
 		for i, sample in enumerate(sample_genomes):
 			sample_assembly = sample_genomes[sample]
 			sample_locus_tag = ''.join(list(possible_locustags[i]))
@@ -1183,7 +1184,7 @@ def parseSampleGenomes(genome_listing_file, logObject):
 
 
 def processGenomesAsGenbanks(sample_genomes, proteomes_directory, genbanks_directory, gene_name_mapping_outdir,
-							 logObject, cores=1, locus_tag_length=3):
+							 logObject, cores=1, locus_tag_length=3, avoid_locus_tags=set([])):
 	"""
 	Extracts CDS/proteins from existing Genbank files and recreates
 	"""
@@ -1192,7 +1193,7 @@ def processGenomesAsGenbanks(sample_genomes, proteomes_directory, genbanks_direc
 	process_cmds = []
 	try:
 		alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-		possible_locustags = list(itertools.product(alphabet, repeat=locus_tag_length))
+		possible_locustags = sorted(list(set([''.join(list(x)) for x in list(itertools.product(alphabet, repeat=locus_tag_length))]).difference(avoid_locus_tags)))
 		lacking_cds_gbks = set([])
 
 		for i, sample in enumerate(sample_genomes):
@@ -1401,7 +1402,6 @@ def extractProteinsFromBGCs(sample_bgcs, bgc_prot_directory, logObject):
 						for feature in rec.features:
 							if feature.type == 'CDS':
 								prot_lt = feature.qualifiers.get('locus_tag')[0]
-								prot_seq = str(feature.qualifiers.get('translation')[0]).replace('*', '')
 								start = None
 								end = None
 								direction = None
@@ -1431,7 +1431,7 @@ def extractProteinsFromBGCs(sample_bgcs, bgc_prot_directory, logObject):
 								start = min(all_starts)
 								end = max(all_ends)
 								direction = all_directions[0]
-
+								prot_seq = str(feature.qualifiers.get('translation')[0]).replace('*', '')
 								sample_bgc_prots[sample][bgc].add(prot_lt)
 								samp_bgc_prot_handle.write('>' + ' '.join([str(x) for x in [prot_lt, scaff_id, start, end, direction]]) + '\n' + prot_seq + '\n')
 			samp_bgc_prot_handle.close()
@@ -2462,6 +2462,73 @@ numeric_columns = set(['GCF Count', 'hg order index', 'hg consensus direction', 
 					   'median dn ds', 'mad dn ds', 'populations with hg', 'proportion of total populations with hg',
 					   'most significant Fisher exact pvalues presence absence', 'median Tajimas D per population',
 					   'mad Tajimas D per population'])
+
+
+def loadSampleToGCFIntoPandaDataFrame(gcf_listing_dir):
+	import pandas as pd
+	panda_df = None
+	try:
+		data = []
+		data.append(['GCF', 'Sample', 'BGC Instances'])
+		for f in os.listdir(gcf_listing_dir):
+			gcf = f.split('.txt')[0]
+			sample_counts = defaultdict(int)
+			with open(gcf_listing_dir + f) as ogldf:
+				for line in ogldf:
+					line = line.strip()
+					sample, bgc_path = line.split('\t')
+					sample_counts[sample] += 1
+			for s in sample_counts:
+				data.append([gcf, s, sample_counts[s]])
+
+		panda_dict = {}
+		for ls in zip(*data):
+			key = ' '.join(ls[0].split('_'))
+			vals = ls[1:]
+			panda_dict[key] = vals
+		panda_df = pd.DataFrame(panda_dict)
+
+	except Exception as e:
+		raise RuntimeError(traceback.format_exc())
+	return panda_df
+
+def loadSamplesIntoPandaDataFrame(sample_annot_file, pop_spec_file=None):
+	import pandas as pd
+	panda_df = None
+	try:
+		if pop_spec_file != None:
+			sample_pops = {}
+			with open(pop_spec_file) as opsf:
+				for line in opsf:
+					line = line.strip()
+					ls = line.split('\t')
+					sample_pops[ls[0]] = ls[1]
+
+		data = []
+		if pop_spec_file != None:
+			data.append(['Sample', 'Population/Clade'])
+		else:
+			data.append(['Sample'])
+		with open(sample_annot_file) as saf:
+			for line in saf:
+				line = line.strip('\n')
+				ls = line.split('\t')
+				if pop_spec_file != None:
+					pop = sample_pops[ls[0]]
+					data.append([ls[0], pop])
+				else:
+					data.append([ls[0]])
+
+		panda_dict = {}
+		for ls in zip(*data):
+			key = ' '.join(ls[0].split('_'))
+			vals = ls[1:]
+			panda_dict[key] = vals
+		panda_df = pd.DataFrame(panda_dict)
+
+	except Exception as e:
+		raise RuntimeError(traceback.format_exc())
+	return panda_df
 
 def loadTableInPandaDataFrame(input_file):
 	import pandas as pd

@@ -45,6 +45,7 @@ from collections import defaultdict
 from Bio import SeqIO
 from lsaBGC import util
 import pandas as pd
+from ete3 import Tree
 
 lsaBGC_main_directory = '/'.join(os.path.realpath(__file__).split('/')[:-2])
 RSCRIPT_FOR_NJTREECONSTRUCTION = lsaBGC_main_directory + '/lsaBGC/Rscripts/createNJTree.R'
@@ -250,6 +251,13 @@ def lsaBGC_AutoAnalyze():
 		if not os.path.isdir(update_gcf_listing_dir):
 			os.system('mkdir %s' % update_gcf_listing_dir)
 
+		if species_phylogeny_file:
+			tree = Tree(species_phylogeny_file)
+			tree.prune(list(sample_retention_set))
+			pruned_species_phylogeny_file = outdir + 'Species_Phylogeny.pruned.tre'
+			tree.write(format=1, outfile=pruned_species_phylogeny_file)
+			species_phylogeny_file = pruned_species_phylogeny_file
+
 		for g in os.listdir(gcf_listing_dir):
 			update_gcf_listing_file = update_gcf_listing_dir + g
 			update_gcf_listing_handle = open(update_gcf_listing_file, 'w')
@@ -258,19 +266,10 @@ def lsaBGC_AutoAnalyze():
 				for line in ogf:
 					line = line.strip()
 					sample, bgc_path = line.split('\t')
-					if has_at_least_one_core_BGC_flag:
+					if sample in sample_retention_set:
 						update_gcf_listing_handle.write(line + '\n')
-					if not has_at_least_one_core_BGC_flag and sample in sample_retention_set:
-						with open(bgc_path) as obp:
-							for rec in SeqIO.parse(obp, 'genbank'):
-								if has_at_least_one_core_BGC_flag: break
-								for feature in rec.features:
-									if feature.type == "CDS":
-										lt = feature.qualifiers.get('locus_tag')[0]
-										if len(lt.split('_')[0]) == 3:
-											has_at_least_one_core_BGC_flag = True
-											break
-						update_gcf_listing_handle.write(line + '\n')
+						if not '_Expansion_BGC' in bgc_path.split('/')[-1]:
+							has_at_least_one_core_BGC_flag = True
 			update_gcf_listing_handle.close()
 			if not has_at_least_one_core_BGC_flag:
 				os.system('rm -f %s' % update_gcf_listing_file)
@@ -289,6 +288,25 @@ def lsaBGC_AutoAnalyze():
 						update_expected_distances_handle.write(line + '\n')
 			update_expected_distances_handle.close()
 			expected_distances = update_expected_distances_file
+
+		if population_listing_file:
+			updated_population_listing_file = outdir + 'Population_Mapping.Pruned.txt'
+			updated_population_listing_handle = open(updated_population_listing_file, 'w')
+			with open(population_listing_file) as oplf:
+				for line in oplf:
+					line = line.strip()
+					if line.split('\t')[0] in sample_retention_set:
+						updated_population_listing_handle.write(line + '\n')
+			updated_population_listing_handle.close()
+			population_listing_file = updated_population_listing_file
+
+	pop_size = defaultdict(int)
+	if population_listing_file:
+		with open(population_listing_file) as oplf:
+			for line in oplf:
+				line = line.strip()
+				samp, pop = line.split('\t')
+				pop_size[pop] += 1
 
 	see_outdir = outdir + 'See/'
 	pop_outdir = outdir + 'PopGene/'
@@ -443,7 +461,7 @@ def lsaBGC_AutoAnalyze():
 						count_data = {}
 						for pc in ls[-2].split('|'):
 							pop, pop_freq = pc.split('=')
-							pop_count = float(ls[10])*float(pop_freq)
+							pop_count = pop_size[pop]*float(pop_freq)
 							count_data[pop] = pop_count
 					hg_data[hg] = [prop, core, tajimas_d, beta_rd, prop_mc, count_data]
 					hg_coord_info.append([hg, con_ord, con_dir, med_len])
@@ -562,15 +580,19 @@ def lsaBGC_AutoAnalyze():
 	dd_sheet = workbook.add_worksheet('Data Dictionary')
 	dd_sheet.write(0, 0, 'Data Dictionary can be found on lsaBGC\'s Wiki at:')
 	dd_sheet.write(1, 0, 'https://github.com/Kalan-Lab/lsaBGC/wiki/10.-Population-Genetics-Analysis-of-Genes-Found-in-a-GCF#data-dictionary')
+	sl_df = util.loadSamplesIntoPandaDataFrame(input_listing_file, pop_spec_file=population_listing_file)
+	sl_df.to_excel(writer, sheet_name='Samples used in AutoAnalyze', index=False, na_rep="NA")
 	scprf_df = util.loadCustomPopGeneTableInPandaDataFrame(consolidated_popgene_report_file)
 	scprf_df.to_excel(writer, sheet_name='Overview - Simple', index=False, na_rep="NA")
 	cprf_df = util.loadTableInPandaDataFrame(multi_gcf_hgs_file)
 	cprf_df.to_excel(writer, sheet_name='Multi-GCF HGs', index=False, na_rep="NA")
+	stg_df = util.loadSampleToGCFIntoPandaDataFrame(gcf_listing_dir)
+	stg_df.to_excel(writer, sheet_name='GCF to Sample Listings', index=False, na_rep="NA")
 	cprf_df = util.loadTableInPandaDataFrame(consolidated_popgene_report_file)
 	cprf_df.to_excel(writer, sheet_name='Overview - Full', index=False, na_rep="NA")
 	workbook.close()
-	writer.close()
 
+	# TODO: Add formatting to the Overview - Simple sheet
 	#workbook = writer.book
 	#scprf_sheet = writer.sheets['Overview - Simple']
 	#workbook.close()
@@ -583,6 +605,15 @@ def lsaBGC_AutoAnalyze():
 		if os.path.isdir(fd): continue
 		if fd.endswith('.pdf') or fd.endswith('.xlsx') or fd.endswith('.faa'): os.system('mv %s %s' % (outdir + fd, final_results_dir))
 		elif fd.endswith('.txt'): os.system('mv %s %s' % (outdir + fd, inter_results_dir))
+
+	final_results_see_dir = final_results_dir + 'GCFs_across_Species_Tree_Views_from_lsaBGC-See/'
+	util.setupReadyDirectory([final_results_see_dir])
+	lsabgc_see_outdir = outdir + 'See/'
+	for gcf in os.listdir(lsabgc_see_outdir):
+		see_species_pdf_result = lsabgc_see_outdir + gcf + '/BGC_Visualization.species_phylogeny.pdf'
+		if os.path.isfile(see_species_pdf_result):
+			new_name = final_results_see_dir + gcf + '.pdf'
+			os.system('cp %s %s' % (see_species_pdf_result, new_name))
 
 	# Close logging object and exit
 	util.closeLoggerObject(logObject)

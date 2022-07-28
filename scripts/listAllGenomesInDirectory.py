@@ -65,6 +65,7 @@ def create_parser():
     parser.add_argument('-p', '--bgc_prediction_software', help='Software used to predict BGCs (Options: antiSMASH, DeepBGC, GECCO).\nDefault is antiSMASH.', default='antiSMASH', required=False)
     parser.add_argument('-c', '--cores', help='Number of cores to specify per job.', required=False, default=4)
     parser.add_argument('-t', '--taxon', help='Taxon class to provide BGC prediction software, e.g. antiSMASH. Options: bacteri, fungi. Default: bacteria', default="bacteria", required=False)
+    parser.add_argument('-d', '--dryrun_naming_file', help='Results from running ncbi-genome-download in dry-run mode to use for sample naming.', required=False, default=None)
     args = parser.parse_args()
     return args
 
@@ -86,6 +87,14 @@ def siftAndPrint():
     bgc_prediction_software = myargs.bgc_prediction_software.upper()
     cores = myargs.cores
     taxon = myargs.taxon.lower()
+    dryrun_naming_file = myargs.dryrun_naming_file
+
+    genome_id_to_sample_name = {}
+    if dryrun_naming_file != None:
+        try:
+            assert(os.path.isfile(dryrun_naming_file))
+        except:
+            raise RuntimeError('Cannot locate the ncbi-genome-download dryrun naming file provided.')
 
     try:
         assert (os.path.isdir(input_genomes_dir))
@@ -104,11 +113,12 @@ def siftAndPrint():
     try:
         assert(os.path.isdir(bgc_prediction_dir))
     except:
-        os.system('mkdir %s' % bgc_prediction_dir)
-        try:
-            assert(os.path.isdir(bgc_prediction_dir))
-        except:
-            raise RuntimeError('Cannot find/create output directory for BGC prediction commands.')
+        if list_cmds_flag:
+            os.system('mkdir %s' % bgc_prediction_dir)
+            try:
+                assert(os.path.isdir(bgc_prediction_dir))
+            except:
+                raise RuntimeError('Cannot find/create output directory for BGC prediction commands.')
 
     try:
         assert (bgc_prediction_software in set(['ANTISMASH', 'DEEPBGC', 'GECCO']))
@@ -123,6 +133,15 @@ def siftAndPrint():
     """
     START WORKFLOW
     """
+
+    genome_id_to_sample_name = {}
+    if dryrun_naming_file:
+        with open(dryrun_naming_file) as odnf:
+            for line in odnf:
+                line = line.strip()
+                sample_name = '_'.join(line.split())
+                genome_id = line.split()[0]
+                genome_id_to_sample_name[genome_id] = sample_name
 
     sample_to_genome = {}
     any_file_gzipped = False
@@ -163,6 +182,10 @@ def siftAndPrint():
 
     for sample in sample_to_genome:
         genome_file = sample_to_genome[sample]
+        if dryrun_naming_file != None:
+            genome_id = '_'.join(genome_file.split('/')[-1].split('_')[:2])
+            sample = genome_id_to_sample_name[genome_id]
+        sample = sample.replace('#', '').replace('*', '_').replace(':', '_').replace(';', '_').replace(' ', '_').replace(':', '_').replace('|', '_').replace('"', '_').replace("'", '_').replace("=", "_").replace('-', '_').replace('(', '').replace(')', '').replace('/', '').replace('\\', '').replace('[', '').replace(']', '').replace(',', '')
         if list_cmds_flag:
             bgc_cmd = None
             if bgc_prediction_software == 'ANTISMASH':

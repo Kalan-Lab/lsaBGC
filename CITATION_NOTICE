@@ -1,0 +1,46 @@
+If you use lsaBGC, please cite: https://www.biorxiv.org/content/10.1101/2022.04.20.488953v2
+
+lsaBGC is made possible by many other tools including:
+- BGC prediction software (can vary but please cite appropriately):
+    - antiSMASH: https://academic.oup.com/nar/article/49/W1/W29/6274535
+    - GECCO: https://www.biorxiv.org/content/10.1101/2021.05.03.442509v1
+    - DeepBGC: https://academic.oup.com/nar/article/47/18/e110/5545735
+
+- Phylogeny construction & diversity estimation:
+    - GToTree: https://academic.oup.com/bioinformatics/article/35/20/4162/5378708
+    - MASH: https://genomebiology.biomedcentral.com/articles/10.1186/s13059-016-0997-x
+
+- General processing of sequencing data and phylogenies:
+    - biopython: https://academic.oup.com/bioinformatics/article/25/11/1422/330687
+    - ete3: https://academic.oup.com/mbe/article/33/6/1635/2579822
+
+- Gene calling:
+    - prodigal: https://bmcbioinformatics.biomedcentral.com/articles/10.1186/1471-2105-11-119
+
+- If using BiG-SCAPE for clustering BGCs into GCFs or If you use CORASON to visually explore
+  the context of multi-GCF homolog groups highlighted:
+    - BiG-SCAPE/CORASON: https://pubmed.ncbi.nlm.nih.gov/31768033/
+
+- Annotation databases:
+    - KOfam HMMs: https://academic.oup.com/bioinformatics/article/36/7/2251/5631907
+    - PGAP HMMs: https://pubmed.ncbi.nlm.nih.gov/27342282/
+
+- Protein alignment:
+    - MAFFT:
+    - MAGUS:
+    - MUSCLE (part of GToTree):
+
+- Visualization software:
+    - ggplot2:
+    - ggtree:
+    - gggeenes:
+    - cowplot:
+    - iTol:
+
+- Identification of additional GCF instances:
+    - DIAMOND:
+    - pomegranate:
+
+- Metagenomics analysis in lsaBGC-DiscoVary:
+    - Bowtie2:
+    - DESMAN:
