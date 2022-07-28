@@ -40,5 +40,6 @@ dependencies:
   - conda-forge::xlsxwriter=3.0.3
   - bioconda::ncbi-genome-download
   - bioconda::gecco
+  - bioconda::n50
   - pip:
       - magus-msa
