@@ -10,6 +10,7 @@ based annotation. It consists of 8 independent programs: `lsaBGC-Ready.py`, `lsa
 
 ## Major Updates 
 
+* Jul 28, 2022 - Introduced `lsaBGC-Easy.py` which simplifies usage of the suite. The general suite (besides `lsaBGC-DiscoVary.py`) can also now handle fungal genomes if BGCs are predicted using antiSMASH, but investigating fungal genomes is not currently an option in `lsaBGC-Easy.py`. Additional user interface upgrades + dependencies introduced, as such please reconfigure the conda environment and reinstall if you tried lsaBGC previously! Long-overdue but have a notice on citing the many dependencies now in the main folder of the repo titled: `CITATION_NOTICE`. 
 * Jul 12, 2022 - Huge thanks to Martin Larralde for recommendation and advice on how to update GECCO processing to better identify "protocore"-esque genes in BGCs! Also, have now added a simplified sub-section down below with [notes on the PopGene report table](#notes-on-the-popgene-table-report).
 * Jul 10, 2022 - Several updates made. Fixed small issues with smooth running of new framework, `lsaBGC-Ready.py`. Removed some dependencies and have added GToTree for creating species phylogeny + estimated sample to sample amino acid expected divergences. New small test dataset now included in this repo for immediate testing + much simplified installation guide. Most major change is that lsaBGC now works with DeepBGC and GECCO predictions! lsaBGC's backend relies on 'proto-core homolog groups' / 'rule-based key domains' determined by AntiSMASH, to get around the absence of such marker genes/domains in DeepBGC and GECCO predictions, domains in the highest 10% of deebgc_scores or lowest 10% of e-values are treated as "proto-core" and used in `lsaBGC-AutoExpansion.py`/`lsaBGC-DiscoVary.py` as well as highlighted/treated as the "core" in `lsaBGC-PopGene.py` reports.
 * Jun 26, 2022 - Added "loose" mode to `lsaBGC-Expansion.py` and option for users to manually define "protocore" homolog groups. Also, "protocore" homolog groups for a GCF now must have "rule-based" marker to exclude MGEs like transposons which insert within protocore regions of BGCs.
@@ -34,9 +35,9 @@ Documentation can currently be found on this Github repo's wiki: https://github.
 8. [High throughput Detection of New GCF Instances Across Draft Genome Assemblies](https://github.com/Kalan-Lab/lsaBGC/wiki/08.-High-throughput-Detection-of-New-GCF-Instances-Across-Draft-Genome-Assemblies)
 9. [Assessing Evolutionary Linkage of BGCs with their Genome wide Contexts](https://github.com/Kalan-Lab/lsaBGC/wiki/09.-Assessing-Evolutionary-Linkage-of-BGCs-with-their-Genome-wide-Contexts)
 10. [Population Genetics Analysis of Genes Found in a GCF](https://github.com/Kalan-Lab/lsaBGC/wiki/10.-Population-Genetics-Analysis-of-Genes-Found-in-a-GCF)
-11. [Discovering Novel Variations in GCF Genes from Raw Sequencing Reads]()
-12. [Benchmarking Gene Detection through Expansion vs. DiscoVary](https://github.com/Kalan-Lab/lsaBGC/wiki/14.-Benchmarking-Gene-Detection-through-Expansion-vs.-DiscoVary)
-13. [The lsaBGC AutoAnalyze Workflow](https://github.com/Kalan-Lab/lsaBGC/wiki/13.-The-lsaBGC-AutoAnalyze-Workflow)
+11. [Discovering Novel Variations in GCF Genes from Raw Sequencing Reads](https://github.com/Kalan-Lab/lsaBGC/wiki/11.-Discovering-Novel-Variations-in-GCF-Genes-from-Raw-Sequencing-Reads)
+12. [Benchmarking Gene Detection through Expansion vs. DiscoVary](https://github.com/Kalan-Lab/lsaBGC/wiki/13.-Benchmarking-Gene-Detection-through-Expansion-vs.-DiscoVary)
+13. [The lsaBGC AutoAnalyze Workflow](https://github.com/Kalan-Lab/lsaBGC/wiki/X.-The-lsaBGC-AutoAnalyze-Workflow)
 14. [Running test datasets for core lsaBGC programs](https://github.com/Kalan-Lab/lsaBGC_Ckefir_Testing_Cases)
 
 *Documentation moving to "Read the Docs" soon!*
@@ -62,28 +63,29 @@ pip install -e .
 Optional, but recommended, command to download KOfams (+ other databases in the near future):
 
 ```
-# Warning: can take ~5-10 minutes!
+# Warning: can take ~10 minutes!
 # within lsaBGC Git repo with conda environment activated:
 setup_annotation_dbs.py
 ```
 
 Additional, information pertaining to installation can be found at: [Installation Guide](https://github.com/Kalan-Lab/lsaBGC/wiki/01.-Installation)
 
-A small test case is provided here and can be run after installation by simply issuing (takes around ~10 minutes using 8 cores):
+A small test case is provided here and can be run after installation by simply issuing (takes around ~6 minutes using 4 cores):
 
 ```
+# Warning: uses 4 cores! 
 bash run_tests.sh
 ```
 
-Additionally we suggest checking out additional [test cases](https://github.com/Kalan-Lab/lsaBGC_Ckefir_Testing_Cases) to demonstrate usage of individual programs along with expected outputs from commands. We also have a [quick start + walk-through tutorial Wiki page](https://github.com/Kalan-Lab/lsaBGC/wiki/03.-Quick-Start-&-In-Depth-Tutorial:-Exploring-BGCs-in-Cutibacterium) to showcase the use of the suite and relations between core programs.
+Additionally, we suggest checking out additional [test cases](https://github.com/Kalan-Lab/lsaBGC_Ckefir_Testing_Cases) to demonstrate usage of individual programs along with expected outputs from commands. We also have a [quick start + walk-through tutorial Wiki page](https://github.com/Kalan-Lab/lsaBGC/wiki/03.-Quick-Start-&-In-Depth-Tutorial:-Exploring-BGCs-in-Cutibacterium) to showcase the use of the suite and relations between core programs.
 
-The major outputs of the final `lsaBGC-AutoAnalyze.py` run in the resulting folder `test_case/lsaBGC_AutoAnalyze_Results/` include:
+The major outputs of the final `lsaBGC-AutoAnalyze.py` run are in the resulting folder `test_case/lsaBGC_AutoAnalyze_Results/Final_Results/` and described on [this wiki page](https://github.com/Kalan-Lab/lsaBGC/wiki/16.-Overview-of-lsaBGC-AutoAnalyze's-Final-Results).
 
-* **GCF_Homolog_Group_Information.txt** - a table with each row corresponding to a homolog group for each GCF - gives a quick high-level overview of the pan-secondary metabolome of your microbe of interest that you can filter and scroll through! See below section "Notes on the "lsaBGC-PopGene.py" Table Report" for more information. 
-* **Consensus_Sequence_Similarity_of_Homolog_Groups.pdf** - a PDF showing the phylogenetic distribution of GCFs found in >=10% of samples. Coloring represents difference to consensus gene sequences across all samples.
-* **GCF_Conservation_and_PopStats_Views.pdf** - 2 pg PDF report showing gene schemas. Degree of transparency = conservation of gene across BGCs. Coloring corresponds to either Tajima's D or Beta-RD (will probably be getting updated soon to better accomodate taxa with > 20 GCFs).
-* **GCF_Divergence.pdf** - a boxplot of the Beta-RD values (the divergence of BGCs between pairs of genomes to the expected divergence, i.e. genome-wide ANI/AAI or divergence of single-copy core genes) for each GCF.
-* **See/GCF_X/BGC_Visualization.species_phylogeny.pdf** - for each GCF_X in the `See/` sub-directory you can see a phylogenetic distribution of BGCs belonging to the GCF accounting for BGC splitting within a sample's genome due to assembly fragmentation. These are BGCs detected in the "expansion/additional genomes" set by `lsaBGC-Expansion.py`. 
+## Quick Start - using `lsaBGC-Easy.py`
+
+Check out how to use `lsaBGC-Easy.py` on [it's wiki page](https://github.com/Kalan-Lab/lsaBGC/wiki/15.-lsaBGC-Easy-Tutorial:-Combining-lsaBGC-with-ncbi-genome-download)!
+
+![image](https://user-images.githubusercontent.com/4260723/181541888-066b6e0a-682c-4266-b539-e07e36ea91e5.png)
 
 ## Notes on the PopGene Report Table
 
