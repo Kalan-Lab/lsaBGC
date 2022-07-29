@@ -177,7 +177,7 @@ def lsaBGC_Expansion():
 
     # Step 2: Parse OrthoFinder Homolog vs Sample Matrix and associate each homolog group with a color
     logObject.info("Starting to parse OrthoFinder homolog vs sample information.")
-    gene_to_hg, hg_genes, hg_median_copy_count, hg_prop_multi_copy = util.parseOrthoFinderMatrix(orthofinder_matrix_file, GCF_Object.pan_genes)
+    gene_to_hg, hg_genes, hg_median_copy_count, hg_prop_multi_copy = util.parseOrthoFinderMatrix(orthofinder_matrix_file, GCF_Object.pan_genes, all_primary=all_primary_flag)
     GCF_Object.inputHomologyInformation(gene_to_hg, hg_genes, hg_median_copy_count, hg_prop_multi_copy)
     GCF_Object.identifyKeyHomologGroups(all_primary=all_primary_flag)
     if len(protocore_hg_set) > 0:

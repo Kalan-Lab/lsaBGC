@@ -56,7 +56,17 @@ def create_parser():
 	Program: lsaBGC-Easy.py
 	Author: Rauf Salamzade
 	Affiliation: Kalan Lab, UW Madison, Department of Medical Microbiology and Immunology
+	
+	*******************************************************************************************************************
+	CONSIDERATIONS:	
+	* If you have the computational resources available, please consider running with OrthoFinder mode set to 
+	Genome_Wide (not the default). Also consider using antiSMASH, as these were the methods we used when 
+	benchmarking lsaBGC in our manuscript.
 
+	* Check out the considerations wiki page: https://github.com/Kalan-Lab/lsaBGC/wiki/00.-Background-&-Considerations  	
+
+	*******************************************************************************************************************
+	DESCRIPTION:	
 	Downloads genomes for a taxa from NCBI using ncbi-genome-download, performs BGC predictions 
 	using GECCO (very-light weight dependency, see tutorial on Wiki on how to use antiSMASH or DeepBGC instead), and 
 	then runs the full lsaBGC suite to generate a "quick" (not guaranteed, depends on the number of cores you have) and 
@@ -76,9 +86,10 @@ def create_parser():
 	recommend using lsaBGC programs independently and incorporating BiG-SCAPE clustering - which has a local synteny 
 	similarity measure. 
 
-	CURRENTLY ONLY WORKS FOR BACTERIA, BUT LSA-BGC IN GENERAL CAN HANDLE FUNGI NOW - just not lsaBGC-Easy ... yet
+	Currently only works for bacteria, but lsaBGC can handle fungi now - just not lsaBGC-Easy ... yet
+
 	*******************************************************************************************************************
-	Overview of Steps Taken:	
+	OVERVIEW OF STEPS TAKEN:	
 		- Check number of genomes for taxa is not too crazy (<500) and greater than 10
 		- Step 1: Download all genomes in Genbank format and extract proteins to folder
 		- Step 2: Construct GToTree phylogeny
@@ -88,8 +99,9 @@ def create_parser():
 		- Step 6: Run lsaBGC-Ready.py with lsaBGC-Cluster.py & lsaBGC-Expansion.py
 		- Step 7: Dereplicate and Group Samples into Populations/Clades
 		- Step 8: Run lsaBGC-AutoAnalyze.py
+
 	*******************************************************************************************************************
-	Available SCG Models in GToTree:
+	AVAILBLE SCG MODELS IN GTOTREE:
            Actinobacteria                    (138 genes)
            Alphaproteobacteria               (117 genes)
            Archaea                            (76 genes)
