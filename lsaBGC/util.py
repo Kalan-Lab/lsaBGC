@@ -1021,7 +1021,7 @@ def runCompareM(fasta_listing_file, comparem_results_dir, cores, logObject, prun
 		raise RuntimeError(error_message)
 	return [pairwise_similarities, pairwise_comparisons]
 
-def parseOrthoFinderMatrix(orthofinder_matrix_file, relevant_gene_lts):
+def parseOrthoFinderMatrix(orthofinder_matrix_file, relevant_gene_lts, all_primary=False):
 	"""
 	Function to parse and return information from OrthoFinderV2 de novo homolog group identification.
 
@@ -1055,7 +1055,7 @@ def parseOrthoFinderMatrix(orthofinder_matrix_file, relevant_gene_lts):
 				for sgs in ls[1:]:
 					# critical for calculating homolog group stats, like median gene counts, multicopy proportion
 					# use only genes from the original set of genomes used to conduct full orthofinder analysis.
-					gene_counts.append(len([x for x in sgs.split(', ') if len(x.split('_')[0]) == 3]))
+					gene_counts.append(len([x for x in sgs.split(', ') if (len(x.split('_')[0]) == 3 or all_primary)]))
 
 				hg_multicopy_proportion[hg] = float(sum([1 for x in gene_counts if x > 1])) / sum([1 for x in gene_counts if x > 0])
 				hg_median_gene_counts[hg] = statistics.median(gene_counts)
@@ -1769,7 +1769,7 @@ def incorporateBGCProteinsIntoProteomesAndGenbanks(sample_bgc_proteins, sample_g
 				for blt in bgc_prots_1x:
 					blt_scaff, blt_start, blt_end = bgc_prot_to_location[blt]
 					blt_range = set(range(blt_start, blt_end + 1))
-					for glt in scaff_glts:
+					for glt in scaff_glts[blt_scaff]:
 						glt_scaff, glt_start, glt_end = gw_prot_to_location[glt]
 						glt_range = set(range(glt_start, glt_end+1))
 						if glt_scaff == blt_scaff and float(len(blt_range.intersection(glt_range)))/float(len(glt_range)) >= 0.25:
