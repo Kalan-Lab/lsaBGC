@@ -351,6 +351,8 @@ def lsaBGC_Ready():
         deepbgc_split_directory = outdir + 'Split_DeepBGC_Genbanks/'
         util.setupReadyDirectory([deepbgc_split_directory])
         bgc_genbank_listing_file = util.splitDeepBGCGenbank(bgc_genbank_listing_file, deepbgc_split_directory, outdir, logObject)
+
+    bgc_coords, sample_genomes = util.determineCoords(bgc_genbank_listing_file, sample_genomes, outdir, logObject)
     sample_bgcs, bgc_to_sample = util.processBGCGenbanks(bgc_genbank_listing_file, bgc_prediction_software,
                                                          sample_genomes, bgcs_directory, proteomes_directory, logObject)
 

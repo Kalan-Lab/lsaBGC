@@ -1275,6 +1275,9 @@ def splitDeepBGCGenbank(bgc_genbank_listing_file, deepbgc_split_directory, outdi
 
 	return updated_bgc_genbank_listing_file
 
+def determineCoords(bgc_genbank_listing_file, sample_genomes, outdir, logObject):
+	out
+
 def processBGCGenbanks(bgc_listing_file, bgc_prediction_software, sample_genomes, antismash_bgcs_directory, proteomes_directory, logObject):
 	"""
 	Creates local versions of BGC prediction Genbanks where proteins have locus tags updated.
@@ -1330,6 +1333,12 @@ def processBGCGenbanks(bgc_listing_file, bgc_prediction_software, sample_genomes
 						scaff_start = str(rec.seq).find(bgc_seq)
 				if off:
 					off.close()
+
+				if scaff_id == None or scaff_start == None:
+					odd_bgcs_file = 'Dropped_BGCs_No_Exact_Match.txt'
+					odd_bgcs_handle = open(odd_bgcs_file, 'a+')
+					odd_bgcs_handle
+					odd_bgcs_handle.close()
 				with open(og_bgc_genbank) as obgf:
 					for rec in SeqIO.parse(obgf, 'genbank'):
 						rec.name = scaff_id

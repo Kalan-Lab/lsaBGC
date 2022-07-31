@@ -92,13 +92,12 @@ def create_parser():
 	OVERVIEW OF STEPS TAKEN:	
 		- Check number of genomes for taxa is not too crazy (<500) and greater than 10
 		- Step 1: Download all genomes in Genbank format and extract proteins to folder
-		- Step 2: Construct GToTree phylogeny
-		- Step 3: Select X (default=30) most diverse genome representatives if needed using Treemmer
-		- Step 4: Create primary and additional genomes listing
-		- Step 5: Run GECCO based annotation of BGCs and crete BGC listing
-		- Step 6: Run lsaBGC-Ready.py with lsaBGC-Cluster.py & lsaBGC-Expansion.py
-		- Step 7: Dereplicate and Group Samples into Populations/Clades
-		- Step 8: Run lsaBGC-AutoAnalyze.py
+		- Step 2: Run MASH to Quickly Assess Sample Similarity and Select Primary Genomes Through a Rough Dereplication
+		- Step 3: Create primary and additional genomes listing
+		- Step 4: Run GECCO based annotation of BGCs and crete BGC listing
+		- Step 5: Run lsaBGC-Ready.py with lsaBGC-Cluster.py & lsaBGC-Expansion.py
+		- Step 6: Dereplicate and Group Samples into Populations/Clades
+		- Step 7: Run lsaBGC-AutoAnalyze.py
 
 	*******************************************************************************************************************
 	AVAILBLE SCG MODELS IN GTOTREE:
@@ -201,7 +200,7 @@ def lsaBGC_Easy():
 		raise RuntimeError("Currently not recommended to use lsaBGC-Easy for taxa with > 500 genomes or < 5 genomes. In the future this will likely be updated to be a warning, but would rather not risk harming your computer/server!")
 	checkUlimitSettings(genome_count, logObject)
 
-	# Step 1: Download all genomes in Genbank format and extract proteins to folder
+	# Step 1: Download all genomes in FASTA formata
 	genomes_directory = outdir + 'genbank/'
 	all_genomes_listing_file = outdir + 'All_Genomes_Listing.txt'
 	uncompress_dir = outdir + 'Uncompressed_Genomes/'
@@ -218,45 +217,18 @@ def lsaBGC_Easy():
 										 all_genomes_listing_file]
 			runCmdViaSubprocess(list_all_user_genomes_cmd, logObject)
 
-	prodigal_results_directory = outdir + 'Prodigal_and_Processing_Results/'
-	all_proteomes_listing_file = outdir + 'All_Proteomes_Listing.txt'
-	if not os.path.isfile(all_proteomes_listing_file):
-		util.setupReadyDirectory(([prodigal_results_directory]))
-		run_prodigal_cmds = []
-		with open(all_genomes_listing_file) as oaglf:
-			for line in oaglf:
-				line = line.strip()
-				sample, fna = line.split('\t')
-				try:
-					assert (os.path.isfile(fna))
-				except:
-					raise RuntimeError("Could not validate the genome for sample %s exists." % sample)
-				rpc = ['runProdigalAndMakeProperGenbank.py', '-i', fna, '-s', sample, '-o', prodigal_results_directory,
-					   logObject]
-				run_prodigal_cmds.append(rpc)
-
-		p = multiprocessing.Pool(cores)
-		p.map(util.multiProcess, run_prodigal_cmds)
-		p.close()
-
-		all_proteomes_listing_handle = open(all_proteomes_listing_file, 'w')
-		for f in os.listdir(prodigal_results_directory):
-			if not f.endswith('.faa'): continue
-			all_proteomes_listing_handle.write(prodigal_results_directory + f + '\n')
-		all_proteomes_listing_handle.close()
-
-	all_genome_listings_gbk = {}
-	for f in os.listdir(prodigal_results_directory):
-		if not f.endswith('.gbk'): continue
-		sample = f.split('.gbk')[0]
-		all_genome_listings_gbk[sample] = prodigal_results_directory + f
-
+	# Step 2: Run MASH to Quickly Assess Sample Similarity and Select Primary Genomes Through a Rough Dereplication
+	mash_input_file = outdir + 'MASH_Input.txt'
+	mash_input_handle = open(mash_input_file, 'w')
 	all_genome_listings_fna = {}
+	mash_to_genome_name_mapping = {}
 	with open(all_genomes_listing_file) as oglf:
 		for line in oglf:
 			line = line.strip()
 			sample, fna_path = line.split('\t')
+			fna_to_genome_name_mapping[fna_path] = sample
 			all_genome_listings_fna[sample] = fna_path
+			mash_input_handle.write()
 
 	# Step 2: Construct GToTree phylogeny
 	gtotree_outdir = outdir + 'GToTree_output/'
@@ -349,7 +321,7 @@ def lsaBGC_Easy():
 	species_tree_file = lsabgc_ready_results_directory + 'GToTree_output.tre'
 	expected_similarities_file = lsabgc_ready_results_directory + 'GToTree_Expected_Similarities.txt'
 	samples_to_keep_file = lsabgc_ready_results_directory + 'Samples_in_GToTree_Tree.txt'
-	if not os.path.isdir(lsabgc_ready_results_directory):
+	if not os.path.isdir(lsabgc_ready_results_directory) or len([f for f in os.listdir(lsabgc_ready_results_directory)])<=2:
 		os.system('rm -rf %s' % lsabgc_ready_directory)
 		lsabgc_ready_cmd = ['lsaBGC-Ready.py', '-i', primary_genomes_listing_file, '-l', primary_bgcs_listing_file,
 							'-o', lsabgc_ready_directory, '-lc', '-c', str(cores), '-p', bgc_prediction_software, '-t',
