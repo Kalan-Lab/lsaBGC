@@ -9,7 +9,7 @@ import subprocess
 import pysam
 import gzip
 import multiprocessing
-from scipy.stats import f_oneway, fisher_exact, pearsonr, median_absolute_deviation, entropy
+from scipy.stats import f_oneway, fisher_exact, pearsonr, median_abs_deviation, entropy
 from ete3 import Tree
 import numpy as np
 from operator import itemgetter
@@ -1875,7 +1875,7 @@ def phase_and_id_snvs(input_args):
 			hpr_handle.close()
 			return
 		median_of_medians = statistics.median(list(hg_median_depths.values()))
-		mad_of_medians = median_absolute_deviation(list(hg_median_depths.values()))
+		mad_of_medians = median_abs_deviation(list(hg_median_depths.values()))
 
 		outlier_homolog_groups = set([])
 		for hg in present_homolog_groups:
@@ -1949,7 +1949,7 @@ def phase_and_id_snvs(input_args):
 		filt_result_handle.close()
 
 		trimmed_depth_median = statistics.median(depths_at_all_refined_present_hgs)
-		trimmed_depth_mad = median_absolute_deviation(depths_at_all_refined_present_hgs)
+		trimmed_depth_mad = median_abs_deviation(depths_at_all_refined_present_hgs)
 
 		# Check if phasing needed
 		homolog_variable_positions = defaultdict(set)
@@ -3007,7 +3007,7 @@ def popgen_analysis_of_hg(inputs):
 
 			if len(all_median_dnds) >= 10:
 				median_dnds = statistics.median(all_median_dnds)
-				mad_dnds = median_absolute_deviation(all_median_dnds)
+				mad_dnds = median_abs_deviation(all_median_dnds)
 
 		# calculate Tajima's D
 		tajimas_d = util.calculateTajimasD(list(sequences_filtered.values()))
@@ -3082,7 +3082,7 @@ def popgen_analysis_of_hg(inputs):
 		mad_tajimas_d = "NA"
 		if len(all_tajimas_d) > 0:
 			median_tajimas_d = statistics.median(all_tajimas_d)
-			mad_tajimas_d = median_absolute_deviation(all_tajimas_d)
+			mad_tajimas_d = median_abs_deviation(all_tajimas_d)
 
 		pops_with_hg = set([])
 		pop_count_with_hg = defaultdict(int)
