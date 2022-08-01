@@ -282,7 +282,7 @@ class Pan:
 				self.logObject.error(traceback.format_exc())
 			raise RuntimeError(traceback.format_exc())
 
-	def runMCLAndReportGCFs(self, mip, jcp, sccp, outdir, run_parameter_tests=False, cores=1):
+	def runMCLAndReportGCFs(self, mip, jcp, sccp, outdir, run_parameter_tests=False, cpus=1):
 		"""
 		Function to run MCL and report the GCFs (gene-cluster families) of homologous BGCs identified.
 
@@ -290,7 +290,7 @@ class Pan:
 		:param jcp: Jaccard similarity threshold for homology between two BGCs to be considered.
 		:param outdir: path to workspace directory.
 		:param run_parameter_tests: True
-		:param cores: number of cores/threads to use for MCL.
+		:param cpus: number of cpus/threads to use for MCL.
 		"""
 		pair_relations_filt_txt_file = outdir + 'bgc_pair_relationships.%f.txt' % jcp
 		try:
@@ -316,7 +316,7 @@ class Pan:
 		mcxload_cmd = ['mcxload', '-abc', pair_relations_filt_txt_file, '--stream-mirror', '-write-tab',
 					   pair_relations_tab_file,
 					   '-o', pair_relations_mci_file]
-		mcl_cmd = ['mcl', pair_relations_mci_file, '-I', str(mip), '-o', relations_mcl_file, '-te', str(cores)]
+		mcl_cmd = ['mcl', pair_relations_mci_file, '-I', str(mip), '-o', relations_mcl_file, '-te', str(cpus)]
 		mcxdump_cmd = ['mcxdump', '-icl', relations_mcl_file, '-tabr', pair_relations_tab_file, '-o',
 					   mcxdump_out_file]
 
@@ -812,14 +812,14 @@ class Pan:
 				self.logObject.error(traceback.format_exc())
 			raise RuntimeError(traceback.format_exc())
 
-	def constructHMMProfiles(self, outdir, initial_sample_prokka_data, cores=1, quick_mode=False):
+	def constructHMMProfiles(self, outdir, initial_sample_prokka_data, cpus=1, quick_mode=False):
 		"""
 		Wrapper function to construct Hmmer3 HMMs for each of the homolog groups.
 
 		:param outdir: The path to the workspace / output directory.
 		:param initial_sample_prokka_data: Dictionary with keys being sample identifiers and values being paths to
 										   genbank and proteome files from Prokka based annotation
-		:param cores: The number of cores (will be used for parallelizing)
+		:param cpus: The number of cpus (will be used for parallelizing)
 		"""
 		outdir = os.path.abspath(outdir) + '/'
 		prot_seq_dir = outdir + 'Protein_Sequences/'
@@ -850,7 +850,7 @@ class Pan:
 			sample_hg_counts = [len(sample_hgs[x]) for x in sample_hgs]
 			self.lowerbound_hg_count = math.floor(min(sample_hg_counts))
 
-			p = multiprocessing.Pool(cores)
+			p = multiprocessing.Pool(cpus)
 			p.map(create_hmm_profiles, inputs)
 			p.close()
 
@@ -908,7 +908,7 @@ class Pan:
 								   result_file, self.logObject]
 					diamond_cmds.append(diamond_cmd)
 
-				p = multiprocessing.Pool(cores)
+				p = multiprocessing.Pool(cpus)
 				p.map(util.multiProcess, diamond_cmds)
 				p.close()
 
@@ -937,7 +937,7 @@ class Pan:
 								   sample_proteome, self.logObject]
 					hmmscan_cmds.append(hmmscan_cmd)
 
-				p = multiprocessing.Pool(cores)
+				p = multiprocessing.Pool(cpus)
 				p.map(util.multiProcess, hmmscan_cmds)
 				p.close()
 
@@ -1014,14 +1014,14 @@ class Pan:
 			raise RuntimeError(traceback.format_exc())
 		hg_differentiation_file.close()
 
-	def runHMMScan(self, outdir, expanded_sample_prokka_data, cores=1, quick_mode=False, annotation_pickle_file=None):
+	def runHMMScan(self, outdir, expanded_sample_prokka_data, cpus=1, quick_mode=False, annotation_pickle_file=None):
 		"""
 		Function to run hmmscan and process results as well as read in Genbanks for expanded list of samples.
 
 		:param outdir: The path to the workspace / output directory.
 		:param expanded_sample_prokka_data: Dictionary with keys being sample identifiers and values being paths to
 											genbank and proteome files from Prokka based annotation
-		:param cores: The number of cores (will be used for parallelizing)
+		:param cpus: The number of cpus (will be used for parallelizing)
 		"""
 		search_res_dir = os.path.abspath(outdir + 'Alignment_Results') + '/'
 		if not os.path.isdir(search_res_dir): os.system('mkdir %s' % search_res_dir)
@@ -1034,7 +1034,7 @@ class Pan:
 					sample_genbank = expanded_sample_prokka_data[sample]['genbank']
 					genbanks.append([sample, sample_genbank, sample_gbk_info])
 
-				with manager.Pool(cores) as pool:
+				with manager.Pool(cpus) as pool:
 					pool.map(util.parseGenbankAndFindBoundaryGenes, genbanks)
 
 				for sample in sample_gbk_info:
@@ -1074,7 +1074,7 @@ class Pan:
 							   sample_proteome, self.logObject]
 				alignment_cmds.append(hmmscan_cmd)
 
-		p = multiprocessing.Pool(cores)
+		p = multiprocessing.Pool(cpus)
 		p.map(util.multiProcess, alignment_cmds)
 		p.close()
 
@@ -1088,7 +1088,7 @@ class Pan:
 			min_gene_nucl_seq_len = min(gene_lengths)
 			max_gene_nucl_seq_len = max(gene_lengths)
 			median_gene_nucl_seq_lens = statistics.median(gene_lengths)
-			mad_gene_nucl_seq_lens = max(stats.median_absolute_deviation(gene_lengths), 25)
+			mad_gene_nucl_seq_lens = max(stats.median_abs_deviation(gene_lengths), 25)
 			hg_valid_length_range[hg] = {'min_gene_length': min_gene_nucl_seq_len,
 										 'max_gene_length': max_gene_nucl_seq_len,
 										 'median_gene_length': median_gene_nucl_seq_lens,

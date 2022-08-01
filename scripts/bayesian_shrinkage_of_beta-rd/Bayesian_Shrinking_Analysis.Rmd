@@ -94,7 +94,7 @@ And here is the code to use the STAN model above:
 stan_input_data <- list(n = n, J = J, y = y, gcf_id = gcf_id, mu0 = mu0, 
                         sigma0 = sigma0, R1 = R1, R2 = R2)
 
-#fit <- sampling(object = hier_model, data = stan_input_data, cores=4, iter=2000,
+#fit <- sampling(object = hier_model, data = stan_input_data, cpus=4, iter=2000,
 #                pars = c("post_y"))
 #save(fit, file='staphylococcus_analysis_fit.RData')
 load("../../../../lsaBGC_Manuscript_and_Documentation/BetaRD_Bayesian_Shrinking/staphylococcus_analysis_fit.RData")

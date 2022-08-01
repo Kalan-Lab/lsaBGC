@@ -74,12 +74,12 @@ def create_parser():
 	***************************************************************************************************************** 
     -*-  OrthoFinder2 modes:
             * Genome_Wide: Run OrthoFinder2 as intended with all primary sample full genome-wide proteomes.
-              [LOW-THROUGHPUT (<200 Genomes)]. 
+              [DEFAULT; LOW-THROUGHPUT (<200 Genomes)]. 
             * BGC_Only: OrthoFinder2 is run across samples/genomes accounting for only BGC embedded proteins. 
               Genome-wide paralogs for orthogroups are subsequently identified by using orthogroup specific cutoffs
               based on the percent identity and coverage thresholds determined for each orthogroup (the minimum 
               perc. id and coverage observed within BGC proteins belonging to the same orthgroup). 
-              [DEFAULT; MEDIUM-THROUGHPUT (>200 but <500 genomes)]. Note, this can result in the same protein
+              [MEDIUM-THROUGHPUT (>200 but <500 genomes)]. Note, this can result in the same protein
               being assigned to multiple ortholog groups currently because of the parology search (will aim to fix
               this soon, but should have minimal effects I believe).
             * COMING SOON: palo - scalable genome-wide orthology determination.
@@ -113,8 +113,8 @@ def create_parser():
     parser.add_argument('-gtm', '--gtotree_model', help='Set of core genes to use for phylogeny construction in GToTree. Default is Universal_Hug_et_al', required=False, default="Universal_Hug_et_al")
     parser.add_argument('-lc', '--lsabgc_cluster', action='store_true', help='Run lsaBGC-Cluster with default parameters. Note, we recommend running lsaBGC-Cluster manually\nand exploring parameters through its ability to generate a user-report for setting clustering parameters.', required=False, default=False)
     parser.add_argument('-le', '--lsabgc_expansion', action='store_true', help='Run lsaBGC-AutoExpansion with default parameters. Assumes either "--bigscape_results" or\n"--lsabgc_cluster" is specified.', default=False, required=False)
-    parser.add_argument('-c', '--cores', type=int,
-                        help="Total number of cores/threads to use for running OrthoFinder2/prodigal.", required=False,
+    parser.add_argument('-c', '--cpus', type=int,
+                        help="Total number of cpus/threads to use for running OrthoFinder2/prodigal.", required=False,
                         default=1)
     parser.add_argument('-k', '--keep_intermediates', action='store_true', help='Keep intermediate directories / files which are likely not useful for downstream analyses.', required=False, default=False)
     parser.add_argument('-spe', '--skip_primary_expansion', action='store_true', help='Skip expansion on primary genomes as well.', required=False, default=False)
@@ -164,7 +164,7 @@ def lsaBGC_Ready():
     run_gtotree = myargs.run_gtotree
     gtotree_model = myargs.gtotree_model
     orthofinder_mode = myargs.orthofinder_mode.upper()
-    cores = myargs.cores
+    cpus = myargs.cpus
     bigscape_results_dir = myargs.bigscape_results
     annotate = myargs.annotate
     run_lsabgc_cluster = myargs.lsabgc_cluster
@@ -236,11 +236,11 @@ def lsaBGC_Ready():
     parameters_file = outdir + 'Parameter_Inputs.txt'
     parameter_values = [genome_listing_file, bgc_genbank_listing_file, outdir, additional_genome_listing_file,
                         bgc_prediction_software, orthofinder_mode, bigscape_results_dir, annotate, run_lsabgc_cluster,
-                        run_lsabgc_expansion, keep_intermediates, cores]
+                        run_lsabgc_expansion, keep_intermediates, cpus]
     parameter_names = ["Primary Genome Listing File", "BGC Predictions Genbanks Listing File", "Output Directory",
                        "Additional Genome Listing File", "BGC Prediction Software", "OrthoFinder Mode",
                        "BiG-SCAPE Results Directory", "Perform KOfam/PGAP Annotation?", "Run lsaBGC-Cluster Analysis?",
-                       "Run lsaBGC-AutoExpansion Analysis?", "Keep Intermediate Files/Directories?", "Number of Cores"]
+                       "Run lsaBGC-AutoExpansion Analysis?", "Keep Intermediate Files/Directories?", "Number of cpus"]
     util.logParametersToFile(parameters_file, parameter_names, parameter_values)
     logObject.info("Done saving parameters!")
 
@@ -298,14 +298,14 @@ def lsaBGC_Ready():
 
         # Note, locus tags of length 3 are used within lsaBGC to mark samples whose BGCs were integral in defining GCFs.
         util.processGenomes(sample_genomes, prodigal_outdir, proteomes_directory, genbanks_directory, logObject,
-                            cores=cores, locus_tag_length=3)
+                            cpus=cpus, locus_tag_length=3)
         sample_genomes = util.updateSampleGenomesWithGenbanks(genbanks_directory)
     else:
         ## genomes are provided as Genbanks with CDS features and no need for de novo gene calling
         gene_name_mapping_outdir = outdir + 'Mapping_of_New_Gene_Names_to_Original/'
         util.setupReadyDirectory([gene_name_mapping_outdir])
 
-        util.processGenomesAsGenbanks(sample_genomes, proteomes_directory, genbanks_directory, gene_name_mapping_outdir, logObject, cores=cores, locus_tag_length=3)
+        util.processGenomesAsGenbanks(sample_genomes, proteomes_directory, genbanks_directory, gene_name_mapping_outdir, logObject, cpus=cpus, locus_tag_length=3)
         sample_genomes = util.updateSampleGenomesWithGenbanks(genbanks_directory)
 
     # Step 2: Process Additional Genomes
@@ -328,14 +328,14 @@ def lsaBGC_Ready():
             # Note, locus tags of length 4 are used within lsaBGC to mark samples with additional genomes where we ultimately
             # find them via lsaBGC-Expansion.
             util.processGenomes(additional_sample_genomes, additional_prodigal_outdir, additional_proteomes_directory, additional_genbanks_directory,
-                                logObject, cores=cores, locus_tag_length=4)
+                                logObject, cpus=cpus, locus_tag_length=4)
         else:
             # genomes are provided as Genbanks with CDS features
             gene_name_mapping_outdir = outdir + 'Mapping_of_New_Gene_Names_to_Original/'
             util.setupReadyDirectory([gene_name_mapping_outdir])
             util.processGenomesAsGenbanks(additional_sample_genomes, additional_proteomes_directory,
                                           additional_genbanks_directory, gene_name_mapping_outdir, logObject,
-                                          cores=cores, locus_tag_length=4)
+                                          cpus=cpus, locus_tag_length=4)
 
         additional_sample_annotation_listing_handle = open(additional_sample_annotation_listing_file, 'w')
         for f in os.listdir(additional_proteomes_directory):
@@ -352,8 +352,8 @@ def lsaBGC_Ready():
         util.setupReadyDirectory([deepbgc_split_directory])
         bgc_genbank_listing_file = util.splitDeepBGCGenbank(bgc_genbank_listing_file, deepbgc_split_directory, outdir, logObject)
 
-    bgc_coords, sample_genomes = util.determineCoords(bgc_genbank_listing_file, sample_genomes, outdir, logObject)
-    sample_bgcs, bgc_to_sample = util.processBGCGenbanks(bgc_genbank_listing_file, bgc_prediction_software,
+    bgc_mappings = util.mapBGCtoGenomeBySequence(bgc_genbank_listing_file, sample_genomes, outdir, logObject, cpus=cpus)
+    sample_bgcs, bgc_to_sample = util.processBGCGenbanks(bgc_genbank_listing_file, bgc_mappings, bgc_prediction_software,
                                                          sample_genomes, bgcs_directory, proteomes_directory, logObject)
 
     # Step 4: Extract BGC proteins from full predicted proteomes
@@ -369,7 +369,7 @@ def lsaBGC_Ready():
         util.setupReadyDirectory([annot_directory])
         protein_annotations = util.performKOFamAndPGAPAnnotation(sample_bgc_proteins, bgc_prot_directory,
                                                                        annot_directory, kofam_hmm_file, pgap_hmm_file,
-                                                                       kofam_pro_list, pgap_inf_list, logObject, cores=cores)
+                                                                       kofam_pro_list, pgap_inf_list, logObject, cpus=cpus)
         bgcs_directory_updated = outdir + 'BGCs_Retagged_and_Annotated/'
         util.setupReadyDirectory([bgcs_directory_updated])
 
@@ -399,25 +399,25 @@ def lsaBGC_Ready():
                                                             primary_bgc_listing_file, logObject)
 
         # Step 7 - GW: Run OrthoFinder2 with genome-wide predicted proteomes
-        orthofinder_bgc_matrix_file = util.runOrthoFinder2(final_proteomes_directory, orthofinder_directory, logObject, cores=cores)
+        orthofinder_bgc_matrix_file = util.runOrthoFinder2(final_proteomes_directory, orthofinder_directory, logObject, cpus=cpus)
         os.system('mv %s %s' % (orthofinder_bgc_matrix_file, primary_orthofinder_matrix_file))
     elif orthofinder_mode.upper() == 'BGC_ONLY':
         # Step 6 - BO: Run OrthoFinder2 with Proteins from BGCs
-        orthofinder_bgc_matrix_file = util.runOrthoFinder2(bgc_prot_directory, orthofinder_directory, logObject, cores=cores)
+        orthofinder_bgc_matrix_file = util.runOrthoFinder2(bgc_prot_directory, orthofinder_directory, logObject, cpus=cpus)
 
         # Step 7 - BO: Determine thresholds for finding genome-wide paralogs
         blast_directory = outdir + 'BLASTing_of_Ortholog_Groups/'
         util.setupReadyDirectory([blast_directory])
         samp_hg_lts, lt_to_hg, paralogy_thresholds = util.determineParalogyThresholds(orthofinder_bgc_matrix_file,
                                                                                       bgc_prot_directory, blast_directory,
-                                                                                      logObject, cores=cores)
+                                                                                      logObject, cpus=cpus)
         # Step 8 - BO: Identify Paralogs and Consolidate Differences between BGC prediction software and lsaBGC-Ready Gene Calling
         util.identifyParalogsAndCreateResultFiles(samp_hg_lts, lt_to_hg, sample_bgc_proteins, paralogy_thresholds,
                                                   protein_annotations, bgc_prot_directory, blast_directory,
                                                   proteomes_directory, sample_genomes, final_proteomes_directory,
                                                   final_genbanks_directory, primary_sample_annotation_listing_file,
                                                   primary_bgc_listing_file, primary_orthofinder_matrix_file, logObject,
-                                                  cores=cores)
+                                                  cpus=cpus)
 
     prim_samps_with_bgcs = set([])
     additional_lines_to_append = []
@@ -463,12 +463,13 @@ def lsaBGC_Ready():
     elif run_lsabgc_cluster:
         lsabgc_cluster_results_dir = outdir + 'lsaBGC_Cluster_Results/'
         lsabgc_cluster_cmd = ['lsaBGC-Cluster.py', '-b', primary_bgc_listing_file, '-m', primary_orthofinder_matrix_file,
-                              '-c', str(cores), '-o', lsabgc_cluster_results_dir, '-r', '0.7', '-i', '4.0', '-j',
+                              '-c', str(cpus), '-o', lsabgc_cluster_results_dir, '-r', '0.7', '-i', '4.0', '-j',
                               '20.0', '-p', bgc_prediction_software]
         try:
             subprocess.call(' '.join(lsabgc_cluster_cmd), shell=True, stdout=subprocess.DEVNULL,
                             stderr=subprocess.DEVNULL,
                             executable='/bin/bash')
+            assert(os.path.isdir(lsabgc_cluster_results_dir + 'GCF_Listings/'))
             if logObject:
                 logObject.info('Successfully ran: %s' % ' '.join(lsabgc_cluster_cmd))
             gcf_listings_directory = lsabgc_cluster_results_dir + 'GCF_Listings/'
@@ -485,12 +486,13 @@ def lsaBGC_Ready():
         lsabgc_expansion_results_dir = outdir + 'lsaBGC_AutoExpansion_Results/'
         lsabgc_expansion_cmd = ['lsaBGC-AutoExpansion.py', '-g', gcf_listings_directory, '-m',
                                int_outdir + 'Orthogroups.tsv', '-l', int_outdir + 'Primary_Sample_Annotation_Files.txt',
-                               '-e', int_outdir + 'Additional_Sample_Annotation_Files.txt', '-q', '-c', str(cores),
+                               '-e', int_outdir + 'Additional_Sample_Annotation_Files.txt', '-q', '-c', str(cpus),
                                '-o', lsabgc_expansion_results_dir, '-p', bgc_prediction_software]
         try:
             subprocess.call(' '.join(lsabgc_expansion_cmd), shell=True, stdout=subprocess.DEVNULL,
                             stderr=subprocess.DEVNULL,
                             executable='/bin/bash')
+            assert(os.path.isdir(lsabgc_expansion_results_dir + 'Updated_GCF_Listings/'))
             if logObject:
                 logObject.info('Successfully ran: %s' % ' '.join(lsabgc_expansion_cmd))
         except:
@@ -512,7 +514,7 @@ def lsaBGC_Ready():
         proteome_listing_handle.close()
 
         gtotree_outdir = outdir + 'GToTree_output/'
-        parallel_jobs = max(math.floor(cores / 4), 1)
+        parallel_jobs = max(math.floor(cpus / 4), 1)
         gtotree_cmd = ['GToTree', '-A', proteome_listing_file, '-H', gtotree_model, '-n', '4', '-j', str(parallel_jobs),
                        '-M', '4', '-o', gtotree_outdir]
         guiding_tree_file = gtotree_outdir + 'GToTree_output.tre'

@@ -61,7 +61,7 @@ def create_parser():
     parser.add_argument('-i', '--gcf_id', help="GCF identifier.", required=False, default='GCF_X')
     parser.add_argument('-s', '--species_phylogeny', help="The species phylogeny in Newick format.", required=False, default=None)
     parser.add_argument('-p', '--bgc_prediction_software', help='Software used to predict BGCs (Options: antiSMASH, DeepBGC, GECCO).\nDefault is antiSMASH.', default='antiSMASH', required=False)
-    parser.add_argument('-c', '--cores', type=int, help="Number of cores to use for MCL step.", required=False, default=1)
+    parser.add_argument('-c', '--cpus', type=int, help="Number of cpus to use for MCL step.", required=False, default=1)
     parser.add_argument('-k', '--sample_set',
                         help="Sample set to keep in analysis. Should be file with one sample id per line.", required=False)
     parser.add_argument('-y', '--create_gcf_phylogeny', action='store_true',
@@ -109,7 +109,7 @@ def lsaBGC_See():
     bgc_prediction_software = myargs.bgc_prediction_software.upper()
     gcf_id = myargs.gcf_id
     species_phylogeny = myargs.species_phylogeny
-    cores = myargs.cores
+    cpus = myargs.cpus
     create_gcf_phylogeny = myargs.create_gcf_phylogeny
     only_scc = myargs.only_scc
 
@@ -129,10 +129,10 @@ def lsaBGC_See():
     # Log input arguments and update reference and query FASTA files.
     logObject.info("Saving parameters for future records.")
     parameters_file = outdir + 'Parameter_Inputs.txt'
-    parameter_values = [gcf_listing_file, orthofinder_matrix_file, outdir, gcf_id, species_phylogeny, cores,
+    parameter_values = [gcf_listing_file, orthofinder_matrix_file, outdir, gcf_id, species_phylogeny, cpus,
                         sample_set_file, bgc_prediction_software, create_gcf_phylogeny, only_scc]
     parameter_names = ["GCF Listing File", "OrthoFinder Orthogroups.csv File", "Output Directory", "GCF Identifier",
-                       "Species Phylogeny Newick File", "Sample Retention Set", "Cores", "BGC Prediction Identifier",
+                       "Species Phylogeny Newick File", "Sample Retention Set", "cpus", "BGC Prediction Identifier",
                        "Create GCF Phylogeny?", "Use only SCC Homolog Groups for Creating GCF Phylogeny?"]
     util.logParametersToFile(parameters_file, parameter_names, parameter_values)
     logObject.info("Done saving parameters!")
@@ -177,7 +177,7 @@ def lsaBGC_See():
     if create_gcf_phylogeny:
         logObject.info("User requested construction of phylogeny from SCCs in BGC! Beginning phylogeny construction.")
         logObject.info("Beginning process of creating protein alignments for each homolog group using mafft, then translating these to codon alignments using PAL2NAL.")
-        GCF_Object.constructCodonAlignments(outdir, only_scc=only_scc, cores=cores)
+        GCF_Object.constructCodonAlignments(outdir, only_scc=only_scc, cpus=cpus)
         logObject.info("All codon alignments for SCC homologs now successfully achieved!")
 
         # Step 6: Create phylogeny using FastTree2 after creating concatenated BGC alignment and processing to remove

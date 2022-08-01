@@ -193,8 +193,8 @@ class BGC:
 							pass
 						try:
 							product_classes = []
-							product_class_scores = feature.qualifiers.get('product_class_score')[0]
-							for pci in product_class_scores.split(','):
+							product_class_scpus = feature.qualifiers.get('product_class_score')[0]
+							for pci in product_class_scpus.split(','):
 								pc, pcs = pci.split('=')
 								if float(pcs) >= 0.5:
 									product_classes.append(pc)

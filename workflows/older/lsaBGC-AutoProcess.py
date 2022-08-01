@@ -67,7 +67,7 @@ def create_parser():
 						required=False)
 	parser.add_argument('-g', '--genus', type=str, help="The genus under investigation. The lineage of interest could be species, but for this, just use the genus.", required=False,
 						default="Genus")
-	parser.add_argument('-c', '--cores', type=int, help="The number of cores to use.", required=False, default=8)
+	parser.add_argument('-c', '--cpus', type=int, help="The number of cpus to use.", required=False, default=8)
 	parser.add_argument('-d', '--dry_run', action='store_true',
 						help="Just create task files with commands for running prodigal, antiSMASH, and OrthoFinder. Useful for parallelizing across an HPC.",
 						required=False, default=False)
@@ -111,7 +111,7 @@ def lsaBGC_Process():
 	PARSE OPTIONAL INPUTS
 	"""
 
-	cores = myargs.cores
+	cpus = myargs.cpus
 	lineage = myargs.genus
 	dry_run_flag = myargs.dry_run
 	fast_annotation_flag = myargs.fast_annotation
@@ -146,10 +146,10 @@ def lsaBGC_Process():
 	# Step 0: Log input arguments and update reference and query FASTA files.
 	logObject.info("Saving parameters for future provenance.")
 	parameters_file = outdir + 'Parameter_Inputs.txt'
-	parameter_values = [assembly_listing_file, outdir, cores, dry_run_flag, fast_annotation_flag, prokka_env_path,
+	parameter_values = [assembly_listing_file, outdir, cpus, dry_run_flag, fast_annotation_flag, prokka_env_path,
 						antiSMASH_env_path, orthofinder_env_path, only_run_prokka, refined_orthofinder,
 						append_singleton_hgs_flag]
-	parameter_names = ["Assembly Listing File", "Output Directory", "Cores", "Dry Run Flagged",
+	parameter_names = ["Assembly Listing File", "Output Directory", "cpus", "Dry Run Flagged",
 					   "Fast Prokka Annotation Requested?", "Prokka Env Path", "AntiSMASH Env Path",
 					   "OrthoFinder Env Path", "Only Prokka Annotations to be Run?",
 					   "Run OrthoFinder with Only BGC Proteins?",
@@ -176,7 +176,7 @@ def lsaBGC_Process():
 
 	logObject.info("Running/setting-up Prokka for all samples!")
 	processing.runProkka(sample_assemblies, prokka_outdir, prokka_proteomes_dir, prokka_genbanks_dir, prokka_load_code,
-					 lineage, cores, locus_tag_length, logObject, dry_run_flag=dry_run_flag, skip_annotation_flag=fast_annotation_flag)
+					 lineage, cpus, locus_tag_length, logObject, dry_run_flag=dry_run_flag, skip_annotation_flag=fast_annotation_flag)
 
 	prokka_results_listing_file = outdir + 'Sample_Annotation_Files.txt'
 	prlf_handle = open(prokka_results_listing_file, 'w')
@@ -201,7 +201,7 @@ def lsaBGC_Process():
 			raise RuntimeError("Can't create AntiSMASH results directories. Exiting now ...")
 
 		logObject.info("Running/setting-up AntiSMASH for all samples!")
-		processing.runAntiSMASH(prokka_genbanks_dir, antismash_outdir, antiSMASH_load_code, cores, logObject,
+		processing.runAntiSMASH(prokka_genbanks_dir, antismash_outdir, antiSMASH_load_code, cpus, logObject,
 								dry_run_flag=dry_run_flag)
 		logObject.info("Successfully ran/set-up AntiSMASH.")
 
@@ -231,9 +231,9 @@ def lsaBGC_Process():
 		orthofinder_outdir = outdir + 'OrthoFinder_Results/'
 		logObject.info("Running/setting-up OrthoFinder!")
 		if not refined_orthofinder:
-			processing.runOrthoFinder(prokka_proteomes_dir, orthofinder_outdir, orthofinder_load_code, cores, logObject, dry_run_flag=dry_run_flag)
+			processing.runOrthoFinder(prokka_proteomes_dir, orthofinder_outdir, orthofinder_load_code, cpus, logObject, dry_run_flag=dry_run_flag)
 		else:
-			processing.runOrthoFinder(refined_proteomes_outdir, orthofinder_outdir, orthofinder_load_code, cores, logObject, dry_run_flag=dry_run_flag)
+			processing.runOrthoFinder(refined_proteomes_outdir, orthofinder_outdir, orthofinder_load_code, cpus, logObject, dry_run_flag=dry_run_flag)
 		logObject.info("Successfully ran/set-up OrthoFinder.")
 
 		logObject.info("Organizing results directory.")

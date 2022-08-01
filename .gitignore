@@ -26,6 +26,12 @@ share/python-wheels/
 .installed.cfg
 *.egg
 *.idea/
+db/hmm_PGAP.tsv
+db/PGAP.hmm
+db/ko_list
+db/profile.hmm
+db/Pfam-A.hmm**
+test_case/**
 MANIFEST
 
 # PyInstaller

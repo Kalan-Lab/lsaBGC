@@ -63,7 +63,7 @@ def create_parser():
     parser.add_argument('-l', '--list_cmds', action='store_true', help='List BGC commands instead of producing a sample to genome mapping file needed for input into lsaBGC-Ready.py.', required=False, default=False)
     parser.add_argument('-o', '--bgc_prediction_dir', help='Path to output directory to list for BGC prediction output.', default='./BGC_Predictions/', required=False)
     parser.add_argument('-p', '--bgc_prediction_software', help='Software used to predict BGCs (Options: antiSMASH, DeepBGC, GECCO).\nDefault is antiSMASH.', default='antiSMASH', required=False)
-    parser.add_argument('-c', '--cores', help='Number of cores to specify per job.', required=False, default=4)
+    parser.add_argument('-c', '--cpus', help='Number of cpus to specify per job.', required=False, default=4)
     parser.add_argument('-t', '--taxon', help='Taxon class to provide BGC prediction software, e.g. antiSMASH. Options: bacteri, fungi. Default: bacteria', default="bacteria", required=False)
     parser.add_argument('-d', '--dryrun_naming_file', help='Results from running ncbi-genome-download in dry-run mode to use for sample naming.', required=False, default=None)
     args = parser.parse_args()
@@ -85,7 +85,7 @@ def siftAndPrint():
     bgc_prediction_dir = os.path.abspath(myargs.bgc_prediction_dir) + '/'
     list_cmds_flag = myargs.list_cmds
     bgc_prediction_software = myargs.bgc_prediction_software.upper()
-    cores = myargs.cores
+    cpus = myargs.cpus
     taxon = myargs.taxon.lower()
     dryrun_naming_file = myargs.dryrun_naming_file
 
@@ -195,13 +195,13 @@ def siftAndPrint():
                 if genome_file.endswith('.gbff.gz') or genome_file.endswith('.gbk.gz') or genome_file.endswith('.gbk') or genome_file.endswith('.gbff'):
                     gene_finding = 'none'
                 bgc_cmd = ['antismash', '--taxon', taxon, '--output-dir', bgc_prediction_dir + sample + '/', '-c',
-                           str(cores), '--genefinding-tool', gene_finding, '--output-basename', sample, genome_file]
+                           str(cpus), '--genefinding-tool', gene_finding, '--output-basename', sample, genome_file]
             elif bgc_prediction_software == 'DEEPBGC':
                 bgc_cmd = ['deepbgc', 'pipeline', '--output', bgc_prediction_dir + sample + '/', genome_file]
             elif bgc_prediction_software == 'GECCO':
                 if taxon == 'fungi':
                     raise RuntimeError("Not recommended to run GECCO with fungal genomes.")
-                bgc_cmd = ['gecco', 'run', '-j', str(cores), '-o', bgc_prediction_dir + sample + '/', '-g', genome_file]
+                bgc_cmd = ['gecco', 'run', '-j', str(cpus), '-o', bgc_prediction_dir + sample + '/', '-g', genome_file]
             print(' '.join(bgc_cmd))
         else:
             print(sample + '\t' + genome_file)

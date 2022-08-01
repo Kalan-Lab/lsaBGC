@@ -70,7 +70,7 @@ def create_parser():
 	parser.add_argument('-p', '--bgc_prediction_software', help='Software used to predict BGCs (Options: antiSMASH, DeepBGC, GECCO).\nDefault is antiSMASH.', default='antiSMASH', required=False)
 	parser.add_argument('-q', '--quick_mode', action='store_true', help='Whether to run lsaBGC-Expansion in quick mode?', required=False, default=False)
 	parser.add_argument('-z', '--pickle_expansion_annotation_data', help="Pickle file with serialization of annotation data in the expansion listing file.", required=False, default=None)
-	parser.add_argument('-c', '--cores', type=int, help="Total number of cores to use.", required=False, default=1)
+	parser.add_argument('-c', '--cpus', type=int, help="Total number of cpus to use.", required=False, default=1)
 	parser.add_argument('-ph', '--protocore_homologs', help="File with manual listings of proto-core homolog groups.\nThis should be provided as 2 column tab-delmited file: (1) GCF id and\n(2) space delmited listing of homolog groups.", required=False, default=None)
 
 	args = parser.parse_args()
@@ -108,7 +108,7 @@ def lsaBGC_AutoExpansion():
 	PARSE OPTIONAL INPUTS
 	"""
 
-	cores = myargs.cores
+	cpus = myargs.cpus
 	bgc_prediction_software = myargs.bgc_prediction_software.upper()
 	quick_mode = myargs.quick_mode
 	pickle_expansion_annotation_data_file = myargs.pickle_expansion_annotation_data
@@ -141,13 +141,13 @@ def lsaBGC_AutoExpansion():
 	parameter_values = [gcf_listing_dir, initial_listing_file,
 						expansion_listing_file, original_orthofinder_matrix_file, outdir,
 						pickle_expansion_annotation_data_file, quick_mode, bgc_prediction_software,
-						protocore_homologs_file, cores]
+						protocore_homologs_file, cpus]
 	parameter_names = ["GCF Listings Directory", "Listing File of Prokka Annotation Files for Initial Set of Samples",
 					   "Listing File of Prokka Annotation Files for Expansion/Additional Set of Samples",
 					   "OrthoFinder Homolog Matrix", "Output Directory",
 					   "Pickle File with Annotation Data in Expansion Listing for Quick Loading",
 					   "Run in Quick Mode?", "BGC Prediction Software", "ProtoCore-Like Homolog Group Specifications",
-					   "Cores"]
+					   "cpus"]
 	util.logParametersToFile(parameters_file, parameter_names, parameter_values)
 	logObject.info("Done saving parameters!")
 
@@ -202,7 +202,7 @@ def lsaBGC_AutoExpansion():
 		if not os.path.isdir(gcf_exp_outdir):
 			cmd = ['lsaBGC-Expansion.py', '-g', gcf_listing_file, '-m', orthofinder_matrix_file, '-l',
 				   initial_listing_file, '-p', bgc_prediction_software, '-e', expansion_listing_file,
-				   '-o', gcf_exp_outdir, '-i', gcf_id, '-c', str(cores)]
+				   '-o', gcf_exp_outdir, '-i', gcf_id, '-c', str(cpus)]
 			if quick_mode:
 				cmd += ['-q']
 			if pickle_expansion_annotation_data_file:
@@ -283,7 +283,7 @@ def lsaBGC_AutoExpansion():
 								try:
 									assert(bgc1_score != bgc2_score)
 								except Exception as e:
-									logObject.warning("Overlapping BGCs exist with equivalent scores for different GCFs. This should not be possible. Both instances will be discarded.")
+									logObject.warning("Overlapping BGCs exist with equivalent scpus for different GCFs. This should not be possible. Both instances will be discarded.")
 									logObject.warning(traceback.format_exc())
 
 								address = None
@@ -379,7 +379,7 @@ def lsaBGC_AutoExpansion():
 	for hg in sorted(all_hgs):
 		printlist = [hg]
 		for s in sorted(all_samples):
-			printlist.append(', '.join(sample_hg_lts[s][hg]))
+			printlist.append(', '.join([x.strip() for x in sample_hg_lts[s][hg] if x.strip() != '']))
 		expanded_orthofinder_matrix_handle.write('\t'.join(printlist) + '\n')
 	expanded_orthofinder_matrix_handle.close()
 

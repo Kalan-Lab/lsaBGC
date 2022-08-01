@@ -75,7 +75,7 @@ def create_parser():
     parser.add_argument('-ups', '--upper_num_populations', type=int, help='If population analysis specified, what is the number of populations to . Use the script determinePopulationK.py to see how populations will look with k set to different values.', required=False, default=20)
     parser.add_argument('-ic', '--identity_cutoff', type=float, help='Identity to collapse samples at.', required=False, default=1.0)
     parser.add_argument('-sh', '--shared_cutoff', type=float, help='Shared coverage (pertaining to FastANI or CompareM) to collapse samples at.', required=False, default=0.8)
-    parser.add_argument('-c', '--cores', type=int, help="Total number of cores to use.", required=False, default=1)
+    parser.add_argument('-c', '--cpus', type=int, help="Total number of cpus to use.", required=False, default=1)
     parser.add_argument('-ps', '--popsize', type=int, help="Desired number of populations.", required=False, default=None)
     args = parser.parse_args()
     return args
@@ -138,7 +138,7 @@ def main():
     is_assembly_listing = myargs.is_assembly_listing
     use_fastani = myargs.use_fastani
     popsize = myargs.popsize
-    cores = myargs.cores
+    cpus = myargs.cpus
 
     """
     START WORKFLOW
@@ -152,11 +152,11 @@ def main():
     logObject.info("Saving parameters for easier determination of results' provenance in the future.")
     parameters_file = outdir + 'Parameter_Inputs.txt'
     parameter_values = [input_listing_file, is_assembly_listing, outdir,  lineage_phylogeny_file, sample_set_file, identity_cutoff,
-                        shared_cutoff, lower_num_populations, upper_num_populations, use_fastani, popsize, cores]
+                        shared_cutoff, lower_num_populations, upper_num_populations, use_fastani, popsize, cpus]
     parameter_names = ["Input Listing File", "Input Listing is Assemblies in FASTA and Not Prokka Annotations",
                        "Output Directory", "Phylogeny File in Newick Format", "Sample Retention Set", "Identity Cutoff",
                        "Shared Cutoff", "Lower Limit for Number of Populations", "Upper Limit for Number of Populations",
-                       "Use FastANI", "Desired Population Size", "Cores"]
+                       "Use FastANI", "Desired Population Size", "cpus"]
     util.logParametersToFile(parameters_file, parameter_names, parameter_values)
     logObject.info("Done saving parameters!")
 
@@ -179,10 +179,10 @@ def main():
     similarity_output_file = None
     if not use_fastani:
         similarity_output_file = outdir + 'genome_wide.out'
-        gw_pairwise_similarities = util.calculateMashPairwiseDifferences(gw_fasta_listing_file, outdir, 'genome_wide', 10000, cores, logObject, prune_set=sample_retention_set)
+        gw_pairwise_similarities = util.calculateMashPairwiseDifferences(gw_fasta_listing_file, outdir, 'genome_wide', 10000, cpus, logObject, prune_set=sample_retention_set)
     else:
         similarity_output_file = outdir + 'FastANI_Results.txt'
-        gw_pairwise_similarities, gw_pairwise_comparisons = util.runFastANI(gw_fasta_listing_file, outdir, similarity_output_file, cores, logObject, prune_set=sample_retention_set)
+        gw_pairwise_similarities, gw_pairwise_comparisons = util.runFastANI(gw_fasta_listing_file, outdir, similarity_output_file, cpus, logObject, prune_set=sample_retention_set)
 
     sample_assembly_n50s = {}
     with open(gw_fasta_listing_file) as ogf:

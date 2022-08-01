@@ -27,7 +27,7 @@ def create_parser():
                         help='Path to tab delimited text file for samples with three columns: (1) sample name (2) Prokka generated Genbank file (*.gbk), and (3) Prokka generated predicted-proteome file (*.faa). Please remove troublesome characters in the sample name.',
                         required=True)
     parser.add_argument('-o', '--output_file', help="Output file.", required=True)
-    parser.add_argument('-c', '--cores', type=int, help="The number of cores to use.", required=False, default=1)
+    parser.add_argument('-c', '--cpus', type=int, help="The number of cpus to use.", required=False, default=1)
     args = parser.parse_args()
 
     return args
@@ -60,7 +60,7 @@ def main():
     PARSE OPTIONAL INPUTS
     """
 
-    cores = myargs.cores
+    cpus = myargs.cpus
 
     """
     START WORKFLOW
@@ -76,7 +76,7 @@ def main():
                 sample_genbank = sample_prokka_data[sample]['genbank']
                 genbanks.append([sample, sample_genbank, sample_gbk_info])
 
-            with manager.Pool(cores) as pool:
+            with manager.Pool(cpus) as pool:
                 pool.map(util.parseGenbankAndFindBoundaryGenes, genbanks)
 
             of = open(output_file, 'wb')

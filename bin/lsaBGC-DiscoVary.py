@@ -66,7 +66,7 @@ def create_parser():
     parser.add_argument('-p', '--bgc_prediction_software', help='Software used to predict BGCs (Options: antiSMASH, DeepBGC, GECCO).\nDefault is antiSMASH.', default='antiSMASH', required=False)
     parser.add_argument('-ch', '--core_homologs', nargs="+", help="List of homolog group identifiers comprising the core of the BGC/GCF.", required=False, default=[])
     parser.add_argument('-ap', '--allow_phasing', action='store_true', help="Allow phasing with DESMAN. Requires manual installation of\nDESMAN (not through conda) and $PATH to be updated.", default=False)
-    parser.add_argument('-c', '--cores', type=int, help="The number of cores to use.", required=False, default=1)
+    parser.add_argument('-c', '--cpus', type=int, help="The number of cpus to use.", required=False, default=1)
 
     args = parser.parse_args()
 
@@ -113,7 +113,7 @@ def lsaBGC_DiscoVary():
     gcf_id = myargs.gcf_id
     allow_phasing = myargs.allow_phasing
     core_hg_set = myargs.core_homologs
-    cores = myargs.cores
+    cpus = myargs.cpus
 
     try:
         assert (bgc_prediction_software in set(['ANTISMASH', 'DEEPBGC', 'GECCO']))
@@ -131,10 +131,10 @@ def lsaBGC_DiscoVary():
     logObject.info("Saving parameters for future records.")
     parameters_file = outdir + 'Parameter_Inputs.txt'
     parameter_values = [gcf_listing_file, orthofinder_matrix_file, paired_end_sequencing_file, outdir, gcf_id,
-                        bgc_prediction_software, len(core_hg_set) > 0, cores]
+                        bgc_prediction_software, len(core_hg_set) > 0, cpus]
     parameter_names = ["GCF Listing File", "OrthoFinder Orthogroups.csv File", "Paired-Sequencing Listing File",
                        "Output Directory", "GCF Identifier", "BGC Prediction Software",
-                       "Core Homologs Manually Provided", "Cores"]
+                       "Core Homologs Manually Provided", "cpus"]
     util.logParametersToFile(parameters_file, parameter_names, parameter_values)
     logObject.info("Done saving parameters!")
 
@@ -164,7 +164,7 @@ def lsaBGC_DiscoVary():
     ### This function is originally intended for the expansion functionality in lsaBGC, but here we
     ### use it to just get a better sense of how paralogous different genes in the GCF might be.
     logObject.info("Determining non-unique positions along codon multiple sequence alignments.")
-    hg_nonunique_positions = util.determineNonUniqueRegionsAlongCodonAlignment(outdir, input_sample_prokka_data, codon_alignments_file, cores=cores, logObject=logObject)
+    hg_nonunique_positions = util.determineNonUniqueRegionsAlongCodonAlignment(outdir, input_sample_prokka_data, codon_alignments_file, cpus=cpus, logObject=logObject)
     logObject.info("Marked non-unique positions along codon MSAs!")
 
     # Step 5: Create database of genes with surrounding flanks and, independently, cluster them into allele groups / haplotypes.
@@ -179,14 +179,14 @@ def lsaBGC_DiscoVary():
     bowtie2_outdir = outdir + 'Bowtie2_Alignments/'
     if not os.path.isfile(bowtie2_outdir): os.system('mkdir %s' % bowtie2_outdir)
     logObject.info("Running Bowtie2 alignment of paired-end sequencing reads against database of GCF genes with surrounding flanking sequences.")
-    util.runBowtie2Alignments(bowtie2_db_prefix, paired_end_sequencing_file, bowtie2_outdir, logObject, cores=cores)
+    util.runBowtie2Alignments(bowtie2_db_prefix, paired_end_sequencing_file, bowtie2_outdir, logObject, cpus=cpus)
     logObject.info("Bowtie2 alignments completed successfully!")
 
     # Step 7: Parse bowtie2 alignments found per sample and identify support for SNVs
     results_outdir = outdir + 'Alignment_Parsing/'
     if not os.path.isdir(results_outdir): os.system('mkdir %s' % results_outdir)
     logObject.info("Beginning typing of homolog group alleles and mining of novel SNVs.")
-    GCF_Object.runSNVMining(paired_end_sequencing_file, genes_representative_fasta, codon_alignments_file, bowtie2_outdir, results_outdir, cores=cores)
+    GCF_Object.runSNVMining(paired_end_sequencing_file, genes_representative_fasta, codon_alignments_file, bowtie2_outdir, results_outdir, cpus=cpus)
     logObject.info("Successfully typed alleles and mined for novel SNVs.")
 
     # Step 8: Decide on GCF presence, determine consensus/haplotypes for homolog groups, and generate novelty report
@@ -194,7 +194,7 @@ def lsaBGC_DiscoVary():
     phased_alleles_outdir = outdir + 'Phased_Homolog_Group_Sequences/'
     if not os.path.isdir(phased_alleles_outdir): os.system('mkdir %s' % phased_alleles_outdir)
     logObject.info("Phasing or determining consensus allele and reporting of novel SNVs.")
-    GCF_Object.phaseAndSummarize(paired_end_sequencing_file, codon_alignments_file, results_outdir, phased_alleles_outdir, outdir, hg_nonunique_positions, cores=cores, allow_phasing=allow_phasing)
+    GCF_Object.phaseAndSummarize(paired_end_sequencing_file, codon_alignments_file, results_outdir, phased_alleles_outdir, outdir, hg_nonunique_positions, cpus=cpus, allow_phasing=allow_phasing)
     logObject.info("Successfully constructed matrices of allele typings.")
 
     # Step 9: Filter low coverage gene instances and construct gene-phylogenies
