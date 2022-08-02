@@ -1304,7 +1304,7 @@ def mapBGCtoGenomeBySequence(bgc_genbank_listing_file, sample_genomes, outdir, l
 	bgc_mappings = {}
 	locate_bgc_directory = outdir + 'Map_BGC_to_Full_Genbanks/'
 	bgcs_without_mappings_handle = open(outdir + 'BGCs_Unable_to_be_Mapped_to_Genome.txt', 'w')
-	bgcs_with_multiple_mappings_handle = open(outdir + 'BGCs_with_Perfect_Mapping_to_Genome.txt', 'w')
+	bgcs_with_multiple_mappings_handle = open(outdir + 'BGCs_with_Multiple_Perfect_Mappings_to_Genome.txt', 'w')
 	setupReadyDirectory([locate_bgc_directory])
 	try:
 		outf_to_info = {}
