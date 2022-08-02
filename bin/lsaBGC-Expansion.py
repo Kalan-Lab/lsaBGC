@@ -71,7 +71,7 @@ def create_parser():
     parser.add_argument('-sct', '--syntenic_correlation_threshold', type=float, help="The minimum syntenic correlation needed to at least one known\nGCF instance to report segment.", required=False, default=0.8)
     parser.add_argument('-tg', '--transition_from_gcf_to_gcf', type=float, help="GCF to GCF state transition probability for HMM. Should be between\n0.0 and 1.0. Default is 0.9.", required=False, default=0.9)
     parser.add_argument('-tb', '--transition_from_bg_to_bg', type=float, help="Background to background state transition probability for HMM. Should be\nbetween 0.0 and 1.0. Default is 0.9.", required=False, default=0.9)
-    parser.add_argument('-c', '--cores', type=int, help="The number of cores to use.", required=False, default=1)
+    parser.add_argument('-c', '--cpus', type=int, help="The number of cpus to use.", required=False, default=1)
     parser.add_argument('-q', '--quick_mode', action='store_true', help="Run in quick-mode. Instead of running HMMScan for each homolog group, a consensus\nsequence is emitted and Diamond is used for searching instead. Method inspired by Melnyk et al. 2019", required=False, default=False)
     parser.add_argument('-no', '--no_orthogroup_matrix', action='store_true', help="Avoid writing the updated OrthoFinder matrix at the end.", required=False, default=False)
     parser.add_argument('-w', '--loose', action='store_true', help="Remove requirement for proto-core/rule-based homolog group being detected in a single\nneighborhood for GCF to be reported as present.", required=False, default=False)
@@ -120,7 +120,7 @@ def lsaBGC_Expansion():
 
     gcf_id = myargs.gcf_id
     bgc_prediction_software = myargs.bgc_prediction_software.upper()
-    cores = myargs.cores
+    cpus = myargs.cpus
     min_segment_size = myargs.min_segment_size
     min_segment_core_size = myargs.min_segment_core_size
     syntenic_correlation_threshold = myargs.syntenic_correlation_threshold
@@ -148,14 +148,14 @@ def lsaBGC_Expansion():
     logObject.info("Saving parameters for future records.")
     parameters_file = outdir + 'Parameter_Inputs.txt'
     parameter_values = [gcf_listing_file, orthofinder_matrix_file, initial_listing_file, expansion_listing_file, outdir,
-                        gcf_id, bgc_prediction_software, cores, min_segment_size, min_segment_core_size,
+                        gcf_id, bgc_prediction_software, cpus, min_segment_size, min_segment_core_size,
                         syntenic_correlation_threshold, transition_from_gcf_to_gcf, transition_from_bg_to_bg,
                         quick_mode, no_orthogroup_matrix, pickle_expansion_annotation_data_file, protocore_hg_set,
                         loose_flag, all_primary_flag]
     parameter_names = ["GCF Listing File", "OrthoFinder Orthogroups.csv File",
                        "Listing File of Prokka Annotation Files for Initial Set of Samples",
                        "Listing File of Prokka Annotation Files for Expansion/Additional Set of Samples",
-                       "Output Directory", "GCF Identifier", "BGC Prediction Software", "Cores",
+                       "Output Directory", "GCF Identifier", "BGC Prediction Software", "cpus",
                        "Minimum Size of Segments", "Minimum Core Size of Segments", "Syntenic Correlation Threshold",
                        "HMM Transition Probability from GCF to GCF",
                        "HMM Transition Probability from Background to Background", "Run Expansion in Quick Mode?",
@@ -193,12 +193,12 @@ def lsaBGC_Expansion():
 
     # Step 4: Build HMMs for homolog groups observed in representative BGCs for GCF
     logObject.info("Building profile HMMs of homolog groups observed in representative BGCs for GCF.")
-    GCF_Object.constructHMMProfiles(outdir, initial_sample_prokka_data, cores=cores, quick_mode=quick_mode)
+    GCF_Object.constructHMMProfiles(outdir, initial_sample_prokka_data, cpus=cpus, quick_mode=quick_mode)
     logObject.info("HMM profiles constructed and concatenated successfully!")
 
     # Step 5: Search HMM profiles in proteomes from comprehensive set of BGCs
     logObject.info("Searching for homolog group HMMs in proteins extracted from comprehensive list of BGCs.")
-    GCF_Object.runHMMScan(outdir, expanded_sample_prokka_data, cores=cores, quick_mode=quick_mode,
+    GCF_Object.runHMMScan(outdir, expanded_sample_prokka_data, cpus=cpus, quick_mode=quick_mode,
                           annotation_pickle_file=pickle_expansion_annotation_data_file)
     logObject.info("Successfully found new instances of GCF in new sample set.")
 
@@ -209,7 +209,7 @@ def lsaBGC_Expansion():
                                     gcf_to_gcf_transition_prob=transition_from_gcf_to_gcf,
                                     background_to_background_transition_prob=transition_from_bg_to_bg,
                                     syntenic_correlation_threshold=syntenic_correlation_threshold,
-                                    no_orthogroup_matrix=no_orthogroup_matrix, loose_flag=loose_flag, cores=cores)
+                                    no_orthogroup_matrix=no_orthogroup_matrix, loose_flag=loose_flag, cpus=cpus)
     logObject.info("Successfully found new instances of GCF in new sample set.")
 
     # Close logging object and exit

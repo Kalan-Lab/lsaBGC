@@ -77,7 +77,7 @@ def create_parser():
     parser.add_argument('-i', '--identity_cutoff', type=float, help='Cutoff for ANI/AAI for grouping samples together if population inference requested.', required=False, default=0.99)
     parser.add_argument('-s', '--shared_cutoff', type=float, help='Cutoff for shared genomic content for grouping samples together if population inference requested.', required=False, default=0.8)
     parser.add_argument('-m', '--method', help='Which method to use for estimating ANI or AAI? Options: "CompareM", "FastANI", "MASH". Default is FastANI.', required=False, default="FastANI")
-    parser.add_argument('-c', '--cores', type=int, help="Total number of cores to use.", required=False, default=1)
+    parser.add_argument('-c', '--cpus', type=int, help="Total number of cpus to use.", required=False, default=1)
 
     args = parser.parse_args()
     return args
@@ -134,7 +134,7 @@ def main():
     identity_cutoff = myargs.identity_cutoff
     shared_cutoff = myargs.shared_cutoff
     method = myargs.method
-    cores = myargs.cores
+    cpus = myargs.cpus
 
     try:
         assert(method.upper() in set(['MASH', 'FASTANI', 'COMPAREM']))
@@ -153,9 +153,9 @@ def main():
     logObject.info("Saving parameters for easier determination of results' provenance in the future.")
     parameters_file = outdir + 'Parameter_Inputs.txt'
     parameter_values = [sample_annotation_listing_file, outdir, create_species_tree, identity_cutoff,
-                        shared_cutoff, method, cores]
+                        shared_cutoff, method, cpus]
     parameter_names = ["Input Listing File", "Output Directory", "Construct Species Tree?", "Identity Cutoff",
-                       "Shared Cutoff", "Method for Inferring Genome-Wide ANI/AAI", "Cores"]
+                       "Shared Cutoff", "Method for Inferring Genome-Wide ANI/AAI", "cpus"]
     util.logParametersToFile(parameters_file, parameter_names, parameter_values)
     logObject.info("Done saving parameters!")
 
@@ -172,16 +172,16 @@ def main():
     gw_pairwise_shared = None
     if method.upper() == 'MASH':
         gw_pairwise_identities = util.calculateMashPairwiseDifferences(gw_fasta_listing_file, outdir, 'genome_wide',
-                                                                       10000, cores, logObject)
+                                                                       10000, cpus, logObject)
     elif method.upper() == 'FASTANI':
         fastani_results_file = outdir + 'fastANI_Results.txt'
         gw_pairwise_identities, gw_pairwise_shared = util.runFastANI(gw_fasta_listing_file, outdir,
-                                                                     fastani_results_file, cores, logObject)
+                                                                     fastani_results_file, cpus, logObject)
     elif method.upper() == 'COMPAREM':
         comparem_results_dir = outdir + 'CompareM/'
         util.setupReadyDirectory([comparem_results_dir])
         gw_pairwise_identities, gw_pairwise_shared = util.runCompareM(gw_fasta_listing_file,
-                                                                             comparem_results_dir, cores, logObject)
+                                                                             comparem_results_dir, cpus, logObject)
 
     sample_assembly_n50s = {}
     with open(gw_fasta_listing_file) as ogf:

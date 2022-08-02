@@ -79,7 +79,7 @@ def create_parser():
 	parser.add_argument('-u', '--populations', help='Path to user defined populations/groupings file. Tab delimited with 2 columns: (1) sample name and (2) group identifier.', required=False, default=None)
 	parser.add_argument('-l', '--discovary_input_listing', help="Sequencing readsets for DiscoVary analysis. Tab delimited file listing: (1) sample name, (2) forward readset, (3) reverse readset for metagenomic/isolate sequencing data.", required=False, default=None)
 	parser.add_argument('-n', '--discovary_analysis_name', help="Identifier/name for DiscoVary. Not providing this parameter will avoid running lsaBGC-DiscoVary step.", required=False, default=None)
-	parser.add_argument('-c', '--cores', type=int, help="Total number of cores to use.", required=False, default=1)
+	parser.add_argument('-c', '--cpus', type=int, help="Total number of cpus to use.", required=False, default=1)
 
 	args = parser.parse_args()
 	return args
@@ -157,7 +157,7 @@ def lsaBGC_AutoAnalyze():
 	population_listing_file = myargs.populations
 	discovary_analysis_id = myargs.discovary_analysis_name
 	discovary_input_listing = myargs.discovary_input_listing
-	cores = myargs.cores
+	cpus = myargs.cpus
 
 	try:
 		assert (bgc_prediction_software in set(['ANTISMASH', 'DEEPBGC', 'GECCO']))
@@ -177,7 +177,6 @@ def lsaBGC_AutoAnalyze():
 				for line in ogdf:
 					line = line.strip()
 					sample_1, sample_2, gen_est = line.split('\t')
-					assert(sample_1 in all_samples and sample_2 in all_samples and util.is_numeric(gen_est))
 		except:
 			raise RuntimeError('GenomeWide estimates file provided does not exist or does not meet expected formatting. Exiting now ...')
 
@@ -187,7 +186,6 @@ def lsaBGC_AutoAnalyze():
 				for line in oplf:
 					line = line.strip()
 					sample, pop = line.split('\t')
-					assert(sample in all_samples)
 		except:
 			raise RuntimeError('Population listings file provided does meet expected formatting.')
 
@@ -222,13 +220,13 @@ def lsaBGC_AutoAnalyze():
 	parameters_file = outdir + 'Parameter_Inputs.txt'
 	parameter_values = [gcf_listing_dir, input_listing_file, original_orthofinder_matrix_file, outdir,
 						species_phylogeny_file, expected_distances, population_listing_file,
-						discovary_analysis_id, discovary_input_listing, bgc_prediction_software, sample_set_file, cores]
+						discovary_analysis_id, discovary_input_listing, bgc_prediction_software, sample_set_file, cpus]
 	parameter_names = ["GCF Listings Directory", "Listing File of Sample Annotation Files for Initial Set of Samples",
 					   "OrthoFinder Homolog Matrix", "Output Directory", "Species Phylogeny File in Newick Format",
 					   "File with Expected Sample to Sample Amino Acid Distance Estimations",
 					   "Clade/Population Listings File", "DiscoVary Analysis ID",
 					   "DiscoVary Sequencing Data Location Specification File", "BGC Prediction Software",
-					   "Sample Retention Set", "Cores"]
+					   "Sample Retention Set", "cpus"]
 	util.logParametersToFile(parameters_file, parameter_names, parameter_values)
 	logObject.info("Done saving parameters!")
 
@@ -333,7 +331,7 @@ def lsaBGC_AutoAnalyze():
 			os.system('rm -rf %s' % gcf_see_outdir)
 			os.system('mkdir %s' % gcf_see_outdir)
 			cmd = ['lsaBGC-See.py', '-g', gcf_listing_file, '-m', orthofinder_matrix_file, '-o', gcf_see_outdir,
-				   '-i', gcf_id, '-s', species_phylogeny_file, '-p', bgc_prediction_software, '-c', str(cores)]
+				   '-i', gcf_id, '-s', species_phylogeny_file, '-p', bgc_prediction_software, '-c', str(cpus)]
 			try:
 				util.run_cmd(cmd, logObject)
 				assert(os.path.isfile(lsabgc_see_checkpoint))
@@ -348,7 +346,7 @@ def lsaBGC_AutoAnalyze():
 			os.system('rm -rf %s' % gcf_pop_outdir)
 			os.system('mkdir %s' % gcf_pop_outdir)
 			cmd = ['lsaBGC-PopGene.py', '-g', gcf_listing_file, '-m', orthofinder_matrix_file, '-o', gcf_pop_outdir,
-				   '-i', gcf_id, '-p', bgc_prediction_software, '-c', str(cores)]
+				   '-i', gcf_id, '-p', bgc_prediction_software, '-c', str(cpus)]
 			if expected_distances != None:
 				cmd += ['-w', expected_distances]
 			if population_listing_file != None:
@@ -367,7 +365,7 @@ def lsaBGC_AutoAnalyze():
 			os.system('rm -rf %s' % gcf_div_outdir)
 			os.system('mkdir %s' % gcf_div_outdir)
 			cmd = ['lsaBGC-Divergence.py', '-g', gcf_listing_file, '-l', input_listing_file, '-o', gcf_div_outdir,
-				   '-i', gcf_id, '-a',	gcf_pop_outdir + 'Codon_Alignments_Listings.txt', '-c', str(cores),'-w',
+				   '-i', gcf_id, '-a',	gcf_pop_outdir + 'Codon_Alignments_Listings.txt', '-c', str(cpus),'-w',
 				   expected_distances]
 			try:
 				util.run_cmd(cmd, logObject)
@@ -384,7 +382,7 @@ def lsaBGC_AutoAnalyze():
 				os.system('rm -rf %s' % gcf_dis_outdir)
 				os.system('mkdir %s' % gcf_dis_outdir)
 				cmd = ['lsaBGC-DiscoVary.py', '-g', gcf_listing_file, '-m', orthofinder_matrix_file, '-o',
-					   gcf_dis_outdir, '-i', gcf_id, '-c', str(cores), '-p', discovary_input_listing, '-a',
+					   gcf_dis_outdir, '-i', gcf_id, '-c', str(cpus), '-p', discovary_input_listing, '-a',
 					   gcf_pop_outdir + 'Codon_Alignments_Listings.txt', '-l', input_listing_file]
 				try:
 					util.run_cmd(cmd, logObject, stderr=sys.stderr, stdout=sys.stdout)
@@ -578,8 +576,9 @@ def lsaBGC_AutoAnalyze():
 	writer = pd.ExcelWriter(outdir + 'lsaBGC_Pan_Secondary_Metabolome_Overview.xlsx', engine='xlsxwriter')
 	workbook = writer.book
 	dd_sheet = workbook.add_worksheet('Data Dictionary')
-	dd_sheet.write(0, 0, 'Data Dictionary can be found on lsaBGC\'s Wiki at:')
-	dd_sheet.write(1, 0, 'https://github.com/Kalan-Lab/lsaBGC/wiki/10.-Population-Genetics-Analysis-of-Genes-Found-in-a-GCF#data-dictionary')
+	dd_sheet.write(0, 0, 'WARNING: some evolutionary statistics are experimental - evaluate with caution!!!')
+	dd_sheet.write(1, 0, 'Data Dictionary describing columns of "Overview" spreadsheets can be found on lsaBGC\'s Wiki at:')
+	dd_sheet.write(2, 0, 'https://github.com/Kalan-Lab/lsaBGC/wiki/10.-Population-Genetics-Analysis-of-Genes-Found-in-a-GCF#data-dictionary')
 	sl_df = util.loadSamplesIntoPandaDataFrame(input_listing_file, pop_spec_file=population_listing_file)
 	sl_df.to_excel(writer, sheet_name='Samples used in AutoAnalyze', index=False, na_rep="NA")
 	scprf_df = util.loadCustomPopGeneTableInPandaDataFrame(consolidated_popgene_report_file)

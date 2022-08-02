@@ -62,7 +62,7 @@ def create_parser():
     parser.add_argument('-s', '--species_phylogeny', help="The species phylogeny in Newick format. Specifies that dN/dS should be calculated by comparing extant homolog-group sequences to ancestral state reconstruction. Does not currently work!!!", required=False, default=None)
     parser.add_argument('-u', '--population_classification', help='Popualation classifications for each sample. Tab delemited: 1st column lists sample name while the 2nd column is an identifier for the population the sample belongs to.', required=False, default=None)
     parser.add_argument('-p', '--bgc_prediction_software', help='Software used to predict BGCs (Options: antiSMASH, DeepBGC, GECCO).\nDefault is antiSMASH.', default='antiSMASH', required=False)
-    parser.add_argument('-c', '--cores', type=int, help="The number of cores to use.", required=False, default=1)
+    parser.add_argument('-c', '--cpus', type=int, help="The number of cpus to use.", required=False, default=1)
     parser.add_argument('-d', '--regular_mafft', action='store_true', help="Run mafft --linsi and not the MAGUS divide-and-conquer approach which allows for scalability and more efficient computing.", default=False, required=False)
     parser.add_argument('-e', '--each_pop', action='store_true', help='Run analyses individually for each population as well.', required=False, default=False)
     parser.add_argument('-t', '--filter_for_outliers', action='store_true', help='Filter instances of homolog groups which deviate too much from the median gene length observed for the initial set of proteins.', required=False, default=False)
@@ -106,7 +106,7 @@ def lsaBGC_PopGene():
     sample_set_file = myargs.sample_set
     gcf_id = myargs.gcf_id
     bgc_prediction_software = myargs.bgc_prediction_software.upper()
-    cores = myargs.cores
+    cpus = myargs.cpus
     population_classification_file = myargs.population_classification
     run_for_each_pop = myargs.each_pop
     filter_for_outliers = myargs.filter_for_outliers
@@ -130,12 +130,12 @@ def lsaBGC_PopGene():
     parameters_file = outdir + 'Parameter_Inputs.txt'
     parameter_values = [gcf_listing_file, orthofinder_matrix_file, outdir, gcf_id, bgc_prediction_software,
                         population_classification_file, sample_set_file, species_phylogeny, run_for_each_pop,
-                        filter_for_outliers, expected_distances, regular_mafft, cores]
+                        filter_for_outliers, expected_distances, regular_mafft, cpus]
     parameter_names = ["GCF Listing File", "OrthoFinder Orthogroups.csv File", "Output Directory", "GCF Identifier",
                        "BGC Prediction Software", "Populations Specification/Listing File", "Sample Retention Set",
                        "Species Phylogeny Newick File", "Run Analysis for Each Population",
                        "Filter for Outlier Homolog Group Instances", "File with Expected Amino Acid Differences Between Genomes/Samples",
-                       "AAI Similarity Instead of ANI", "Use Regular MAFFT - not MAGUS?", "Cores"]
+                       "AAI Similarity Instead of ANI", "Use Regular MAFFT - not MAGUS?", "cpus"]
     util.logParametersToFile(parameters_file, parameter_names, parameter_values)
     logObject.info("Done saving parameters!")
 
@@ -186,9 +186,9 @@ def lsaBGC_PopGene():
     # Step 5: Create codon alignments if not provided a directory with them (e.g. one produced by lsaBGC-See.py)
     logObject.info("User requested construction of phylogeny from SCCs in BGC! Beginning phylogeny construction.")
     logObject.info("Beginning process of creating protein alignments for each homolog group using mafft, then translating these to codon alignments using PAL2NAL.")
-    GCF_Object.constructCodonAlignments(outdir, only_scc=False, cores=cores, list_alignments=True, filter_outliers=False)
+    GCF_Object.constructCodonAlignments(outdir, only_scc=False, cpus=cpus, list_alignments=True, filter_outliers=False)
     if filter_for_outliers:
-        GCF_Object.constructCodonAlignments(outdir, only_scc=False, cores=cores, list_alignments=True, filter_outliers=True, use_magus=(not regular_mafft))
+        GCF_Object.constructCodonAlignments(outdir, only_scc=False, cpus=cpus, list_alignments=True, filter_outliers=True, use_magus=(not regular_mafft))
     logObject.info("All codon alignments for SCC homologs now successfully achieved!")
 
     # Step 6: Analyze codon alignments and parse population genetics and conservation stats
@@ -200,13 +200,13 @@ def lsaBGC_PopGene():
         population_analysis_on = True
     if run_for_each_pop:
         for pop in populations:
-            GCF_Object.runPopulationGeneticsAnalysis(outdir, cores=cores, population=pop, filter_outliers=False, population_analysis_on=population_analysis_on, gw_pairwise_similarities=gw_pairwise_similarities, use_translation=True, species_phylogeny=species_phylogeny)
+            GCF_Object.runPopulationGeneticsAnalysis(outdir, cpus=cpus, population=pop, filter_outliers=False, population_analysis_on=population_analysis_on, gw_pairwise_similarities=gw_pairwise_similarities, use_translation=True, species_phylogeny=species_phylogeny)
             if filter_for_outliers:
-                GCF_Object.runPopulationGeneticsAnalysis(outdir, cores=cores, population=pop, filter_outliers=True, population_analysis_on=population_analysis_on, gw_pairwise_similarities=gw_pairwise_similarities, use_translation=True, species_phylogeny=species_phylogeny)
+                GCF_Object.runPopulationGeneticsAnalysis(outdir, cpus=cpus, population=pop, filter_outliers=True, population_analysis_on=population_analysis_on, gw_pairwise_similarities=gw_pairwise_similarities, use_translation=True, species_phylogeny=species_phylogeny)
     else:
-        GCF_Object.runPopulationGeneticsAnalysis(outdir, cores=cores, population=None, filter_outliers=False, population_analysis_on=population_analysis_on, gw_pairwise_similarities=gw_pairwise_similarities, use_translation=True, species_phylogeny=species_phylogeny)
+        GCF_Object.runPopulationGeneticsAnalysis(outdir, cpus=cpus, population=None, filter_outliers=False, population_analysis_on=population_analysis_on, gw_pairwise_similarities=gw_pairwise_similarities, use_translation=True, species_phylogeny=species_phylogeny)
         if filter_for_outliers:
-            GCF_Object.runPopulationGeneticsAnalysis(outdir, cores=cores, population=None, filter_outliers=True, population_analysis_on=population_analysis_on, gw_pairwise_similarities=gw_pairwise_similarities, use_translation=True, species_phylogeny=species_phylogeny)
+            GCF_Object.runPopulationGeneticsAnalysis(outdir, cpus=cpus, population=None, filter_outliers=True, population_analysis_on=population_analysis_on, gw_pairwise_similarities=gw_pairwise_similarities, use_translation=True, species_phylogeny=species_phylogeny)
     logObject.info("Successfully ran population genetics and evolutionary analyses of each codon alignment.")
 
     # Write checkpoint file for lsaBGC-AutoAnalyze.py

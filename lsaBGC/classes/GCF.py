@@ -54,7 +54,7 @@ class GCF(Pan):
 
 		# General variables
 		self.hg_to_color = None
-		self.hg_order_scores = defaultdict(lambda: ['NA', 'NA'])
+		self.hg_order_scpus = defaultdict(lambda: ['NA', 'NA'])
 		self.specific_core_homologs =set([])
 		self.scc_homologs = set([])
 		self.core_homologs = set([])
@@ -447,7 +447,7 @@ class GCF(Pan):
 		if self.logObject:
 			self.logObject.info('Plotting completed (I think successfully)!')
 
-	def constructCodonAlignments(self, outdir, cores=1, only_scc=False, list_alignments=False, filter_outliers=False, use_magus=True):
+	def constructCodonAlignments(self, outdir, cpus=1, only_scc=False, list_alignments=False, filter_outliers=False, use_magus=True):
 		"""
 		Function to automate construction of codon alignments. This function first extracts protein and nucleotide sequnces
 		from BGC Genbanks, then creates protein alignments for each homolog group using MAFFT, and finally converts those
@@ -456,7 +456,7 @@ class GCF(Pan):
 		:param outdir: Path to output/workspace directory. Intermediate files (like extracted nucleotide and protein
 						 sequences, protein and codon alignments, will be writen to respective subdirectories underneath this
 						 one).
-		:param cores: Number of cores/threads to use when fake-parallelizing jobs using multiprocessing.
+		:param cpus: Number of cpus/threads to use when fake-parallelizing jobs using multiprocessing.
 		:param only_scc: Whether to construct codon alignments only for homolog groups which are found to be core and in
 						 single copy for samples with the GCF. Note, if working with draft genomes and the BGC is fragmented
 						 this should be able to still identify SCC homolog groups across the BGC instances belonging to the
@@ -479,9 +479,9 @@ class GCF(Pan):
 		if not os.path.isdir(codo_alg_dir): os.system('mkdir %s' % codo_alg_dir)
 
 		pool_size = 1
-		if cores > 10:
-			pool_size = math.floor(cores / 10)
-			cores = 10
+		if cpus > 10:
+			pool_size = math.floor(cpus / 10)
+			cpus = 10
 
 		all_samples = set(self.bgc_sample.values())
 		try:
@@ -511,7 +511,7 @@ class GCF(Pan):
 				#if len([x for x in gene_sequences.keys() if len(x.split('|')[1].split('_')[0]) == 3]) == 0: continue
 				if filter_outliers:
 					gene_sequences = util.determineOutliersByGeneLength(gene_sequences, self.logObject)
-				inputs.append([hg, gene_sequences, nucl_seq_dir, prot_seq_dir, prot_alg_dir, codo_alg_dir, cores, use_magus, self.logObject])
+				inputs.append([hg, gene_sequences, nucl_seq_dir, prot_seq_dir, prot_alg_dir, codo_alg_dir, cpus, use_magus, self.logObject])
 
 			p = multiprocessing.Pool(pool_size)
 			p.map(create_codon_msas, inputs)
@@ -711,9 +711,9 @@ class GCF(Pan):
 
 			bgcs_ref_first = [ref_bgc] + sorted(list(set(self.bgc_genes.keys()).difference(set([ref_bgc]))))
 			ref_hg_directions = {}
-			hg_pair_scores = defaultdict(int)
-			hg_preceding_scores = defaultdict(lambda: defaultdict(int))
-			hg_following_scores = defaultdict(lambda: defaultdict(int))
+			hg_pair_scpus = defaultdict(int)
+			hg_preceding_scpus = defaultdict(lambda: defaultdict(int))
+			hg_following_scpus = defaultdict(lambda: defaultdict(int))
 			all_hgs = set(['start', 'end'])
 			direction_forward_support = defaultdict(int)
 			direction_reverse_support = defaultdict(int)
@@ -768,25 +768,25 @@ class GCF(Pan):
 					all_hgs.add(hg)
 					if j == 0:
 						hg_previ = "start"
-						hg_preceding_scores[hg][hg_previ] += 1
-						hg_following_scores[hg_previ][hg] += 1
-						hg_pair_scores[tuple([hg_previ, hg])] += 1
+						hg_preceding_scpus[hg][hg_previ] += 1
+						hg_following_scpus[hg_previ][hg] += 1
+						hg_pair_scpus[tuple([hg_previ, hg])] += 1
 					try:
 						hg_after = hgs[j+1]
 						# make sure you don't get lost with broken/fragmented genes in BGCs that might be
 						# in the process being lost.
 						if hg != hg_after:
-							hg_preceding_scores[hg_after][hg] += 1
-							hg_following_scores[hg][hg_after] += 1
-							hg_pair_scores[tuple([hg, hg_after])] += 1
+							hg_preceding_scpus[hg_after][hg] += 1
+							hg_following_scpus[hg][hg_after] += 1
+							hg_pair_scpus[tuple([hg, hg_after])] += 1
 					except:
 						hg_after = 'end'
-						hg_preceding_scores[hg_after][hg] += 1
-						hg_following_scores[hg][hg_after] += 1
-						hg_pair_scores[tuple([hg, hg_after])] += 1
+						hg_preceding_scpus[hg_after][hg] += 1
+						hg_following_scpus[hg][hg_after] += 1
+						hg_pair_scpus[tuple([hg, hg_after])] += 1
 
 			anchor_edge = None
-			for hps in sorted(hg_pair_scores.items(), key=itemgetter(1), reverse=True):
+			for hps in sorted(hg_pair_scpus.items(), key=itemgetter(1), reverse=True):
 				if hps[0][0] in self.protocluster_core_homologs or hps[0][1] in self.protocluster_core_homologs:
 					anchor_edge = hps[0]
 					break
@@ -804,7 +804,7 @@ class GCF(Pan):
 			left_expansion = [curr_hg]
 			while not curr_hg == 'start':
 				new_hg = None
-				for i, hg in enumerate(sorted(hg_preceding_scores[curr_hg].items(), key=itemgetter(1), reverse=True)):
+				for i, hg in enumerate(sorted(hg_preceding_scpus[curr_hg].items(), key=itemgetter(1), reverse=True)):
 					if not hg[0] in accounted_hgs:
 						new_hg = hg[0]
 						left_expansion = [new_hg] + left_expansion
@@ -821,7 +821,7 @@ class GCF(Pan):
 			right_expansion = [curr_hg]
 			while not curr_hg == 'end':
 				new_hg = None
-				for i, hg in enumerate(sorted(hg_following_scores[curr_hg].items(), key=itemgetter(1), reverse=True)):
+				for i, hg in enumerate(sorted(hg_following_scpus[curr_hg].items(), key=itemgetter(1), reverse=True)):
 					if not hg[0] in accounted_hgs:
 						new_hg = hg[0]
 						right_expansion.append(new_hg)
@@ -844,13 +844,13 @@ class GCF(Pan):
 					best_score = 0
 					relative_pos = None
 					neighboriest_hg = None
-					for phg in sorted(hg_preceding_scores[hg].items(), key=itemgetter(1), reverse=True):
+					for phg in sorted(hg_preceding_scpus[hg].items(), key=itemgetter(1), reverse=True):
 						if best_score < phg[1] and phg[0] in accounted_hgs:
 							best_score = phg[1]
 							relative_pos = 'after'
 							neighboriest_hg = phg[0]
 							break
-					for fhg in sorted(hg_following_scores[hg].items(), key=itemgetter(1), reverse=True):
+					for fhg in sorted(hg_following_scpus[hg].items(), key=itemgetter(1), reverse=True):
 						if best_score < fhg[1] and fhg[0] in accounted_hgs:
 							best_score = fhg[1]
 							relative_pos = 'before'
@@ -880,7 +880,7 @@ class GCF(Pan):
 				if not hg in set(['start', 'end']):
 					consensus_direction = '0'
 					if direction_forward_support[hg] >= direction_reverse_support[hg]: consensus_direction = '1'
-					self.hg_order_scores[hg] = [i, consensus_direction]
+					self.hg_order_scpus[hg] = [i, consensus_direction]
 					i+=1
 
 		except Exception as e:
@@ -889,12 +889,12 @@ class GCF(Pan):
 				self.logObject.error(traceback.format_exc())
 			raise RuntimeError(traceback.format_exc())
 
-	def runPopulationGeneticsAnalysis(self, outdir, cores=1, population=None, filter_outliers=False, population_analysis_on=False, gw_pairwise_similarities=None, use_translation=True, species_phylogeny=None, sample_size=1000):
+	def runPopulationGeneticsAnalysis(self, outdir, cpus=1, population=None, filter_outliers=False, population_analysis_on=False, gw_pairwise_similarities=None, use_translation=True, species_phylogeny=None, sample_size=1000):
 		"""
 		Wrapper function which serves to parallelize population genetics analysis.
 
 		:param outdir: The path to the workspace / output directory.
-		:param cores: The number of cores (will be used for parallelizing)
+		:param cpus: The number of cpus (will be used for parallelizing)
 		"""
 
 		popgen_dir = outdir + 'Codon_PopGen_Analyses'
@@ -956,11 +956,11 @@ class GCF(Pan):
 			if sample_population_local != None:
 				sample_population_local = dict(sample_population_local)
 			inputs.append([self.gcf_id, gcf_product_summary, hg, codon_alignment_fasta, popgen_dir, plots_dir, self.comp_gene_info,
-						   self.hg_genes, self.bgc_sample, self.hg_prop_multi_copy, dict(self.hg_order_scores),
+						   self.hg_genes, self.bgc_sample, self.hg_prop_multi_copy, dict(self.hg_order_scpus),
 						   gw_pairwise_similarities, use_translation, sample_population_local, population,
 						   species_phylogeny, sample_size, self.logObject])
 
-		p = multiprocessing.Pool(cores)
+		p = multiprocessing.Pool(cpus)
 		p.map(popgen_analysis_of_hg, inputs)
 
 		final_output_handle = open(final_output_file, 'a+')
@@ -998,7 +998,7 @@ class GCF(Pan):
 	def identifyGCFInstances(self, outdir, sample_prokka_data, orthofinder_matrix_file, min_size=5, min_core_size=3,
 							 gcf_to_gcf_transition_prob=0.9, background_to_background_transition_prob=0.9,
 							 syntenic_correlation_threshold=0.8, surround_gene_max=5, no_orthogroup_matrix=False,
-							 bgc_prediction_method='ANTISMASH', loose_flag=False, cores=1, block_size=3000):
+							 bgc_prediction_method='ANTISMASH', loose_flag=False, cpus=1, block_size=3000):
 		"""
 		Function to search for instances of GCF in sample using HMM based approach based on homolog groups as characters,
 		"part of GCF" and "not part of GCF" as states - all trained on initial BGCs constituting GCF as identified by
@@ -1007,7 +1007,7 @@ class GCF(Pan):
 		:param outdir: The path to the workspace / output directory.
 		:param sample_prokka_data: Dictionary with keys being sample identifiers and values being paths to genbank and
 									 proteome files from Prokka based annotation
-		:param cores: The number of cores (will be used for parallelizing)
+		:param cpus: The number of cpus (will be used for parallelizing)
 		"""
 
 		bgc_genbanks_dir = os.path.abspath(outdir + 'BGC_Genbanks') + '/'
@@ -1146,7 +1146,7 @@ class GCF(Pan):
 													dict(self.bgc_genes), dict(self.gene_to_hg), min_size, min_core_size,
 													surround_gene_max, syntenic_correlation_threshold, loose_flag])
 			with multiprocessing.Manager() as manager:
-				with manager.Pool(cores) as pool:
+				with manager.Pool(cpus) as pool:
 					pool.map(identify_gcf_instances, identify_gcf_segments_input)
 
 		os.system('find %s -type f -name "*.bgcs.txt" -exec cat {} + >> %s' % (bgc_info_dir, expanded_gcf_list_file))
@@ -1374,7 +1374,7 @@ class GCF(Pan):
 				self.logObject.error(traceback.format_exc())
 			raise RuntimeError(traceback.format_exc())
 
-	def runSNVMining(self, paired_end_sequencing_file, bowtie2_ref_fasta, codon_alignment_file, bowtie2_alignment_dir, results_dir, debug_mode=False, cores=1):
+	def runSNVMining(self, paired_end_sequencing_file, bowtie2_ref_fasta, codon_alignment_file, bowtie2_alignment_dir, results_dir, debug_mode=False, cpus=1):
 		"""
 		Wrapper function for mining for novel SNVs across genes of GCF.
 
@@ -1384,7 +1384,7 @@ class GCF(Pan):
 		:param bowtie2_alignment_dir: Path to directory where Bowtie2 alignments were written. This directory should
 										include BAM files ending in *.filtered.sorted.bam which are sorted and indexed.
 		:param results_dir: Path to directory where results of SNV mining will be written.
-		:param cores: The number of processes to be run in parallel.
+		:param cpus: The number of processes to be run in parallel.
 		"""
 
 		try:
@@ -1421,7 +1421,7 @@ class GCF(Pan):
 										 self.comp_gene_info, dict(gene_pos_to_msa_pos), dict(gene_pos_to_allele),
 										 dict(codon_alignment_lengths), debug_mode, self.logObject])
 
-			p = multiprocessing.Pool(cores)
+			p = multiprocessing.Pool(cpus)
 			p.map(snv_miner_single, process_args)
 			p.close()
 
@@ -1646,7 +1646,7 @@ class GCF(Pan):
 				self.logObject.error(traceback.format_exc())
 			raise RuntimeError(traceback.format_exc())
 
-	def phaseAndSummarize(self, paired_end_sequencing_file, codon_alignment_file, snv_mining_outdir, phased_alleles_outdir, outdir, hg_nonunique_positions, min_hetero_prop=0.05, min_allele_depth = 5, allow_phasing=True, metagenomic=True, cores=1):
+	def phaseAndSummarize(self, paired_end_sequencing_file, codon_alignment_file, snv_mining_outdir, phased_alleles_outdir, outdir, hg_nonunique_positions, min_hetero_prop=0.05, min_allele_depth = 5, allow_phasing=True, metagenomic=True, cpus=1):
 		try:
 			specific_homolog_groups = set([])
 			for hg in self.hg_differentiation_stats:
@@ -1735,7 +1735,7 @@ class GCF(Pan):
 											dict(self.hg_prop_multi_copy), set(self.protocluster_core_homologs),
 											rare_hgs_in_core_genomes, self.gcf_id, self.logObject])
 
-			p = multiprocessing.Pool(cores)
+			p = multiprocessing.Pool(cpus)
 			p.map(phase_and_id_snvs, parallel_inputs)
 			p.close()
 
@@ -2315,7 +2315,7 @@ def snv_miner_single(input_args):
 		topaligns_handle = pysam.AlignmentFile(topaligns_file, "wb", template=bam_handle)
 
 		for hg, hg_genes in bgc_hg_genes.items():
-			read_ascores_per_allele = defaultdict(list)
+			read_ascpus_per_allele = defaultdict(list)
 			hg_genes_covered = 0
 			gene_sequence = {}
 			total_reads = set([])
@@ -2375,14 +2375,14 @@ def snv_miner_single(input_args):
 						sum_indel_len = len(main_alignment_positions.intersection(indel_positions))
 						matching_percentage = float(len(matches))/float(len(main_alignment_positions))
 
-						read_ascores_per_allele[read_name].append([g, read_ascore, matching_percentage, len(main_alignment_positions), sum_indel_len, read_alignment])
+						read_ascpus_per_allele[read_name].append([g, read_ascore, matching_percentage, len(main_alignment_positions), sum_indel_len, read_alignment])
 
 			accounted_reads = set([])
 			hg_align_pos_alleles = defaultdict(lambda: defaultdict(set))
 			supported_snvs = defaultdict(lambda: defaultdict(set))
-			for read in read_ascores_per_allele:
+			for read in read_ascpus_per_allele:
 				top_score = -1000000
-				score_sorted_alignments = sorted(read_ascores_per_allele[read], key=itemgetter(1), reverse=True)
+				score_sorted_alignments = sorted(read_ascpus_per_allele[read], key=itemgetter(1), reverse=True)
 				for i, align in enumerate(score_sorted_alignments):
 					if i == 0: top_score = align[1]
 					if align[1] == top_score and ((align[2] >= 0.99 and align[3] >= 60) or (align[2] >= 0.95 and align[3] >= 100)) and align[4] <= 5:
@@ -2475,7 +2475,7 @@ def snv_miner_paired(input_args):
 		topaligns_handle = pysam.AlignmentFile(topaligns_file, "wb", template=bam_handle)
 
 		for hg, hg_genes in bgc_hg_genes.items():
-			read_ascores_per_allele = defaultdict(list)
+			read_ascpus_per_allele = defaultdict(list)
 			hg_genes_covered = 0
 			gene_sequence = {}
 			total_reads = set([])
@@ -2568,7 +2568,7 @@ def snv_miner_paired(input_args):
 							#if matching_percentage < 0.95: continue
 							#if read1_has_indel or read2_has_indel or matching_percentage < 0.95 or align_overlap_prop > 0.75: continue
 
-							read_ascores_per_allele[read_name].append(
+							read_ascpus_per_allele[read_name].append(
 								[g, combined_ascore, matching_percentage, # max([matching_percentage, matching_percentage_read1, matching_percentage_read2]) ,
 								 len(main_alignment_positions),
 								 (read1_has_indel or read2_has_indel),
@@ -2576,11 +2576,11 @@ def snv_miner_paired(input_args):
 								 [read1_alignment, read2_alignment]])
 							"""
 							if max([matching_percentage, matching_percentage_read1, matching_percentage_read2]) == matching_percentage:
-								read_ascores_per_allele[read_name].append([g, combined_ascore, matching_percentage, len(main_alignment_positions), (read1_has_indel or read2_has_indel), abs(matching_percentage_read1-matching_percentage_read2), [read1_alignment, read2_alignment]])
+								read_ascpus_per_allele[read_name].append([g, combined_ascore, matching_percentage, len(main_alignment_positions), (read1_has_indel or read2_has_indel), abs(matching_percentage_read1-matching_percentage_read2), [read1_alignment, read2_alignment]])
 							elif max([matching_percentage, matching_percentage_read1, matching_percentage_read2]) == matching_percentage_read1:
-								read_ascores_per_allele[read_name].append([g, combined_ascore, matching_percentage_read1, len(main_alignment_positions), (read1_has_indel or read2_has_indel), 0.0, [read1_alignment]])
+								read_ascpus_per_allele[read_name].append([g, combined_ascore, matching_percentage_read1, len(main_alignment_positions), (read1_has_indel or read2_has_indel), 0.0, [read1_alignment]])
 							elif max([matching_percentage, matching_percentage_read1, matching_percentage_read2]) == matching_percentage_read2:
-								read_ascores_per_allele[read_name].append([g, combined_ascore, matching_percentage_read2, len(main_alignment_positions), (read1_has_indel or read2_has_indel), 0.0, [read2_alignment]])
+								read_ascpus_per_allele[read_name].append([g, combined_ascore, matching_percentage_read2, len(main_alignment_positions), (read1_has_indel or read2_has_indel), 0.0, [read2_alignment]])
 							"""
 						elif read1_alignment or read2_alignment:
 							read_alignment = None
@@ -2614,14 +2614,14 @@ def snv_miner_paired(input_args):
 							# 0 added just to signify that it is a single mate contributing to the paired end combined ascore
 							combined_ascore = 0 + read_alignment.tags[0][1]
 
-							read_ascores_per_allele[read_name].append([g, combined_ascore, matching_percentage, len(main_alignment_positions), has_indel, 0.0, 0.0, [read_alignment]])
+							read_ascpus_per_allele[read_name].append([g, combined_ascore, matching_percentage, len(main_alignment_positions), has_indel, 0.0, 0.0, [read_alignment]])
 
 			accounted_reads = set([])
 			hg_align_pos_alleles = defaultdict(lambda: defaultdict(set))
 			supported_snvs = defaultdict(lambda: defaultdict(set))
-			for read in read_ascores_per_allele:
+			for read in read_ascpus_per_allele:
 				top_score = -1000000
-				score_sorted_alignments = sorted(read_ascores_per_allele[read], key=itemgetter(1), reverse=True)
+				score_sorted_alignments = sorted(read_ascpus_per_allele[read], key=itemgetter(1), reverse=True)
 				for i, align in enumerate(score_sorted_alignments):
 					if i == 0: top_score = align[1]
 					if align[1] == top_score and ((align[2] >= 0.99 and align[3] >= 100) or (align[2] >= 0.95 and align[3] >= 180)) and align[4] == False and align[5] < 0.02: # and align[6] < 0.25:
@@ -2688,7 +2688,7 @@ def popgen_analysis_of_hg(inputs):
 	:param inputs: list of inputs passed in by GCF.runPopulationGeneticsAnalysis().
 	"""
 
-	gcf_id, gcf_annot, hg, codon_alignment_fasta, popgen_dir, plots_dir, comp_gene_info, hg_genes, bgc_sample, hg_prop_multi_copy, hg_order_scores, gw_pairwise_similarities, comparem_used, sample_population, population, species_phylogeny, sample_size, logObject = inputs
+	gcf_id, gcf_annot, hg, codon_alignment_fasta, popgen_dir, plots_dir, comp_gene_info, hg_genes, bgc_sample, hg_prop_multi_copy, hg_order_scpus, gw_pairwise_similarities, comparem_used, sample_population, population, species_phylogeny, sample_size, logObject = inputs
 
 	domain_plot_file = plots_dir + hg + '_domain.txt'
 	position_plot_file = plots_dir + hg + '_position.txt'
@@ -3026,8 +3026,8 @@ def popgen_analysis_of_hg(inputs):
 		prop_majallele_nondominant = "NA"
 
 	hg_ord = 'NA'; hg_dir = 'NA'
-	if hg in hg_order_scores:
-		hg_ord, hg_dir = hg_order_scores[hg]
+	if hg in hg_order_scpus:
+		hg_ord, hg_dir = hg_order_scpus[hg]
 
 	hg_info = []
 	if population:
@@ -3176,7 +3176,7 @@ def create_codon_msas(inputs):
 	of codon alignments for each homolog group of interest in the GCF.
 	:param inputs: list of inputs passed in by GCF.constructCodonAlignments().
 	"""
-	hg, gene_sequences, nucl_seq_dir, prot_seq_dir, prot_alg_dir, codo_alg_dir, cores, use_magus, logObject = inputs
+	hg, gene_sequences, nucl_seq_dir, prot_seq_dir, prot_alg_dir, codo_alg_dir, cpus, use_magus, logObject = inputs
 
 	hg_nucl_fasta = nucl_seq_dir + '/' + hg + '.fna'
 	hg_prot_fasta = prot_seq_dir + '/' + hg + '.faa'
@@ -3193,11 +3193,11 @@ def create_codon_msas(inputs):
 	hg_nucl_handle.close()
 	hg_prot_handle.close()
 
-	mafft_cmd = ['mafft', '--thread', str(cores), '--maxiterate', '1000', '--localpair', hg_prot_fasta, '>', hg_prot_msa]
+	mafft_cmd = ['mafft', '--thread', str(cpus), '--maxiterate', '1000', '--localpair', hg_prot_fasta, '>', hg_prot_msa]
 	rm_cmd = None
 	if use_magus:
 		tmp_outdir = prot_alg_dir + 'tmp_' + hg + '/'
-		mafft_cmd = ['magus', '-d', tmp_outdir, '-i', hg_prot_fasta, '-o', hg_prot_msa, '-np', str(cores), '-r', '1']
+		mafft_cmd = ['magus', '-d', tmp_outdir, '-i', hg_prot_fasta, '-o', hg_prot_msa, '-np', str(cpus), '-r', '1']
 		rm_cmd = ['rm', '-r', tmp_outdir]
 	pal2nal_cmd = ['pal2nal.pl', hg_prot_msa, hg_nucl_fasta, '-output', 'fasta', '>', hg_codo_msa]
 

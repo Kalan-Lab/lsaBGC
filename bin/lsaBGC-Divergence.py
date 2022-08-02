@@ -65,7 +65,7 @@ def create_parser():
     parser.add_argument('-o', '--output_directory', help="Prefix for output files.", required=True)
     parser.add_argument('-k', '--sample_set', help="Sample set to keep in analysis. Should be file with one sample id per line.", required=False)
     parser.add_argument('-n', '--use_codon', help="Expected sample to sample similarities are reflective of DNA distances instead of protein distances (e.g. if FastANI or MASH were used in computeGenomeWideDistances.py).", required=False, default=False)
-    parser.add_argument('-c', '--cores', type=int, help="The number of cores to use.", required=False, default=1)
+    parser.add_argument('-c', '--cpus', type=int, help="The number of cpus to use.", required=False, default=1)
     args = parser.parse_args()
 
     return args
@@ -109,7 +109,7 @@ def lsaBGC_Divergence():
     use_codon_flag = myargs.use_codon
     sample_set_file = myargs.sample_set
     gcf_id = myargs.gcf_id
-    cores = myargs.cores
+    cpus = myargs.cpus
 
     """
     START WORKFLOW
@@ -123,12 +123,12 @@ def lsaBGC_Divergence():
     logObject.info("Saving parameters for future records.")
     parameters_file = outdir + 'Parameter_Inputs.txt'
     parameter_values = [gcf_listing_file, input_listing_file, codon_alignments_file, outdir,
-                        gcf_id, sample_set_file, expected_distances, use_codon_flag, cores]
+                        gcf_id, sample_set_file, expected_distances, use_codon_flag, cpus]
     parameter_names = ["GCF Listing File", "Input Listing File of Prokka Annotation Files for All Samples",
                        "File Listing the Location of Codon Alignments for Each Homolog Group",
                        "Output Directory", "GCF Identifier", "Retention Sample Set",
                        "File with Expected Amino Acid Differences Between Genomes/Samples", "Use Codon Distances",
-                       "Cores"]
+                       "cpus"]
     util.logParametersToFile(parameters_file, parameter_names, parameter_values)
     logObject.info("Done saving parameters!")
 
@@ -152,7 +152,7 @@ def lsaBGC_Divergence():
 
     # Step 2: Determine Sequence Similarity from Codon Alignments
     logObject.info("Determining similarities in BGC content and sequence space between pairs of samples.")
-    bgc_pairwise_similarities = util.determineBGCSequenceSimilarityFromCodonAlignments(codon_alignments_file, cores=cores, use_translation=(not use_codon_flag))
+    bgc_pairwise_similarities = util.determineBGCSequenceSimilarityFromCodonAlignments(codon_alignments_file, cpus=cpus, use_translation=(not use_codon_flag))
     logObject.info("Finished determining BGC specific similarity between pairs of samples.")
 
     # Step 3: Calculate and report Beta-RD statistic for all pairs of samples/isolates

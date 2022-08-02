@@ -81,7 +81,7 @@ def main():
             ref_gene_lens[rec.id] = len(str(rec.seq))
             ref_gene_seqs[rec.id] = str(rec.seq)
 
-    focal_read_alignment_scores = defaultdict(list)
+    focal_read_alignment_scpus = defaultdict(list)
     for f in os.listdir(focal_alignment_dir):
         if not f.endswith('_topaligns.sorted.bam'): continue
         sample = f.split('_topaligns.sorted.bam')[0]
@@ -108,13 +108,13 @@ def main():
                                 ref_seq = ref_gene_seqs[ref_gene][min_ref_pos-1:]
                             else:
                                 ref_seq = ref_gene_seqs[ref_gene][min_ref_pos-1:max_ref_pos]
-                    focal_read_alignment_scores[read_name].append([sample, read_ascore, on_reference_edge, ref_seq])
+                    focal_read_alignment_scpus[read_name].append([sample, read_ascore, on_reference_edge, ref_seq])
 
-    top_read_reflexive_alignment_scores = defaultdict(lambda: defaultdict(float))
-    for read in focal_read_alignment_scores:
-        for i, read_info in enumerate(sorted(focal_read_alignment_scores[read], key=itemgetter(1), reverse=True)):
+    top_read_reflexive_alignment_scpus = defaultdict(lambda: defaultdict(float))
+    for read in focal_read_alignment_scpus:
+        for i, read_info in enumerate(sorted(focal_read_alignment_scpus[read], key=itemgetter(1), reverse=True)):
             if i == 0:
-                top_read_reflexive_alignment_scores[read_info[0]][read] = [read_info[1], read_info[2], read_info[3]]
+                top_read_reflexive_alignment_scpus[read_info[0]][read] = [read_info[1], read_info[2], read_info[3]]
 
     reads_with_conflicting_support = defaultdict(set)
     if os.path.isfile(comparator_bam_listings_file):
@@ -131,12 +131,12 @@ def main():
                     for read_alignment in bam_file_handle.fetch():
                         read_name = read_alignment.query_name
                         read_ascore = float(read_alignment.tags[0][1])
-                        if sample in top_read_reflexive_alignment_scores.keys() and \
-                            read_name in top_read_reflexive_alignment_scores[sample] and \
-                            (read_ascore > top_read_reflexive_alignment_scores[sample][read_name][0] or
-                             (read_ascore == top_read_reflexive_alignment_scores[sample][read_name][0] and stringent)):
+                        if sample in top_read_reflexive_alignment_scpus.keys() and \
+                            read_name in top_read_reflexive_alignment_scpus[sample] and \
+                            (read_ascore > top_read_reflexive_alignment_scpus[sample][read_name][0] or
+                             (read_ascore == top_read_reflexive_alignment_scpus[sample][read_name][0] and stringent)):
 
-                            if top_read_reflexive_alignment_scores[sample][read_name][1]:
+                            if top_read_reflexive_alignment_scpus[sample][read_name][1]:
                                 ref_seq = ""
                                 for b in read_alignment.get_aligned_pairs(with_seq=True):
                                     if b[2]: ref_seq += b[2].upper()
@@ -147,7 +147,7 @@ def main():
                     for r in top_alignments:
                         for i, ta in enumerate(sorted(top_alignments[r], key=itemgetter(0), reverse=True)):
                             if i == 0:
-                                bgc_ref_seq = top_read_reflexive_alignment_scores[sample][r][2].upper()
+                                bgc_ref_seq = top_read_reflexive_alignment_scpus[sample][r][2].upper()
                                 bgc_ref_seq_rc = str(Seq(bgc_ref_seq).reverse_complement())
                                 if not (bgc_ref_seq in ta[1] or bgc_ref_seq_rc in ta[1]):
                                     reads_with_conflicting_support[sample].add(read_name)

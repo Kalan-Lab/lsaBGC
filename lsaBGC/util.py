@@ -74,7 +74,7 @@ def determineOutliersByGeneLength(gene_sequences, logObject):
 		filtered_gene_sequences = gene_sequences
 	return filtered_gene_sequences
 
-def determineNonUniqueRegionsAlongCodonAlignment(outdir, initial_sample_prokka_data, codon_alignments_file, cores=1, logObject=None):
+def determineNonUniqueRegionsAlongCodonAlignment(outdir, initial_sample_prokka_data, codon_alignments_file, cpus=1, logObject=None):
 	"""
 	Wrapper function to determine regions along
 	"""
@@ -141,7 +141,7 @@ def determineNonUniqueRegionsAlongCodonAlignment(outdir, initial_sample_prokka_d
 				logObject.error(traceback.format_exc())
 			raise RuntimeError('Had an issue running: %s' % ' '.join(makedb_cmd))
 
-		diamond_cmd = ['diamond', 'blastp', '--threads', str(cores), '--ultra-sensitive', '--db', all_gcf_proteins_fasta_db,
+		diamond_cmd = ['diamond', 'blastp', '--threads', str(cpus), '--ultra-sensitive', '--db', all_gcf_proteins_fasta_db,
 					   '--query', all_comp_gcf_proteins_fasta_file , '--outfmt', '6', '--out', diamond_outfmt6_result_file,
 					   '--max-target-seqs', '0']
 		if logObject:
@@ -272,7 +272,7 @@ def determineBGCSequenceSimilarity(input):
 	general_matching_percentage = float(match_pos) / float(tot_comp_pos)
 	comparisons_managed[comparison_id] = general_matching_percentage
 
-def determineBGCSequenceSimilarityFromCodonAlignments(codon_alignments_file, cores=1, use_translation=False):
+def determineBGCSequenceSimilarityFromCodonAlignments(codon_alignments_file, cpus=1, use_translation=False):
 	sample_hgs = defaultdict(set)
 	comparisons_managed = None
 	pair_seq_matching = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: 0.0)))
@@ -304,7 +304,7 @@ def determineBGCSequenceSimilarityFromCodonAlignments(codon_alignments_file, cor
 						if s1 == s2: continue
 						g2s = gene_sequences[g2]
 						multiprocess_inputs.append([hg, s1, g1s, s2, g2s, i, j, comparisons_managed])
-		with manager.Pool(cores) as pool:
+		with manager.Pool(cpus) as pool:
 			pool.map(determineBGCSequenceSimilarity, multiprocess_inputs)
 
 		for comp in comparisons_managed:
@@ -534,7 +534,7 @@ def getSpeciesRelationshipsFromPhylogeny(species_phylogeny, samples_in_gcf):
 				pass
 	return ([pairwise_distances, samples_in_phylogeny])
 
-def runBowtie2Alignments(bowtie2_reference, paired_end_sequencing_file, bowtie2_outdir, logObject, cores=1):
+def runBowtie2Alignments(bowtie2_reference, paired_end_sequencing_file, bowtie2_outdir, logObject, cpus=1):
 	"""
 	Wrapper function for running Bowtie2 alignments to reference database/index
 
@@ -543,14 +543,14 @@ def runBowtie2Alignments(bowtie2_reference, paired_end_sequencing_file, bowtie2_
 									   reads and (3) path to reverse reads
 	:param bowtie2_outdir: Path to directory where Bowtie2 results should be written
 	:param logObject: logging object for documentation
-	:param cores: number of cores (total) to use. If more than 4 cores provided, then parallel Bowtie2 jobs with 4 cores
+	:param cpus: number of cpus (total) to use. If more than 4 cpus provided, then parallel Bowtie2 jobs with 4 cpus
 				  each will be started.
 	"""
-	bowtie2_cores = cores
+	bowtie2_cpus = cpus
 	bowtie2_pool_size = 1
-	if cores >= 4:
-		bowtie2_cores = 4
-		bowtie2_pool_size = int(cores / 4)
+	if cpus >= 4:
+		bowtie2_cpus = 4
+		bowtie2_pool_size = int(cpus / 4)
 
 	try:
 		bowtie2_inputs = []
@@ -559,7 +559,7 @@ def runBowtie2Alignments(bowtie2_reference, paired_end_sequencing_file, bowtie2_
 				line = line.strip()
 				sample = line.split('\t')[0]
 				reads = line.split('\t')[1:]
-				bowtie2_inputs.append([sample, reads, bowtie2_reference, bowtie2_outdir, bowtie2_cores, logObject])
+				bowtie2_inputs.append([sample, reads, bowtie2_reference, bowtie2_outdir, bowtie2_cpus, logObject])
 		p = multiprocessing.Pool(bowtie2_pool_size)
 		p.map(bowtie2_alignment, bowtie2_inputs)
 		p.close()
@@ -573,7 +573,7 @@ def bowtie2_alignment(input_args):
 	Function to perform Bowtie2 alignment of paired-end reads to a database/reference and post-processing of alignment
 	file with samtools (e.g. convert to BAM format, sort BAM file, and index it).
 	"""
-	sample, reads, bowtie2_reference, bowtie2_outdir, bowtie2_cores, logObject = input_args
+	sample, reads, bowtie2_reference, bowtie2_outdir, bowtie2_cpus, logObject = input_args
 
 	sam_file = bowtie2_outdir + sample + '.sam'
 	bam_file = bowtie2_outdir + sample + '.bam'
@@ -582,10 +582,10 @@ def bowtie2_alignment(input_args):
 	#am_file_filtered_sorted = bowtie2_outdir + sample + '.filtered.sorted.bam'
 
 	bowtie2_cmd = ['bowtie2', '--very-sensitive-local', '--no-unal', '-a', '-x', bowtie2_reference, '-U',
-				   ','.join(reads), '-S', sam_file, '-p', str(bowtie2_cores)]
+				   ','.join(reads), '-S', sam_file, '-p', str(bowtie2_cpus)]
 
 	samtools_view_cmd = ['samtools', 'view', '-h', '-Sb', sam_file, '>', bam_file]
-	samtools_sort_cmd = ['samtools', 'sort', '-@', str(bowtie2_cores), bam_file, '-o', bam_file_sorted]
+	samtools_sort_cmd = ['samtools', 'sort', '-@', str(bowtie2_cpus), bam_file, '-o', bam_file_sorted]
 	samtools_index_cmd = ['samtools', 'index', bam_file_sorted]
 
 	try:
@@ -796,7 +796,7 @@ def chunks(lst, n):
 	for i in range(0, len(lst), n):
 		yield lst[i:i + n]
 
-def calculateMashPairwiseDifferences(fasta_listing_file, outdir, name, sketch_size, cores, logObject, prune_set=None):
+def calculateMashPairwiseDifferences(fasta_listing_file, outdir, name, sketch_size, cpus, logObject, prune_set=None):
 	"""
 	Calculate MASH pairwise distances (estimated ANI) between FASTA files.
 
@@ -804,7 +804,7 @@ def calculateMashPairwiseDifferences(fasta_listing_file, outdir, name, sketch_si
 	:param outdir: The output directory where to write results
 	:param name: Name of analysis scope
 	:param sketch_size: Sketch size (a parameter of MASH)
-	:param cores: Number of cores/threads to use
+	:param cpus: Number of cpus/threads to use
 	:param logObject: The logging object.
 	"""
 	mash_db = outdir + name
@@ -829,7 +829,7 @@ def calculateMashPairwiseDifferences(fasta_listing_file, outdir, name, sketch_si
 	mash_input_handle.close()
 
 	# create mash database (using mash sketch)
-	mash_sketch_cmd = ['mash', 'sketch', '-p', str(cores), '-s', str(sketch_size), '-o', mash_db, '-l', mash_input_file]
+	mash_sketch_cmd = ['mash', 'sketch', '-p', str(cpus), '-s', str(sketch_size), '-o', mash_db, '-l', mash_input_file]
 	logObject.info('Running mash sketch with the following command: %s' % ' '.join(mash_sketch_cmd))
 	try:
 		subprocess.call(' '.join(mash_sketch_cmd), shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
@@ -849,7 +849,7 @@ def calculateMashPairwiseDifferences(fasta_listing_file, outdir, name, sketch_si
 		raise RuntimeError(error_message)
 
 	# run mash distance estimation
-	mash_dist_cmd = ['mash', 'dist', '-s', str(sketch_size), '-p', str(cores), mash_db, mash_db, '>',
+	mash_dist_cmd = ['mash', 'dist', '-s', str(sketch_size), '-p', str(cpus), mash_db, mash_db, '>',
 					 outdir + name + '.out']
 	logObject.info('Running mash dist with the following command: %s' % ' '.join(mash_dist_cmd))
 	try:
@@ -878,14 +878,14 @@ def calculateMashPairwiseDifferences(fasta_listing_file, outdir, name, sketch_si
 		raise RuntimeError(error_message)
 	return pairwise_similarities
 
-def runFastANI(fasta_listing_file, outdir, fastani_output_file, cores, logObject, prune_set=None):
+def runFastANI(fasta_listing_file, outdir, fastani_output_file, cpus, logObject, prune_set=None):
 	"""
 	Calculate ANI estimate between pairs of samples using FastANI.
 
 	:param fasta_listing_file: A tab-delimited listing file with two columns: (1) sample name (2) path to FASTA file
 	:param outdir: The output directory where to write results
 	:param fastani_output_file: Output file name
-	:param cores: Number of cores/threads to use
+	:param cpus: Number of cpus/threads to use
 	:param logObject: The logging object.
 	"""
 	fastas = []
@@ -909,7 +909,7 @@ def runFastANI(fasta_listing_file, outdir, fastani_output_file, cores, logObject
 	fastani_input_handle.close()
 
 	if not os.path.isfile(fastani_output_file):
-		fastani_cmd = ['fastANI', '-t', str(cores), '--ql', fastani_input_file, '--rl', fastani_input_file, '-o', fastani_output_file]
+		fastani_cmd = ['fastANI', '-t', str(cpus), '--ql', fastani_input_file, '--rl', fastani_input_file, '-o', fastani_output_file]
 		logObject.info('Running fastANI  with the following command: %s' % ' '.join(fastani_cmd))
 		try:
 			subprocess.call(' '.join(fastani_cmd), shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
@@ -948,13 +948,13 @@ def runFastANI(fasta_listing_file, outdir, fastani_output_file, cores, logObject
 		raise RuntimeError(error_message)
 	return [pairwise_similarities, pairwise_comparisons]
 
-def runCompareM(fasta_listing_file, comparem_results_dir, cores, logObject, prune_set=None):
+def runCompareM(fasta_listing_file, comparem_results_dir, cpus, logObject, prune_set=None):
 	"""
 	Calculate AAI estimate between pairs of samples using CompareM.
 
 	:param fasta_listing_file: A tab-delimited listing file with two columns: (1) sample name (2) path to FASTA file
 	:param comparem_results_dir: The output directory where to write results
-	:param cores: Number of cores/threads to use
+	:param cpus: Number of cpus/threads to use
 	:param logObject: The logging object.
 	"""
 	fastas = []
@@ -982,7 +982,7 @@ def runCompareM(fasta_listing_file, comparem_results_dir, cores, logObject, prun
 
 	comparem_result_file = comparem_results_dir + 'aai/aai_summary.tsv'
 	if not os.path.isfile(comparem_result_file):
-		comparem_cmd = ['comparem', 'aai_wf', '--tmp_dir', tmp_dir, '--cpus', str(cores), comparem_input_file,
+		comparem_cmd = ['comparem', 'aai_wf', '--tmp_dir', tmp_dir, '--cpus', str(cpus), comparem_input_file,
 						comparem_results_dir]
 		logObject.info('Running CompareM  with the following command: %s' % ' '.join(comparem_cmd))
 		try:
@@ -1094,7 +1094,7 @@ def multiProcess(input):
 		sys.stderr.write(traceback.format_exc())
 
 
-def processGenomes(sample_genomes, prodigal_outdir, prodigal_proteomes, prodigal_genbanks, logObject, cores=1, locus_tag_length=3, avoid_locus_tags=set([])):
+def processGenomes(sample_genomes, prodigal_outdir, prodigal_proteomes, prodigal_genbanks, logObject, cpus=1, locus_tag_length=3, avoid_locus_tags=set([])):
 	"""
 	Void function to run Prodigal based gene-calling and annotations.
 
@@ -1104,7 +1104,7 @@ def processGenomes(sample_genomes, prodigal_outdir, prodigal_proteomes, prodigal
 	:param prodigal_genbanks: full path to directory where Prokka generated Genbank (featuring predicted CDS) files will be moved after prodigal has run.
 	:param taxa: name of the taxonomic clade of interest.
 	:param logObject: python logging object handler.
-	:param cores: number of cores to use in multiprocessing Prokka cmds.
+	:param cpus: number of cpus to use in multiprocessing Prokka cmds.
 	:param locus_tag_length: length of locus tags to generate using unique character combinations.
 
 	Note length of locus tag must be 3 beause this is substituting for base lsaBGC analysis!!
@@ -1122,7 +1122,7 @@ def processGenomes(sample_genomes, prodigal_outdir, prodigal_proteomes, prodigal
 							'-l', sample_locus_tag, '-o', prodigal_outdir]
 			prodigal_cmds.append(prodigal_cmd + [logObject])
 
-		p = multiprocessing.Pool(cores)
+		p = multiprocessing.Pool(cpus)
 		p.map(multiProcess, prodigal_cmds)
 		p.close()
 
@@ -1184,7 +1184,7 @@ def parseSampleGenomes(genome_listing_file, logObject):
 
 
 def processGenomesAsGenbanks(sample_genomes, proteomes_directory, genbanks_directory, gene_name_mapping_outdir,
-							 logObject, cores=1, locus_tag_length=3, avoid_locus_tags=set([])):
+							 logObject, cpus=1, locus_tag_length=3, avoid_locus_tags=set([])):
 	"""
 	Extracts CDS/proteins from existing Genbank files and recreates
 	"""
@@ -1220,7 +1220,7 @@ def processGenomesAsGenbanks(sample_genomes, proteomes_directory, genbanks_direc
 						   gene_name_mapping_outdir]
 			process_cmds.append(process_cmd + [logObject])
 
-		p = multiprocessing.Pool(cores)
+		p = multiprocessing.Pool(cpus)
 		p.map(multiProcess, process_cmds)
 		p.close()
 
@@ -1272,10 +1272,84 @@ def splitDeepBGCGenbank(bgc_genbank_listing_file, deepbgc_split_directory, outdi
 			logObject.error("Problem with parsing DeepBGC Genbanks to split.")
 			logObject.error(traceback.format_exc())
 			raise RuntimeError(traceback.format_exc())
-
 	return updated_bgc_genbank_listing_file
 
-def processBGCGenbanks(bgc_listing_file, bgc_prediction_software, sample_genomes, antismash_bgcs_directory, proteomes_directory, logObject):
+def findBGCInFullGenbank(inputs):
+	try:
+		bgc_gbk, full_gbk, outf = inputs
+
+		bgc_seq = None
+		with open(bgc_gbk) as obgf:
+			for rec in SeqIO.parse(obgf, 'genbank'):
+				bgc_seq = str(rec.seq.upper())
+
+		scaff_id, scaff_start = [None] * 2
+		off = None
+		if full_gbk.endswith('.gz'):
+			off = gzip.open(full_gbk, 'rt')
+		else:
+			off = open(full_gbk)
+		outf_handle = open(outf, 'w')
+		for rec in SeqIO.parse(off, 'genbank'):
+			if bgc_seq in str(rec.seq).upper():
+				scaff_id = rec.id
+				scaff_start = str(rec.seq).find(bgc_seq)
+				outf_handle.write(scaff_id + '\t' + str(scaff_start) + '\n')
+		outf_handle.close()
+		if off:
+			off.close()
+	except Exception as e:
+		raise RuntimeError(traceback.format_exc())
+def mapBGCtoGenomeBySequence(bgc_genbank_listing_file, sample_genomes, outdir, logObject, cpus=1):
+	bgc_mappings = {}
+	locate_bgc_directory = outdir + 'Map_BGC_to_Full_Genbanks/'
+	bgcs_without_mappings_handle = open(outdir + 'BGCs_Unable_to_be_Mapped_to_Genome.txt', 'w')
+	bgcs_with_multiple_mappings_handle = open(outdir + 'BGCs_with_Perfect_Mapping_to_Genome.txt', 'w')
+	setupReadyDirectory([locate_bgc_directory])
+	try:
+		outf_to_info = {}
+		find_inputs = []
+		with open(bgc_genbank_listing_file) as obglf:
+			for line in obglf:
+				line = line.strip()
+				sample, bgc_gbk = line.split('\t')
+				full_gbk = sample_genomes[sample]
+				outf = locate_bgc_directory + bgc_gbk.split('/')[-1] + '.txt'
+				outf_to_info[outf] = [bgc_gbk, sample]
+				find_inputs.append([bgc_gbk, full_gbk, outf])
+
+		p = multiprocessing.Pool(cpus)
+		p.map(findBGCInFullGenbank, find_inputs)
+		p.close()
+
+		loc_tuples = set([])
+		for f in os.listdir(locate_bgc_directory):
+			outf = locate_bgc_directory + f
+			bgc_gbk, sample = outf_to_info[outf]
+			count = 0
+			with open(outf) as of:
+				for i, line in enumerate(of):
+					scaff, start = line.strip().split('\t')
+					loc_tuple = tuple([sample, scaff, start])
+					count += 1
+					if loc_tuple in loc_tuples: continue
+					bgc_mappings[bgc_gbk] = [scaff, int(start)]
+					loc_tuples.add(loc_tuple)
+			if count == 0:
+				logObject.warning('Dropping BGC %s for sample %s because the BGC sequence did not match any scaffold directly which should not be the case!' % (bgc_gbk, sample))
+				bgcs_without_mappings_handle.write(sample + '\t' + bgc_gbk + '\n')
+			elif count > 1:
+				bgcs_with_multiple_mappings_handle.write(sample + '\t' + bgc_gbk + '\t' + str(count) + '\t' + str(bgc_mappings[bgc_gbk]) + '\n')
+
+	except Exception as e:
+		logObject.error("Issues with parsing out protein sequences from BGC Genbanks.")
+		logObject.error(traceback.format_exc())
+		raise RuntimeError(traceback.format_exc())
+	bgcs_with_multiple_mappings_handle.close()
+	bgcs_without_mappings_handle.close()
+	return bgc_mappings
+
+def processBGCGenbanks(bgc_listing_file, bgc_mappings, bgc_prediction_software, sample_genomes, antismash_bgcs_directory, proteomes_directory, logObject):
 	"""
 	Creates local versions of BGC prediction Genbanks where proteins have locus tags updated.
 	"""
@@ -1313,23 +1387,7 @@ def processBGCGenbanks(bgc_listing_file, bgc_prediction_software, sample_genomes
 				bgc_to_sample[cp_bgc_genbank] = sample
 				cp_bgc_genbank_handle = open(cp_bgc_genbank, 'w')
 
-				bgc_seq = None
-				with open(og_bgc_genbank) as obgf:
-					for rec in SeqIO.parse(obgf, 'genbank'):
-						bgc_seq = str(rec.seq.upper())
-
-				scaff_id, scaff_start = [None]*2
-				off = None
-				if sample_genomes[sample].endswith('.gz'):
-					off = gzip.open(sample_genomes[sample], 'rt')
-				else:
-					off = open(sample_genomes[sample])
-				for rec in SeqIO.parse(off, 'genbank'):
-					if bgc_seq in str(rec.seq).upper():
-						scaff_id = rec.id
-						scaff_start = str(rec.seq).find(bgc_seq)
-				if off:
-					off.close()
+				scaff_id, scaff_start = bgc_mappings[og_bgc_genbank]
 				with open(og_bgc_genbank) as obgf:
 					for rec in SeqIO.parse(obgf, 'genbank'):
 						rec.name = scaff_id
@@ -1442,7 +1500,7 @@ def extractProteinsFromBGCs(sample_bgcs, bgc_prot_directory, logObject):
 	return sample_bgc_prots
 
 def performKOFamAndPGAPAnnotation(sample_bgc_proteins, bgc_prot_directory, annot_directory, kofam_hmm_file, pgap_hmm_file,
-								  kofam_pro_list, pgap_inf_list, logObject, cores=1):
+								  kofam_pro_list, pgap_inf_list, logObject, cpus=1):
 	sample_protein_annotations = defaultdict(lambda: defaultdict(lambda: "hypothetical protein"))
 	try:
 		ko_score_cutoffs = {}
@@ -1485,7 +1543,7 @@ def performKOFamAndPGAPAnnotation(sample_bgc_proteins, bgc_prot_directory, annot
 			hmmsearch_cmds.append(hmmsearch_ko_cmd)
 			hmmsearch_cmds.append(hmmsearch_pgap_cmd)
 
-		p = multiprocessing.Pool(math.floor(cores/2))
+		p = multiprocessing.Pool(math.floor(cpus/2))
 		p.map(multiProcess, hmmsearch_cmds)
 		p.close()
 
@@ -1548,10 +1606,10 @@ def performKOFamAndPGAPAnnotation(sample_bgc_proteins, bgc_prot_directory, annot
 	return dict(sample_protein_annotations)
 
 
-def runOrthoFinder2(bgc_prot_directory, orthofinder_outdir, logObject, cores=1):
+def runOrthoFinder2(bgc_prot_directory, orthofinder_outdir, logObject, cpus=1):
 		result_file = orthofinder_outdir + 'Orthogroups_BGC_Comprehensive.tsv'
 		try:
-			orthofinder_cmd = ['orthofinder', '-f', bgc_prot_directory, '-t', str(cores), '-og']
+			orthofinder_cmd = ['orthofinder', '-f', bgc_prot_directory, '-t', str(cpus), '-og']
 			logObject.info('Running the following command: %s' % ' '.join(orthofinder_cmd))
 			subprocess.call(' '.join(orthofinder_cmd), shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
 							executable='/bin/bash')
@@ -1576,7 +1634,7 @@ def runOrthoFinder2(bgc_prot_directory, orthofinder_outdir, logObject, cores=1):
 			raise RuntimeError(traceback.format_exc())
 		return result_file
 
-def determineParalogyThresholds(orthofinder_bgc_matrix_file, bgc_prot_directory, blast_directory, logObject, cores=1):
+def determineParalogyThresholds(orthofinder_bgc_matrix_file, bgc_prot_directory, blast_directory, logObject, cpus=1):
 
 	paralogy_thresholds = defaultdict(lambda: [90.0, 90.0]) # item 1 : percent identiy threshold; item 2 : query coverage threshold
 	samp_hg_lts = defaultdict(lambda: defaultdict(set))
@@ -1640,11 +1698,11 @@ def determineParalogyThresholds(orthofinder_bgc_matrix_file, bgc_prot_directory,
 			diamond_db_cmds.append(diamond_makedb_cmd)
 			diamond_bp_cmds.append(diamond_blastp_cmd)
 
-		p = multiprocessing.Pool(cores)
+		p = multiprocessing.Pool(cpus)
 		p.map(multiProcess, diamond_db_cmds)
 		p.close()
 
-		p = multiprocessing.Pool(cores)
+		p = multiprocessing.Pool(cpus)
 		p.map(multiProcess, diamond_bp_cmds)
 		p.close()
 
@@ -1859,7 +1917,7 @@ def incorporateBGCProteinsIntoProteomesAndGenbanks(sample_bgc_proteins, sample_g
 
 def identifyParalogsAndCreateResultFiles(samp_hg_lts, lt_to_hg, sample_bgc_proteins, paralogy_thresholds, protein_annotations,
 							  bgc_prot_directory, blast_directory, proteomes_directory, sample_genomes, final_proteomes_directory,
-							  final_genbanks_directory, sample_listing_file, bgc_listing_file, orthofinder_matrix_file, logObject, cores=1):
+							  final_genbanks_directory, sample_listing_file, bgc_listing_file, orthofinder_matrix_file, logObject, cpus=1):
 
 
 	sample_listing_handle = open(sample_listing_file, 'w')
@@ -1885,11 +1943,11 @@ def identifyParalogsAndCreateResultFiles(samp_hg_lts, lt_to_hg, sample_bgc_prote
 			diamond_db_cmds.append(diamond_makedb_cmd)
 			diamond_bp_cmds.append(diamond_blastp_cmd)
 
-		p = multiprocessing.Pool(cores)
+		p = multiprocessing.Pool(cpus)
 		p.map(multiProcess, diamond_db_cmds)
 		p.close()
 
-		p = multiprocessing.Pool(cores)
+		p = multiprocessing.Pool(cpus)
 		p.map(multiProcess, diamond_bp_cmds)
 		p.close()
 
