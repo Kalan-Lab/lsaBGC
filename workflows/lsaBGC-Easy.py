@@ -62,23 +62,26 @@ def create_parser():
 	* Check out the considerations wiki page: https://github.com/Kalan-Lab/lsaBGC/wiki/00.-Background-&-Considerations  	
 	*******************************************************************************************************************
 	DESCRIPTION:	
-	Downloads genomes for a taxa from NCBI using ncbi-genome-download, performs BGC predictions using GECCO 
-	(very-light weight dependency, see tutorial on Wiki on how to use antiSMASH or DeepBGC instead), and 
-	then runs the full lsaBGC suite to generate a "quick" (not guaranteed, depends on the number of cpus you have) and 
-	"easy" (I think its pretty easy - but obviously there are considerations here and evolutionary statistics will need 
-	to be interpreted with caution depending on the population structure of the dataset!). Automatic dereplication
-	is attempted at 0.999 amino acid identity along single-copy core genes used for phylogeny construction by GToTree.
-	
-	GECCO will then be run on these genomes and the BGCs predicted within these genomes will be grouped together using 
-	lsaBGC-Cluster.py into GCFs. GCFs will be searched in additional genomes (not one of the 30 reps) using 
-	lsaBGC-AutoExpansion.py. Instead of GECCO you could specify antiSMASH or DeepBGC, however this won't be automatic 
-	because they are not part of the lsaBGC conda environment. You will need to run the command task file produced by 
-	lsaBGC-Easy.py separately and then once they have finished restart lsaBGC-Easy.py with the same command. It should 
-	pick up the new results and the completed steps and continue onward. Besides DeepBGC, GECCO and antiSMASH predictions 
-	will be attempted to be filtered to retain only complete BGC instances in primary genomes to improve clustering 
-	quality at the expense of sensitivity. For better clustering of fragmented BGCs we recommend using lsaBGC programs 
-	independently and incorporating BiG-SCAPE clustering - which has a local synteny similarity measure. 
+	GenBank assembly accessions are gathered from a listing from the most recent GTDB release R207. This is to ensure 
+	genomes meet some standard and are of reasonable quality (i.e. fairly complete and not contaminated) and to assure 
+	proper taxonomic assignment. Genomes are then downloaded for the gathered accessions using from the NCBI GenBank 
+	database using ncbi-genome-download. Then, GToTree is used to create a species tree from a set of single-copy-genes 
+	(SCGs). The protein alignment of SCGs is also used to perform dereplication of the genome set to speed performance 
+	and more appropriately estimate evolutionary stats downstream.
 
+	Next, GECCO (by default; but also can use antiSMASH or DeepBGC) is run or commands printed for each of the 
+	dereplicated set of genomes. GECCO is the default because it is light-weight and part of the lsaBGC conda 
+	environment. To use antiSMASH or DeepBGC instead, lsaBGC-Easy.py will print out a task file with antiSMASH/DeepBGC 
+	commands which can be run iteratively or in parallel by the user using a separate conda environment for either tool. 
+	Then the user would simply rerun the same lsaBGC-Easy.py command as before to pick up where the workflow left off. 
+	Checkpointing for certain files/directories throughout the workflow should make it easy to restart if the program 
+	aborts at any stage.
+
+	After BGC predictions have been achieved, BiG-SCAPE or lsaBGC-Cluster.py can be used to cluster BGCs into GCFs and 
+	lsaBGC-Ready.py is used to generate the inputs needed for lsaBGC-AutoExpansion.py or lsaBGC-AutoAnalyze.py. 
+	lsaBGC-AutoExpansion.py is run by default to search for missing pieces/instances of GCFs due to assembly 
+	fragmentation.
+	
 	Currently only works for bacteria, but lsaBGC can handle fungi now - just not lsaBGC-Easy ... yet
 	*******************************************************************************************************************
 	OVERVIEW OF STEPS TAKEN:	
@@ -582,7 +585,6 @@ def checkLsaBGCInputsExist(annotation_listing_file, gcf_listing_dir, orthogroups
 		assert(os.path.isdir(gcf_listing_dir))
 	except:
 		raise RuntimeError("Issues validating the presence of a directory with GCF listings!")
-
 
 if __name__ == '__main__':
     lsaBGC_Easy()

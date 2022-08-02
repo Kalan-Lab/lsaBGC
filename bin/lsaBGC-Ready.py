@@ -106,7 +106,7 @@ def create_parser():
     parser.add_argument('-b', '--bigscape_results', help='Path to BiG-SCAPE results directory of antiSMASH/DeepBGC/GECCO results predicted in primary\ngenomes.Please make sure the sample names match what is provided for "--genome_listings".', required=False,
                         default=None)
     parser.add_argument('-o', '--output_directory', help='Parent output/workspace directory.', required=True)
-    parser.add_argument('-m', '--orthofinder_mode', help='Method for running OrthoFinder2. (Options: Genome_Wide, BGC_Only). Default is BGC_Only.', required=False, default='BGC_Only')
+    parser.add_argument('-m', '--orthofinder_mode', help='Method for running OrthoFinder2. (Options: Genome_Wide, BGC_Only). Default is Genome_Wide.', required=False, default='Genome_Wide')
     parser.add_argument('-a', '--annotate', action='store_true',
                         help='Perform annotation of BGC proteins using KOfam and PGAP (including TIGR) HMM profiles.', required=False, default=False)
     parser.add_argument('-t', '--run_gtotree', action='store_true', help='Whether to create phylogeny and expected sample-vs-sample\ndivergence for downstream analyses using GToTree.', required=False, default=False)
