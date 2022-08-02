@@ -1383,6 +1383,7 @@ def processBGCGenbanks(bgc_listing_file, bgc_mappings, bgc_prediction_software, 
 					os.system('mkdir %s' % cp_bgc_sample_dir)
 
 				cp_bgc_genbank = cp_bgc_sample_dir + og_bgc_genbank.split('/')[-1]
+				if not og_bgc_genbank in bgc_mappings: continue
 				sample_bgcs[sample].add(cp_bgc_genbank)
 				bgc_to_sample[cp_bgc_genbank] = sample
 				cp_bgc_genbank_handle = open(cp_bgc_genbank, 'w')
