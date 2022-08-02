@@ -352,7 +352,7 @@ def lsaBGC_Easy():
 			cluster_sample_n50 = []
 			for s in sc:
 				cluster_sample_n50.append([s, n50])
-			for i, s in enumerate(sorted(cluster_sample_n50, key=itemgetter(1), reverse=True)):
+			for i, s in enumerate(sorted(cluster_sample_n50, key=itemgetter(1, 0), reverse=True)):
 				if i == 0:
 					samples_to_keep_handle.write(s[0] + '\n')
 				elif skip_dereplication_flag:
