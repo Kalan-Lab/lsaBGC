@@ -70,6 +70,12 @@ Optional, but recommended, command to download KOfams + PGAP HMMs for annotation
 setup_annotation_dbs.py
 ```
 
+If clustering of BGCs into GCFs using BiG-SCAPE is preferred to lsaBGC-Cluster.py, setup BiG-SCAPE using the following:
+
+```
+setup_bigscape.py
+```
+
 Additional, information pertaining to installation can be found at: [Installation Guide](https://github.com/Kalan-Lab/lsaBGC/wiki/01.-Installation)
 
 A small test case is provided here and can be run after installation by simply issuing (takes around ~6 minutes using 4 cpus/threads):
@@ -77,12 +83,6 @@ A small test case is provided here and can be run after installation by simply i
 ```
 # Warning: uses 4 cpus/threads! 
 bash run_tests.sh
-```
-
-If clustering of BGCs into GCFs using BiG-SCAPE is preferred to lsaBGC-Cluster.py, setup BiG-SCAPE using the following:
-
-```
-setup_bigscape.py
 ```
 
 Additionally, we suggest checking out additional [test cases](https://github.com/Kalan-Lab/lsaBGC_Ckefir_Testing_Cases) to demonstrate usage of individual programs along with expected outputs from commands. We also have a [quick start + walk-through tutorial Wiki page](https://github.com/Kalan-Lab/lsaBGC/wiki/03.-Quick-Start-&-In-Depth-Tutorial:-Exploring-BGCs-in-Cutibacterium) to showcase the use of the suite and relations between core programs.
