@@ -32,7 +32,7 @@ if (track_file != "None" ){
   gg_tr <- gg_tr %<+% track.data + geom_tippoint(aes(color=as.factor(population)), show.legend=F, size=3)
 }
 
-gg_hm <- ggplot(heatmap.data, aes(x = reorder(Homolog_Group, Homolog_Group_Order), y = label, fill=log(Difference_to_Consensus_Sequence+1e-5,10))) +
+gg_hm <- ggplot(heatmap.data, aes(x = as.numeric(Homolog_Group_Order), y = label, fill=log(Difference_to_Consensus_Sequence+1e-5,10))) +
   geom_tile() + scale_fill_gradient(low = "darkblue", high = "white", na.value="grey") + theme_minimal() +
   facet_grid(. ~ GCF_Order, scales = "free_x", space='free') +
   theme(text = element_text(size=20), axis.title.x=element_blank(), axis.text.x=element_blank(),
