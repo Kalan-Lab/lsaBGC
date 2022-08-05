@@ -9,6 +9,7 @@
 ![](https://github.com/Kalan-Lab/lsaBGC/blob/main/docs/images/lsaBGC1.1_Simplified.png)
 
 ## Major Updates 
+* Aug 04, 2022 - Added some minor code to allow running `lsaBGC-Easy.py` with only an "Additional_Genomes" directory. Command would look something like: `lsaBGC-Easy.py -n "None" -g Genomes_Directory/ -o Results/`
 * Aug 01, 2022 - Polished `lsaBGC-Easy.py` and created more streamlined version: see details on its [Wiki page](https://github.com/Kalan-Lab/lsaBGC/wiki/14.-lsaBGC-Easy-Tutorial:-Combining-lsaBGC-with-ncbi-genome-download).
 * Jul 28, 2022 - Introduced `lsaBGC-Easy.py` which simplifies usage of the suite. The general suite (besides `lsaBGC-DiscoVary.py`) can also now handle fungal genomes if BGCs are predicted using antiSMASH, but investigating fungal genomes is not currently an option in `lsaBGC-Easy.py`. Additional user interface upgrades + dependencies introduced, as such please reconfigure the conda environment and reinstall if you tried lsaBGC previously! Long-overdue but have a notice on citing the many dependencies now in the main folder of the repo titled: `CITATION_NOTICE`. 
 * Jul 12, 2022 - Huge thanks to Martin Larralde for recommendation and advice on how to update GECCO processing to better identify "protocore"-esque genes in BGCs! Also, have now added a simplified sub-section down below with [notes on the PopGene report table](#notes-on-the-popgene-table-report).
