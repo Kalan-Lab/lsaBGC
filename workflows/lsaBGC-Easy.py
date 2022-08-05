@@ -60,6 +60,8 @@ def create_parser():
 	*******************************************************************************************************************
 	CONSIDERATIONS:	
 	* Check out the considerations wiki page: https://github.com/Kalan-Lab/lsaBGC/wiki/00.-Background-&-Considerations  	
+	* If interested in running just a directory of genomes (you don't want to downoad genomes from Genbank for some taxa)
+	  then you can just set the required -n argument to "None".
 	*******************************************************************************************************************
 	DESCRIPTION:	
 	GenBank assembly accessions are gathered from a listing from the most recent GTDB release R207. This is to ensure 
@@ -198,16 +200,29 @@ def lsaBGC_Easy():
 					if ls[2] == taxa_name:
 						genbank_accession_listing_handle.write(ls[0] + '\n')
 		genbank_accession_listing_handle.close()
-
+	
+	ogalf = open(genbank_accession_listing_file)
+	accession_count = len(ogalf.readlines())
+	ogalf.close()
+	
+	if (accession_count >= 2000 or accession_count < 10) and (not ignore_limits_flag):
+		logObject.error("Currently not recommended to use lsaBGC-Easy for taxa with > 2000 genomes or < 10 genomes. In the future this will likely be updated to be a warning, but would rather not risk harming your server!")
+		raise RuntimeError("Currently not recommended to use lsaBGC-Easy for taxa with > 2000 genomes or < 10 genomes. In the future this will likely be updated to be a warning, but would rather not risk harming your computer/server!")
+		
 	genome_listing_file = outdir + 'NCBI_Genomes_from_Genbank_for_Taxa.txt'
 	if not os.path.isfile(genome_listing_file):
-		ngd_dry_cmd = ['ncbi-genome-download', '--dry-run', '--section', 'genbank', '-A', genbank_accession_listing_file,
-					   'bacteria', '>', genome_listing_file]
-		runCmdViaSubprocess(ngd_dry_cmd, logObject, check_files=[genome_listing_file])
-
+		if accession_count != 0:
+			ngd_dry_cmd = ['ncbi-genome-download', '--dry-run', '--section', 'genbank', '-A', genbank_accession_listing_file,
+						   'bacteria', '>', genome_listing_file]
+			runCmdViaSubprocess(ngd_dry_cmd, logObject, check_files=[genome_listing_file])
+		else:
+			of = open(genome_listing_file, 'w')
+			of.close()
+			
 	oglf = open(genome_listing_file)
 	genome_count = len(oglf.readlines())
 	oglf.close()
+	
 	if (genome_count >= 2000 or genome_count < 10) and (not ignore_limits_flag):
 		logObject.error("Currently not recommended to use lsaBGC-Easy for taxa with > 2000 genomes or < 10 genomes. In the future this will likely be updated to be a warning, but would rather not risk harming your server!")
 		raise RuntimeError("Currently not recommended to use lsaBGC-Easy for taxa with > 2000 genomes or < 10 genomes. In the future this will likely be updated to be a warning, but would rather not risk harming your computer/server!")
