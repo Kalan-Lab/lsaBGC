@@ -244,7 +244,18 @@ def lsaBGC_Easy():
 		if user_genomes_directory:
 			list_all_user_genomes_cmd = ['listAllGenomesInDirectory.py', '-i', user_genomes_directory, '>>', all_genomes_listing_file]
 			runCmdViaSubprocess(list_all_user_genomes_cmd, logObject)
-
+	
+	if not os.path.isfile(all_genomes_listing_file):
+		logObject.error('No genomes downloaded / provided. Exiting as more genomes are needed.')  
+		sys.exit(1)
+	else:
+		oaglf = open(all_genomes_listing_file)
+		genome_included_count = len(oaglf.readlines())
+		oaglf.close()
+		if genome_included_count <= 2:
+			logObject.error('Fewer than 3 genomes downloaded / provided. Exiting as more genomes are needed.')  
+			sys.exit(1)
+	
 	prodigal_results_directory = outdir + 'Prodigal_and_Processing_Results/'
 	all_proteomes_listing_file = outdir + 'All_Proteomes_Listing.txt'
 	if not os.path.isfile(all_proteomes_listing_file):
@@ -279,16 +290,11 @@ def lsaBGC_Easy():
 		all_genome_listings_gbk[sample] = prodigal_results_directory + f
 
 	all_genome_listings_fna = {}
-	genome_included_count = 0
 	with open(all_genomes_listing_file) as oglf:
 		for line in oglf:
 			line = line.strip()
 			sample, fna_path = line.split('\t')
 			all_genome_listings_fna[sample] = fna_path
-			genome_included_count += 1
-	
-	if genome_included_count <= 2:
-		logObject.error('Fewer than 3 genomes downloaded / being-used. Exiting as more genomes are needed.')  
 	
 	# Step 3: Construct GToTree phylogeny - dereplication + grouping - creating listing
 	gtotree_outdir = outdir + 'GToTree_output/'
