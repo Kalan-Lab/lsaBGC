@@ -2619,12 +2619,12 @@ def loadCustomPopGeneTableInPandaDataFrame(input_file):
 	import pandas as pd
 	panda_df = None
 	try:
-		ignore_data_cats = {'hg_median_copy_count', 'num_of_hg_instances', 'proportion_of_total_populations_with_hg',
-							'proportion_variable_sites', 'proportion_nondominant_major_allele', 'median_dn_ds',
-							'mad_dn_ds', 'all_domains', 'most_significant_Fisher_exact_pvalues_presence_absence',
-							'median_Tajimas_D_per_population', 'mad_Tajimas_D_per_population',
-							'most_negative_population_Tajimas_D', 'most_positive_population_Tajimas_D',
-							'population_entropy', 'median_fst_like_estimate'}
+		ignore_data_cats = {'hg_median_copy_count', 'proportion_of_total_populations_with_hg',
+				    'proportion_variable_sites', 'proportion_nondominant_major_allele', 'median_dn_ds',
+				    'mad_dn_ds', 'all_domains', 'most_significant_Fisher_exact_pvalues_presence_absence',
+				    'median_Tajimas_D_per_population', 'mad_Tajimas_D_per_population',
+				    'most_negative_population_Tajimas_D', 'most_positive_population_Tajimas_D',
+				    'population_entropy', 'median_fst_like_estimate'}
 		data = []
 		with open(input_file) as oif:
 			for line in oif:
