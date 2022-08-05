@@ -233,12 +233,13 @@ def lsaBGC_Easy():
 	all_genomes_listing_file = outdir + 'All_Genomes_Listing.txt'
 	uncompress_dir = outdir + 'Uncompressed_Genomes/'
 	if not os.path.isfile(all_genomes_listing_file):
-		ngd_real_cmd = ['ncbi-genome-download', '--formats', 'fasta', '--retries', '2', '--section',
-						'genbank', '-A', genbank_accession_listing_file, 'bacteria', '-o', outdir]
-		runCmdViaSubprocess(ngd_real_cmd, logObject, check_directories=[genomes_directory])
-		list_all_genomes_cmd = ['listAllGenomesInDirectory.py', '-i', genomes_directory, '-u', uncompress_dir, '-z',
+		if genome_count != 0:
+			ngd_real_cmd = ['ncbi-genome-download', '--formats', 'fasta', '--retries', '2', '--section',
+					'genbank', '-A', genbank_accession_listing_file, 'bacteria', '-o', outdir]
+			runCmdViaSubprocess(ngd_real_cmd, logObject, check_directories=[genomes_directory])
+			list_all_genomes_cmd = ['listAllGenomesInDirectory.py', '-i', genomes_directory, '-u', uncompress_dir, '-z',
 								'-d', genome_listing_file, '>', all_genomes_listing_file]
-		runCmdViaSubprocess(list_all_genomes_cmd, logObject, check_files=[all_genomes_listing_file])
+			runCmdViaSubprocess(list_all_genomes_cmd, logObject, check_files=[all_genomes_listing_file])
 
 		if user_genomes_directory:
 			list_all_user_genomes_cmd = ['listAllGenomesInDirectory.py', '-i', user_genomes_directory, '>>', all_genomes_listing_file]
