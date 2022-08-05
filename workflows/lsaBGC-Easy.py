@@ -60,6 +60,8 @@ def create_parser():
 	*******************************************************************************************************************
 	CONSIDERATIONS:	
 	* Check out the considerations wiki page: https://github.com/Kalan-Lab/lsaBGC/wiki/00.-Background-&-Considerations  	
+	* If interested in running just a directory of genomes (you don't want to downoad genomes from Genbank for some taxa)
+	  then you can just set the required -n argument to "None".
 	*******************************************************************************************************************
 	DESCRIPTION:	
 	GenBank assembly accessions are gathered from a listing from the most recent GTDB release R207. This is to ensure 
@@ -125,7 +127,7 @@ def create_parser():
 	parser.add_argument('-c', '--cpus', type=int, help="Total number of cpus/threads. Note, this is the total number of\nthreads to use. BGC prediction commands (via GECCO, antiSMASH, and DeepBGC) will\neach be set to use 4 cpus by default.", required=False, default=4)
 	parser.add_argument('-dt', '--dereplicate_threshold', type=float, help="Amino acid similarity threshold of SCGs for considering\ntwo genomes as redundant.", default=0.999, required=False)
 	parser.add_argument('-pt', '--population_threshold', type=float, help="Amino acid similarity threshold of SCGs for considering\ntwo genomes as belonging to the same population.", default=0.99, required=False)
-	parser.add_argument('-x', '--ignore_limits', action='store_true', help="Ignore limitations on number of genomes allowed.\nE.g. allow for analyses of taxa with more than 2000 genomes available and more than 150 genomes\nafter dereplication. Not recommend, be cautious!!! Also note,\nyou can always delete \"Dereplicated_Set_of_Genomes.txt\" in the results directory and redo\ndereplication with different threshold.")
+	parser.add_argument('-x', '--ignore_limits', action='store_true', help="Ignore limitations on number of genomes allowed.\nE.g. allow for analyses of taxa with more than 2000 genomes available and more than 100 genomes\nafter dereplication. Not recommend, be cautious!!! Also note,\nyou can always delete \"Dereplicated_Set_of_Genomes.txt\" in the results directory and redo\ndereplication with different threshold.")
 	args = parser.parse_args()
 	return args
 
@@ -198,16 +200,29 @@ def lsaBGC_Easy():
 					if ls[2] == taxa_name:
 						genbank_accession_listing_handle.write(ls[0] + '\n')
 		genbank_accession_listing_handle.close()
-
+	
+	ogalf = open(genbank_accession_listing_file)
+	accession_count = len(ogalf.readlines())
+	ogalf.close()
+	
+	if (accession_count >= 2000 or accession_count < 10) and (not ignore_limits_flag):
+		logObject.error("Currently not recommended to use lsaBGC-Easy for taxa with > 2000 genomes or < 10 genomes. In the future this will likely be updated to be a warning, but would rather not risk harming your server!")
+		raise RuntimeError("Currently not recommended to use lsaBGC-Easy for taxa with > 2000 genomes or < 10 genomes. In the future this will likely be updated to be a warning, but would rather not risk harming your computer/server!")
+		
 	genome_listing_file = outdir + 'NCBI_Genomes_from_Genbank_for_Taxa.txt'
 	if not os.path.isfile(genome_listing_file):
-		ngd_dry_cmd = ['ncbi-genome-download', '--dry-run', '--section', 'genbank', '-A', genbank_accession_listing_file,
-					   'bacteria', '>', genome_listing_file]
-		runCmdViaSubprocess(ngd_dry_cmd, logObject, check_files=[genome_listing_file])
-
+		if accession_count != 0:
+			ngd_dry_cmd = ['ncbi-genome-download', '--dry-run', '--section', 'genbank', '-A', genbank_accession_listing_file,
+						   'bacteria', '>', genome_listing_file]
+			runCmdViaSubprocess(ngd_dry_cmd, logObject, check_files=[genome_listing_file])
+		else:
+			of = open(genome_listing_file, 'w')
+			of.close()
+			
 	oglf = open(genome_listing_file)
 	genome_count = len(oglf.readlines())
 	oglf.close()
+	
 	if (genome_count >= 2000 or genome_count < 10) and (not ignore_limits_flag):
 		logObject.error("Currently not recommended to use lsaBGC-Easy for taxa with > 2000 genomes or < 10 genomes. In the future this will likely be updated to be a warning, but would rather not risk harming your server!")
 		raise RuntimeError("Currently not recommended to use lsaBGC-Easy for taxa with > 2000 genomes or < 10 genomes. In the future this will likely be updated to be a warning, but would rather not risk harming your computer/server!")
@@ -218,17 +233,29 @@ def lsaBGC_Easy():
 	all_genomes_listing_file = outdir + 'All_Genomes_Listing.txt'
 	uncompress_dir = outdir + 'Uncompressed_Genomes/'
 	if not os.path.isfile(all_genomes_listing_file):
-		ngd_real_cmd = ['ncbi-genome-download', '--formats', 'fasta', '--retries', '2', '--section',
-						'genbank', '-A', genbank_accession_listing_file, 'bacteria', '-o', outdir]
-		runCmdViaSubprocess(ngd_real_cmd, logObject, check_directories=[genomes_directory])
-		list_all_genomes_cmd = ['listAllGenomesInDirectory.py', '-i', genomes_directory, '-u', uncompress_dir, '-z',
+		if genome_count != 0:
+			ngd_real_cmd = ['ncbi-genome-download', '--formats', 'fasta', '--retries', '2', '--section',
+					'genbank', '-A', genbank_accession_listing_file, 'bacteria', '-o', outdir]
+			runCmdViaSubprocess(ngd_real_cmd, logObject, check_directories=[genomes_directory])
+			list_all_genomes_cmd = ['listAllGenomesInDirectory.py', '-i', genomes_directory, '-u', uncompress_dir, '-z',
 								'-d', genome_listing_file, '>', all_genomes_listing_file]
-		runCmdViaSubprocess(list_all_genomes_cmd, logObject, check_files=[all_genomes_listing_file])
+			runCmdViaSubprocess(list_all_genomes_cmd, logObject, check_files=[all_genomes_listing_file])
 
 		if user_genomes_directory:
 			list_all_user_genomes_cmd = ['listAllGenomesInDirectory.py', '-i', user_genomes_directory, '>>', all_genomes_listing_file]
 			runCmdViaSubprocess(list_all_user_genomes_cmd, logObject)
-
+	
+	if not os.path.isfile(all_genomes_listing_file):
+		logObject.error('No genomes downloaded / provided. Exiting as more genomes are needed.')  
+		sys.exit(1)
+	else:
+		oaglf = open(all_genomes_listing_file)
+		genome_included_count = len(oaglf.readlines())
+		oaglf.close()
+		if genome_included_count <= 2:
+			logObject.error('Fewer than 3 genomes downloaded / provided. Exiting as more genomes are needed.')  
+			sys.exit(1)
+	
 	prodigal_results_directory = outdir + 'Prodigal_and_Processing_Results/'
 	all_proteomes_listing_file = outdir + 'All_Proteomes_Listing.txt'
 	if not os.path.isfile(all_proteomes_listing_file):
@@ -268,7 +295,7 @@ def lsaBGC_Easy():
 			line = line.strip()
 			sample, fna_path = line.split('\t')
 			all_genome_listings_fna[sample] = fna_path
-
+	
 	# Step 3: Construct GToTree phylogeny - dereplication + grouping - creating listing
 	gtotree_outdir = outdir + 'GToTree_output/'
 	species_tree_file = gtotree_outdir + 'GToTree_output.tre'
@@ -352,7 +379,7 @@ def lsaBGC_Easy():
 			cluster_sample_n50 = []
 			for s in sc:
 				cluster_sample_n50.append([s, n50])
-			for i, s in enumerate(sorted(cluster_sample_n50, key=itemgetter(1), reverse=True)):
+			for i, s in enumerate(sorted(cluster_sample_n50, key=itemgetter(1, 0), reverse=True)):
 				if i == 0:
 					samples_to_keep_handle.write(s[0] + '\n')
 				elif skip_dereplication_flag:

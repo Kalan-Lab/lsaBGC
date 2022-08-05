@@ -1304,7 +1304,7 @@ def mapBGCtoGenomeBySequence(bgc_genbank_listing_file, sample_genomes, outdir, l
 	bgc_mappings = {}
 	locate_bgc_directory = outdir + 'Map_BGC_to_Full_Genbanks/'
 	bgcs_without_mappings_handle = open(outdir + 'BGCs_Unable_to_be_Mapped_to_Genome.txt', 'w')
-	bgcs_with_multiple_mappings_handle = open(outdir + 'BGCs_with_Perfect_Mapping_to_Genome.txt', 'w')
+	bgcs_with_multiple_mappings_handle = open(outdir + 'BGCs_with_Multiple_Perfect_Mappings_to_Genome.txt', 'w')
 	setupReadyDirectory([locate_bgc_directory])
 	try:
 		outf_to_info = {}
@@ -1383,6 +1383,7 @@ def processBGCGenbanks(bgc_listing_file, bgc_mappings, bgc_prediction_software, 
 					os.system('mkdir %s' % cp_bgc_sample_dir)
 
 				cp_bgc_genbank = cp_bgc_sample_dir + og_bgc_genbank.split('/')[-1]
+				if not og_bgc_genbank in bgc_mappings: continue
 				sample_bgcs[sample].add(cp_bgc_genbank)
 				bgc_to_sample[cp_bgc_genbank] = sample
 				cp_bgc_genbank_handle = open(cp_bgc_genbank, 'w')
@@ -2618,12 +2619,12 @@ def loadCustomPopGeneTableInPandaDataFrame(input_file):
 	import pandas as pd
 	panda_df = None
 	try:
-		ignore_data_cats = {'hg_median_copy_count', 'num_of_hg_instances', 'proportion_of_total_populations_with_hg',
-							'proportion_variable_sites', 'proportion_nondominant_major_allele', 'median_dn_ds',
-							'mad_dn_ds', 'all_domains', 'most_significant_Fisher_exact_pvalues_presence_absence',
-							'median_Tajimas_D_per_population', 'mad_Tajimas_D_per_population',
-							'most_negative_population_Tajimas_D', 'most_positive_population_Tajimas_D',
-							'population_entropy', 'median_fst_like_estimate'}
+		ignore_data_cats = {'hg_median_copy_count', 'proportion_of_total_populations_with_hg',
+				    'proportion_variable_sites', 'proportion_nondominant_major_allele', 'median_dn_ds',
+				    'mad_dn_ds', 'all_domains', 'most_significant_Fisher_exact_pvalues_presence_absence',
+				    'median_Tajimas_D_per_population', 'mad_Tajimas_D_per_population',
+				    'most_negative_population_Tajimas_D', 'most_positive_population_Tajimas_D',
+				    'population_entropy', 'median_fst_like_estimate'}
 		data = []
 		with open(input_file) as oif:
 			for line in oif:
