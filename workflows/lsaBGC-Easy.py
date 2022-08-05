@@ -279,12 +279,17 @@ def lsaBGC_Easy():
 		all_genome_listings_gbk[sample] = prodigal_results_directory + f
 
 	all_genome_listings_fna = {}
+	genome_included_count = 0
 	with open(all_genomes_listing_file) as oglf:
 		for line in oglf:
 			line = line.strip()
 			sample, fna_path = line.split('\t')
 			all_genome_listings_fna[sample] = fna_path
-
+			genome_included_count += 1
+	
+	if genome_included_count <= 2:
+		logObject.error('Fewer than 3 genomes downloaded / being-used. Exiting as more genomes are needed.')  
+	
 	# Step 3: Construct GToTree phylogeny - dereplication + grouping - creating listing
 	gtotree_outdir = outdir + 'GToTree_output/'
 	species_tree_file = gtotree_outdir + 'GToTree_output.tre'
