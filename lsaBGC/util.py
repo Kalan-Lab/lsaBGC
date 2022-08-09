@@ -216,14 +216,16 @@ def determineSeqSimProteinAlignment(protein_alignment_file, use_only_core=True):
 						tot_comp_pos += 1
 						if g1a == g2a:
 							match_pos += 1
-			general_matching_percentage = float(match_pos)/float(tot_comp_pos)
+			general_matching_percentage = 0.0
+			if tot_comp_pos > 0:
+				general_matching_percentage = float(match_pos)/float(tot_comp_pos)
 			if pair_seq_matching[s1][s2] < general_matching_percentage and pair_seq_matching[s2][s1] < general_matching_percentage:
 				pair_seq_matching[s1][s2] = general_matching_percentage
 				pair_seq_matching[s2][s1] = general_matching_percentage
 
 	return pair_seq_matching
 
-def determineSeqSimCodonAlignment(codon_alignment_file, use_translation=False):
+def determineSeqSimCodonAlignment(codon_alignment_file, use_translation=False, use_only_core=True):
 	gene_sequences = {}
 	with open(codon_alignment_file) as ocaf:
 		for i, rec in enumerate(SeqIO.parse(ocaf, 'fasta')):
@@ -246,10 +248,14 @@ def determineSeqSimCodonAlignment(codon_alignment_file, use_translation=False):
 			for pos, g1a in enumerate(g1s):
 				g2a = g2s[pos]
 				if g1a != '-' or g2a != '-':
-					tot_comp_pos += 1
-					if g1a == g2a:
-						match_pos += 1
-			general_matching_percentage = float(match_pos)/float(tot_comp_pos)
+					if not use_only_core or (use_only_core and g1a != '-' and g2a != '-'):
+						tot_comp_pos += 1
+						if g1a == g2a:
+							match_pos += 1
+
+			general_matching_percentage = 0.0
+			if tot_comp_pos > 0:
+				general_matching_percentage = float(match_pos)/float(tot_comp_pos)
 			if pair_seq_matching[s1][s2] < general_matching_percentage and pair_seq_matching[s2][s1] < general_matching_percentage:
 				pair_seq_matching[s1][s2] = general_matching_percentage
 				pair_seq_matching[s2][s1] = general_matching_percentage
@@ -257,7 +263,7 @@ def determineSeqSimCodonAlignment(codon_alignment_file, use_translation=False):
 	return pair_seq_matching
 
 def determineBGCSequenceSimilarity(input):
-	hg, s1, g1s, s2, g2s, i, j, comparisons_managed = input
+	hg, s1, g1s, s2, g2s, i, j, use_only_core, comparisons_managed = input
 
 	comparison_id = '_|_'.join([hg, s1, s2, str(i), str(j)])
 
@@ -266,13 +272,16 @@ def determineBGCSequenceSimilarity(input):
 	for pos, g1a in enumerate(g1s):
 		g2a = g2s[pos]
 		if g1a != '-' or g2a != '-':
-			tot_comp_pos += 1
-			if g1a == g2a:
-				match_pos += 1
-	general_matching_percentage = float(match_pos) / float(tot_comp_pos)
+			if not use_only_core or (use_only_core and g1a != '-' and g2a != '-'):
+				tot_comp_pos += 1
+				if g1a == g2a:
+					match_pos += 1
+	general_matching_percentage = 0.0
+	if tot_comp_pos > 0:
+		general_matching_percentage = float(match_pos) / float(tot_comp_pos)
 	comparisons_managed[comparison_id] = general_matching_percentage
 
-def determineBGCSequenceSimilarityFromCodonAlignments(codon_alignments_file, cpus=1, use_translation=False):
+def determineBGCSequenceSimilarityFromCodonAlignments(codon_alignments_file, cpus=1, use_translation=False, use_only_core=True):
 	sample_hgs = defaultdict(set)
 	comparisons_managed = None
 	pair_seq_matching = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: 0.0)))
@@ -303,7 +312,7 @@ def determineBGCSequenceSimilarityFromCodonAlignments(codon_alignments_file, cpu
 						s2 = g2.split('|')[0]
 						if s1 == s2: continue
 						g2s = gene_sequences[g2]
-						multiprocess_inputs.append([hg, s1, g1s, s2, g2s, i, j, comparisons_managed])
+						multiprocess_inputs.append([hg, s1, g1s, s2, g2s, i, j, use_only_core, comparisons_managed])
 		with manager.Pool(cpus) as pool:
 			pool.map(determineBGCSequenceSimilarity, multiprocess_inputs)
 
@@ -1061,7 +1070,6 @@ def parseOrthoFinderMatrix(orthofinder_matrix_file, relevant_gene_lts, all_prima
 				hg_median_gene_counts[hg] = statistics.median(gene_counts)
 
 	return ([gene_to_hg, hg_genes, hg_median_gene_counts, hg_multicopy_proportion])
-
 
 def run_cmd(cmd, logObject, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL):
 	"""

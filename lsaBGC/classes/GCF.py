@@ -920,10 +920,11 @@ class GCF(Pan):
 
 		final_output_handle = open(final_output_file, 'w')
 		header = ['gcf_id', 'gcf_annotation', 'homolog_group', 'annotation', 'hg_order_index', 'hg_consensus_direction',
-				  'hg_median_copy_count', 'median_gene_length', 'is_core_to_bgc', 'num_of_hg_instances',
-				  'samples_with_hg', 'proportion_of_samples_with_hg', 'ambiguous_sites_proporition', 'Tajimas_D',
-				  'proportion_variable_sites', 'proportion_nondominant_major_allele', 'median_beta_rd', 'median_dn_ds',
-				  'mad_dn_ds', 'all_domains']
+				  'hg_proportion_multi-copy_genome-wide', 'single-copy_in_GCF_context', 'median_gene_length', 'is_core_to_bgc',
+				  'num_of_hg_instances', 'samples_with_hg', 'proportion_of_samples_with_hg',
+				  'ambiguous_sites_proporition', 'Tajimas_D', 'proportion_variable_sites',
+				  'proportion_nondominant_major_allele', 'median_beta_rd', 'max_beta_rd', 'median_dn_ds', 'mad_dn_ds',
+				  'all_domains']
 		if population:
 			header = ['population'] + header
 		elif population_analysis_on:
@@ -2714,7 +2715,6 @@ def popgen_analysis_of_hg(inputs):
 		for rec in SeqIO.parse(ocaf, 'fasta'):
 			sample_id, gene_id = rec.id.split('|')
 			if sample_population != None and population != None and population != sample_population[sample_id]: continue
-			sample_leaf_names[sample_id].append(rec.id)
 			if len(gene_id.split('_')[0]) == 3:
 				if comp_gene_info[gene_id]['core_overlap']:
 					core_counts['core'] += 1
@@ -2723,7 +2723,11 @@ def popgen_analysis_of_hg(inputs):
 			updated_codon_alignment_handle.write('>' + rec.description + '\n' + str(rec.seq) + '\n')
 			products.add(comp_gene_info[gene_id]['product'])
 			real_pos = 1
-			seqs.append(list(str(rec.seq).upper().replace('N', '-')))
+			seq = str(rec.seq).upper().replace('N', '-')
+			#seqlen = len(seq)
+			#gapless_seqlen = len(b for b in seqlen if b != '-')
+			sample_leaf_names[sample_id].append(rec.id)
+			seqs.append(list(seq))
 			codons = [str(rec.seq)[i:i + 3] for i in range(0, len(str(rec.seq)), 3)]
 			num_codons = len(codons)
 			bgc_codons[rec.id] = codons
@@ -2740,6 +2744,11 @@ def popgen_analysis_of_hg(inputs):
 
 	if len(seqs) == 0: return
 
+	single_copy_in_gcf = True
+	for sample in sample_leaf_names:
+		if len(sample_leaf_names[sample]) > 1:
+			single_copy_in_gcf = False
+
 	median_beta_rd = "NA"
 	if comparem_used != None:
 		if gw_pairwise_similarities:
@@ -2755,8 +2764,10 @@ def popgen_analysis_of_hg(inputs):
 							beta_rd = hg_seq_sim / float(gw_seq_sim)
 							beta_rd_stats.append(beta_rd)
 			median_beta_rd = "NA"
+			max_beta_rd = "NA"
 			if len(beta_rd_stats) >= 1:
 				median_beta_rd = round(statistics.median(beta_rd_stats), 2)
+				max_beta_rd = round(max(beta_rd_stats), 2)
 
 	is_core = False
 	if (sum(core_counts.values()) > 0.0):
@@ -2770,7 +2781,7 @@ def popgen_analysis_of_hg(inputs):
 	nondominant_sites  =  set([])
 	position_plot_handle.write('\t'.join(['pos', 'num_seqs', 'num_alleles', 'num_gaps', 'maj_allele_freq']) + '\n')
 
-	# TODO: consider additional filtering using phykit (instead of just filteirng performed in lsaBGC of msas)
+	# TODO: consider out-souring filtering to use phykit
 	sample_differences_to_consensus = defaultdict(lambda: defaultdict(int))
 	ambiguous_sites = 0
 	nonambiguous_sites = 0
@@ -3032,9 +3043,10 @@ def popgen_analysis_of_hg(inputs):
 	hg_info = []
 	if population:
 		hg_info = [population]
-	hg_info += [gcf_id, gcf_annot, hg, '; '.join(products), hg_ord, hg_dir, hg_prop_multi_copy[hg],
+	hg_info += [gcf_id, gcf_annot, hg, '; '.join(products), hg_ord, hg_dir, hg_prop_multi_copy[hg], single_copy_in_gcf,
 				median_gene_length, is_core, len(seqs), len(samples), round(prop_samples_with_hg,2),
-				round(ambiguous_prop,2), tajimas_d, prop_conserved, prop_majallele_nondominant, median_beta_rd, median_dnds, mad_dnds]
+				round(ambiguous_prop,2), tajimas_d, prop_conserved, prop_majallele_nondominant, median_beta_rd,
+				max_beta_rd, median_dnds, mad_dnds]
 
 	hg_consim_handle = open(popgen_dir + hg + '_sim_to_consensus.txt', 'w')
 	for s in sample_differences_to_consensus:

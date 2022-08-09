@@ -24,20 +24,23 @@ for (gcf in unique_gcfs) {
   conser.data.gcf <- conser.data[conser.data$GCF == gcf, ]
 
   print(gcf)
-  g1 <- ggplot(tajimd.data.gcf, aes(xmin=start, xmax = end, y = GCF, forward = con_dir)) +
+  g1 <- ggplot(tajimd.data.gcf, aes(xmin=start, xmax = end, y = GCF, forward = con_dir, label=Single_Copy_in_GCF)) +
     geom_gene_arrow(aes(linetype=core, fill=Tajimas_D, alpha=proportion)) + theme_classic() +
     scale_fill_gradient(low='#e84a5d', high='#3763ad', na.value='grey50', guide='colourbar', aesthetics='fill') +
-    ggtitle("Tajima's D") + theme(legend.position="bottom")
+    ggtitle("Tajima's D (\"//\" = NOT single-copy in GCF context)") + geom_gene_label(align='centre', min.size=5) +
+    theme(legend.position="bottom")
 
-  g2 <- ggplot(betard.data.gcf, aes(xmin=start, xmax = end, y = GCF, forward = con_dir)) +
+  g2 <- ggplot(betard.data.gcf, aes(xmin=start, xmax = end, y = GCF, forward = con_dir, label=Single_Copy_in_GCF)) +
     geom_gene_arrow(aes(linetype=core, fill=Beta_RD, alpha=proportion)) + theme_classic() +
     scale_fill_gradient(low='#e84a5d', high='#3763ad', na.value='grey50', guide='colourbar', aesthetics='fill') +
-    ggtitle("Beta-RD") + theme(legend.position="bottom")
+    ggtitle("Beta-RD (\"//\" = NOT single-copy in GCF context)") + geom_gene_label(align='centre', min.size=5) +
+    theme(legend.position="bottom")
 
-  g3 <- ggplot(propmc.data.gcf, aes(xmin=start, xmax = end, y = GCF, forward = con_dir)) +
+  g3 <- ggplot(propmc.data.gcf, aes(xmin=start, xmax = end, y = GCF, forward = con_dir, label=Single_Copy_in_GCF)) +
     geom_gene_arrow(aes(linetype=core, fill=Prop_Multi_Copy, alpha=proportion)) + theme_classic() +
     scale_fill_gradient(low='#e84a5d', high='#3763ad', na.value='grey50', guide='colourbar', aesthetics='fill') +
-    ggtitle("Proportion of Samples with HG in Multi-Copy Across Genome") + theme(legend.position="bottom")
+    ggtitle("Proportion of Samples with HG in Multi-Copy Across Genome (\"//\" = NOT single-copy in GCF context)") +
+    geom_gene_label(align='centre', min.size=5) + theme(legend.position="bottom")
 
   g4 <- ggplot(conser.data.gcf, aes(x=reorder(HG, order), y=count, fill=population, color=core)) + theme_classic() +
     scale_color_manual(values=c('#FFFFFF', '#000000')) + geom_bar(stat='identity')+ scale_fill_brewer(palette='Set3') +

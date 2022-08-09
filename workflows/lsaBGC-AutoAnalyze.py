@@ -407,10 +407,10 @@ def lsaBGC_AutoAnalyze():
 	combined_orthoresults_unrefined_handle = open(consolidated_popgene_report_file, 'w')
 	combined_divergence_results_handle = open(combined_divergence_results_file, 'w')
 
-	combined_tajimd_plot_input_handle.write('\t'.join(['GCF', 'HG', 'start', 'end', 'con_dir', 'proportion', 'core', 'Tajimas_D']) + '\n')
-	combined_betard_plot_input_handle.write('\t'.join(['GCF', 'HG', 'start', 'end', 'con_dir', 'proportion', 'core', 'Beta_RD']) + '\n')
+	combined_tajimd_plot_input_handle.write('\t'.join(['GCF', 'HG', 'start', 'end', 'con_dir', 'proportion', 'core', 'Tajimas_D', 'Single_Copy_in_GCF']) + '\n')
+	combined_betard_plot_input_handle.write('\t'.join(['GCF', 'HG', 'start', 'end', 'con_dir', 'proportion', 'core', 'Beta_RD', 'Single_Copy_in_GCF']) + '\n')
 	combined_conser_plot_input_handle.write('\t'.join(['GCF', 'HG', 'order', 'core', 'population', 'count']) + '\n')
-	combined_pmcopy_plot_input_handle.write('\t'.join(['GCF', 'HG', 'start', 'end', 'con_dir', 'proportion', 'core', 'Prop_Multi_Copy']) + '\n')
+	combined_pmcopy_plot_input_handle.write('\t'.join(['GCF', 'HG', 'start', 'end', 'con_dir', 'proportion', 'core', 'Prop_Multi_Copy', 'Single_Copy_in_GCF']) + '\n')
 	if sample_retention_set == None:
 		sample_retention_set = all_samples
 
@@ -448,20 +448,22 @@ def lsaBGC_AutoAnalyze():
 					hg_gcfs[hg].add(gcf_id)
 					con_ord = int(ls[4])
 					con_dir = int(ls[5])
-					med_len = float(ls[7])
-					prop = ls[11]
-					core = ls[8]
+					med_len = float(ls[8])
+					prop = ls[12]
+					core = ls[9]
 					prop_mc = ls[6]
-					count_data = {'total': int(ls[10])}
-					tajimas_d = ls[13]
-					beta_rd = ls[16]
+					single_copy_in_gcf = True
+					if ls[7] == 'False': single_copy_in_gcf = False
+					count_data = {'total': int(ls[11])}
+					tajimas_d = ls[14]
+					beta_rd = ls[17]
 					if pop_info_available:
 						count_data = {}
 						for pc in ls[-2].split('|'):
 							pop, pop_freq = pc.split('=')
 							pop_count = pop_size[pop]*float(pop_freq)
 							count_data[pop] = pop_count
-					hg_data[hg] = [prop, core, tajimas_d, beta_rd, prop_mc, count_data]
+					hg_data[hg] = [prop, core, tajimas_d, beta_rd, single_copy_in_gcf, prop_mc, count_data]
 					hg_coord_info.append([hg, con_ord, con_dir, med_len])
 
 		previous_end = 1
@@ -469,10 +471,13 @@ def lsaBGC_AutoAnalyze():
 			hg, con_ord, con_dir, med_len = tupls
 			start = previous_end
 			end = previous_end + int(med_len)
-			prop, core, tajimas_d, beta_rd, prop_mc, count_data = hg_data[hg]
-			combined_tajimd_plot_input_handle.write('\t'.join([str(x) for x in [gcf_id, hg, start, end, con_dir, prop, core, tajimas_d]]) + '\n')
-			combined_betard_plot_input_handle.write('\t'.join([str(x) for x in [gcf_id, hg, start, end, con_dir, prop, core, beta_rd]]) + '\n')
-			combined_pmcopy_plot_input_handle.write('\t'.join([str(x) for x in [gcf_id, hg, start, end, con_dir, prop, core, prop_mc]]) + '\n')
+			prop, core, tajimas_d, beta_rd, single_copy_in_gcf, prop_mc, count_data = hg_data[hg]
+			scig_lab = '"//"'
+			if single_copy_in_gcf:
+				scig_lab = '""'
+			combined_tajimd_plot_input_handle.write('\t'.join([str(x) for x in [gcf_id, hg, start, end, con_dir, prop, core, tajimas_d, scig_lab]]) + '\n')
+			combined_betard_plot_input_handle.write('\t'.join([str(x) for x in [gcf_id, hg, start, end, con_dir, prop, core, beta_rd, scig_lab]]) + '\n')
+			combined_pmcopy_plot_input_handle.write('\t'.join([str(x) for x in [gcf_id, hg, start, end, con_dir, prop, core, prop_mc, scig_lab]]) + '\n')
 			for p in count_data:
 				combined_conser_plot_input_handle.write('\t'.join([str(x) for x in [gcf_id, hg, con_ord, core, p, count_data[p]]]) + '\n')
 			previous_end = end + 1
