@@ -1088,7 +1088,7 @@ class Pan:
 			min_gene_nucl_seq_len = min(gene_lengths)
 			max_gene_nucl_seq_len = max(gene_lengths)
 			median_gene_nucl_seq_lens = statistics.median(gene_lengths)
-			mad_gene_nucl_seq_lens = max(stats.median_abs_deviation(gene_lengths), 25)
+			mad_gene_nucl_seq_lens = max(stats.median_abs_deviation(gene_lengths, scale="normal"), 25)
 			hg_valid_length_range[hg] = {'min_gene_length': min_gene_nucl_seq_len,
 										 'max_gene_length': max_gene_nucl_seq_len,
 										 'median_gene_length': median_gene_nucl_seq_lens,

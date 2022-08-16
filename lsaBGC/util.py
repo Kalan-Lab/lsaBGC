@@ -62,7 +62,7 @@ def determineOutliersByGeneLength(gene_sequences, logObject):
 				og_gene_nucl_seq_lens.append(gene_nucl_seq_len)
 
 		median_gene_nucl_seq_lens = statistics.median(og_gene_nucl_seq_lens)
-		mad_gene_nucl_seq_lens = max(stats.median_abs_deviation(og_gene_nucl_seq_lens), 25)
+		mad_gene_nucl_seq_lens = max(stats.median_abs_deviation(og_gene_nucl_seq_lens, scale="normal"), 25)
 
 		for g in gene_sequences:
 			gene_nucl_seq = gene_sequences[g][0]
@@ -350,7 +350,7 @@ def determineAllelesFromCodonAlignment(codon_alignment, max_mismatch=10, matchin
 		for i, rec in enumerate(SeqIO.parse(oca, 'fasta')):
 			gene_sequences_lengths.append(len(str(rec.seq).upper().replace('N', '').replace('-', '')))
 	median_length = statistics.median(gene_sequences_lengths)
-	mad_length = max(stats.median_abs_deviation(gene_sequences_lengths), 5)
+	mad_length = max(stats.median_abs_deviation(gene_sequences_lengths, scale="normal"), 5)
 	with open(codon_alignment) as oca:
 		for i, rec in enumerate(SeqIO.parse(oca, 'fasta')):
 			gene_seq_len = len(str(rec.seq).upper().replace('N', '').replace('-', ''))

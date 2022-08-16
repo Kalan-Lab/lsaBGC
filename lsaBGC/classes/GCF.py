@@ -54,7 +54,7 @@ class GCF(Pan):
 
 		# General variables
 		self.hg_to_color = None
-		self.hg_order_scpus = defaultdict(lambda: ['NA', 'NA'])
+		self.hg_order_scores = defaultdict(lambda: ['NA', 'NA'])
 		self.specific_core_homologs =set([])
 		self.scc_homologs = set([])
 		self.core_homologs = set([])
@@ -880,7 +880,7 @@ class GCF(Pan):
 				if not hg in set(['start', 'end']):
 					consensus_direction = '0'
 					if direction_forward_support[hg] >= direction_reverse_support[hg]: consensus_direction = '1'
-					self.hg_order_scpus[hg] = [i, consensus_direction]
+					self.hg_order_scores[hg] = [i, consensus_direction]
 					i+=1
 
 		except Exception as e:
@@ -957,7 +957,7 @@ class GCF(Pan):
 			if sample_population_local != None:
 				sample_population_local = dict(sample_population_local)
 			inputs.append([self.gcf_id, gcf_product_summary, hg, codon_alignment_fasta, popgen_dir, plots_dir, self.comp_gene_info,
-						   self.hg_genes, self.bgc_sample, self.hg_prop_multi_copy, dict(self.hg_order_scpus),
+						   self.hg_genes, self.bgc_sample, self.hg_prop_multi_copy, dict(self.hg_order_scores),
 						   gw_pairwise_similarities, use_translation, sample_population_local, population,
 						   species_phylogeny, sample_size, self.logObject])
 
@@ -1229,7 +1229,14 @@ class GCF(Pan):
 					line = line.strip()
 					hg, cod_alignment_fasta = line.split('\t')
 					alleles_clustered, pair_matching = util.determineAllelesFromCodonAlignment(cod_alignment_fasta)
-					all_genes_in_codon_alignments = set([item.split('|')[-1] for sublist in alleles_clustered for item in sublist])
+					all_genes_in_codon_alignments = set([])
+					for ac in alleles_clustered:
+						for gid in alleles_clustered[ac]:
+							all_genes_in_codon_alignments.add(gid.split('|')[-1])
+					# NOTE, the following is a warning because only genes which fall within one median absolute deviation
+					# from the median length of genes for a homolog group are considered eligible as serving for
+					# representative alleles. This is the default, but will consider making this a user option in the
+					# future! - it was also over-reporting warnings which has been corrected as of Aug 16, 2022.
 					try:
 						assert(len(self.hg_genes[hg].symmetric_difference(all_genes_in_codon_alignments)) == 0)
 					except:
@@ -1876,7 +1883,7 @@ def phase_and_id_snvs(input_args):
 			hpr_handle.close()
 			return
 		median_of_medians = statistics.median(list(hg_median_depths.values()))
-		mad_of_medians = median_abs_deviation(list(hg_median_depths.values()))
+		mad_of_medians = median_abs_deviation(list(hg_median_depths.values()), scale="normal")
 
 		outlier_homolog_groups = set([])
 		for hg in present_homolog_groups:
@@ -1950,7 +1957,7 @@ def phase_and_id_snvs(input_args):
 		filt_result_handle.close()
 
 		trimmed_depth_median = statistics.median(depths_at_all_refined_present_hgs)
-		trimmed_depth_mad = median_abs_deviation(depths_at_all_refined_present_hgs)
+		trimmed_depth_mad = median_abs_deviation(depths_at_all_refined_present_hgs, scale="normal")
 
 		# Check if phasing needed
 		homolog_variable_positions = defaultdict(set)
@@ -3018,7 +3025,7 @@ def popgen_analysis_of_hg(inputs):
 
 			if len(all_median_dnds) >= 10:
 				median_dnds = statistics.median(all_median_dnds)
-				mad_dnds = median_abs_deviation(all_median_dnds)
+				mad_dnds = median_abs_deviation(all_median_dnds, scale="normal")
 
 		# calculate Tajima's D
 		tajimas_d = util.calculateTajimasD(list(sequences_filtered.values()))
@@ -3094,7 +3101,7 @@ def popgen_analysis_of_hg(inputs):
 		mad_tajimas_d = "NA"
 		if len(all_tajimas_d) > 0:
 			median_tajimas_d = statistics.median(all_tajimas_d)
-			mad_tajimas_d = median_abs_deviation(all_tajimas_d)
+			mad_tajimas_d = median_abs_deviation(all_tajimas_d, scale="normal")
 
 		pops_with_hg = set([])
 		pop_count_with_hg = defaultdict(int)

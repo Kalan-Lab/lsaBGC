@@ -39,6 +39,7 @@ import os
 import argparse
 import glob
 
+
 def create_parser():
 	""" Parse arguments """
 	parser = argparse.ArgumentParser(description="""
@@ -50,19 +51,20 @@ def create_parser():
 	results (from antiSMASH, DeepBGC, or GECCO) for a set of samples, it will create a two-column, tab-delimited listing 
 	file where the first column is the sample name and the second is the full path to an individual BGC genbank for the 
 	sample. E.g. suppose the following setup:
-	
+
 	./AntiSMASH-General-Dir/Sample-Name-1/Sample-Name-1_Scaffold-1.region0001.gbk
 	./AntiSMASH-General-Dir/Sample-Name-1/Sample-Name-1_Scaffold-5.region0007.gbk
 	./AntiSMASH-General-Dir/Sample-Name-2/Sample-Name-1_Scaffold-1.region0002.gbk
 
 	Then it will print to standard output the following:
-	
+
 	Sample-Name-1 <tab> /full-path-to/AntiSMASH-General-Dir/Sample-Name-1/Sample-Name-1_Scaffold-1.region0001.gbk
 	Sample-Name-1 <tab> /full-path-to/AntiSMASH-General-Dir/Sample-Name-1/Sample-Name-1_Scaffold-5.region0007.gbk
 	Sample-Name-2 <tab> /full-path-to/AntiSMASH-General-Dir/Sample-Name-1/Sample-Name-1_Scaffold-1.region0002.gbk
 	""", formatter_class=argparse.RawTextHelpFormatter)
 
-	parser.add_argument('-i', '--input_dir', help='Input directory which contains all BGC prediction results.', required=True)
+	parser.add_argument('-i', '--input_dir', help='Input directory which contains all BGC prediction results.',
+						required=True)
 	parser.add_argument('-p', '--bgc_prediction_software',
 						help='Software used to predict BGCs (Options: antiSMASH, DeepBGC, GECCO). Default is antiSMASH.',
 						default='antiSMASH', required=False)
@@ -71,6 +73,7 @@ def create_parser():
 						required=False, default=False)
 	args = parser.parse_args()
 	return args
+
 
 def siftAndPrint():
 	"""
@@ -85,7 +88,7 @@ def siftAndPrint():
 	input_bgc_dir = os.path.abspath(myargs.input_dir) + '/'
 
 	try:
-		assert(os.path.isdir(input_bgc_dir))
+		assert (os.path.isdir(input_bgc_dir))
 	except:
 		raise RuntimeError('Cannot find input directory with BGC predictions results.')
 
@@ -112,15 +115,19 @@ def siftAndPrint():
 						contig_edge_flag = True
 
 			if not filter_incomplete_flag or (filter_incomplete_flag and not contig_edge_flag):
+				sample = sample.replace('#', '').replace('*', '_').replace(':', '_').replace(';', '_').replace(' ', '_').replace(':', '_').replace('|', '_').replace('"', '_').replace("'", '_').replace("=", "_").replace('-', '_').replace('(', '').replace(')', '').replace('/', '').replace('\\', '').replace('[', '').replace(']', '').replace(',', '')
 				print(sample + '\t' + full_file_name)
 	elif bgc_prediction_software == 'DEEPBGC':
 		for full_file_name in glob.glob(input_bgc_dir + "*/*bgc.gbk"):
 			sample = full_file_name.split('/')[-2]
+			sample = sample.replace('#', '').replace('*', '_').replace(':', '_').replace(';', '_').replace(' ', '_').replace(':', '_').replace('|', '_').replace('"', '_').replace("'", '_').replace("=", "_").replace('-', '_').replace('(', '').replace(')', '').replace('/', '').replace('\\', '').replace('[', '').replace(']', '').replace(',', '')
 			print(sample + '\t' + full_file_name)
 	elif bgc_prediction_software == 'GECCO':
 		for full_file_name in glob.glob(input_bgc_dir + "*/*_cluster_*.gbk"):
 			sample = full_file_name.split('/')[-2]
+			sample = sample.replace('#', '').replace('*', '_').replace(':', '_').replace(';', '_').replace(' ', '_').replace(':', '_').replace('|', '_').replace('"', '_').replace("'", '_').replace("=", "_").replace('-', '_').replace('(', '').replace(')', '').replace('/', '').replace('\\', '').replace('[', '').replace(']', '').replace(',', '')
 			print(sample + '\t' + full_file_name)
+
 
 if __name__ == '__main__':
 	siftAndPrint()
