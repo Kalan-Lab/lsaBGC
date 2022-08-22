@@ -2198,6 +2198,9 @@ def createGCFListingsDirectory(sample_bgcs, bgc_to_sample, bigscape_results_dir,
 					newest_time = time
 					most_recent_results_dir = full_sd_dir
 		assert(os.path.isdir(most_recent_results_dir))
+
+		gcfs = defaultdict(set)
+		gcf_classes = defaultdict(set)
 		for sd in os.listdir(most_recent_results_dir):
 			class_sd = most_recent_results_dir + sd + '/'
 			if not os.path.isdir(class_sd): continue
@@ -2205,7 +2208,6 @@ def createGCFListingsDirectory(sample_bgcs, bgc_to_sample, bigscape_results_dir,
 				if not(f.endswith('.tsv') and '_clustering_' in f): continue
 				bgc_class = f.split('_clustering_')[0]
 				class_gcf_file = class_sd + f
-				gcfs = defaultdict(set)
 				with open(class_gcf_file) as ocgf:
 					for i, line in enumerate(ocgf):
 						if i == 0: continue
@@ -2213,28 +2215,30 @@ def createGCFListingsDirectory(sample_bgcs, bgc_to_sample, bigscape_results_dir,
 						ls = line.split('\t')
 						if ls[0] in bgc_paths and os.path.isfile(bgc_paths[ls[0]][1]):
 							gcfs[ls[1]].add(ls[0])
-				for gcf in gcfs:
-					gcf_file = gcf_listings_directory + 'GCF_' + gcf + '.txt'
-					gcf_handle = open(gcf_file, 'w')
-					samples_with_gcf = defaultdict(int)
-					for b in gcfs[gcf]:
-						bs = bgc_to_sample[bgc_paths[b][1]]
-						samples_with_gcf[bs] += 1
-						gcf_handle.write(bgc_paths[b][0] + '\t' + bgc_paths[b][1] + '\n')
-					gcf_handle.close()
-					samples_with_multiple_bgcs = 0
-					for s in samples_with_gcf:
-						if samples_with_gcf[s] > 1:
-							samples_with_multiple_bgcs += 1
-					"""
-					'GCF id', 'number of BGCs', 'number of samples', 'samples with multiple BGCs in GCF',
-							   'size of the SCC', 'mean number of OGs', 'stdev for number of OGs',
-							   'min pairwise Jaccard similarity', 'max pairwise Jaccard similarity',
-							   'number of core gene aggregates', 'annotations']) + '\n')
-					"""
-					sf_handle.write('\t'.join([str(x) for x in ['GCF_' + gcf, len(gcfs[gcf]), len(samples_with_gcf),
-																samples_with_multiple_bgcs, 'NA', 'NA', 'NA', 'NA', 'NA',
-																'NA', bgc_class]]) + '\n')
+							gcf_classes[ls[1]].add(bgc_class)
+
+		for gcf in gcfs:
+			gcf_file = gcf_listings_directory + 'GCF_' + gcf + '.txt'
+			gcf_handle = open(gcf_file, 'w')
+			samples_with_gcf = defaultdict(int)
+			for b in gcfs[gcf]:
+				bs = bgc_to_sample[bgc_paths[b][1]]
+				samples_with_gcf[bs] += 1
+				gcf_handle.write(bgc_paths[b][0] + '\t' + bgc_paths[b][1] + '\n')
+			gcf_handle.close()
+			samples_with_multiple_bgcs = 0
+			for s in samples_with_gcf:
+				if samples_with_gcf[s] > 1:
+					samples_with_multiple_bgcs += 1
+			"""
+			'GCF id', 'number of BGCs', 'number of samples', 'samples with multiple BGCs in GCF',
+					   'size of the SCC', 'mean number of OGs', 'stdev for number of OGs',
+					   'min pairwise Jaccard similarity', 'max pairwise Jaccard similarity',
+					   'number of core gene aggregates', 'annotations']) + '\n')
+			"""
+			sf_handle.write('\t'.join([str(x) for x in ['GCF_' + gcf, len(gcfs[gcf]), len(samples_with_gcf),
+														samples_with_multiple_bgcs, 'NA', 'NA', 'NA', 'NA', 'NA',
+														'NA', '; '.join(sorted(gcf_classes[gcf]))]]) + '\n')
 		sf_handle.close()
 	except Exception as e:
 		logObject.error("Problem with parsing BiG-SCAPE results directory provided.")

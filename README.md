@@ -9,6 +9,7 @@
 ![](https://github.com/Kalan-Lab/lsaBGC/blob/main/docs/images/lsaBGC1.1_Simplified.png)
 
 ## Major Updates 
+* Aug 21, 2022 - Parsing of BiG-SCAPE results updated to account for GCFs spanning multiple class categories. All BGC instances in each class the GCF occurs will be conglomerated. Default usage of lsaBGC-Cluster.py is unaffected.
 * Aug 16, 2022 - We recently (in version 1.1) had switched from scipy's `median_absolute_deviation` function to `median_abs_deviation` function - to mimic behavior of the original function and how we benchmarked lsaBGC in our manuscript, have set the scale of the function to `normal`. Though we are considering changing the scale to the default of the new function `1.0` in latter versions after further testing.
 * Aug 08, 2022 - Added a couple more columns to PopGene report: `single-copy_in_GCF_context`, `max_beta_rd`. Also renamed column `hg median copy count` to a more appropriate label of `hg proportion multi-copy genome-wide` (calculation is the same!). Added `use_core_only` option to codon-alignment comparison methods to more appropriately calculate Beta-RD from recent switch to not regard sites where one sample/protein/gene has an allele but the comparing sample has a gap as a mismatch, but rather such sites are now ignored by default.  
 * Aug 04, 2022 - Added some minor code to allow running `lsaBGC-Easy.py` with only an "Additional_Genomes" directory. Command would look something like: `lsaBGC-Easy.py -n "None" -g Genomes_Directory/ -o Results/`
