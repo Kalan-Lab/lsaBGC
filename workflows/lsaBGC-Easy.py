@@ -514,7 +514,7 @@ def lsaBGC_Easy():
 	exp_annotation_listing_file = lsabgc_autoexpansion_results_directory + 'Sample_Annotation_Files.txt'
 	exp_orthogroups_matrix_file = lsabgc_autoexpansion_results_directory + 'Orthogroups.expanded.tsv'
 	exp_gcf_listing_dir = lsabgc_autoexpansion_results_directory + 'Updated_GCF_Listings/'
-	if not os.path.isdir(exp_gcf_listing_dir) and (not skip_dereplication_flag):
+	if not os.path.isdir(exp_gcf_listing_dir) and (not skip_auto_expansion_flag):
 		lsabgc_expansion_cmd = ['lsaBGC-AutoExpansion.py', '-g', gcf_listing_dir, '-m', orthogroups_matrix_file, '-l',
 								annotation_listing_file, '-e', annotation_listing_file, '-q', '-c', str(cpus),
 								'-o', lsabgc_autoexpansion_results_directory, '-p', bgc_prediction_software]
