@@ -62,7 +62,7 @@ def determineOutliersByGeneLength(gene_sequences, logObject):
 				og_gene_nucl_seq_lens.append(gene_nucl_seq_len)
 
 		median_gene_nucl_seq_lens = statistics.median(og_gene_nucl_seq_lens)
-		mad_gene_nucl_seq_lens = max(stats.median_abs_deviation(og_gene_nucl_seq_lens), 25)
+		mad_gene_nucl_seq_lens = max(stats.median_abs_deviation(og_gene_nucl_seq_lens, scale="normal"), 25)
 
 		for g in gene_sequences:
 			gene_nucl_seq = gene_sequences[g][0]
@@ -216,14 +216,16 @@ def determineSeqSimProteinAlignment(protein_alignment_file, use_only_core=True):
 						tot_comp_pos += 1
 						if g1a == g2a:
 							match_pos += 1
-			general_matching_percentage = float(match_pos)/float(tot_comp_pos)
+			general_matching_percentage = 0.0
+			if tot_comp_pos > 0:
+				general_matching_percentage = float(match_pos)/float(tot_comp_pos)
 			if pair_seq_matching[s1][s2] < general_matching_percentage and pair_seq_matching[s2][s1] < general_matching_percentage:
 				pair_seq_matching[s1][s2] = general_matching_percentage
 				pair_seq_matching[s2][s1] = general_matching_percentage
 
 	return pair_seq_matching
 
-def determineSeqSimCodonAlignment(codon_alignment_file, use_translation=False):
+def determineSeqSimCodonAlignment(codon_alignment_file, use_translation=False, use_only_core=True):
 	gene_sequences = {}
 	with open(codon_alignment_file) as ocaf:
 		for i, rec in enumerate(SeqIO.parse(ocaf, 'fasta')):
@@ -246,10 +248,14 @@ def determineSeqSimCodonAlignment(codon_alignment_file, use_translation=False):
 			for pos, g1a in enumerate(g1s):
 				g2a = g2s[pos]
 				if g1a != '-' or g2a != '-':
-					tot_comp_pos += 1
-					if g1a == g2a:
-						match_pos += 1
-			general_matching_percentage = float(match_pos)/float(tot_comp_pos)
+					if not use_only_core or (use_only_core and g1a != '-' and g2a != '-'):
+						tot_comp_pos += 1
+						if g1a == g2a:
+							match_pos += 1
+
+			general_matching_percentage = 0.0
+			if tot_comp_pos > 0:
+				general_matching_percentage = float(match_pos)/float(tot_comp_pos)
 			if pair_seq_matching[s1][s2] < general_matching_percentage and pair_seq_matching[s2][s1] < general_matching_percentage:
 				pair_seq_matching[s1][s2] = general_matching_percentage
 				pair_seq_matching[s2][s1] = general_matching_percentage
@@ -257,7 +263,7 @@ def determineSeqSimCodonAlignment(codon_alignment_file, use_translation=False):
 	return pair_seq_matching
 
 def determineBGCSequenceSimilarity(input):
-	hg, s1, g1s, s2, g2s, i, j, comparisons_managed = input
+	hg, s1, g1s, s2, g2s, i, j, use_only_core, comparisons_managed = input
 
 	comparison_id = '_|_'.join([hg, s1, s2, str(i), str(j)])
 
@@ -266,13 +272,16 @@ def determineBGCSequenceSimilarity(input):
 	for pos, g1a in enumerate(g1s):
 		g2a = g2s[pos]
 		if g1a != '-' or g2a != '-':
-			tot_comp_pos += 1
-			if g1a == g2a:
-				match_pos += 1
-	general_matching_percentage = float(match_pos) / float(tot_comp_pos)
+			if not use_only_core or (use_only_core and g1a != '-' and g2a != '-'):
+				tot_comp_pos += 1
+				if g1a == g2a:
+					match_pos += 1
+	general_matching_percentage = 0.0
+	if tot_comp_pos > 0:
+		general_matching_percentage = float(match_pos) / float(tot_comp_pos)
 	comparisons_managed[comparison_id] = general_matching_percentage
 
-def determineBGCSequenceSimilarityFromCodonAlignments(codon_alignments_file, cpus=1, use_translation=False):
+def determineBGCSequenceSimilarityFromCodonAlignments(codon_alignments_file, cpus=1, use_translation=False, use_only_core=True):
 	sample_hgs = defaultdict(set)
 	comparisons_managed = None
 	pair_seq_matching = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: 0.0)))
@@ -303,7 +312,7 @@ def determineBGCSequenceSimilarityFromCodonAlignments(codon_alignments_file, cpu
 						s2 = g2.split('|')[0]
 						if s1 == s2: continue
 						g2s = gene_sequences[g2]
-						multiprocess_inputs.append([hg, s1, g1s, s2, g2s, i, j, comparisons_managed])
+						multiprocess_inputs.append([hg, s1, g1s, s2, g2s, i, j, use_only_core, comparisons_managed])
 		with manager.Pool(cpus) as pool:
 			pool.map(determineBGCSequenceSimilarity, multiprocess_inputs)
 
@@ -341,7 +350,7 @@ def determineAllelesFromCodonAlignment(codon_alignment, max_mismatch=10, matchin
 		for i, rec in enumerate(SeqIO.parse(oca, 'fasta')):
 			gene_sequences_lengths.append(len(str(rec.seq).upper().replace('N', '').replace('-', '')))
 	median_length = statistics.median(gene_sequences_lengths)
-	mad_length = max(stats.median_abs_deviation(gene_sequences_lengths), 5)
+	mad_length = max(stats.median_abs_deviation(gene_sequences_lengths, scale="normal"), 5)
 	with open(codon_alignment) as oca:
 		for i, rec in enumerate(SeqIO.parse(oca, 'fasta')):
 			gene_seq_len = len(str(rec.seq).upper().replace('N', '').replace('-', ''))
@@ -1061,7 +1070,6 @@ def parseOrthoFinderMatrix(orthofinder_matrix_file, relevant_gene_lts, all_prima
 				hg_median_gene_counts[hg] = statistics.median(gene_counts)
 
 	return ([gene_to_hg, hg_genes, hg_median_gene_counts, hg_multicopy_proportion])
-
 
 def run_cmd(cmd, logObject, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL):
 	"""
@@ -2190,6 +2198,9 @@ def createGCFListingsDirectory(sample_bgcs, bgc_to_sample, bigscape_results_dir,
 					newest_time = time
 					most_recent_results_dir = full_sd_dir
 		assert(os.path.isdir(most_recent_results_dir))
+
+		gcfs = defaultdict(set)
+		gcf_classes = defaultdict(set)
 		for sd in os.listdir(most_recent_results_dir):
 			class_sd = most_recent_results_dir + sd + '/'
 			if not os.path.isdir(class_sd): continue
@@ -2197,7 +2208,6 @@ def createGCFListingsDirectory(sample_bgcs, bgc_to_sample, bigscape_results_dir,
 				if not(f.endswith('.tsv') and '_clustering_' in f): continue
 				bgc_class = f.split('_clustering_')[0]
 				class_gcf_file = class_sd + f
-				gcfs = defaultdict(set)
 				with open(class_gcf_file) as ocgf:
 					for i, line in enumerate(ocgf):
 						if i == 0: continue
@@ -2205,28 +2215,30 @@ def createGCFListingsDirectory(sample_bgcs, bgc_to_sample, bigscape_results_dir,
 						ls = line.split('\t')
 						if ls[0] in bgc_paths and os.path.isfile(bgc_paths[ls[0]][1]):
 							gcfs[ls[1]].add(ls[0])
-				for gcf in gcfs:
-					gcf_file = gcf_listings_directory + 'GCF_' + gcf + '.txt'
-					gcf_handle = open(gcf_file, 'w')
-					samples_with_gcf = defaultdict(int)
-					for b in gcfs[gcf]:
-						bs = bgc_to_sample[bgc_paths[b][1]]
-						samples_with_gcf[bs] += 1
-						gcf_handle.write(bgc_paths[b][0] + '\t' + bgc_paths[b][1] + '\n')
-					gcf_handle.close()
-					samples_with_multiple_bgcs = 0
-					for s in samples_with_gcf:
-						if samples_with_gcf[s] > 1:
-							samples_with_multiple_bgcs += 1
-					"""
-					'GCF id', 'number of BGCs', 'number of samples', 'samples with multiple BGCs in GCF',
-							   'size of the SCC', 'mean number of OGs', 'stdev for number of OGs',
-							   'min pairwise Jaccard similarity', 'max pairwise Jaccard similarity',
-							   'number of core gene aggregates', 'annotations']) + '\n')
-					"""
-					sf_handle.write('\t'.join([str(x) for x in ['GCF_' + gcf, len(gcfs[gcf]), len(samples_with_gcf),
-																samples_with_multiple_bgcs, 'NA', 'NA', 'NA', 'NA', 'NA',
-																'NA', bgc_class]]) + '\n')
+							gcf_classes[ls[1]].add(bgc_class)
+
+		for gcf in gcfs:
+			gcf_file = gcf_listings_directory + 'GCF_' + gcf + '.txt'
+			gcf_handle = open(gcf_file, 'w')
+			samples_with_gcf = defaultdict(int)
+			for b in gcfs[gcf]:
+				bs = bgc_to_sample[bgc_paths[b][1]]
+				samples_with_gcf[bs] += 1
+				gcf_handle.write(bgc_paths[b][0] + '\t' + bgc_paths[b][1] + '\n')
+			gcf_handle.close()
+			samples_with_multiple_bgcs = 0
+			for s in samples_with_gcf:
+				if samples_with_gcf[s] > 1:
+					samples_with_multiple_bgcs += 1
+			"""
+			'GCF id', 'number of BGCs', 'number of samples', 'samples with multiple BGCs in GCF',
+					   'size of the SCC', 'mean number of OGs', 'stdev for number of OGs',
+					   'min pairwise Jaccard similarity', 'max pairwise Jaccard similarity',
+					   'number of core gene aggregates', 'annotations']) + '\n')
+			"""
+			sf_handle.write('\t'.join([str(x) for x in ['GCF_' + gcf, len(gcfs[gcf]), len(samples_with_gcf),
+														samples_with_multiple_bgcs, 'NA', 'NA', 'NA', 'NA', 'NA',
+														'NA', '; '.join(sorted(gcf_classes[gcf]))]]) + '\n')
 		sf_handle.close()
 	except Exception as e:
 		logObject.error("Problem with parsing BiG-SCAPE results directory provided.")

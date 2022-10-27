@@ -54,7 +54,7 @@ class GCF(Pan):
 
 		# General variables
 		self.hg_to_color = None
-		self.hg_order_scpus = defaultdict(lambda: ['NA', 'NA'])
+		self.hg_order_scores = defaultdict(lambda: ['NA', 'NA'])
 		self.specific_core_homologs =set([])
 		self.scc_homologs = set([])
 		self.core_homologs = set([])
@@ -880,7 +880,7 @@ class GCF(Pan):
 				if not hg in set(['start', 'end']):
 					consensus_direction = '0'
 					if direction_forward_support[hg] >= direction_reverse_support[hg]: consensus_direction = '1'
-					self.hg_order_scpus[hg] = [i, consensus_direction]
+					self.hg_order_scores[hg] = [i, consensus_direction]
 					i+=1
 
 		except Exception as e:
@@ -920,10 +920,11 @@ class GCF(Pan):
 
 		final_output_handle = open(final_output_file, 'w')
 		header = ['gcf_id', 'gcf_annotation', 'homolog_group', 'annotation', 'hg_order_index', 'hg_consensus_direction',
-				  'hg_median_copy_count', 'median_gene_length', 'is_core_to_bgc', 'num_of_hg_instances',
-				  'samples_with_hg', 'proportion_of_samples_with_hg', 'ambiguous_sites_proporition', 'Tajimas_D',
-				  'proportion_variable_sites', 'proportion_nondominant_major_allele', 'median_beta_rd', 'median_dn_ds',
-				  'mad_dn_ds', 'all_domains']
+				  'hg_proportion_multi-copy_genome-wide', 'single-copy_in_GCF_context', 'median_gene_length', 'is_core_to_bgc',
+				  'num_of_hg_instances', 'samples_with_hg', 'proportion_of_samples_with_hg',
+				  'ambiguous_sites_proporition', 'Tajimas_D', 'proportion_variable_sites',
+				  'proportion_nondominant_major_allele', 'median_beta_rd', 'max_beta_rd', 'median_dn_ds', 'mad_dn_ds',
+				  'all_domains']
 		if population:
 			header = ['population'] + header
 		elif population_analysis_on:
@@ -956,7 +957,7 @@ class GCF(Pan):
 			if sample_population_local != None:
 				sample_population_local = dict(sample_population_local)
 			inputs.append([self.gcf_id, gcf_product_summary, hg, codon_alignment_fasta, popgen_dir, plots_dir, self.comp_gene_info,
-						   self.hg_genes, self.bgc_sample, self.hg_prop_multi_copy, dict(self.hg_order_scpus),
+						   self.hg_genes, self.bgc_sample, self.hg_prop_multi_copy, dict(self.hg_order_scores),
 						   gw_pairwise_similarities, use_translation, sample_population_local, population,
 						   species_phylogeny, sample_size, self.logObject])
 
@@ -1228,7 +1229,14 @@ class GCF(Pan):
 					line = line.strip()
 					hg, cod_alignment_fasta = line.split('\t')
 					alleles_clustered, pair_matching = util.determineAllelesFromCodonAlignment(cod_alignment_fasta)
-					all_genes_in_codon_alignments = set([item.split('|')[-1] for sublist in alleles_clustered for item in sublist])
+					all_genes_in_codon_alignments = set([])
+					for ac in alleles_clustered:
+						for gid in alleles_clustered[ac]:
+							all_genes_in_codon_alignments.add(gid.split('|')[-1])
+					# NOTE, the following is a warning because only genes which fall within one median absolute deviation
+					# from the median length of genes for a homolog group are considered eligible as serving for
+					# representative alleles. This is the default, but will consider making this a user option in the
+					# future! - it was also over-reporting warnings which has been corrected as of Aug 16, 2022.
 					try:
 						assert(len(self.hg_genes[hg].symmetric_difference(all_genes_in_codon_alignments)) == 0)
 					except:
@@ -1875,7 +1883,7 @@ def phase_and_id_snvs(input_args):
 			hpr_handle.close()
 			return
 		median_of_medians = statistics.median(list(hg_median_depths.values()))
-		mad_of_medians = median_abs_deviation(list(hg_median_depths.values()))
+		mad_of_medians = median_abs_deviation(list(hg_median_depths.values()), scale="normal")
 
 		outlier_homolog_groups = set([])
 		for hg in present_homolog_groups:
@@ -1949,7 +1957,7 @@ def phase_and_id_snvs(input_args):
 		filt_result_handle.close()
 
 		trimmed_depth_median = statistics.median(depths_at_all_refined_present_hgs)
-		trimmed_depth_mad = median_abs_deviation(depths_at_all_refined_present_hgs)
+		trimmed_depth_mad = median_abs_deviation(depths_at_all_refined_present_hgs, scale="normal")
 
 		# Check if phasing needed
 		homolog_variable_positions = defaultdict(set)
@@ -2714,7 +2722,6 @@ def popgen_analysis_of_hg(inputs):
 		for rec in SeqIO.parse(ocaf, 'fasta'):
 			sample_id, gene_id = rec.id.split('|')
 			if sample_population != None and population != None and population != sample_population[sample_id]: continue
-			sample_leaf_names[sample_id].append(rec.id)
 			if len(gene_id.split('_')[0]) == 3:
 				if comp_gene_info[gene_id]['core_overlap']:
 					core_counts['core'] += 1
@@ -2723,7 +2730,11 @@ def popgen_analysis_of_hg(inputs):
 			updated_codon_alignment_handle.write('>' + rec.description + '\n' + str(rec.seq) + '\n')
 			products.add(comp_gene_info[gene_id]['product'])
 			real_pos = 1
-			seqs.append(list(str(rec.seq).upper().replace('N', '-')))
+			seq = str(rec.seq).upper().replace('N', '-')
+			#seqlen = len(seq)
+			#gapless_seqlen = len(b for b in seqlen if b != '-')
+			sample_leaf_names[sample_id].append(rec.id)
+			seqs.append(list(seq))
 			codons = [str(rec.seq)[i:i + 3] for i in range(0, len(str(rec.seq)), 3)]
 			num_codons = len(codons)
 			bgc_codons[rec.id] = codons
@@ -2740,6 +2751,11 @@ def popgen_analysis_of_hg(inputs):
 
 	if len(seqs) == 0: return
 
+	single_copy_in_gcf = True
+	for sample in sample_leaf_names:
+		if len(sample_leaf_names[sample]) > 1:
+			single_copy_in_gcf = False
+
 	median_beta_rd = "NA"
 	if comparem_used != None:
 		if gw_pairwise_similarities:
@@ -2755,8 +2771,10 @@ def popgen_analysis_of_hg(inputs):
 							beta_rd = hg_seq_sim / float(gw_seq_sim)
 							beta_rd_stats.append(beta_rd)
 			median_beta_rd = "NA"
+			max_beta_rd = "NA"
 			if len(beta_rd_stats) >= 1:
 				median_beta_rd = round(statistics.median(beta_rd_stats), 2)
+				max_beta_rd = round(max(beta_rd_stats), 2)
 
 	is_core = False
 	if (sum(core_counts.values()) > 0.0):
@@ -2770,7 +2788,7 @@ def popgen_analysis_of_hg(inputs):
 	nondominant_sites  =  set([])
 	position_plot_handle.write('\t'.join(['pos', 'num_seqs', 'num_alleles', 'num_gaps', 'maj_allele_freq']) + '\n')
 
-	# TODO: consider additional filtering using phykit (instead of just filteirng performed in lsaBGC of msas)
+	# TODO: consider out-souring filtering to use phykit
 	sample_differences_to_consensus = defaultdict(lambda: defaultdict(int))
 	ambiguous_sites = 0
 	nonambiguous_sites = 0
@@ -3007,7 +3025,7 @@ def popgen_analysis_of_hg(inputs):
 
 			if len(all_median_dnds) >= 10:
 				median_dnds = statistics.median(all_median_dnds)
-				mad_dnds = median_abs_deviation(all_median_dnds)
+				mad_dnds = median_abs_deviation(all_median_dnds, scale="normal")
 
 		# calculate Tajima's D
 		tajimas_d = util.calculateTajimasD(list(sequences_filtered.values()))
@@ -3032,9 +3050,10 @@ def popgen_analysis_of_hg(inputs):
 	hg_info = []
 	if population:
 		hg_info = [population]
-	hg_info += [gcf_id, gcf_annot, hg, '; '.join(products), hg_ord, hg_dir, hg_prop_multi_copy[hg],
+	hg_info += [gcf_id, gcf_annot, hg, '; '.join(products), hg_ord, hg_dir, hg_prop_multi_copy[hg], single_copy_in_gcf,
 				median_gene_length, is_core, len(seqs), len(samples), round(prop_samples_with_hg,2),
-				round(ambiguous_prop,2), tajimas_d, prop_conserved, prop_majallele_nondominant, median_beta_rd, median_dnds, mad_dnds]
+				round(ambiguous_prop,2), tajimas_d, prop_conserved, prop_majallele_nondominant, median_beta_rd,
+				max_beta_rd, median_dnds, mad_dnds]
 
 	hg_consim_handle = open(popgen_dir + hg + '_sim_to_consensus.txt', 'w')
 	for s in sample_differences_to_consensus:
@@ -3082,7 +3101,7 @@ def popgen_analysis_of_hg(inputs):
 		mad_tajimas_d = "NA"
 		if len(all_tajimas_d) > 0:
 			median_tajimas_d = statistics.median(all_tajimas_d)
-			mad_tajimas_d = median_abs_deviation(all_tajimas_d)
+			mad_tajimas_d = median_abs_deviation(all_tajimas_d, scale="normal")
 
 		pops_with_hg = set([])
 		pop_count_with_hg = defaultdict(int)
