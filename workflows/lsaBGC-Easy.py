@@ -229,7 +229,6 @@ def lsaBGC_Easy():
 	if (genome_count >= 2000 or genome_count < 10) and (not ignore_limits_flag):
 		logObject.error("Currently not recommended to use lsaBGC-Easy for taxa with > 2000 genomes or < 10 genomes. In the future this will likely be updated to be a warning, but would rather not risk harming your server!")
 		raise RuntimeError("Currently not recommended to use lsaBGC-Easy for taxa with > 2000 genomes or < 10 genomes. In the future this will likely be updated to be a warning, but would rather not risk harming your computer/server!")
-	checkUlimitSettings(genome_count, logObject)
 
 	# Step 2: Download all genomes in FASTA format & prodigal gene calling
 	genomes_directory = outdir + 'genbank/'
@@ -422,7 +421,7 @@ def lsaBGC_Easy():
 	if (count_of_dereplicated_sample_set > 100) and (not ignore_limits_flag):
 		logObject.error("Currently not recommended to use lsaBGC-Easy for taxa with > 100 genomes after dereplication. In the future this will likely be updated to be a warning, but would rather not risk harming your computer/server!")
 		raise RuntimeError("Currently not recommended to use lsaBGC-Easy for taxa with > 100 genomes after dereplication. In the future this will likely be updated to be a warning, but would rather not risk harming your computer/server!")
-
+	checkUlimitSettings(count_of_dereplicated_sample_set, logObject)
 
 	primary_genomes_listing_file = outdir + 'Primary_Genomes.txt'
 	primary_bgc_pred_directory = outdir + 'Primary_Genomes_BGC_Predictions/'

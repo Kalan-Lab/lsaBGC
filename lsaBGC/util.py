@@ -1790,16 +1790,8 @@ def incorporateBGCProteinsIntoProteomesAndGenbanks(sample_bgc_proteins, sample_g
 
 				bgc_prots = sample_bgc_proteins[sample][bgc]
 				bgc_prots_1x = set([x for x in bgc_prots if x.split('_')[1][0] == '1'])
-				bgc_prot_file = bgc_prot_directory + sample + '.faa'
-				bgc_prot_to_location = {}
-				with open(bgc_prot_file) as obpf:
-					for rec in SeqIO.parse(obpf, 'fasta'):
-						bgc_prot_to_location[rec.id] = [rec.description.split()[1],
-														int(rec.description.split()[2]),
-														int(rec.description.split()[3])]
-						if rec.id in bgc_prots_1x:
-							sample_lts_to_add_protein_sequences[rec.id] = [rec.description, str(rec.seq)]
 
+				scaff_start = None
 				with open(bgc) as obf:
 					for rec in SeqIO.parse(obf, 'genbank'):
 						scaff_id = rec.id
@@ -1807,21 +1799,24 @@ def incorporateBGCProteinsIntoProteomesAndGenbanks(sample_bgc_proteins, sample_g
 						for feature in rec.features:
 							if feature.type=='CDS':
 								prot_lt = feature.qualifiers.get('locus_tag')[0]
-
-								all_coords = []
-								if not 'join' in str(feature.location):
-									start = scaff_start + min(
-										[int(x.strip('>').strip('<')) for x in str(feature.location)[1:].split(']')[0].split(':')]) + 1
-									end = scaff_start + max([int(x.strip('>').strip('<')) for x in str(feature.location)[1:].split(']')[0].split(':')])
-									direction = str(feature.location).split('(')[1].split(')')[0]
-									all_coords.append([start, end, direction])
-								else:
-									for exon_coord in str(feature.location)[5:-1].split(', '):
-										start = scaff_start + min([int(x.strip('>').strip('<')) for x in exon_coord[1:].split(']')[0].split(':')]) + 1
-										end = scaff_start + max([int(x.strip('>').strip('<')) for x in exon_coord[1:].split(']')[0].split(':')])
-										direction = exon_coord.split('(')[1].split(')')[0]
-										all_coords.append([start, end, direction])
 								if prot_lt in bgc_prots_1x:
+									all_coords = []
+									if not 'join' in str(feature.location):
+										start = scaff_start + min(
+											[int(x.strip('>').strip('<')) for x in
+											 str(feature.location)[1:].split(']')[0].split(':')]) + 1
+										end = scaff_start + max([int(x.strip('>').strip('<')) for x in
+																 str(feature.location)[1:].split(']')[0].split(':')])
+										direction = str(feature.location).split('(')[1].split(')')[0]
+										all_coords.append([start, end, direction])
+									else:
+										for exon_coord in str(feature.location)[5:-1].split(', '):
+											start = scaff_start + min([int(x.strip('>').strip('<')) for x in
+																	   exon_coord[1:].split(']')[0].split(':')]) + 1
+											end = scaff_start + max([int(x.strip('>').strip('<')) for x in
+																	 exon_coord[1:].split(']')[0].split(':')])
+											direction = exon_coord.split('(')[1].split(')')[0]
+											all_coords.append([start, end, direction])
 									fls = []
 									for sc, ec, dc in all_coords:
 										dir = 1
@@ -1833,9 +1828,19 @@ def incorporateBGCProteinsIntoProteomesAndGenbanks(sample_bgc_proteins, sample_g
 									feature.location = feat_loc
 									sample_lts_to_add_genbank_features[scaff_id].append(feature)
 
+				bgc_prot_file = bgc_prot_directory + sample + '.faa'
+				bgc_prot_to_location = {}
+				with open(bgc_prot_file) as obpf:
+					for rec in SeqIO.parse(obpf, 'fasta'):
+						bgc_prot_to_location[rec.id] = [rec.description.split()[1],
+														int(rec.description.split()[2]),
+														int(rec.description.split()[3])]
+						if rec.id in bgc_prots_1x:
+							sample_lts_to_add_protein_sequences[rec.id] = [rec.id + ' ' + rec.description.split()[1] + ' ' + str(int(rec.description.split()[2])+scaff_start) + ' ' + str(int(rec.description.split()[3])+scaff_start), str(rec.seq)]
+
 				for blt in bgc_prots_1x:
 					blt_scaff, blt_start, blt_end = bgc_prot_to_location[blt]
-					blt_range = set(range(blt_start, blt_end + 1))
+					blt_range = set(range(blt_start+scaff_start, blt_end+scaff_start + 1))
 					for glt in scaff_glts[blt_scaff]:
 						glt_scaff, glt_start, glt_end = gw_prot_to_location[glt]
 						glt_range = set(range(glt_start, glt_end+1))
