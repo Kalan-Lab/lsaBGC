@@ -10,5 +10,5 @@ args = commandArgs(trailingOnly=TRUE)
 num_colors <- as.numeric(args[1])
 output_file <- args[2]
 
-mycolors <- colorRampPalette(brewer.pal(12, "Set3"))(num_colors)
+mycolors <- colorRampPalette(brewer.pal(12, "Spectral"))(num_colors)
 write(mycolors, file=output_file)
