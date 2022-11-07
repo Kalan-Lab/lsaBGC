@@ -1845,7 +1845,8 @@ def incorporateBGCProteinsIntoProteomesAndGenbanks(sample_bgc_proteins, sample_g
 						glt_scaff, glt_start, glt_end = gw_prot_to_location[glt]
 						glt_range = set(range(glt_start, glt_end+1))
 						if glt_scaff == blt_scaff and float(len(blt_range.intersection(glt_range)))/float(len(glt_range)) >= 0.25:
-							sample_lts_to_prune.add(glt)
+							if not glt in bgc_prots:
+								sample_lts_to_prune.add(glt)
 
 			final_gw_sample_faa = final_proteomes_directory + sample + '.faa'
 			final_gw_sample_gbk = final_genbanks_directory + sample + '.gbk'
