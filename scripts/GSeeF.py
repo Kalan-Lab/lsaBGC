@@ -49,6 +49,7 @@ from Bio import SeqIO
 from time import sleep
 import random
 from ete3 import Tree
+from lsaBGC import util
 
 os.environ['OMP_NUM_THREADS'] = '4'
 lsaBGC_main_directory = '/'.join(os.path.realpath(__file__).split('/')[:-2]) + '/'
@@ -103,6 +104,7 @@ def create_parser():
 	parser.add_argument('-l', '--lsabgc_sample_annotation_file', help='The directory with AntiSMASH results used as input for BiG-SCAPE. Should have folders matching individual genomes which contain AntiSMASH results for each genome.', required=False, default=None)
 	parser.add_argument('-g', '--lsabgc_gcf_listings_directory', help='lsaBGC-Cluster/Auto-Expansion GCF listings directory.')
 	parser.add_argument('-o', '--output_directory', help='Parent output/workspace directory.', required=True)
+	parser.add_argument('-s', '--species_tree', help='Provide species tree in Newick format. If not provided will run GToTree to generate species phylogeny.', required=False, default=None)
 	parser.add_argument('-gtm', '--gtotree_model', help="SCG model for secondary GToTree analysis and what would be used for dereplication.", default='Bacteria', required=False)
 	parser.add_argument('-c', '--cpus', type=int, help="Total number of cpus/threads. Note, this is the total number of\nthreads to use.", required=False, default=4)
 
@@ -110,13 +112,14 @@ def create_parser():
 	return args
 
 
-def lsaBGC_Easy():
+def GSeeF():
 	myargs = create_parser()
 
 	bigscape_results_directory = myargs.bigscape_results_directory
 	antismash_results_directory = myargs.antismash_results_directory
 	lsabgc_sample_annotation_file = myargs.lsabgc_sample_annotation_file
 	lsabgc_gcf_listings_directory = myargs.lsabgc_gcf_listings_directory
+	species_tree_file = myargs.species_tree
 	outdir = os.path.abspath(myargs.output_directory) + '/'
 	cpus = myargs.cpus
 	gtotree_model = myargs.gtotree_model
@@ -151,20 +154,20 @@ def lsaBGC_Easy():
 		bigscape_results_directory = os.path.abspath(bigscape_results_directory) + '/'
 		antismash_results_directory = os.path.abspath(antismash_results_directory) + '/'
 		mode = 'BiG-SCAPE'
-		sys.stdout.write('Running in BiG-SCAPE mode!')
+		sys.stdout.write('Running in BiG-SCAPE mode!\n')
 	elif lsabgc_sample_annotation_file != None and lsabgc_gcf_listings_directory != None and \
 			os.path.isfile(lsabgc_sample_annotation_file) and os.path.isdir(lsabgc_gcf_listings_directory):
 
 		if not os.path.abspath(lsabgc_gcf_listings_directory).endswith('GCF_Listings'):
-			sys.stderr.write('lsaBGC GCF Listings directory does not end with GCF_Listings/. Maybe you provided the parent directory instead?')
+			sys.stderr.write('lsaBGC GCF Listings directory does not end with GCF_Listings/. Maybe you provided the parent directory instead?\n')
 			logObject.error('lsaBGC GCF Listings directory does not end with GCF_Listings/. Maybe you provided the parent directory instead?')
 			sys.exit(1)
 		lsabgc_sample_annotation_file = os.path.abspath(lsabgc_sample_annotation_file)
 		lsabgc_gcf_listings_directory = os.path.abspath(lsabgc_gcf_listings_directory) + '/'
 		mode = 'lsaBGC'
-		sys.stdout.write('Running in lsaBGC mode!')
+		sys.stdout.write('Running in lsaBGC mode!\n')
 	else:
-		sys.stderr.write('Difficulty figuring out whether you are trying to run with BiG-SCAPE or lsaBGC-Cluster results. Expected inputs were unable to be validated either provide arguments for -b/-a parameters for BiG-SCAPE mode or -l/-s for lsaBGC mode.')
+		sys.stderr.write('Difficulty figuring out whether you are trying to run with BiG-SCAPE or lsaBGC-Cluster results. Expected inputs were unable to be validated either provide arguments for -b/-a parameters for BiG-SCAPE mode or -l/-s for lsaBGC mode.\n')
 		logObject.error('Difficulty figuring out whether you are trying to run with BiG-SCAPE or lsaBGC-Cluster results. Expected inputs were unable to be validated either provide arguments for -b/-a parameters for BiG-SCAPE mode or -l/-s for lsaBGC mode.')
 		sys.exit(1)
 
@@ -248,22 +251,34 @@ def lsaBGC_Easy():
 				logObject.warning('Difficulty reading file %s in GCF Listings directory.' % gcf_tsv_file)
 
 	# Step 3: Run GToTree Phylogeny Construction and Perform Midpoint Rooting
-	gtotree_outdir = outdir + 'GToTree_output/'
-	species_tree_file = gtotree_outdir + 'GToTree_output.tre'
-	rooted_species_tree_file = final_results_dir + 'GToTree_Midpoint_Rooted.tre'
-	if not os.path.isfile(rooted_species_tree_file):
-		os.system('rm -rf %s' % gtotree_outdir)
-		gtotree_cmd = ['GToTree', '-A', proteome_listing_file, '-H', gtotree_model, '-n', '4', '-j',
-					   str(parallel_jobs_4cpu), '-M', '4', '-o', gtotree_outdir]
-		runCmdViaSubprocess(gtotree_cmd, logObject, check_files=[species_tree_file])
+	if species_tree_file != None:
+		species_tree_file = os.path.abspath(species_tree_file)
+		try:
+			assert(os.path.isfile(species_tree_file) and util.is_newick(species_tree_file))
+		except:
+			sys.stderr.write('Error: Unable to find user provided species tree or uanble to validate it is in Newick format. Note, this isn\'t required, if you exclude providing this argument, GToTree will be run.\n')
+			sys.exit(1)
+	else:
+		gtotree_outdir = outdir + 'GToTree_output/'
+		species_tree_file = gtotree_outdir + 'GToTree_output.tre'
+		if not os.path.isfile(species_tree_file):
+			os.system('rm -rf %s' % gtotree_outdir)
+			gtotree_cmd = ['GToTree', '-A', proteome_listing_file, '-H', gtotree_model, '-n', '4', '-j',
+						   str(parallel_jobs_4cpu), '-M', '4', '-o', gtotree_outdir]
+			runCmdViaSubprocess(gtotree_cmd, logObject, check_files=[species_tree_file])
 
+	rooted_species_tree_file = final_results_dir + 'Species_Phylogeny.Midpoint_Rooted.tre'
+	try:
 		t = Tree(species_tree_file)
 		R = t.get_midpoint_outgroup()
 		t.set_outgroup(R)
 		t.write(format=1, outfile=rooted_species_tree_file)
+	except:
+		sys.stderr.write('Error: Issue midpoint rooting the species tree.')
+		sys.exit(1)
 
 	# Step 4: Determine single annotation category/class per sample-GCF pairing and brew colors palette
-	all_annotation_classes = set(['unknown', 'hybrid'])
+	all_annotation_classes = set(['unknown', 'multi-type'])
 	gs_annots = defaultdict(dict)
 	gcf_annots = {}
 	for gcf in gcf_sample_annotations:
@@ -276,7 +291,7 @@ def lsaBGC_Easy():
 			elif len(annotations) == 2 and 'NRPS' in annotations and 'NRPS-like' in annotations:
 				annot = 'NRPS'
 			elif len(annotations) >= 2:
-				annot = 'hybrid'
+				annot = 'multi-type'
 			gs_annots[gcf][sample] = annot
 			all_annotation_classes.add(annot)
 			all_gcf_annots[annot] += 1
@@ -289,7 +304,7 @@ def lsaBGC_Easy():
 				if max_annot_count/float(tot_annot_sum) >= min_gcf_annot_prop:
 					gcf_annots[gcf] = max_annot
 				else:
-					gcf_annots[gcf] = 'hybid'
+					gcf_annots[gcf] = 'multi-type'
 		"""
 
 	colorBrewScript = lsaBGC_main_directory + 'lsaBGC/Rscripts/brewColors.R'
@@ -305,7 +320,7 @@ def lsaBGC_Easy():
 	annotation_colors = {}
 	ci = 0
 	for a in sorted(all_annotation_classes):
-		if a == 'hybrid':
+		if a == 'multi-type':
 			annotation_colors[a] = '#000000'
 		elif a == 'unknown':
 			annotation_colors[a] = '#a2a4a6'
@@ -380,7 +395,7 @@ def parseAntiSMASHGBKForFunction(bgc_gbk, logObject):
 		elif len(products) == 2 and 'NRPS-like' in products and 'NRPS' in products:
 				product = 'NRPS'
 		elif len(products) >= 2:
-			product = 'hybrid'
+			product = 'multi-type'
 	except:
 		logObject.error('Issues parsing BGC Genbank %s' % bgc_gbk)
 		raise RuntimeError()
@@ -412,4 +427,4 @@ def checkModelIsValid(gtotree_model):
 
 
 if __name__ == '__main__':
-	lsaBGC_Easy()
+	GSeeF()

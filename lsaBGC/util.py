@@ -1614,6 +1614,85 @@ def performKOFamAndPGAPAnnotation(sample_bgc_proteins, bgc_prot_directory, annot
 		raise RuntimeError(traceback.format_exc())
 	return dict(sample_protein_annotations)
 
+def runOrthoFinder2Full(bgc_prot_directory, orthofinder_outdir, logObject, cpus=1):
+	result_file = orthofinder_outdir + 'Orthogroups_BGC_Comprehensive.tsv'
+	try:
+		orthofinder_cmd = ['orthofinder', '-f', bgc_prot_directory, '-t', str(cpus)]
+
+		logObject.info('Running the following command: %s' % ' '.join(orthofinder_cmd))
+		subprocess.call(' '.join(orthofinder_cmd), shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+						executable='/bin/bash')
+		logObject.info('Successfully ran OrthoFinder!')
+		tmp_orthofinder_dir = os.path.abspath(
+			[bgc_prot_directory + 'OrthoFinder/' + f for f in os.listdir(bgc_prot_directory + 'OrthoFinder/') if
+			 f.startswith('Results')][0]) + '/'
+
+		os.system('mv %s %s' % (tmp_orthofinder_dir, orthofinder_outdir))
+		main_file = orthofinder_outdir + 'Orthogroups/Orthogroups.tsv'
+		singletons_file = orthofinder_outdir + 'Orthogroups/Orthogroups_UnassignedGenes.tsv'
+		n0_file = orthofinder_outdir + 'Phylogenetic_Hierarchical_Orthogroups/N0.tsv'
+
+		genomes = []
+		og_genes_in_hog = defaultdict(set)
+		result_handle = open(result_file, 'w')
+		with open(n0_file) as n0f:
+			for i, line in enumerate(n0f):
+				line = line.strip('\n')
+				ls = line.split('\t')
+				if i == 0:
+					genomes = ls[3:]
+					result_handle.write('Orthogroup\t' + '\t'.join(genomes) + '\n')
+				else:
+					hog = ls[0].split('N0.')[1]
+					og = ls[1]
+					for j, gs in enumerate(ls[3:]):
+						genome = genomes[j]
+						for gene in gs.split(', '):
+							gene = gene.strip()
+							gene_genome_pair = tuple([gene, genome])
+							og_genes_in_hog[og].add(gene_genome_pair)
+					result_handle.write(hog + '\t' + '\t'.join(ls[3:]) + '\n')
+
+		genomes_mf = []
+		with open(main_file) as omf:
+			for i, line in enumerate(omf):
+				line = line.strip('\n')
+				ls = line.split('\t')
+				if i == 0:
+					genomes_mf = ls[1:]
+				else:
+					og = ls[0]
+					printlist = [og]
+					value_count = 0
+					for j, gs in enumerate(ls[1:]):
+						genome = genomes_mf[j]
+						updated_gs = []
+						for gene in gs.split(', '):
+							gene_genome_pair = tuple([gene, genome])
+							if not gene_genome_pair in og_genes_in_hog[og]:
+								updated_gs.append(gene)
+								value_count += 1
+						printlist.append(', '.join(updated_gs))
+					result_handle.write('\t'.join(printlist) + '\n')
+
+		genomes_sf = []
+		with open(singletons_file) as osf:
+			for i, line in enumerate(osf):
+				line = line.strip('\n')
+				ls = line.split('\t')
+				if i == 0:
+					genomes_sf = ls[1:]
+				else:
+					result_handle.write(line + '\n')
+		result_handle.close()
+
+		assert(genomes == genomes_mf and genomes == genomes_sf)
+		assert (os.path.isfile(result_file))
+	except Exception as e:
+		logObject.error("Problem with running OrthoFinder2 cmd: %s." % ' '.join(orthofinder_cmd))
+		logObject.error(traceback.format_exc())
+		raise RuntimeError(traceback.format_exc())
+	return result_file
 
 def runOrthoFinder2(bgc_prot_directory, orthofinder_outdir, logObject, cpus=1):
 		result_file = orthofinder_outdir + 'Orthogroups_BGC_Comprehensive.tsv'

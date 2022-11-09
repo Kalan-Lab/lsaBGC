@@ -26,9 +26,9 @@ Documentation can currently be found on this Github repo's wiki: https://github.
 12. [Discovering Novel Variations in GCF Genes from Raw Sequencing Reads](https://github.com/Kalan-Lab/lsaBGC/wiki/11.-Discovering-Novel-Variations-in-GCF-Genes-from-Raw-Sequencing-Reads)
 13. [The lsaBGC AutoAnalyze Workflow](https://github.com/Kalan-Lab/lsaBGC/wiki/12.-The-lsaBGC-AutoAnalyze-Workflow)
 14. [Benchmarking Gene Detection through Expansion vs. DiscoVary](https://github.com/Kalan-Lab/lsaBGC/wiki/15.-Benchmarking-Gene-Detection-through-Expansion-vs.-DiscoVary)
-15. [Running test datasets for core lsaBGC programs](https://github.com/Kalan-Lab/lsaBGC_Ckefir_Testing_Cases)
+15. [Running additional test datasets for core lsaBGC programs](https://github.com/Kalan-Lab/lsaBGC_Ckefir_Testing_Cases)
+16. [GSeeF - quick and simple visualization of BGCs across a species phylogeny](https://github.com/Kalan-Lab/lsaBGC/wiki/17.-GSeeF---Visualizing-GCF-Cluster-Presence-and-Annotation-Along-a-Species-Phylogeny)
 
-*Documentation moving to "Read the Docs" soon!*
 
 ## Installation:
 
