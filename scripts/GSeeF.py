@@ -364,6 +364,7 @@ def GSeeF():
 				col_array.append(annotation_colors[gs_annots[gcf][sample]])
 				gseef_track_handle.write('\t'.join([gcf, str(i), sample, gs_annots[gcf][sample], '"' + annotation_colors[gs_annots[gcf][sample]] + '"']) + '\n')
 			else:
+				gseef_track_handle.write('\t'.join([gcf, str(i), sample, 'absent', '"#FFFFFF"']) + '\n')
 				col_array.append('#FFFFFF')
 			col_array.append(gcf)
 			printlist.append('|'.join(col_array))

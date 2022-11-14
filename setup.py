@@ -1,7 +1,7 @@
 from setuptools import setup
 
 setup(name='lsaBGC',
-      version='1.2',
+      version='1.3',
       description='Suite for comparative genomic, population genetics and evolutionary analysis, as well as metagenomic mining of micro-evolutionary novelty in BGCs all in the context of a single lineage of interest.',
       url='http://github.com/Kalan-Lab/lsaBGC/',
       author='Rauf Salamzade',
