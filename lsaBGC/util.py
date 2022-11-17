@@ -1102,7 +1102,7 @@ def multiProcess(input):
 		sys.stderr.write(traceback.format_exc())
 
 
-def processGenomes(sample_genomes, prodigal_outdir, prodigal_proteomes, prodigal_genbanks, logObject, cpus=1, locus_tag_length=3, avoid_locus_tags=set([])):
+def processGenomes(sample_genomes, prodigal_outdir, prodigal_proteomes, prodigal_genbanks, logObject, cpus=1, locus_tag_length=3, use_pyrodigal=False, avoid_locus_tags=set([])):
 	"""
 	Void function to run Prodigal based gene-calling and annotations.
 
@@ -1128,6 +1128,8 @@ def processGenomes(sample_genomes, prodigal_outdir, prodigal_proteomes, prodigal
 
 			prodigal_cmd = ['runProdigalAndMakeProperGenbank.py', '-i', sample_assembly, '-s', sample,
 							'-l', sample_locus_tag, '-o', prodigal_outdir]
+			if use_pyrodigal:
+				prodigal_cmd += ['-py']
 			prodigal_cmds.append(prodigal_cmd + [logObject])
 
 		p = multiprocessing.Pool(cpus)

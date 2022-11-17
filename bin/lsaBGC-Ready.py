@@ -119,6 +119,7 @@ def create_parser():
                         default=1)
     parser.add_argument('-k', '--keep_intermediates', action='store_true', help='Keep intermediate directories / files which are likely not useful for downstream analyses.', required=False, default=False)
     parser.add_argument('-spe', '--skip_primary_expansion', action='store_true', help='Skip expansion on primary genomes as well.', required=False, default=False)
+    parser.add_argument('-py', '--use_pyrodigal', action='store_true', help='Use pyrodigal instead of prodigal.', required=False, default=False)
     args = parser.parse_args()
     return args
 
@@ -173,6 +174,7 @@ def lsaBGC_Ready():
     run_coarse_orthofinder = myargs.run_coarse_orthofinder
     keep_intermediates = myargs.keep_intermediates
     skip_primary_expansion = myargs.skip_primary_expansion
+    use_pyrodigal = myargs.use_pyrodigal
 
     try:
         assert(orthofinder_mode in set(['GENOME_WIDE', 'BGC_ONLY']))
@@ -238,11 +240,12 @@ def lsaBGC_Ready():
     parameters_file = outdir + 'Parameter_Inputs.txt'
     parameter_values = [genome_listing_file, bgc_genbank_listing_file, outdir, additional_genome_listing_file,
                         bgc_prediction_software, orthofinder_mode, bigscape_results_dir, annotate, run_lsabgc_cluster,
-                        run_lsabgc_expansion, keep_intermediates, cpus]
+                        run_lsabgc_expansion, keep_intermediates, use_pyrodigal, cpus]
     parameter_names = ["Primary Genome Listing File", "BGC Predictions Genbanks Listing File", "Output Directory",
                        "Additional Genome Listing File", "BGC Prediction Software", "OrthoFinder Mode",
                        "BiG-SCAPE Results Directory", "Perform KOfam/PGAP Annotation?", "Run lsaBGC-Cluster Analysis?",
-                       "Run lsaBGC-AutoExpansion Analysis?", "Keep Intermediate Files/Directories?", "Number of cpus"]
+                       "Run lsaBGC-AutoExpansion Analysis?", "Keep Intermediate Files/Directories?",
+                       "Use pyrodigal instead of prodigal", "Number of cpus"]
     util.logParametersToFile(parameters_file, parameter_names, parameter_values)
     logObject.info("Done saving parameters!")
 
@@ -300,14 +303,15 @@ def lsaBGC_Ready():
 
         # Note, locus tags of length 3 are used within lsaBGC to mark samples whose BGCs were integral in defining GCFs.
         util.processGenomes(sample_genomes, prodigal_outdir, proteomes_directory, genbanks_directory, logObject,
-                            cpus=cpus, locus_tag_length=3)
+                            cpus=cpus, use_pyrodigal=use_pyrodigal, locus_tag_length=3)
         sample_genomes = util.updateSampleGenomesWithGenbanks(genbanks_directory)
     else:
         ## genomes are provided as Genbanks with CDS features and no need for de novo gene calling
         gene_name_mapping_outdir = outdir + 'Mapping_of_New_Gene_Names_to_Original/'
         util.setupReadyDirectory([gene_name_mapping_outdir])
 
-        util.processGenomesAsGenbanks(sample_genomes, proteomes_directory, genbanks_directory, gene_name_mapping_outdir, logObject, cpus=cpus, locus_tag_length=3)
+        util.processGenomesAsGenbanks(sample_genomes, proteomes_directory, genbanks_directory, gene_name_mapping_outdir,
+                                      logObject, cpus=cpus, use_pyrodigal=use_pyrodigal, locus_tag_length=3)
         sample_genomes = util.updateSampleGenomesWithGenbanks(genbanks_directory)
 
     # Step 2: Process Additional Genomes

@@ -69,6 +69,9 @@ def create_parser():
 	parser.add_argument('-c', '--cpus', type=int,
 						help="Total number of cpus/threads to use for running OrthoFinder2/prodigal.", required=False,
 						default=1)
+	parser.add_argument('-py', '--use_pyrodigal', action='store_true', help='Use pyrodigal instead of prodigal.',
+						required=False, default=False)
+
 	args = parser.parse_args()
 	return args
 
@@ -87,6 +90,7 @@ def readifyAdditionalGenomes():
 	previous_annotation_listing_file = myargs.previous_annotation_listing
 	locus_tag_length = myargs.locus_tag_length
 	cpus = myargs.cpus
+	use_pyrodigal = myargs.use_pyrodigal
 
 	if os.path.isdir(outdir):
 		sys.stderr.write("Output directory exists. Overwriting in 5 seconds ...\n ")
@@ -152,7 +156,7 @@ def readifyAdditionalGenomes():
 		# find them via lsaBGC-Expansion.
 		util.processGenomes(additional_sample_genomes, additional_prodigal_outdir, additional_proteomes_directory,
 							additional_genbanks_directory, logObject, cpus=cpus, locus_tag_length=locus_tag_length,
-							avoid_locus_tags=used_locus_tags)
+							use_pyrodigal=use_pyrodigal, avoid_locus_tags=used_locus_tags)
 	else:
 		# genomes are provided as Genbanks with CDS features
 		gene_name_mapping_outdir = outdir + 'Mapping_of_New_Gene_Names_to_Original/'
