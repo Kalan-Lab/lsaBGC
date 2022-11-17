@@ -1614,6 +1614,85 @@ def performKOFamAndPGAPAnnotation(sample_bgc_proteins, bgc_prot_directory, annot
 		raise RuntimeError(traceback.format_exc())
 	return dict(sample_protein_annotations)
 
+def runOrthoFinder2Full(bgc_prot_directory, orthofinder_outdir, logObject, cpus=1):
+	result_file = orthofinder_outdir + 'Orthogroups_BGC_Comprehensive.tsv'
+	try:
+		orthofinder_cmd = ['orthofinder', '-f', bgc_prot_directory, '-t', str(cpus)]
+
+		logObject.info('Running the following command: %s' % ' '.join(orthofinder_cmd))
+		subprocess.call(' '.join(orthofinder_cmd), shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+						executable='/bin/bash')
+		logObject.info('Successfully ran OrthoFinder!')
+		tmp_orthofinder_dir = os.path.abspath(
+			[bgc_prot_directory + 'OrthoFinder/' + f for f in os.listdir(bgc_prot_directory + 'OrthoFinder/') if
+			 f.startswith('Results')][0]) + '/'
+
+		os.system('mv %s %s' % (tmp_orthofinder_dir, orthofinder_outdir))
+		main_file = orthofinder_outdir + 'Orthogroups/Orthogroups.tsv'
+		singletons_file = orthofinder_outdir + 'Orthogroups/Orthogroups_UnassignedGenes.tsv'
+		n0_file = orthofinder_outdir + 'Phylogenetic_Hierarchical_Orthogroups/N0.tsv'
+
+		genomes = []
+		og_genes_in_hog = defaultdict(set)
+		result_handle = open(result_file, 'w')
+		with open(n0_file) as n0f:
+			for i, line in enumerate(n0f):
+				line = line.strip('\n')
+				ls = line.split('\t')
+				if i == 0:
+					genomes = ls[3:]
+					result_handle.write('Orthogroup\t' + '\t'.join(genomes) + '\n')
+				else:
+					hog = ls[0].split('N0.')[1]
+					og = ls[1]
+					for j, gs in enumerate(ls[3:]):
+						genome = genomes[j]
+						for gene in gs.split(', '):
+							gene = gene.strip()
+							gene_genome_pair = tuple([gene, genome])
+							og_genes_in_hog[og].add(gene_genome_pair)
+					result_handle.write(hog + '\t' + '\t'.join(ls[3:]) + '\n')
+
+		genomes_mf = []
+		with open(main_file) as omf:
+			for i, line in enumerate(omf):
+				line = line.strip('\n')
+				ls = line.split('\t')
+				if i == 0:
+					genomes_mf = ls[1:]
+				else:
+					og = ls[0]
+					printlist = [og]
+					value_count = 0
+					for j, gs in enumerate(ls[1:]):
+						genome = genomes_mf[j]
+						updated_gs = []
+						for gene in gs.split(', '):
+							gene_genome_pair = tuple([gene, genome])
+							if not gene_genome_pair in og_genes_in_hog[og]:
+								updated_gs.append(gene)
+								value_count += 1
+						printlist.append(', '.join(updated_gs))
+					result_handle.write('\t'.join(printlist) + '\n')
+
+		genomes_sf = []
+		with open(singletons_file) as osf:
+			for i, line in enumerate(osf):
+				line = line.strip('\n')
+				ls = line.split('\t')
+				if i == 0:
+					genomes_sf = ls[1:]
+				else:
+					result_handle.write(line + '\n')
+		result_handle.close()
+
+		assert(genomes == genomes_mf and genomes == genomes_sf)
+		assert (os.path.isfile(result_file))
+	except Exception as e:
+		logObject.error("Problem with running OrthoFinder2 cmd: %s." % ' '.join(orthofinder_cmd))
+		logObject.error(traceback.format_exc())
+		raise RuntimeError(traceback.format_exc())
+	return result_file
 
 def runOrthoFinder2(bgc_prot_directory, orthofinder_outdir, logObject, cpus=1):
 		result_file = orthofinder_outdir + 'Orthogroups_BGC_Comprehensive.tsv'
@@ -1790,16 +1869,8 @@ def incorporateBGCProteinsIntoProteomesAndGenbanks(sample_bgc_proteins, sample_g
 
 				bgc_prots = sample_bgc_proteins[sample][bgc]
 				bgc_prots_1x = set([x for x in bgc_prots if x.split('_')[1][0] == '1'])
-				bgc_prot_file = bgc_prot_directory + sample + '.faa'
-				bgc_prot_to_location = {}
-				with open(bgc_prot_file) as obpf:
-					for rec in SeqIO.parse(obpf, 'fasta'):
-						bgc_prot_to_location[rec.id] = [rec.description.split()[1],
-														int(rec.description.split()[2]),
-														int(rec.description.split()[3])]
-						if rec.id in bgc_prots_1x:
-							sample_lts_to_add_protein_sequences[rec.id] = [rec.description, str(rec.seq)]
 
+				scaff_start = None
 				with open(bgc) as obf:
 					for rec in SeqIO.parse(obf, 'genbank'):
 						scaff_id = rec.id
@@ -1807,21 +1878,24 @@ def incorporateBGCProteinsIntoProteomesAndGenbanks(sample_bgc_proteins, sample_g
 						for feature in rec.features:
 							if feature.type=='CDS':
 								prot_lt = feature.qualifiers.get('locus_tag')[0]
-
-								all_coords = []
-								if not 'join' in str(feature.location):
-									start = scaff_start + min(
-										[int(x.strip('>').strip('<')) for x in str(feature.location)[1:].split(']')[0].split(':')]) + 1
-									end = scaff_start + max([int(x.strip('>').strip('<')) for x in str(feature.location)[1:].split(']')[0].split(':')])
-									direction = str(feature.location).split('(')[1].split(')')[0]
-									all_coords.append([start, end, direction])
-								else:
-									for exon_coord in str(feature.location)[5:-1].split(', '):
-										start = scaff_start + min([int(x.strip('>').strip('<')) for x in exon_coord[1:].split(']')[0].split(':')]) + 1
-										end = scaff_start + max([int(x.strip('>').strip('<')) for x in exon_coord[1:].split(']')[0].split(':')])
-										direction = exon_coord.split('(')[1].split(')')[0]
-										all_coords.append([start, end, direction])
 								if prot_lt in bgc_prots_1x:
+									all_coords = []
+									if not 'join' in str(feature.location):
+										start = scaff_start + min(
+											[int(x.strip('>').strip('<')) for x in
+											 str(feature.location)[1:].split(']')[0].split(':')]) + 1
+										end = scaff_start + max([int(x.strip('>').strip('<')) for x in
+																 str(feature.location)[1:].split(']')[0].split(':')])
+										direction = str(feature.location).split('(')[1].split(')')[0]
+										all_coords.append([start, end, direction])
+									else:
+										for exon_coord in str(feature.location)[5:-1].split(', '):
+											start = scaff_start + min([int(x.strip('>').strip('<')) for x in
+																	   exon_coord[1:].split(']')[0].split(':')]) + 1
+											end = scaff_start + max([int(x.strip('>').strip('<')) for x in
+																	 exon_coord[1:].split(']')[0].split(':')])
+											direction = exon_coord.split('(')[1].split(')')[0]
+											all_coords.append([start, end, direction])
 									fls = []
 									for sc, ec, dc in all_coords:
 										dir = 1
@@ -1833,14 +1907,25 @@ def incorporateBGCProteinsIntoProteomesAndGenbanks(sample_bgc_proteins, sample_g
 									feature.location = feat_loc
 									sample_lts_to_add_genbank_features[scaff_id].append(feature)
 
+				bgc_prot_file = bgc_prot_directory + sample + '.faa'
+				bgc_prot_to_location = {}
+				with open(bgc_prot_file) as obpf:
+					for rec in SeqIO.parse(obpf, 'fasta'):
+						bgc_prot_to_location[rec.id] = [rec.description.split()[1],
+														int(rec.description.split()[2]),
+														int(rec.description.split()[3])]
+						if rec.id in bgc_prots_1x:
+							sample_lts_to_add_protein_sequences[rec.id] = [rec.id + ' ' + rec.description.split()[1] + ' ' + str(int(rec.description.split()[2])+scaff_start) + ' ' + str(int(rec.description.split()[3])+scaff_start), str(rec.seq)]
+
 				for blt in bgc_prots_1x:
 					blt_scaff, blt_start, blt_end = bgc_prot_to_location[blt]
-					blt_range = set(range(blt_start, blt_end + 1))
+					blt_range = set(range(blt_start+scaff_start, blt_end+scaff_start + 1))
 					for glt in scaff_glts[blt_scaff]:
 						glt_scaff, glt_start, glt_end = gw_prot_to_location[glt]
 						glt_range = set(range(glt_start, glt_end+1))
 						if glt_scaff == blt_scaff and float(len(blt_range.intersection(glt_range)))/float(len(glt_range)) >= 0.25:
-							sample_lts_to_prune.add(glt)
+							if not glt in bgc_prots:
+								sample_lts_to_prune.add(glt)
 
 			final_gw_sample_faa = final_proteomes_directory + sample + '.faa'
 			final_gw_sample_gbk = final_genbanks_directory + sample + '.gbk'

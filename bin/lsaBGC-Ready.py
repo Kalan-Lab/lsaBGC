@@ -107,6 +107,7 @@ def create_parser():
                         default=None)
     parser.add_argument('-o', '--output_directory', help='Parent output/workspace directory.', required=True)
     parser.add_argument('-m', '--orthofinder_mode', help='Method for running OrthoFinder2. (Options: Genome_Wide, BGC_Only). Default is Genome_Wide.', required=False, default='Genome_Wide')
+    parser.add_argument('-mc', '--run_coarse_orthofinder', action='store_true', help='Use coarse clustering of homolog groups in OrthoFinder instead of more resolute hierarchical determined homolog groups.', required=False, default=False)
     parser.add_argument('-a', '--annotate', action='store_true',
                         help='Perform annotation of BGC proteins using KOfam and PGAP (including TIGR) HMM profiles.', required=False, default=False)
     parser.add_argument('-t', '--run_gtotree', action='store_true', help='Whether to create phylogeny and expected sample-vs-sample\ndivergence for downstream analyses using GToTree.', required=False, default=False)
@@ -169,6 +170,7 @@ def lsaBGC_Ready():
     annotate = myargs.annotate
     run_lsabgc_cluster = myargs.lsabgc_cluster
     run_lsabgc_expansion = myargs.lsabgc_expansion
+    run_coarse_orthofinder = myargs.run_coarse_orthofinder
     keep_intermediates = myargs.keep_intermediates
     skip_primary_expansion = myargs.skip_primary_expansion
 
@@ -399,7 +401,10 @@ def lsaBGC_Ready():
                                                             primary_bgc_listing_file, logObject)
 
         # Step 7 - GW: Run OrthoFinder2 with genome-wide predicted proteomes
-        orthofinder_bgc_matrix_file = util.runOrthoFinder2(final_proteomes_directory, orthofinder_directory, logObject, cpus=cpus)
+        if run_coarse_orthofinder:
+            orthofinder_bgc_matrix_file = util.runOrthoFinder2(final_proteomes_directory, orthofinder_directory, logObject, cpus=cpus)
+        else:
+            orthofinder_bgc_matrix_file = util.runOrthoFinder2Full(final_proteomes_directory, orthofinder_directory, logObject, cpus=cpus)
         os.system('mv %s %s' % (orthofinder_bgc_matrix_file, primary_orthofinder_matrix_file))
     elif orthofinder_mode.upper() == 'BGC_ONLY':
         # Step 6 - BO: Run OrthoFinder2 with Proteins from BGCs

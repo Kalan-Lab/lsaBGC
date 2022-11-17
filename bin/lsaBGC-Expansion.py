@@ -66,7 +66,7 @@ def create_parser():
     parser.add_argument('-o', '--output_directory', help="Path to output directory.", required=True)
     parser.add_argument('-i', '--gcf_id', help="GCF identifier.", required=False, default='GCF_X')
     parser.add_argument('-p', '--bgc_prediction_software', help='Software used to predict BGCs (Options: antiSMASH, DeepBGC, GECCO).\nDefault is antiSMASH.', default='antiSMASH', required=False)
-    parser.add_argument('-ms', '--min_segment_size', type=float, help="The minimum number of homolog groups (>3) needed to report discrete segments of the GCF. Default is 5.", required=False, default=5)
+    parser.add_argument('-ms', '--min_segment_size', type=float, help="The minimum number of homolog groups (>3) needed to report discrete segments of the GCF. Ignored if GCF specific or functionally core (e.g. harboring key domain for detection of BGC) homolog group is found in segment. Default is 5.", required=False, default=5)
     parser.add_argument('-mcs', '--min_segment_core_size', type=float, help="The minimum number of core (to the known instances of the GCF) homololog groups needed\nto report discrete segments of the GCF. Default is 3.", required=False, default=3)
     parser.add_argument('-sct', '--syntenic_correlation_threshold', type=float, help="The minimum syntenic correlation needed to at least one known\nGCF instance to report segment.", required=False, default=0.8)
     parser.add_argument('-tg', '--transition_from_gcf_to_gcf', type=float, help="GCF to GCF state transition probability for HMM. Should be between\n0.0 and 1.0. Default is 0.9.", required=False, default=0.9)

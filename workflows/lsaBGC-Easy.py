@@ -47,6 +47,8 @@ import itertools
 from operator import itemgetter
 from collections import defaultdict
 import gzip
+import resource
+from time import sleep
 
 os.environ['OMP_NUM_THREADS'] = '4'
 lsaBGC_main_directory = '/'.join(os.path.realpath(__file__).split('/')[:-2]) + '/'
@@ -121,7 +123,7 @@ def create_parser():
 	parser.add_argument('-om', '--orthofinder_mode', help="Method for running OrthoFinder2. (Options: Genome_Wide, BGC_Only).\nDefault is Genome_Wide (BGC_Only is slightly experimental but much faster and should work\nespecially well for taxa with many BGCs).", default='Genome_Wide', required=False)
 	parser.add_argument('-sd', '--skip_dereplication', action='store_true', help="Whether to skip dereplication based on GToTree alignments of SCGs - not\nrecommended and can cause issues if there are a lot of\ngenomes for the taxa of interest.", default=False, required=False)
 	parser.add_argument('-gtm', '--gtotree_model', help="SCG model for secondary GToTree analysis and what would be used for dereplication.", default='Bacteria', required=False)
-	parser.add_argument('-iib', '--include_incomplete_bgcs', help="Whether to account for incomplete BGCs prior to clustering - not recommended.", default=False, required=False)
+	parser.add_argument('-iib', '--include_incomplete_bgcs', action='store_true', help="Whether to account for incomplete BGCs prior to clustering - not recommended.", default=False, required=False)
 	parser.add_argument('-b', '--use_bigscape', action='store_true', help="Use BiG-SCAPE for BGC clustering into GCFs instead of lsaBGC-Cluster. Recommended if you want to include incomplete BGCs for clustering and are using antiSMASH.", required=False, default=False)
 	parser.add_argument('-sae', '--skip_auto_expansion', action='store_true', help="Skip lsaBGC-AutoExpansion.py to find missing pieces of BGCs due to assemlby fragmentation.", required=False, default=False)
 	parser.add_argument('-c', '--cpus', type=int, help="Total number of cpus/threads. Note, this is the total number of\nthreads to use. BGC prediction commands (via GECCO, antiSMASH, and DeepBGC) will\neach be set to use 4 cpus by default.", required=False, default=4)
@@ -170,6 +172,7 @@ def lsaBGC_Easy():
 
 	if os.path.isdir(outdir):
 		sys.stderr.write("Output directory already exists! Overwriting in 5 seconds, but only where needed will use checkpoint files to skip certain steps...\n")
+		sleep(5)
 	else:
 		util.setupReadyDirectory([outdir])
 
@@ -226,7 +229,6 @@ def lsaBGC_Easy():
 	if (genome_count >= 2000 or genome_count < 10) and (not ignore_limits_flag):
 		logObject.error("Currently not recommended to use lsaBGC-Easy for taxa with > 2000 genomes or < 10 genomes. In the future this will likely be updated to be a warning, but would rather not risk harming your server!")
 		raise RuntimeError("Currently not recommended to use lsaBGC-Easy for taxa with > 2000 genomes or < 10 genomes. In the future this will likely be updated to be a warning, but would rather not risk harming your computer/server!")
-	checkUlimitSettings(genome_count, logObject)
 
 	# Step 2: Download all genomes in FASTA format & prodigal gene calling
 	genomes_directory = outdir + 'genbank/'
@@ -419,7 +421,7 @@ def lsaBGC_Easy():
 	if (count_of_dereplicated_sample_set > 100) and (not ignore_limits_flag):
 		logObject.error("Currently not recommended to use lsaBGC-Easy for taxa with > 100 genomes after dereplication. In the future this will likely be updated to be a warning, but would rather not risk harming your computer/server!")
 		raise RuntimeError("Currently not recommended to use lsaBGC-Easy for taxa with > 100 genomes after dereplication. In the future this will likely be updated to be a warning, but would rather not risk harming your computer/server!")
-
+	checkUlimitSettings(count_of_dereplicated_sample_set, logObject)
 
 	primary_genomes_listing_file = outdir + 'Primary_Genomes.txt'
 	primary_bgc_pred_directory = outdir + 'Primary_Genomes_BGC_Predictions/'
@@ -578,9 +580,9 @@ def checkUlimitSettings(num_genomes, logObject):
 	else:
 		uS = 1e15
 	if num_files > uS:
-		logObject.error("Too many files will be produced and need to be read at once by OrthoFinder2. Luckily, you can resolve this quite easily via: ulimit -n 250000 . After running the command rerun lsaBGC-Easy.py and you should not get stuck here again.")
-		sys.stderr.write("Too many files will be produced and need to be read at once by OrthoFinder2. Luckily, you can resolve this quite easily via: ulimit -n 250000 . After running the command rerun lsaBGC-Easy.py and you should not get stuck here again.")
-		sys.exit()
+		logObject.warning("Because many files will be produced and need to be read at once by OrthoFinder2, we are increasing the current shell's limits! Five second pause to allow you to exit the program if you do not which to continue")
+		sleep(5)
+		resource.setrlimit(resource.RLIMIT_NOFILE, (250000, 250000))
 	if num_files > uH:
 		logObject.error("Too many files will be produced and need to be read at once by OrthoFinder2. Your system requires root privs to change this, which I do not recommend. See the following OrthoFinder2 Github issue for more details: https://github.com/davidemms/OrthoFinder/issues/384")
 		sys.stderr.write("Too many files will be produced and need to be read at once by OrthoFinder2. Your system requires root privs to change this, which I do not recommend. See the following OrthoFinder2 Github issue for more details: https://github.com/davidemms/OrthoFinder/issues/384")

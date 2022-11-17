@@ -141,7 +141,7 @@ def lsaBGC_AutoAnalyze():
 						if samp != '':
 							assert(samp in all_samples)
 				else:
-					assert(ls[0].startswith("OG"))
+					assert(ls[0].startswith("OG") or ls[0].startswith("HOG"))
 	except:
 		raise RuntimeError("Issue with validating OrthoFinder matrix is in correct format.")
 
