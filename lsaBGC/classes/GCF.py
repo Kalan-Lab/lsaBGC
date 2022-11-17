@@ -3276,7 +3276,7 @@ def identify_gcf_instances(input_args):
 					boundary_lt_featured = False
 					features_specific_hg = False
 					features_protocluster_hg = False
-					if len(protocluster_core_homologs.intersection(set(gcf_state_hgs).difference('other'))) > 0: features_protocoluster_hg = True
+					if len(protocluster_core_homologs.intersection(set(gcf_state_hgs).difference('other'))) > 0: features_protocluster_hg = True
 					if len(boundary_genes.intersection(set(gcf_state_lts).difference('other'))) > 0: boundary_lt_featured = True
 					if len(specific_hgs.intersection(set(gcf_state_hgs).difference('other'))) > 0: features_specific_hg = True
 					sample_gcf_predictions.append([gcf_state_lts, gcf_state_hgs, len(gcf_state_lts),
