@@ -130,6 +130,8 @@ def create_parser():
 	parser.add_argument('-dt', '--dereplicate_threshold', type=float, help="Amino acid similarity threshold of SCGs for considering\ntwo genomes as redundant.", default=0.999, required=False)
 	parser.add_argument('-pt', '--population_threshold', type=float, help="Amino acid similarity threshold of SCGs for considering\ntwo genomes as belonging to the same population.", default=0.99, required=False)
 	parser.add_argument('-x', '--ignore_limits', action='store_true', help="Ignore limitations on number of genomes allowed.\nE.g. allow for analyses of taxa with more than 2000 genomes available and more than 100 genomes\nafter dereplication. Not recommend, be cautious!!! Also note,\nyou can always delete \"Dereplicated_Set_of_Genomes.txt\" in the results directory and redo\ndereplication with different threshold.")
+	parser.add_argument('-py', '--use_pyrodigal', action='store_true', help='Use pyrodigal instead of prodigal.',
+						required=False, default=False)
 	args = parser.parse_args()
 	return args
 
@@ -150,6 +152,7 @@ def lsaBGC_Easy():
 	orthofinder_mode = myargs.orthofinder_mode.upper()
 	use_bigscape_flag = myargs.use_bigscape
 	ignore_limits_flag = myargs.ignore_limits
+	use_pyrodigal = myargs.use_pyrodigal
 
 	try:
 		assert (orthofinder_mode in set(['GENOME_WIDE', 'BGC_ONLY']))
@@ -180,7 +183,7 @@ def lsaBGC_Easy():
 	log_file = outdir + 'Progress.log'
 	logObject = util.createLoggerObject(log_file)
 	logObject.info("Saving parameters for future records.")
-	parameters_file = outdir + 'Parameter_Inputs.txt'
+	parameters_file = outdir + 'Command_Issued.txt'
 	parameters_handle = open(parameters_file, 'a+')
 	parameters_handle.write(' '.join(sys.argv) + '\n')
 	logObject.info("Done saving parameters!")
@@ -502,6 +505,8 @@ def lsaBGC_Easy():
 			lsabgc_ready_cmd += ['-b', bigscape_results_dir]
 		else:
 			lsabgc_ready_cmd += ['-lc']
+		if use_pyrodigal:
+			lsabgc_ready_cmd += ['-py']
 
 		db_listing_file = lsaBGC_main_directory + '/db/database_location_paths.txt'
 		if os.path.isfile(db_listing_file):
