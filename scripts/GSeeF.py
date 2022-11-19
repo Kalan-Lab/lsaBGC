@@ -185,9 +185,13 @@ def GSeeF():
 
 		for sd in os.listdir(antismash_results_directory):
 			subdir = antismash_results_directory + sd + '/'
-			full_genbank_file = subdir + sd + '.gbk'
-			print(full_genbank_file)
-			if not os.path.isfile(full_genbank_file): continue
+			full_genbank_file = None
+			count_possible_full_genome_genbanks = 0
+			for f in os.listdir(subdir):
+				if f.endswith('.gbk') and not 'region' in f:
+					full_genbank_file = subdir + f
+					count_possible_full_genome_genbanks += 1
+			if count_possible_full_genome_genbanks != 1 or full_genbank_file == None or not os.path.isfile(full_genbank_file): continue
 			all_samples.add(sd)
 			sample_proteome_file = proteomes_dir + sd + '.faa'
 			sample_proteome_handle = open(sample_proteome_file, 'w')
@@ -230,8 +234,8 @@ def GSeeF():
 							line = line.strip()
 							bgc_id, gcf_id = line.split('\t')
 							gcf_id = 'GCF_' + gcf_id
-							bgc_annotation = bigscape_bgc_to_annotation[bgc_id]
 							if not bgc_id in bigscape_bgc_to_genome: continue
+							bgc_annotation = bigscape_bgc_to_annotation[bgc_id]
 							sample = bigscape_bgc_to_genome[bgc_id]
 							gcf_samples[gcf_id].add(sample)
 							gcf_sample_annotations[gcf_id][sample].add(bgc_annotation)
@@ -346,7 +350,6 @@ def GSeeF():
 	t = Tree(rooted_species_tree_file)
 	for node in t.traverse("postorder"):
 		if node.is_leaf: tree_samples.add(node.name)
-	t.close()
 
 	itol_track_file = final_results_dir + 'GCF_Heatmap.iTol.txt'
 	itol_track_handle = open(itol_track_file, 'w')
