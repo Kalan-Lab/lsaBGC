@@ -185,6 +185,7 @@ def GSeeF():
 
 		for sd in os.listdir(antismash_results_directory):
 			subdir = antismash_results_directory + sd + '/'
+			if not os.path.isdir(subdir): continue
 			full_genbank_file = None
 			count_possible_full_genome_genbanks = 0
 			for f in os.listdir(subdir):
