@@ -231,6 +231,7 @@ def GSeeF():
 							bgc_id, gcf_id = line.split('\t')
 							gcf_id = 'GCF_' + gcf_id
 							bgc_annotation = bigscape_bgc_to_annotation[bgc_id]
+							if not bgc_id in bigscape_bgc_to_genome: continue
 							sample = bigscape_bgc_to_genome[bgc_id]
 							gcf_samples[gcf_id].add(sample)
 							gcf_sample_annotations[gcf_id][sample].add(bgc_annotation)
@@ -339,6 +340,14 @@ def GSeeF():
 		#gcf_colors.append(annotation_colors[gcf_annots[gcf_tup[0]]])
 
 	# Step 5: Create track files for Rscript and iTol
+
+	## get samples in tree to consider when creating tracks
+	tree_samples = set([])
+	t = Tree(rooted_species_tree_file)
+	for node in t.traverse("postorder"):
+		if node.is_leaf: tree_samples.add(node.name)
+	t.close()
+
 	itol_track_file = final_results_dir + 'GCF_Heatmap.iTol.txt'
 	itol_track_handle = open(itol_track_file, 'w')
 	gseef_track_file = outdir + 'gseef_track_input.txt'
@@ -354,6 +363,7 @@ def GSeeF():
 
 	tot_gcfs = len(gcf_order)
 	for sample in sorted(all_samples):
+		if not sample in tree_samples: continue
 		printlist = [sample, str(tot_gcfs)]
 		for i, gcf in enumerate(gcf_order):
 			col_array = []
