@@ -311,7 +311,7 @@ def lsaBGC_Ready():
         util.setupReadyDirectory([gene_name_mapping_outdir])
 
         util.processGenomesAsGenbanks(sample_genomes, proteomes_directory, genbanks_directory, gene_name_mapping_outdir,
-                                      logObject, cpus=cpus, use_pyrodigal=use_pyrodigal, locus_tag_length=3)
+                                      logObject, cpus=cpus, locus_tag_length=3)
         sample_genomes = util.updateSampleGenomesWithGenbanks(genbanks_directory)
 
     # Step 2: Process Additional Genomes
@@ -334,7 +334,7 @@ def lsaBGC_Ready():
             # Note, locus tags of length 4 are used within lsaBGC to mark samples with additional genomes where we ultimately
             # find them via lsaBGC-Expansion.
             util.processGenomes(additional_sample_genomes, additional_prodigal_outdir, additional_proteomes_directory, additional_genbanks_directory,
-                                logObject, cpus=cpus, locus_tag_length=4)
+                                logObject, cpus=cpus, use_pyrodigal=use_pyrodigal, locus_tag_length=4)
         else:
             # genomes are provided as Genbanks with CDS features
             gene_name_mapping_outdir = outdir + 'Mapping_of_New_Gene_Names_to_Original/'
