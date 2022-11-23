@@ -124,6 +124,9 @@ def create_parser():
 	parser.add_argument('-sd', '--skip_dereplication', action='store_true', help="Whether to skip dereplication based on GToTree alignments of SCGs - not\nrecommended and can cause issues if there are a lot of\ngenomes for the taxa of interest.", default=False, required=False)
 	parser.add_argument('-gtm', '--gtotree_model', help="SCG model for secondary GToTree analysis and what would be used for dereplication.", default='Bacteria', required=False)
 	parser.add_argument('-iib', '--include_incomplete_bgcs', action='store_true', help="Whether to account for incomplete BGCs prior to clustering - not recommended.", default=False, required=False)
+	parser.add_argument('-mc', '--run_coarse_orthofinder', action='store_true',
+						help='Use coarse clustering of homolog groups in OrthoFinder instead of more\nresolute hierarchical determined homolog groups. There are some advantages to coarse OGs, including their construction being deterministic.',
+						required=False, default=False)
 	parser.add_argument('-b', '--use_bigscape', action='store_true', help="Use BiG-SCAPE for BGC clustering into GCFs instead of lsaBGC-Cluster. Recommended if you want to include incomplete BGCs for clustering and are using antiSMASH.", required=False, default=False)
 	parser.add_argument('-sae', '--skip_auto_expansion', action='store_true', help="Skip lsaBGC-AutoExpansion.py to find missing pieces of BGCs due to assemlby fragmentation.", required=False, default=False)
 	parser.add_argument('-c', '--cpus', type=int, help="Total number of cpus/threads. Note, this is the total number of\nthreads to use. BGC prediction commands (via GECCO, antiSMASH, and DeepBGC) will\neach be set to use 4 cpus by default.", required=False, default=4)
@@ -149,6 +152,7 @@ def lsaBGC_Easy():
 	skip_auto_expansion_flag = myargs.skip_auto_expansion
 	dereplicate_threshold = myargs.dereplicate_threshold
 	population_threshold = myargs.population_threshold
+	run_coarse_orthofinder = myargs.run_coarse_orthofinder
 	orthofinder_mode = myargs.orthofinder_mode.upper()
 	use_bigscape_flag = myargs.use_bigscape
 	ignore_limits_flag = myargs.ignore_limits
@@ -507,6 +511,8 @@ def lsaBGC_Easy():
 			lsabgc_ready_cmd += ['-lc']
 		if use_pyrodigal:
 			lsabgc_ready_cmd += ['-py']
+		if run_coarse_orthofinder:
+			lsabgc_ready_cmd += ['-mc']
 
 		db_listing_file = lsaBGC_main_directory + '/db/database_location_paths.txt'
 		if os.path.isfile(db_listing_file):

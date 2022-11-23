@@ -105,6 +105,7 @@ def create_parser():
 	parser.add_argument('-g', '--lsabgc_gcf_listings_directory', help='lsaBGC-Cluster/Auto-Expansion GCF listings directory.')
 	parser.add_argument('-o', '--output_directory', help='Parent output/workspace directory.', required=True)
 	parser.add_argument('-s', '--species_tree', help='Provide species tree in Newick format. If not provided will run GToTree to generate species phylogeny.', required=False, default=None)
+	parser.add_argument('-m', '--max_gcfs', type=int, help='The maximum number of GCFs to consider (will prioritize inclusion of more common GCFs)', default=50, required=False)
 	parser.add_argument('-gtm', '--gtotree_model', help="SCG model for secondary GToTree analysis and what would be used for dereplication.", default='Bacteria', required=False)
 	parser.add_argument('-c', '--cpus', type=int, help="Total number of cpus/threads. Note, this is the total number of\nthreads to use.", required=False, default=4)
 
@@ -122,6 +123,7 @@ def GSeeF():
 	species_tree_file = myargs.species_tree
 	outdir = os.path.abspath(myargs.output_directory) + '/'
 	cpus = myargs.cpus
+	max_gcfs = myargs.max_gcfs
 	gtotree_model = myargs.gtotree_model
 
 	checkModelIsValid(gtotree_model)
@@ -370,6 +372,7 @@ def GSeeF():
 		if not sample in tree_samples: continue
 		printlist = [sample, str(tot_gcfs)]
 		for i, gcf in enumerate(gcf_order):
+			if i >= max_gcfs: continue
 			col_array = []
 			col_array.append('RE')
 			col_array.append(str(i))
