@@ -215,6 +215,13 @@ def lsaBGC_Easy():
 	log_file = outdir + 'Progress.log'
 	logObject = util.createLoggerObject(log_file)
 	parameters_file = outdir + 'Command_Issued.txt'
+	logo = """
+   __              ___   _____  _____
+  / /  ___ ___ _  / _ ) / ___/ / ___/
+ / /  (_-</ _ `/ / _  |/ (_ / / /__  
+/_/  /___/\_,_/ /____/ \___/  \___/  
+                                     """
+	sys.stdout.write(logo + '\n\n')
 	sys.stdout.write("Appending command issued for future records to: %s\n" % parameters_file)
 	sys.stdout.write("Logging more details at: %s\n" % parameters_file)
 	logObject.info("\nNEW RUN!!!\n**************************************")
@@ -529,6 +536,13 @@ def lsaBGC_Easy():
 
 	checkUlimitSettings(count_of_dereplicated_sample_set, logObject)
 
+	if bgc_prediction_software != 'GECCO':
+		logObject.info("\n--------------------\nStep 4\n--------------------\nStarting creation of %s commands for de novo BGC prediction." % bgc_prediction_software)
+		sys.stdout.write("--------------------\nStep 4\n--------------------\nStarting creation of %s commands for de novo BGC prediction.\n" % bgc_prediction_software)
+	else:
+		logObject.info("\n--------------------\nStep 4\n--------------------\nRunning GECCO for de novo BGC predictions.")
+		sys.stdout.write("--------------------\nStep 4\n--------------------\nRunning GECCO for de novo BGC predictions.\n")
+
 	primary_genomes_listing_file = outdir + 'Primary_Genomes.txt'
 	primary_bgc_pred_directory = outdir + 'Primary_Genomes_BGC_Predictions/'
 	cmd_file = outdir + 'bgc_prediction.cmds'
@@ -558,16 +572,6 @@ def lsaBGC_Easy():
 		primary_genomes_listing_handle.close()
 
 		# Step 4: Run GECCO or print commands for others and exit based annotation of BGCs and crete BGC listing
-		if bgc_prediction_software != 'GECCO':
-			logObject.info(
-				"\n--------------------\nStep 4\n--------------------\nStarting construction of %s commands" % bgc_prediction_software)
-			sys.stdout.write(
-				"\n--------------------\nStep 4\n--------------------\nStarting construction of %s commands\n" % bgc_prediction_software)
-		else:
-			logObject.info(
-				"\n--------------------\nStep 4\n--------------------\nStarting construction of %s commands" % bgc_prediction_software)
-			sys.stdout.write(
-				"\n--------------------\nStep 4\n--------------------\nStarting construction of %s commands\n" % bgc_prediction_software)
 		if bgc_prediction_software == 'GECCO':
 			p = multiprocessing.Pool(parallel_jobs_4cpu)
 			p.map(util.multiProcess, primary_bgc_pred_cmds)
@@ -606,7 +610,12 @@ def lsaBGC_Easy():
 			list_primary_bgc_cmd += ['-f']
 		runCmdViaSubprocess(list_primary_bgc_cmd, logObject, check_files=[primary_bgcs_listing_file])
 
+	logObject.info("Primary BGC predictions appear successful and are listed for samples/genomes at:\n%s" % primary_bgcs_listing_file)
+	sys.stdout.write("Primary BGC predictions appear successful and are listed for samples/genomes at:\n%s\n" % primary_bgcs_listing_file)
+
 	# Step 5: Run lsaBGC-Ready.py with lsaBGC-Cluster or BiG-SCAPE
+	logObject.info('\n--------------------\nStep 5\n--------------------\nBeginning clustering of BGCs using either lsaBGC-Cluster (default) or BiG-SCAPE (can be requested).')
+	sys.stdout.write('--------------------\nStep 5\n--------------------\nBeginning clustering of BGCs using either lsaBGC-Cluster (default) or BiG-SCAPE (can be requested).\n')
 	bigscape_listing_file = lsaBGC_main_directory + 'external_tools/bigscape_location.txt'
 	bigscape_prog_location, pfam_directory = [None] * 2
 	if os.path.isfile(bigscape_listing_file):
@@ -619,7 +628,9 @@ def lsaBGC_Easy():
 		try:
 			assert (os.path.isdir(bigscape_results_dir + 'network_files/'))
 		except:
-			raise RuntimeError("Something unexpected in BiG-SCAPE processing.")
+			logObject.error("Something unexpected in BiG-SCAPE processing occurred.")
+			sys.stderr.write("Something unexpected in BiG-SCAPE processing occurred.\n")
+			exit(1)
 
 	lsabgc_ready_directory = outdir + 'lsaBGC_Ready_Results/'
 	lsabgc_ready_results_directory = lsabgc_ready_directory + 'Final_Results/'
@@ -650,12 +661,17 @@ def lsaBGC_Easy():
 							check_files=[annotation_listing_file, orthogroups_matrix_file])
 
 	# Step 6: Run lsaBGC-AutoExpansion.py polishing to find GCF instances fragmented on multiple scaffolds
+	if not skip_auto_expansion_flag:
+		logObject.info('\n--------------------\nStep 6\n--------------------\nBeginning identification of fragmented BGC instances from completed instances using lsaBGC-AutoExpansion.')
+		sys.stdout.write('--------------------\nStep 6\n--------------------\nBeginning identification of fragmented BGC instances from completed instances using lsaBGC-AutoExpansion.\n')
+
 	checkLsaBGCInputsExist(annotation_listing_file, gcf_listing_dir, orthogroups_matrix_file)
 
 	lsabgc_autoexpansion_results_directory = outdir + 'lsaBGC_AutoExpansion_Results/'
 	exp_annotation_listing_file = lsabgc_autoexpansion_results_directory + 'Sample_Annotation_Files.txt'
 	exp_orthogroups_matrix_file = lsabgc_autoexpansion_results_directory + 'Orthogroups.expanded.tsv'
 	exp_gcf_listing_dir = lsabgc_autoexpansion_results_directory + 'Updated_GCF_Listings/'
+
 	if not os.path.isdir(exp_gcf_listing_dir) and (not skip_auto_expansion_flag):
 		lsabgc_expansion_cmd = ['lsaBGC-AutoExpansion.py', '-g', gcf_listing_dir, '-m', orthogroups_matrix_file, '-l',
 								annotation_listing_file, '-e', annotation_listing_file, '-q', '-c', str(cpus),
@@ -670,6 +686,9 @@ def lsaBGC_Easy():
 		exp_gcf_listing_dir = gcf_listing_dir
 
 	# Step 7: Run lsaBGC-AutoAnalyze.py
+	logObject.info('\n--------------------\nStep 7\n--------------------\nBeginning lsaBGC-AutoExpansion (which runs lsaBGC-See.py, lsaBGC-PopGene.py, and lsaBGC-Divergence.py + summarizes results across GCFs at the end.\n')
+	sys.stdout.write('--------------------\nStep 7\n--------------------\nBeginning lsaBGC-AutoExpansion (which runs lsaBGC-See.py, lsaBGC-PopGene.py,\nand lsaBGC-Divergence.py + summarizes results across GCFs at the end.\n')
+
 	checkLsaBGCInputsExist(exp_annotation_listing_file, exp_gcf_listing_dir, exp_orthogroups_matrix_file)
 	try:
 		assert (os.path.isfile(species_tree_file) and os.path.isfile(expected_similarities_file) and os.path.isfile(
@@ -690,6 +709,8 @@ def lsaBGC_Easy():
 		runCmdViaSubprocess(lsabgc_autoanalyze_cmd, logObject, check_directories=[lsabgc_autoanalyze_results_dir])
 
 	# Close logging object and exit
+	logObject.info('lsaBGC-Easy completed! Check out the major results in the folder: %s' % lsabgc_autoanalyze_results_dir)
+	sys.stdout.write('lsaBGC-Easy completed! Check out the major results in the folder:\n%s\n' % lsabgc_autoanalyze_results_dir)
 	util.closeLoggerObject(logObject)
 	sys.exit(0)
 

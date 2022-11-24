@@ -129,8 +129,7 @@ def GSeeF():
 	checkModelIsValid(gtotree_model)
 
 	if os.path.isdir(outdir):
-		sys.stderr.write(
-			"Output directory already exists! Overwriting in 5 seconds, but only where needed will use checkpoint files to skip certain steps...\n")
+		sys.stderr.write("Output directory already exists! Overwriting in 5 seconds, but only where needed will use checkpoint files to skip certain steps...\n")
 		sleep(5)
 	else:
 		util.setupReadyDirectory([outdir])
@@ -142,12 +141,13 @@ def GSeeF():
 	# create logging object
 	log_file = outdir + 'Progress.log'
 	logObject = util.createLoggerObject(log_file)
-	logObject.info("Saving parameters for future records.")
-	parameters_file = outdir + 'Parameter_Inputs.txt'
+	logObject.info("Saving command for future records.")
+	parameters_file = outdir + 'Command_Issued.txt'
 	parameters_handle = open(parameters_file, 'a+')
 	parameters_handle.write(' '.join(sys.argv) + '\n')
-	logObject.info("Done saving parameters!")
-
+	parameters_handle.close()
+	sys.stdout.write("Appending command issued for future records to: %s\n" % parameters_file)
+	sys.stdout.write("Logging more details at: %s\n" % parameters_file)
 	parallel_jobs_4cpu = max(math.floor(cpus / 4), 1)
 
 	mode = None
@@ -156,7 +156,8 @@ def GSeeF():
 		bigscape_results_directory = os.path.abspath(bigscape_results_directory) + '/'
 		antismash_results_directory = os.path.abspath(antismash_results_directory) + '/'
 		mode = 'BiG-SCAPE'
-		sys.stdout.write('Running in BiG-SCAPE mode!\n')
+		logObject.info('\n---------------------\nRunning in BiG-SCAPE mode!\n---------------------\n')
+		sys.stdout.write('---------------------\nRunning in BiG-SCAPE mode!\n---------------------\n')
 	elif lsabgc_sample_annotation_file != None and lsabgc_gcf_listings_directory != None and \
 			os.path.isfile(lsabgc_sample_annotation_file) and os.path.isdir(lsabgc_gcf_listings_directory):
 
@@ -167,13 +168,17 @@ def GSeeF():
 		lsabgc_sample_annotation_file = os.path.abspath(lsabgc_sample_annotation_file)
 		lsabgc_gcf_listings_directory = os.path.abspath(lsabgc_gcf_listings_directory) + '/'
 		mode = 'lsaBGC'
-		sys.stdout.write('Running in lsaBGC mode!\n')
+		logObject.info('\n---------------------\nRunning in lsaBGC mode!\n---------------------\n')
+		sys.stdout.write('---------------------\nRunning in lsaBGC mode!\n---------------------\n')
 	else:
 		sys.stderr.write('Difficulty figuring out whether you are trying to run with BiG-SCAPE or lsaBGC-Cluster results. Expected inputs were unable to be validated either provide arguments for -b/-a parameters for BiG-SCAPE mode or -l/-s for lsaBGC mode.\n')
 		logObject.error('Difficulty figuring out whether you are trying to run with BiG-SCAPE or lsaBGC-Cluster results. Expected inputs were unable to be validated either provide arguments for -b/-a parameters for BiG-SCAPE mode or -l/-s for lsaBGC mode.')
 		sys.exit(1)
 
 	# Step 1: Get Genome-Wide Proteomes for GToTree Phylogeny Construction
+	logObject.info('\n---------------------\nStep 1\n---------------------\nGathering predicted proteomes for all samples to use for phylogeny construction.')
+	sys.stdout.write('---------------------\nStep 1\n---------------------\nGathering predicted prtoemes for all samples to use for phylogeny construction!\n')
+
 	proteome_listing_file = outdir + 'Proteomes_Listing.txt'
 	proteome_listing_handle = open(proteome_listing_file, 'w')
 	bigscape_bgc_to_genome = {}
@@ -224,6 +229,9 @@ def GSeeF():
 	proteome_listing_handle.close()
 
 	# Step 2: Parse Clustering Results
+	logObject.info('\n---------------------\nStep 2\n---------------------\nParsing clustering results and gathering annotations from antiSMASH BGC Genbanks.')
+	sys.stdout.write('---------------------\nStep 2\n---------------------\nParsing clustering results and gathering annotations from antiSMASH BGC Genbanks.\n')
+
 	gcf_samples = defaultdict(set)
 	gcf_sample_annotations = defaultdict(lambda: defaultdict(set))
 	if mode == 'BiG-SCAPE':
@@ -259,6 +267,9 @@ def GSeeF():
 				logObject.warning('Difficulty reading file %s in GCF Listings directory.' % gcf_tsv_file)
 
 	# Step 3: Run GToTree Phylogeny Construction and Perform Midpoint Rooting
+	logObject.info('\n---------------------\nStep 3\n---------------------\nGenerating species phylogeny using GToTree.')
+	sys.stdout.write('---------------------\nStep 3\n---------------------\nGenerating species phylogeny using GToTree.\n')
+
 	if species_tree_file != None:
 		species_tree_file = os.path.abspath(species_tree_file)
 		try:
@@ -285,7 +296,7 @@ def GSeeF():
 		sys.stderr.write('Error: Issue midpoint rooting the species tree.')
 		sys.exit(1)
 
-	# Step 4: Determine single annotation category/class per sample-GCF pairing and brew colors palette
+	# Determine single annotation category/class per sample-GCF pairing and brew colors palette
 	all_annotation_classes = set(['unknown', 'multi-type'])
 	gs_annots = defaultdict(dict)
 	gcf_annots = {}
@@ -303,17 +314,6 @@ def GSeeF():
 			gs_annots[gcf][sample] = annot
 			all_annotation_classes.add(annot)
 			all_gcf_annots[annot] += 1
-		"""
-		tot_annot_sum = sum(all_gcf_annots.values())
-		for i, ac in enumerate(sorted(all_gcf_annots.items(), key=itemgetter(1), reverse=True)):
-			if i == 0:
-				max_annot = ac[0]
-				max_annot_count = ac[1]
-				if max_annot_count/float(tot_annot_sum) >= min_gcf_annot_prop:
-					gcf_annots[gcf] = max_annot
-				else:
-					gcf_annots[gcf] = 'multi-type'
-		"""
 
 	colorBrewScript = lsaBGC_main_directory + 'lsaBGC/Rscripts/brewColors.R'
 	colorsbrewed_file = outdir + 'colors_brewed.txt'
@@ -346,7 +346,9 @@ def GSeeF():
 		gcf_order.append(gcf_tup[0])
 		#gcf_colors.append(annotation_colors[gcf_annots[gcf_tup[0]]])
 
-	# Step 5: Create track files for Rscript and iTol
+	# Step 4: Create track files for Rscript and iTol
+	logObject.info('\n---------------------\nStep 4\n---------------------\nCreating files for plotting.')
+	sys.stdout.write('---------------------\nStep 4\n---------------------\nCreating files for plotting.\n')
 
 	## get samples in tree to consider when creating tracks
 	tree_samples = set([])
@@ -389,12 +391,21 @@ def GSeeF():
 	itol_track_handle.close()
 	gseef_track_handle.close()
 
-	# Step 6: Run GSeeF.R Rscript
+	# Step 5: Run GSeeF.R Rscript
+	logObject.info('\n---------------------\nStep 5\n---------------------\nGenerating final static PDF visualization and iTol track file.')
+	sys.stdout.write('---------------------\nStep 5\n---------------------\nGenerating final static PDF visualization and iTol track file.\n')
+
 	gSeefScript = lsaBGC_main_directory + 'lsaBGC/Rscripts/gSeef.R'
 	resulting_png = final_results_dir + 'Phylogenetic_Heatmap.png'
 	label_resulting_png = final_results_dir + 'Annotation_Legend.png'
 	gseef_cmd = ['Rscript', gSeefScript, rooted_species_tree_file, gseef_track_file, resulting_png, label_resulting_png]
 	runCmdViaSubprocess(gseef_cmd, logObject, check_files=[resulting_png, label_resulting_png])
+
+	# Close logging object and exit
+	logObject.info('GSeeF completed! Check out the major results in the folder: %s' % final_results_dir)
+	sys.stdout.write('GSeeF completed! Check out the major results in the folder:\n%s\n' % final_results_dir)
+	util.closeLoggerObject(logObject)
+	sys.exit(0)
 
 def parseAntiSMASHGBKForFunction(bgc_gbk, logObject):
 	product = 'unknown'
