@@ -22,6 +22,7 @@ class BGC:
 		self.cluster_information = None
 
 	def parseGECCO(self, comprehensive_parsing=True, flank_size=2000):
+		""" Function to parse BGC Genbank produced by GECCO BGC."""
 		domains = []
 		domain_weights = {}
 
@@ -156,6 +157,7 @@ class BGC:
 
 
 	def parseDeepBGC(self, comprehensive_parsing=True, flank_size=2000):
+		""" Function to parse BGC Genbank produced by DeepBGC. """
 		domains = []
 		full_sequence = ""
 		domain_score = {}
@@ -306,6 +308,7 @@ class BGC:
 		self.cluster_information = bgc_info
 
 	def parseAntiSMASH(self, comprehensive_parsing=True, flank_size=2000):
+		""" Functoin to parse BGC Genbank produced by antiSMASH """
 		bgc_info = []
 		domains = []
 		core_positions = set([])
@@ -363,7 +366,7 @@ class BGC:
 							core_end = max([int(x.strip('>').strip('<')) for x in str(feature.location)[1:].split(']')[0].split(':')])
 							core_positions = core_positions.union(set(range(core_start + 1, core_end + 1)))
 						else:
-							core_starts = []							
+							core_starts = []
 							core_ends = []
 							for exon_coord in str(feature.location)[5:-1].split(', '):
 								start = min([int(x.strip('>').strip('<')) for x in exon_coord[1:].split(']')[0].split(':')])
@@ -468,11 +471,6 @@ class BGC:
 								nucl_seq_with_flanks = str(Seq(nucl_seq_with_flanks).reverse_complement())
 								relative_start = nucl_seq_with_flanks.find(nucl_seq)
 								relative_end = relative_start + gene_length
-							#print(self.bgc_genbank)
-							#print(nucl_seq)
-							#print(Seq(nucl_seq).translate())
-							#print(prot_seq)
-							#print('--------------------')
 
 						genes[lt] = {'bgc_name': self.bgc_id, 'start': start, 'end': end, 'direction': direction,
 									 'product': product, 'prot_seq': prot_seq, 'nucl_seq': nucl_seq,
@@ -500,7 +498,10 @@ class BGC:
 
 	def parseGenbanks(self, comprehensive_parsing=True, flank_size=2000):
 		"""
-		Function to parse an AntiSMASH, DeepBGC, or GECCO Genbank file.
+		Function to determine whether AntiSMASH, DeepBGC, or GECCO Genbank processing is appropriate.
+		If comprehensive parsing is disabled, only minimal info from the BGC will be extracted into the BGC object.
+		Gene flanks are not used currently in the software, so might not work as intended, and are an artifact of usage
+		in earlier versions of lsaBGC-DiscoVary.py
 		"""
 		if self.prediction_method.upper() == 'ANTISMASH':
 			self.parseAntiSMASH(comprehensive_parsing=comprehensive_parsing, flank_size=flank_size)
@@ -513,7 +514,7 @@ class BGC:
 
 	def refineGenbank(self, refined_genbank_file, first_bg, second_bg):
 		"""
-		Function to prune and update coordinates of BGC Genbank
+		Function to prune and update coordinates of BGC Genbank - main functoin of lsaBGC-Refiner
 		"""
 		try:
 			rgf_handle = open(refined_genbank_file, 'w')
@@ -617,4 +618,3 @@ class BGC:
 			rgf_handle.close()
 		except Exception as e:
       			raise RuntimeError(traceback.format_exc())
-
