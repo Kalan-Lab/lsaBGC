@@ -236,6 +236,9 @@ def lsaBGC_Ready():
     # create logging object
     log_file = outdir + 'Progress.log'
     logObject = util.createLoggerObject(log_file)
+    version_string = util.parseVersionFromSetupPy()
+    logObject.info('Running lsaBGC version %s' % version_string)
+
     logObject.info("Saving parameters for future records.")
     parameters_file = outdir + 'Parameter_Inputs.txt'
     parameter_values = [genome_listing_file, bgc_genbank_listing_file, outdir, additional_genome_listing_file,

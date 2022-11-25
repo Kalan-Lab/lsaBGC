@@ -2625,6 +2625,19 @@ def is_genbank(gbk):
 	except:
 		return False
 
+def parseVersionFromSetupPy():
+	"""
+	Parses version from setup.py program.
+	"""
+
+	setup_py_prog = main_dir + 'setup.py'
+	version = 'NA'
+	with open(setup_py_prog) as osppf:
+		for line in osppf:
+			line = line.strip()
+			if line.startswith('version='):
+				version = line.split('version=')[1]
+	return version
 
 def createLoggerObject(log_file):
 	"""
@@ -2919,3 +2932,5 @@ def loadCustomPopGeneTableInPandaDataFrame(input_file):
 	except Exception as e:
 		raise RuntimeError(traceback.format_exc())
 	return panda_df
+
+

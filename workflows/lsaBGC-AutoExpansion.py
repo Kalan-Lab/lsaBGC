@@ -135,6 +135,9 @@ def lsaBGC_AutoExpansion():
 	log_file = outdir + 'Progress.log'
 	logObject = util.createLoggerObject(log_file)
 
+	version_string = util.parseVersionFromSetupPy()
+	logObject.info('Running version %s' % version_string)
+
 	# Step 0: Log input arguments and update reference and query FASTA files.
 	logObject.info("Saving parameters for easier determination of results' provenance in the future.")
 	parameters_file = outdir + 'Parameter_Inputs.txt'

@@ -49,6 +49,7 @@ from collections import defaultdict
 import gzip
 import resource
 from time import sleep
+from lsaBGC import util
 
 os.environ['OMP_NUM_THREADS'] = '4'
 lsaBGC_main_directory = '/'.join(os.path.realpath(__file__).split('/')[:-2]) + '/'
@@ -56,37 +57,26 @@ lsaBGC_main_directory = '/'.join(os.path.realpath(__file__).split('/')[:-2]) + '
 def create_parser():
 	""" Parse arguments """
 	parser = argparse.ArgumentParser(description="""
+	   __              ___   _____  _____
+	  / /  ___ ___ _  / _ ) / ___/ / ___/
+	 / /  (_-</ _ `/ / _  |/ (_ / / /__  
+	/_/  /___/\_,_/ /____/ \___/  \___/  
+	*******************************************************************************************************************
 	Program: lsaBGC-Easy.py (Version 1.31)
 	Author: Rauf Salamzade
 	Affiliation: Kalan Lab, UW Madison, Department of Medical Microbiology and Immunology
+	
+	QUICK DESCRIPTION: 
+	Workflow to run the majority of lsaBGC functionalities for a specific taxa or manually defined set of user-provided
+	genomes or both. For information on the workflow and examples on how to run please take a look at the Wiki:
+	https://github.com/Kalan-Lab/lsaBGC/wiki/14.-lsaBGC-Easy-Tutorial:-Combining-lsaBGC-with-ncbi-genome-download
+		
+	Currently only works for bacteria, but lsaBGC can handle fungi now - just not lsaBGC-Easy ... yet
 	*******************************************************************************************************************
 	CONSIDERATIONS:	
 	* Check out the considerations wiki page: https://github.com/Kalan-Lab/lsaBGC/wiki/00.-Background-&-Considerations  	
 	* If interested in running just a directory of genomes (you don't want to downoad genomes from Genbank for some taxa)
 	  then you can just set the required -n argument to "None".
-	*******************************************************************************************************************
-	DESCRIPTION:	
-	GenBank assembly accessions are gathered from a listing from the most recent GTDB release R207. This is to ensure 
-	genomes meet some standard and are of reasonable quality (i.e. fairly complete and not contaminated) and to assure 
-	proper taxonomic assignment. Genomes are then downloaded for the gathered accessions using from the NCBI GenBank 
-	database using ncbi-genome-download. Then, GToTree is used to create a species tree from a set of single-copy-genes 
-	(SCGs). The protein alignment of SCGs is also used to perform dereplication of the genome set to speed performance 
-	and more appropriately estimate evolutionary stats downstream.
-
-	Next, GECCO (by default; but also can use antiSMASH or DeepBGC) is run or commands printed for each of the 
-	dereplicated set of genomes. GECCO is the default because it is light-weight and part of the lsaBGC conda 
-	environment. To use antiSMASH or DeepBGC instead, lsaBGC-Easy.py will print out a task file with antiSMASH/DeepBGC 
-	commands which can be run iteratively or in parallel by the user using a separate conda environment for either tool. 
-	Then the user would simply rerun the same lsaBGC-Easy.py command as before to pick up where the workflow left off. 
-	Checkpointing for certain files/directories throughout the workflow should make it easy to restart if the program 
-	aborts at any stage.
-
-	After BGC predictions have been achieved, BiG-SCAPE or lsaBGC-Cluster.py can be used to cluster BGCs into GCFs and 
-	lsaBGC-Ready.py is used to generate the inputs needed for lsaBGC-AutoExpansion.py or lsaBGC-AutoAnalyze.py. 
-	lsaBGC-AutoExpansion.py is run by default to search for missing pieces/instances of GCFs due to assembly 
-	fragmentation.
-
-	Currently only works for bacteria, but lsaBGC can handle fungi now - just not lsaBGC-Easy ... yet
 	*******************************************************************************************************************
 	OVERVIEW OF STEPS TAKEN:	
 		- Check number of genomes for taxa is not too crazy (<1000) or too small (>10)
@@ -220,11 +210,14 @@ def lsaBGC_Easy():
   / /  ___ ___ _  / _ ) / ___/ / ___/
  / /  (_-</ _ `/ / _  |/ (_ / / /__  
 /_/  /___/\_,_/ /____/ \___/  \___/  
-                                     """
+*************************************"""
+	version_string = util.parseVersionFromSetupPy()
 	sys.stdout.write(logo + '\n\n')
+	sys.stdout.write('Running version %s\n' % version_string)
 	sys.stdout.write("Appending command issued for future records to: %s\n" % parameters_file)
-	sys.stdout.write("Logging more details at: %s\n" % parameters_file)
+	sys.stdout.write("Logging more details at: %s\n" % log_file)
 	logObject.info("\nNEW RUN!!!\n**************************************")
+	logObject.info('Running version %s' % version_string)
 	logObject.info("Appending command issued for future records to: %s" % parameters_file)
 
 	parameters_handle = open(parameters_file, 'a+')
