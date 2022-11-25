@@ -151,6 +151,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
 
 ## Major Updates 
+* Nov 25, 2022 - Much improved logging and standard output for lsaBGC-Easy (less yelling to the terminal). Recent switch to use hierarchical ortholog groupings found to be non-deterministic (still default - but can use coarser orthogroups via `-mc` argument for `lsaBGC-Easy.py` and `lsaBGC-Ready.py`). `GSeeF.py` made more robust and default is to only print tracks for most common 50 GCFs. 
 * Nov 9, 2022 - Switch from using coarse othogrouping to hierarchical ortholog groupings in OrthoFinder analysis. Add option to provide user custom species tree. 
 * Nov 6, 2022 - Introduce [`GSeeF.py`](https://github.com/Kalan-Lab/lsaBGC/wiki/17.-GSeeF---Visualizing-GCF-Cluster-Presence-and-Annotation-Along-a-Species-Phylogeny), improve interface of `lsaBGC-Easy.py`, and fix code for synchronizing gene-calling potential differences between BGCs and prodigal on full genomes (introduced in v1.2). 
 * Aug 21, 2022 - Parsing of BiG-SCAPE results updated to account for GCFs spanning multiple class categories. All BGC instances in each class the GCF occurs will be conglomerated. Default usage of lsaBGC-Cluster.py is unaffected.
