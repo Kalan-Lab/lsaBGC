@@ -55,12 +55,16 @@ def create_parser():
 
 	Program to run prodigal gene calling and then create a genbank file with CDS features. Final genome-wide predicted 
 	proteomes + genbank will be edited to have locus tags provided with the "-l" option. 
+	
+	11/17/2022 - can now use pyrodigal instead of progial.
 	""", formatter_class=argparse.RawTextHelpFormatter)
 
 	parser.add_argument('-i', '--input_genomic_fasta', help='Path to genomic assembly in FASTA format.', required=True)
 	parser.add_argument('-o', '--output_directory', help='Path to output directory. Should already be created!', required=True)
 	parser.add_argument('-s', '--sample_name', help='Sample name', default='Sample', required=False)
 	parser.add_argument('-l', '--locus_tag', help='Locus tag', default='AAA', required=False)
+	parser.add_argument('-py', '--use_pyrodigal', action='store_true', help='Use pyrodigal instead of prodigal.',
+						required=False, default=False)
 
 	args = parser.parse_args()
 	return args
@@ -77,6 +81,7 @@ def prodigalAndReformat():
 
 	input_genomic_fasta_file = os.path.abspath(myargs.input_genomic_fasta)
 	outdir = os.path.abspath(myargs.output_directory) + '/'
+	use_pyrodigal = myargs.use_pyrodigal
 
 	try:
 		assert(os.path.isfile(input_genomic_fasta_file))
@@ -110,7 +115,11 @@ def prodigalAndReformat():
 
 	# Step 1: Run Prodigal (if needed)
 	og_prod_pred_prot_file = outdir + sample_name + '.original_predicted_proteome'
-	prodigal_cmd = ['prodigal', '-i', input_genomic_fasta_file, '-a', og_prod_pred_prot_file]
+	prodigal_cmd = []
+	if not use_pyrodigal:
+		prodigal_cmd = ['pyrodigal', '-i', input_genomic_fasta_file, '-a', og_prod_pred_prot_file]
+	else:
+		prodigal_cmd = ['prodigal', '-i', input_genomic_fasta_file, '-a', og_prod_pred_prot_file]
 	subprocess.call(' '.join(prodigal_cmd), shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, executable='/bin/bash')
 
 	try:

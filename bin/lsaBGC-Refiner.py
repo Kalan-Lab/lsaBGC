@@ -113,6 +113,8 @@ def lsaBGC_Refiner():
     # create logging object
     log_file = outdir + 'Progress.log'
     logObject = util.createLoggerObject(log_file)
+    version_string = util.parseVersionFromSetupPy()
+    logObject.info('Running lsaBGC version %s' % version_string)
 
     # Step 0: Log input arguments and update reference and query FASTA files.
     logObject.info("Saving parameters for future records.")
