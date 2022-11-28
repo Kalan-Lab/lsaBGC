@@ -114,7 +114,7 @@ def create_parser():
 						help='A directory with additional genomes, e.g. those recently sequenced by the\nuser, belonging to the taxa. Accepted formats include FASTA.\nAccepted suffices include: .fna, .fa, .fasta.',
 						required=False, default=None)
 	parser.add_argument('-p', '--bgc_prediction_software',
-						help='Software used to predict BGCs (Options: antiSMASH, DeepBGC, GECCO).\nDefault is GECCO - which will be automatic. For the other two,\nyou will need to install them and run manually and then rerun lsaBGC-Easy.py with\nthe same command.',
+						help='Software used to predict BGCs (Options: antiSMASH, DeepBGC, GECCO).\nDefault is GECCO - which will be automatic. For the other two,\nlsaBGC-Easy will produce a task-file which you will need to run in a seperate environment\nwith antiSMASH or DeepBGC installed, then rerun lsaBGC-Easy.py using the original command..',
 						default='gecco', required=False)
 	parser.add_argument('-om', '--orthofinder_mode',
 						help="Method for running OrthoFinder2. (Options: Genome_Wide, BGC_Only).\nDefault is Genome_Wide (BGC_Only is slightly experimental but much faster and should work\nespecially well for taxa with many BGCs).",
@@ -123,7 +123,7 @@ def create_parser():
 						help="Whether to skip dereplication based on GToTree alignments of SCGs - not\nrecommended and can cause issues if there are a lot of\ngenomes for the taxa of interest.",
 						default=False, required=False)
 	parser.add_argument('-gtm', '--gtotree_model',
-						help="SCG model for secondary GToTree analysis and what would be used for dereplication.",
+						help="SCG model for secondary GToTree analysis and wdhat would be used for dereplication. Default is to use the \"Bacteria\" SCG set (n=74 genes).",
 						default='Bacteria', required=False)
 	parser.add_argument('-iib', '--include_incomplete_bgcs', action='store_true',
 						help="Whether to account for incomplete BGCs prior to clustering - not recommended.",
@@ -135,21 +135,22 @@ def create_parser():
 						help="Use BiG-SCAPE for BGC clustering into GCFs instead of lsaBGC-Cluster. Recommended if you want to include incomplete BGCs for clustering and are using antiSMASH.",
 						required=False, default=False)
 	parser.add_argument('-sae', '--skip_auto_expansion', action='store_true',
-						help="Skip lsaBGC-AutoExpansion.py to find missing pieces of BGCs due to assemlby fragmentation.",
+						help="Skip lsaBGC-AutoExpansion.py to find missing pieces of BGCs due to assembly fragmentation.",
 						required=False, default=False)
 	parser.add_argument('-c', '--cpus', type=int,
-						help="Total number of cpus/threads. Note, this is the total number of\nthreads to use. BGC prediction commands (via GECCO, antiSMASH, and DeepBGC) will\neach be set to use 4 cpus by default.",
+						help="Total number of cpus/threads. Note, this is the total number of\nthreads to use (Default is 4). BGC prediction commands (via GECCO, antiSMASH, and DeepBGC) will\neach be set to use 4 cpus by default.",
 						required=False, default=4)
 	parser.add_argument('-dt', '--dereplicate_threshold', type=float,
-						help="Amino acid similarity threshold of SCGs for considering\ntwo genomes as redundant.",
+						help="Amino acid similarity threshold of SCGs for considering\ntwo genomes as redundant. (Default is 0.999)",
 						default=0.999, required=False)
 	parser.add_argument('-pt', '--population_threshold', type=float,
-						help="Amino acid similarity threshold of SCGs for considering\ntwo genomes as belonging to the same population.",
+						help="Amino acid similarity threshold of SCGs for considering\ntwo genomes as belonging to the same population. (Default is 0.99)",
 						default=0.99, required=False)
 	parser.add_argument('-x', '--ignore_limits', action='store_true',
 						help="Ignore limitations on number of genomes allowed.\nE.g. allow for analyses of taxa with more than 2000 genomes available and more than 100 genomes\nafter dereplication. Not recommend, be cautious!!! Also note,\nyou can always delete \"Dereplicated_Set_of_Genomes.txt\" in the results directory and redo\ndereplication with different threshold.")
 	parser.add_argument('-py', '--use_pyrodigal', action='store_true', help='Use pyrodigal instead of prodigal.',
 						required=False, default=False)
+
 	args = parser.parse_args()
 	return args
 

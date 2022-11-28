@@ -39,4 +39,4 @@ lsaBGC-AutoAnalyze.py -i lsaBGC_Ready_Results/Final_Results/Expanded_Sample_Anno
 	-u Genome_to_Species_Mapping.txt -c 4 -o lsaBGC_AutoAnalyze_Results/ \
 
 # Step 5: run GSeeF.py using BiG-SCAPE results
-GSeeF.py -b Primary_Genome_BiG-SCAPE_Results/ -a Primary_Genome_AntiSMASH_Results/ -o GSeeF_Results/ -c 4
+GSeeF.py -b Primary_Genome_BiG-SCAPE_Results/ -a Primary_Genome_AntiSMASH_Results/ -o GSeeF_Results/ -s lsaBGC_Ready_Results/Final_Results/GToTree_output.tre -c 4
