@@ -3,7 +3,6 @@ channels:
   - conda-forge
   - bioconda
   - defaults
-  - astrobiomike
 dependencies:
   - python
   - pip=22.1.2
@@ -38,7 +37,7 @@ dependencies:
   - bioconda::pyrodigal
   - conda-forge::pandas=1.4.2
   - bioconda::mash
-  - astrobiomike::gtotree
+  - bioconda::gtotree
   - conda-forge::xlsxwriter=3.0.3
   - bioconda::ncbi-genome-download
   - bioconda::gecco
