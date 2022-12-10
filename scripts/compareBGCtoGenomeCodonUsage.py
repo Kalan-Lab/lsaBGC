@@ -165,7 +165,7 @@ def main():
                 emp_pval += 1
 
         emp_pval_freq = (emp_pval+1)/10001
-        output_handle.write('Empirical_Pvalue\t%f\n' % round(emp_pval_freq, 3))
+        output_handle.write('Empirical_Pvalue\t%f\n' % emp_pval_freq)
     output_handle.write('Spearman_Rho\t%f\n' % round(rho, 3))
     output_handle.write('Spearman_Pvalue\t%f\n' % round(spm_pval, 3))
     output_handle.write('GCF_Codons\t%s\n' % ', '.join(cod_order))
