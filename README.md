@@ -65,7 +65,7 @@ setup_bigscape.py
 
 Additional, information pertaining to installation can be found at: [Installation Guide](https://github.com/Kalan-Lab/lsaBGC/wiki/01.-Installation)
 
-A small test case is provided here and can be run after installation by simply issuing (takes around ~6 minutes using 4 cpus/threads):
+A small test case is provided here and can be run after installation by simply issuing (takes around ~7 minutes using 4 cpus/threads):
 
 ```
 # Warning: uses 4 cpus/threads! 
