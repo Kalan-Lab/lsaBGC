@@ -2756,7 +2756,7 @@ def popgen_analysis_of_hg(inputs):
 		if len(sample_leaf_names[sample]) > 1:
 			single_copy_in_gcf = False
 
-	median_beta_rd = "NA"
+	median_beta_rd = "NA"; max_beta_rd = "NA"
 	if comparem_used != None:
 		if gw_pairwise_similarities:
 			beta_rd_stats = []
@@ -2770,8 +2770,6 @@ def popgen_analysis_of_hg(inputs):
 						if gw_seq_sim != 0.0:
 							beta_rd = hg_seq_sim / float(gw_seq_sim)
 							beta_rd_stats.append(beta_rd)
-			median_beta_rd = "NA"
-			max_beta_rd = "NA"
 			if len(beta_rd_stats) >= 1:
 				median_beta_rd = round(statistics.median(beta_rd_stats), 2)
 				max_beta_rd = round(max(beta_rd_stats), 2)
