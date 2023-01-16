@@ -1098,7 +1098,7 @@ class Pan:
 			result_file = search_res_dir + sample + '.txt'
 			assert (os.path.isfile(result_file))
 
-			best_hit_per_gene = defaultdict(lambda: [set([]), 100000.0])
+			best_hit_per_gene = defaultdict(lambda: [set([]), 0.0])
 			with open(result_file) as orf:
 				for line in orf:
 					line = line.strip()
@@ -1106,21 +1106,21 @@ class Pan:
 					if quick_mode:
 						hg = ls[1].split('-consensus')[0]
 						gene_id = ls[0]
-						eval = decimal.Decimal(ls[10])
-						if eval < best_hit_per_gene[gene_id][1]:
-							best_hit_per_gene[gene_id][1] = eval
+						bitscore = float(ls[11])
+						if bitscore > best_hit_per_gene[gene_id][1]:
+							best_hit_per_gene[gene_id][1] = bitscore
 							best_hit_per_gene[gene_id][0] = set([hg])
-						elif eval == best_hit_per_gene[gene_id][1]:
+						elif bitscore == best_hit_per_gene[gene_id][1]:
 							best_hit_per_gene[gene_id][0].add(hg)
 					else:
 						if line.startswith("#"): continue
 						hg = ls[0]
 						gene_id = ls[2]
-						eval = decimal.Decimal(ls[4])
-						if eval < best_hit_per_gene[gene_id][1]:
-							best_hit_per_gene[gene_id][1] = eval
+						score = float(ls[5])
+						if score > best_hit_per_gene[gene_id][1]:
+							best_hit_per_gene[gene_id][1] = score
 							best_hit_per_gene[gene_id][0] = set([hg])
-						elif eval == best_hit_per_gene[gene_id][1]:
+						elif score == best_hit_per_gene[gene_id][1]:
 							best_hit_per_gene[gene_id][0].add(hg)
 
 			with open(result_file) as orf:
@@ -1135,15 +1135,16 @@ class Pan:
 						if not hg in best_hit_per_gene[gene_id][0]: continue
 						scaffold = self.gene_location[sample][gene_id]['scaffold']
 						eval = decimal.Decimal(ls[10])
+						bitscore = float(ls[11])
 						if eval < decimal.Decimal(1e-10):
 							self.hmmscan_results_lenient[sample][gene_id] = [hg, eval]
 						if (not is_boundary_gene) and \
 								(not (gene_length <= hg_valid_length_range[hg]['max_gene_length'] and gene_length >= hg_valid_length_range[hg]['min_gene_length'])) and \
 								(abs(gene_length - hg_valid_length_range[hg]['median_gene_length']) >= (2 * hg_valid_length_range[hg]['gene_length_deviation'])): continue
 						if eval <= self.hg_max_self_evalue[hg][0]:
-							self.hmmscan_results[gene_id].append([hg, eval, sample, scaffold])
+							self.hmmscan_results[gene_id].append([hg, eval, sample, scaffold, bitscore])
 						elif eval <= decimal.Decimal(1e-10) and is_boundary_gene:
-							self.hmmscan_results[gene_id].append([hg, eval, sample, scaffold])
+							self.hmmscan_results[gene_id].append([hg, eval, sample, scaffold, bitscore])
 					else:
 						if line.startswith("#"): continue
 						hg = ls[0]
@@ -1153,15 +1154,16 @@ class Pan:
 						if not hg in best_hit_per_gene[gene_id][0]: continue
 						scaffold = self.gene_location[sample][gene_id]['scaffold']
 						eval = decimal.Decimal(ls[4])
+						score = float(ls[5])
 						if eval < decimal.Decimal(1e-10):
 							self.hmmscan_results_lenient[sample][gene_id] = [hg, eval]
 						if (not is_boundary_gene) and \
 								(not (gene_length <= hg_valid_length_range[hg]['max_gene_length'] and gene_length >= hg_valid_length_range[hg]['min_gene_length'])) and \
 								(abs(gene_length - hg_valid_length_range[hg]['median_gene_length']) >= (2 * hg_valid_length_range[hg]['gene_length_deviation'])): continue
 						if eval <= self.hg_max_self_evalue[hg][0]:
-							self.hmmscan_results[gene_id].append([hg, eval, sample, scaffold])
+							self.hmmscan_results[gene_id].append([hg, eval, sample, scaffold, score])
 						elif eval <= decimal.Decimal(1e-10) and is_boundary_gene:
-							self.hmmscan_results[gene_id].append([hg, eval, sample, scaffold])
+							self.hmmscan_results[gene_id].append([hg, eval, sample, scaffold, score])
 
 def create_hmm_profiles(inputs):
 	"""
