@@ -116,7 +116,7 @@ def prodigalAndReformat():
 	# Step 1: Run Prodigal (if needed)
 	og_prod_pred_prot_file = outdir + sample_name + '.original_predicted_proteome'
 	prodigal_cmd = []
-	if not use_pyrodigal:
+	if use_pyrodigal:
 		prodigal_cmd = ['pyrodigal', '-i', input_genomic_fasta_file, '-a', og_prod_pred_prot_file]
 	else:
 		prodigal_cmd = ['prodigal', '-i', input_genomic_fasta_file, '-a', og_prod_pred_prot_file]
