@@ -181,18 +181,18 @@ class Pan:
 				sf_handle.write('\t'.join(
 					['MCL inflation parameter', 'Jaccard similarity cutoff', 'GCF id', 'number of BGCs',
 					 'number of samples',
-					 'samples with multiple BGCs in GCF', 'size of the SCC', 'mean number of OGs',
+					 'samples with multiple BGCs in GCF', 'number of core OGs', 'mean number of OGs',
 					 'stdev for number of OGs', 'number of core gene aggregates',
 					 'min pairwise Jaccard similarity', 'max pairwise Jaccard similarity', 'annotations']) + '\n')
 			else:
 				sfes_handle = open(final_stats_expanded_singletons_file, 'w')
 				sf_handle.write(
 					'\t'.join(['GCF id', 'number of BGCs', 'number of samples', 'samples with multiple BGCs in GCF',
-							   'size of the SCC', 'mean number of OGs', 'stdev for number of OGs',
+							   'number of core OGs', 'mean number of OGs', 'stdev for number of OGs',
 							   'min pairwise Jaccard similarity', 'max pairwise Jaccard similarity', 'number of core gene aggregates', 'annotations']) + '\n')
 				sfes_handle.write(
 					'\t'.join(['GCF id', 'number of BGCs', 'number of samples', 'samples with multiple BGCs in GCF',
-							   'size of the SCC', 'mean number of OGs', 'stdev for number of OGs',
+							   'number of core OGs', 'mean number of OGs', 'stdev for number of OGs',
 							   'min pairwise Jaccard similarity', 'max pairwise Jaccard similarity', 'number of core gene aggregates', 'annotations']) + '\n')
 				sfes_handle.close()
 
@@ -395,13 +395,14 @@ class Pan:
 								diffs.add(self.pairwise_relations[bgc1][bgc2])
 					multi_same_sample = 0
 					num_ogs = []
+					core_hgs = set([])
 					for si, s in enumerate(samp_counts):
 						if samp_counts[s] > 1:
 							multi_same_sample += 1
 						if si == 0:
-							scc = samp_ogs[s]
+							core_hgs = samp_ogs[s]
 						else:
-							scc = scc.intersection(samp_ogs[s])
+							core_hgs = core_hgs.intersection(samp_ogs[s])
 						num_ogs.append(len(samp_ogs[s]))
 					stdev = "NA"
 					mean = "NA"
@@ -411,7 +412,7 @@ class Pan:
 					except:
 						pass
 					gcf_stats = ['GCF_' + str(gcf_identifier), len(gcf_mems), len(samp_counts.keys()), multi_same_sample,
-								 len(scc),
+								 len(core_hgs),
 								 mean, stdev, min(diffs),
 								 max(diffs), core_gene_cluster_counts,
 								 '; '.join([x[0] + ':' + str(x[1]) for x in products.items()])]
@@ -561,7 +562,7 @@ class Pan:
 			plot_input_1_handle.write('\t'.join(
 				['GCF', 'Parameters', 'JaccardSim', 'Inflation', 'Samples', 'Samples_Offset',
 				 'MultiBGCSamples_Offset',
-				 'SCCExists', 'SCCSize', 'CoreGeneClusters', 'AvgGeneCount', 'StdDevGeneCount', 'Unknown'] + sorted(
+				 'CoreExists', 'CoreSize', 'CoreGeneClusters', 'AvgGeneCount', 'StdDevGeneCount', 'Unknown'] + sorted(
 					list(all_annotation_classes))) + '\n')
 			plot_input_2_handle.write('\t'.join(['GCF', 'Parameters', 'Annotation', 'Count', 'Total BGCs']) + '\n')
 			plot_overview_handle.write('\t'.join(
@@ -621,7 +622,7 @@ class Pan:
 
 					samples = int(ls[4])
 					samples_with_multi_bgcs = int(ls[5])
-					size_of_scc = int(ls[6])
+					size_of_core = int(ls[6])
 					number_of_core_genes = ls[-2]
 					avg_gene_count = ls[-6]
 					stdev_gene_count = ls[-5]
@@ -640,9 +641,9 @@ class Pan:
 							coord_tuple = tuple(
 								[samples + random_offset_1, samples_with_multi_bgcs + random_offset_2])
 					coord_tuples[param_mod_id].add(coord_tuple)
-					scc_exists = "SCC DNE"
-					if size_of_scc > 0:
-						scc_exists = "SCC Exists"
+					core_exists = "Core DNE"
+					if size_of_core > 0:
+						core_exists = "Core Exists"
 
 					annot_count = defaultdict(float)
 					for an in annotations:
@@ -656,8 +657,8 @@ class Pan:
 					plot_input_1_handle.write('\t'.join([str(x) for x in
 														 [gcf_id + ' - ' + param_mod_id, param_mod_id, jcp, mcl,
 														  samples, samples + random_offset_1,
-														  samples_with_multi_bgcs + random_offset_2, scc_exists,
-														  size_of_scc, number_of_core_genes, avg_gene_count,
+														  samples_with_multi_bgcs + random_offset_2, core_exists,
+														  size_of_core, number_of_core_genes, avg_gene_count,
 														  stdev_gene_count] + annotation_class_abd]) + '\n')
 					if int(gcf_id.split('_')[1]) <= 50:
 						tot_count = sum(annot_count.values())

@@ -17,8 +17,8 @@ nb.cols <- length(annot_classes)-1
 annot_colors <- colorRampPalette(brewer.pal(nb.cols, "Set2"))(nb.cols)
 annot_colors <- c("#808080", annot_colors)
 names(annot_colors) <- annot_classes
-scc_colors <- c("#737574", "#222422", "#ed665f")
-names(scc_colors) <- c("Not Applicable", "SCC Exists", "SCC DNE")
+core_colors <- c("#737574", "#222422", "#ed665f")
+names(core_colors) <- c("Not Applicable", "Core Exists", "Core DNE")
 
 # open pdf for the report
 pdf(args[6], height=8, width=11)
@@ -52,7 +52,7 @@ gheatmaps_bottom <- plot_grid(gheat3, gheat4)
 print(plot_grid(gheatmaps_top, gheatmaps_bottom, rel_heights=c(1,1), ncol=1))
 
 # Boxplot views
-boxpl1 <- ggplot(data, aes(x=as.factor(Inflation), y=SCCSize, fill=as.factor(Inflation))) + geom_boxplot(show.legend=F) + facet_wrap(~JaccardSim, ncol=length(data$JaccardSim)) + theme_classic() + xlab("MCL Inflation") + ylab("") + ggtitle("Size of GCF's Single Copy cpus") + scale_fill_brewer(palette="Set2")# + scale_y_log10()
+boxpl1 <- ggplot(data, aes(x=as.factor(Inflation), y=CoreSize, fill=as.factor(Inflation))) + geom_boxplot(show.legend=F) + facet_wrap(~JaccardSim, ncol=length(data$JaccardSim)) + theme_classic() + xlab("MCL Inflation") + ylab("") + ggtitle("Number of Core Homolog Groups per GCF") + scale_fill_brewer(palette="Set2")# + scale_y_log10()
 boxpl2 <- ggplot(data, aes(x=as.factor(Inflation), y=Samples, fill=as.factor(Inflation))) + geom_boxplot(show.legend=F) + facet_wrap(~JaccardSim, ncol=length(data$JaccardSim)) + theme_classic() + xlab("MCL Inflation") + ylab("") + ggtitle("Number of Samples with GCF") + scale_fill_brewer(palette="Set2") #+ scale_y_log10()
 boxpl3 <- ggplot(data, aes(x=as.factor(Inflation), y=AvgGeneCount, fill=as.factor(Inflation))) + geom_boxplot(show.legend=F) + facet_wrap(~JaccardSim, ncol=length(data$JaccardSim)) + theme_classic() + xlab("MCL Inflation") + ylab("") + ggtitle("Avg. Gene Count per BGC in GCF") + scale_fill_brewer(palette="Set2") #+ scale_y_log10()
 boxpl4 <- ggplot(data, aes(x=as.factor(Inflation), y=StdDevGeneCount, fill=as.factor(Inflation))) + geom_boxplot(show.legend=F) + facet_wrap(~JaccardSim, ncol=length(data$JaccardSim)) + theme_classic() + xlab("MCL Inflation") + ylab("") + ggtitle("Std. Deviation of Gene Count for BGCs in GCF") + scale_fill_brewer(palette="Set2") #+ scale_y_log10()
@@ -102,13 +102,13 @@ for(i in 1:npages) {
   gscat <- ggplot()  +
     scale_fill_manual(values=annot_colors) + theme_classic() +
     xlab("Number of Samples with GCF") + ylab("Number of Samples with\n>= 2 BGCs for GCF") +
-    geom_point(aes(x=Samples_Offset, y=MultiBGCSamples_Offset, shape=as.factor(SCCExists)), data=data_filt_scatter, size=1.3, show.legend=F, alpha=0.5) +
+    geom_point(aes(x=Samples_Offset, y=MultiBGCSamples_Offset, shape=as.factor(CoreExists)), data=data_filt_scatter, size=1.3, show.legend=F, alpha=0.5) +
     geom_scatterpie(aes(x=Samples_Offset, y=MultiBGCSamples_Offset), data=data_filt_scatter, alpha=0.4, cols=annot_classes, show.legend=F) +
     coord_fixed(xlim=c(xmin, xmax), ylim=c(ymin, ymax), expand=T)
 
 
-  ghist_1 <- ggplot(data_filt, aes(x=Samples, fill=SCCExists)) + geom_histogram(color="black", size=0.3) + theme_classic() +
-    theme(legend.position = c(0.8, 0.8)) + scale_fill_manual(values=scc_colors) + xlab("Sample Count") + guides(fill=guide_legend(title=""))
+  ghist_1 <- ggplot(data_filt, aes(x=Samples, fill=CoreExists)) + geom_histogram(color="black", size=0.3) + theme_classic() +
+    theme(legend.position = c(0.8, 0.8)) + scale_fill_manual(values=core_colors) + xlab("Sample Count") + guides(fill=guide_legend(title=""))
 
   ghist_2 <- ggplot(data_filt, aes(x=StdDevGeneCount)) + xlab("Std. Deviation in Gene Count") + geom_histogram(color="black", fill="black") + theme_classic() + scale_y_log10()
 
