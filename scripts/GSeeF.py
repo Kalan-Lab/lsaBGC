@@ -101,7 +101,7 @@ def create_parser():
 
 	parser.add_argument('-b', '--bigscape_results_directory', help='BiG-SCAPE Results directory.', required=False, default=None)
 	parser.add_argument('-a', '--antismash_results_directory', help='The directory with AntiSMASH results used as input for BiG-SCAPE. Should have folders matching individual genomes which contain AntiSMASH results for each genome.', required=False, default=None)
-	parser.add_argument('-l', '--lsabgc_sample_annotation_file', help='The directory with AntiSMASH results used as input for BiG-SCAPE. Should have folders matching individual genomes which contain AntiSMASH results for each genome.', required=False, default=None)
+	parser.add_argument('-l', '--lsabgc_sample_annotation_file', help='lsaBGC-type sample annotation tab-delimited text file. First column is sample name, second is path to full genome GenBank, third is path to full genome proteome.', required=False, default=None)
 	parser.add_argument('-g', '--lsabgc_gcf_listings_directory', help='lsaBGC-Cluster/Auto-Expansion GCF listings directory.')
 	parser.add_argument('-o', '--output_directory', help='Parent output/workspace directory.', required=True)
 	parser.add_argument('-s', '--species_tree', help='Provide species tree in Newick format. If not provided will run GToTree to generate species phylogeny.', required=False, default=None)
