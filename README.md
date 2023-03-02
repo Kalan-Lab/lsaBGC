@@ -150,7 +150,8 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
 
-## Major Updates 
+## Major Updates
+* Feb 29, 2023 - Added GSeeF analysis to the end of the lsaBGC-Easy workflow and added support for parsing annotations from DeepBGC and GECCO into GSeeF.
 * Feb 28, 2023 - Handle similarly named BGCs from different genomic assemblies (due to similar scaffold names) in lsaBGC-Ready.py/lsaBGC-Easy.py + automated ulimit setting updates in lsaBGC-Ready.py similar to what is employed in lsaBGC-Easy.py 
 * Feb 5, 2023 - Corrected flag to make prodigal the default and pyrodigal optional unless requested by the user - we are considering formally making pyrodigal the default gene-caller however because there are a number of improvements/corrections pyprodigal offers and it is being actively maintained.
 * Jan 16, 2023 - Added more adjustable parameters to lsaBGC-DiscoVary. Expansion uses bitscores to select best homolog group for genes from new genomes while cutoffs still based on E-values to provide more resolution and sensitivity in distinguishing NRPS/PKS homolog groups with recently diverged protocore genes (in alignment with recent v1.31 switch to use more resolute homolog groups).  

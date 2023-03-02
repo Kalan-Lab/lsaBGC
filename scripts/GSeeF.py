@@ -105,6 +105,7 @@ def create_parser():
 	parser.add_argument('-g', '--lsabgc_gcf_listings_directory', help='lsaBGC-Cluster/Auto-Expansion GCF listings directory.')
 	parser.add_argument('-o', '--output_directory', help='Parent output/workspace directory.', required=True)
 	parser.add_argument('-s', '--species_tree', help='Provide species tree in Newick format. If not provided will run GToTree to generate species phylogeny.', required=False, default=None)
+	parser.add_argument('-p', '--bgc_prediction_software', help='Software used to predict BGCs (Options: antiSMASH, DeepBGC, GECCO).\nDefault is antiSMASH. Will only work for GECCO and DeepBGC if\n-l and -g arguments are used (a.k.a. in lsaBGC mode) to provide paths to genomes and BGC predictions.', default='antismash', required=False)
 	parser.add_argument('-m', '--max_gcfs', type=int, help='The maximum number of GCFs to consider (will prioritize inclusion of more common GCFs). (Default is 50).', default=50, required=False)
 	parser.add_argument('-gtm', '--gtotree_model', help="SCG model for secondary GToTree analysis and what would be used for dereplication. (Default is Bacteria)", default='Bacteria', required=False)
 	parser.add_argument('-c', '--cpus', type=int, help="Total number of cpus/threads. Note, this is the total number of\nthreads to use. (Default is 1)", required=False, default=4)
@@ -125,8 +126,15 @@ def GSeeF():
 	cpus = myargs.cpus
 	max_gcfs = myargs.max_gcfs
 	gtotree_model = myargs.gtotree_model
+	bgc_prediction_software = myargs.bgc_prediction_software.upper()
 
 	checkModelIsValid(gtotree_model)
+
+	try:
+		assert (bgc_prediction_software in set(['ANTISMASH', 'DEEPBGC', 'GECCO']))
+	except:
+		sys.stderr.write('BGC prediction software option is not a valid option.\n')
+		sys.exit(1)
 
 	if os.path.isdir(outdir):
 		sys.stderr.write("Output directory already exists! Overwriting in 5 seconds, but only where needed will use checkpoint files to skip certain steps...\n")
@@ -261,7 +269,12 @@ def GSeeF():
 						line = line.strip()
 						sample, bgc_gbk = line.split('\t')
 						gcf_samples[gcf_id].add(sample)
-						bgc_annotation = parseAntiSMASHGBKForFunction(bgc_gbk, logObject)
+						if bgc_prediction_software == 'ANTISMASH':
+							bgc_annotation = parseAntiSMASHGBKForFunction(bgc_gbk, logObject)
+						elif bgc_prediction_software == 'DEEPBGC':
+							bgc_annotation = parseDeepBGCGBKForFunction(bgc_gbk, logObject)
+						elif bgc_prediction_software == 'GECCO':
+							bgc_annotation = parseGECCOGBKForFunction(bgc_gbk, logObject)
 						gcf_sample_annotations[gcf_id][sample].add(bgc_annotation)
 			except:
 				logObject.warning('Difficulty reading file %s in GCF Listings directory.' % gcf_tsv_file)
@@ -406,6 +419,45 @@ def GSeeF():
 	sys.stdout.write('GSeeF completed! Check out the major results in the folder:\n%s\n' % final_results_dir)
 	util.closeLoggerObject(logObject)
 	sys.exit(0)
+
+def parseGECCOGBKForFunction(bgc_gbk, logObject):
+	try:
+		rec = SeqIO.read(bgc_gbk, 'genbank')
+		product = 'unknown'
+		try:
+			product = rec.annotations['structured_comment']['GECCO-Data']['biosyn_class']
+		except:
+			try:
+				product = rec.annotations['structured_comment']['GECCO-Data']['cluster_type']
+			except:
+				pass
+		if product == 'Unknown':
+			product = 'unknown'
+		return(product)
+	except:
+		logObject.error('Issues parsing BGC Genbank %s' % bgc_gbk)
+		raise RuntimeError()
+
+def parseDeepBGCGBKForFunction(bgc_gbk, logObject):
+	product = 'unknown'
+	try:
+		products = set([])
+		with open(bgc_gbk) as obg:
+			for rec in SeqIO.parse(obg, 'genbank'):
+				for feat in rec.features:
+					if not feat.type == 'cluster': continue
+					try:
+						products.add(feat.qualifiers.get('product_class')[0])
+					except:
+						pass
+		if len(products) == 1:
+			product = list(products)[0]
+		elif len(products) >= 2:
+			product = 'multi-type'
+	except:
+		logObject.error('Issues parsing BGC Genbank %s' % bgc_gbk)
+		raise RuntimeError()
+	return (product)
 
 def parseAntiSMASHGBKForFunction(bgc_gbk, logObject):
 	product = 'unknown'

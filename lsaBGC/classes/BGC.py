@@ -56,7 +56,10 @@ class BGC:
 		try:
 			product = rec.annotations['structured_comment']['GECCO-Data']['biosyn_class']
 		except:
-			pass
+			try:
+				product = rec.annotations['structured_comment']['GECCO-Data']['cluster_type']
+			except:
+				pass
 		bgc_info = [{'prediction_method': self.prediction_method, 'detection_rule': 'NA', 'product': product, 'contig_edge': 'NA', 'full_sequence': full_sequence}]
 
 		# determine top 10% of domains with highest GECCO CRF weights (as recommended by Martin Larralde)
@@ -195,6 +198,7 @@ class BGC:
 							pass
 						try:
 							product_classes = []
+							# TODO: consider replacing with product_class
 							product_class_scpus = feature.qualifiers.get('product_class_score')[0]
 							for pci in product_class_scpus.split(','):
 								pc, pcs = pci.split('=')
