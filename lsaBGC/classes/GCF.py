@@ -2723,10 +2723,11 @@ def popgen_analysis_of_hg(inputs):
 			sample_id, gene_id = rec.id.split('|')
 			if sample_population != None and population != None and population != sample_population[sample_id]: continue
 			if len(gene_id.split('_')[0]) == 3:
-				if comp_gene_info[gene_id]['core_overlap']:
-					core_counts['core'] += 1
-				else:
-					core_counts['auxiliary'] += 1
+				if not comp_gene_info[gene_id]['is_expansion_bgc']:
+					if comp_gene_info[gene_id]['core_overlap']:
+						core_counts['core'] += 1
+					else:
+						core_counts['auxiliary'] += 1
 			updated_codon_alignment_handle.write('>' + rec.description + '\n' + str(rec.seq) + '\n')
 			products.add(comp_gene_info[gene_id]['product'])
 			real_pos = 1
