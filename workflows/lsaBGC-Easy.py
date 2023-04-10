@@ -38,7 +38,6 @@
 import os
 import sys
 import argparse
-from lsaBGC import util
 import subprocess
 import traceback
 import multiprocessing
@@ -50,6 +49,7 @@ import gzip
 import resource
 from time import sleep
 from lsaBGC import util
+from ete3 import Tree
 
 os.environ['OMP_NUM_THREADS'] = '4'
 lsaBGC_main_directory = '/'.join(os.path.realpath(__file__).split('/')[:-2]) + '/'
@@ -299,8 +299,8 @@ def lsaBGC_Easy():
 			runCmdViaSubprocess(list_all_genomes_cmd, logObject, check_files=[all_genomes_listing_file])
 
 		if user_genomes_directory:
-			list_all_user_genomes_cmd = ['listAllGenomesInDirectory.py', '-i', user_genomes_directory, '>>',
-										 all_genomes_listing_file]
+			list_all_user_genomes_cmd = ['listAllGenomesInDirectory.py', '-i', user_genomes_directory,
+										 '-u', uncompress_dir, '-z', '>>', all_genomes_listing_file]
 			runCmdViaSubprocess(list_all_user_genomes_cmd, logObject)
 
 	if not os.path.isfile(all_genomes_listing_file):
@@ -702,9 +702,37 @@ def lsaBGC_Easy():
 								  bgc_prediction_software, '-u', population_file]
 		runCmdViaSubprocess(lsabgc_autoanalyze_cmd, logObject, check_directories=[lsabgc_autoanalyze_results_dir])
 
+
+	gseef_results_dir = outdir + 'GSeeF_Results/'
+	gseef_final_results_dir = gseef_results_dir + 'Final_Results/'
+	if not os.path.isdir(gseef_results_dir):
+		os.system('rm -rf %s' % gseef_results_dir)
+
+		pruned_species_tree_file = outdir + 'Species_Tree.pruned.tre'
+		try:
+			samples_to_keep_list = []
+			with open(samples_to_keep_file) as ostkf:
+				for line in ostkf:
+					line = line.strip()
+					samples_to_keep_list.append(line.strip())
+			t = Tree(species_tree_file)
+			t.prune(samples_to_keep_list)
+			t.write(format=1, outfile=pruned_species_tree_file)
+		except Exception as e:
+			sys.stderr.write('Issues with creating pruned species tree for GSeeF analysis!\n')
+			sys.stderr.write(e + '\n')
+			logObject.error('Issues with creating pruned species tree for GSeeF analysis!')
+			sys.exit(1)
+
+		gseef_cmd = ['GSeeF.py', '-l', exp_annotation_listing_file, '-g', exp_gcf_listing_dir,
+					 '-s', pruned_species_tree_file,  '-c', str(cpus),
+					 '-o', gseef_results_dir, '-p', bgc_prediction_software]
+		runCmdViaSubprocess(gseef_cmd, logObject, check_directories=[gseef_final_results_dir])
+
 	# Close logging object and exit
 	logObject.info('lsaBGC-Easy completed! Check out the major results in the folder: %s' % lsabgc_autoanalyze_results_dir)
-	sys.stdout.write('lsaBGC-Easy completed! Check out the major results in the folder:\n%s\n' % lsabgc_autoanalyze_results_dir)
+	sys.stdout.write('lsaBGC-Easy completed! Check out the major results (from lsaBGC-AutoAnalyze) in the folder:\n%s\n' % lsabgc_autoanalyze_results_dir)
+	sys.stdout.write('And for a coarse view of GCFs across a species phylogeny check out the GSeeF output at:\n%s\n' % gseef_final_results_dir)
 	util.closeLoggerObject(logObject)
 	sys.exit(0)
 

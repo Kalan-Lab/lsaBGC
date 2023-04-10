@@ -47,6 +47,8 @@ import traceback
 import multiprocessing
 import math
 from ete3 import Tree
+import resource
+
 os.environ['OMP_NUM_THREADS']='4'
 
 lsaBGC_main_directory = '/'.join(os.path.realpath(__file__).split('/')[:-2]) + '/'
@@ -270,7 +272,7 @@ def lsaBGC_Ready():
 
     try:
         num_genomes = len(sample_genomes)
-        num_files = num_genomes*num_genomes
+        num_files = num_genomes * num_genomes
         uH = subprocess.check_output('ulimit -Hn', shell=True)
         uS = subprocess.check_output('ulimit -Sn', shell=True)
         uH = uH.decode('utf-8').strip()
@@ -284,13 +286,16 @@ def lsaBGC_Ready():
         else:
             uS = 1e15
         if num_files > uS:
-            logObject.error("Too many files will be produced and need to be read at once by OrthoFinder2. Luckily, you can resolve this quite easily via: ulimit -n 250000 . After running the command rerun lsaBGC-Ready.py and you should not get stuck here again.")
-            raise RuntimeError("Too many files will be produced and need to be read at once by OrthoFinder2. Luckily, you can resolve this quite easily via: ulimit -n 250000 . After running the command rerun lsaBGC-Ready.py and you should not get stuck here again.")
+            logObject.warning(
+                "Because many files will be produced and need to be read at once by OrthoFinder2, we are increasing the current shell's limits! Five second pause to allow you to exit the program if you do not which to continue")
+            sleep(5)
+            resource.setrlimit(resource.RLIMIT_NOFILE, (250000, 250000))
         if num_files > uH:
-            logObject.error("Too many files will be produced and need to be read at once by OrthoFinder2. Your system requires root privs to change this, which I do not recommend. See the following OrthoFinder2 Github issue for more details: https://github.com/davidemms/OrthoFinder/issues/384")
-            raise RuntimeError("Too many files will be produced and need to be read at once by OrthoFinder2. Your system requires root privs to change this, which I do not recommend. See the following OrthoFinder2 Github issue for more details: https://github.com/davidemms/OrthoFinder/issues/384")
-        if num_files < uS and num_files < uH:
-            logObject.info("Great news! You have correctly set ulimit settings and we believe OrthoFinder2 should be able to run smoothly!")
+            logObject.error(
+                "Too many files will be produced and need to be read at once by OrthoFinder2. Your system requires root privs to change this, which I do not recommend. See the following OrthoFinder2 Github issue for more details: https://github.com/davidemms/OrthoFinder/issues/384")
+            sys.stderr.write(
+                "Too many files will be produced and need to be read at once by OrthoFinder2. Your system requires root privs to change this, which I do not recommend. See the following OrthoFinder2 Github issue for more details: https://github.com/davidemms/OrthoFinder/issues/384")
+            sys.exit()
     except:
         logObject.error("Difficulties validating ulimit settings are properly set to allow for successful OrthoFinder2 run.")
         raise RuntimeError("Difficulties validating ulimit settings are properly set to allow for successful OrthoFinder2 run.")

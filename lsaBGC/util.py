@@ -1400,7 +1400,7 @@ def mapBGCtoGenomeBySequence(bgc_genbank_listing_file, sample_genomes, outdir, l
 				line = line.strip()
 				sample, bgc_gbk = line.split('\t')
 				full_gbk = sample_genomes[sample]
-				outf = locate_bgc_directory + bgc_gbk.split('/')[-1] + '.txt'
+				outf = locate_bgc_directory + sample + '_BGC-ID_' + bgc_gbk.split('/')[-1] + '.txt'
 				outf_to_info[outf] = [bgc_gbk, sample]
 				find_inputs.append([bgc_gbk, full_gbk, outf])
 
@@ -1422,9 +1422,7 @@ def mapBGCtoGenomeBySequence(bgc_genbank_listing_file, sample_genomes, outdir, l
 					bgc_mappings[bgc_gbk] = [scaff, int(start)]
 					loc_tuples.add(loc_tuple)
 			if count == 0:
-				logObject.warning(
-					'Dropping BGC %s for sample %s because the BGC sequence did not match any scaffold directly which should not be the case!' % (
-					bgc_gbk, sample))
+				logObject.warning('Dropping BGC %s for sample %s because the BGC sequence did not match any scaffold directly which should not be the case!' % (bgc_gbk, sample))
 				bgcs_without_mappings_handle.write(sample + '\t' + bgc_gbk + '\n')
 			elif count > 1:
 				bgcs_with_multiple_mappings_handle.write(

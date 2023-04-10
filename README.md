@@ -14,7 +14,7 @@ Documentation can currently be found on this Github repo's wiki: https://github.
 
 1. [Background on lsaBGC - what it does and does not do](https://github.com/Kalan-Lab/lsaBGC/wiki/00.-Background-&-Considerations)
 2. [An Overview of Final Results from lsaBGC](https://github.com/Kalan-Lab/lsaBGC/wiki/13.-Overview-of-lsaBGC-AutoAnalyze's-Final-Results)
-3. [Really Quick Start - Using lsaBGC-Easy.py](https://github.com/Kalan-Lab/lsaBGC/wiki/14.-lsaBGC-Easy-Tutorial:-Combining-lsaBGC-with-ncbi-genome-download)
+3. [Really Quick Start - Using lsaBGC-Easy.py](https://github.com/Kalan-Lab/lsaBGC/wiki/14.-lsaBGC-Easy-Tutorial)
 4. [Quick Start & Tutorial: Exploring BGCs in Cutibacterium](https://github.com/Kalan-Lab/lsaBGC/wiki/03.-Quick-Start-&-In-Depth-Tutorial:-Exploring-BGCs-in-Cutibacterium)
 5. [Generating Required Inputs for lsaBGC](https://github.com/Kalan-Lab/lsaBGC/wiki/04.-Generating-Required-Inputs-for-lsaBGC)
 6. [Clustering BGCs into GCFs](https://github.com/Kalan-Lab/lsaBGC/wiki/05.-Clustering-BGCs-into-GCFs)
@@ -151,6 +151,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
 
 ## Major Updates 
+* Mar 2, 2023 - Added GSeeF analysis to the end of the lsaBGC-Easy workflow and added support for parsing annotations from DeepBGC and GECCO into GSeeF.
+* Feb 28, 2023 - Handle similarly named BGCs from different genomic assemblies (due to similar scaffold names) in lsaBGC-Ready.py/lsaBGC-Easy.py + automated ulimit setting updates in lsaBGC-Ready.py similar to what is employed in lsaBGC-Easy.py 
+* Feb 5, 2023 - Corrected flag to make prodigal the default and pyrodigal optional unless requested by the user - we are considering formally making pyrodigal the default gene-caller however because there are a number of improvements/corrections pyprodigal offers and it is being actively maintained.
+* Jan 16, 2023 - Added more adjustable parameters to lsaBGC-DiscoVary. Expansion uses bitscores to select best homolog group for genes from new genomes while cutoffs still based on E-values to provide more resolution and sensitivity in distinguishing NRPS/PKS homolog groups with recently diverged protocore genes (in alignment with recent v1.31 switch to use more resolute homolog groups).  
 * Nov 25, 2022 - Much improved logging and standard output for lsaBGC-Easy (less yelling to the terminal). Recent switch to use hierarchical ortholog groupings found to be non-deterministic (still default - but can use coarser orthogroups via `-mc` argument for `lsaBGC-Easy.py` and `lsaBGC-Ready.py`). `GSeeF.py` made more robust and default is to only print tracks for most common 50 GCFs. 
 * Nov 9, 2022 - Switch from using coarse othogrouping to hierarchical ortholog groupings in OrthoFinder analysis. Add option to provide user custom species tree. 
 * Nov 6, 2022 - Introduce [`GSeeF.py`](https://github.com/Kalan-Lab/lsaBGC/wiki/17.-GSeeF---Visualizing-GCF-Cluster-Presence-and-Annotation-Along-a-Species-Phylogeny), improve interface of `lsaBGC-Easy.py`, and fix code for synchronizing gene-calling potential differences between BGCs and prodigal on full genomes (introduced in v1.2). 

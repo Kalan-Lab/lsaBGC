@@ -181,18 +181,18 @@ class Pan:
 				sf_handle.write('\t'.join(
 					['MCL inflation parameter', 'Jaccard similarity cutoff', 'GCF id', 'number of BGCs',
 					 'number of samples',
-					 'samples with multiple BGCs in GCF', 'size of the SCC', 'mean number of OGs',
+					 'samples with multiple BGCs in GCF', 'number of core OGs', 'mean number of OGs',
 					 'stdev for number of OGs', 'number of core gene aggregates',
 					 'min pairwise Jaccard similarity', 'max pairwise Jaccard similarity', 'annotations']) + '\n')
 			else:
 				sfes_handle = open(final_stats_expanded_singletons_file, 'w')
 				sf_handle.write(
 					'\t'.join(['GCF id', 'number of BGCs', 'number of samples', 'samples with multiple BGCs in GCF',
-							   'size of the SCC', 'mean number of OGs', 'stdev for number of OGs',
+							   'number of core OGs', 'mean number of OGs', 'stdev for number of OGs',
 							   'min pairwise Jaccard similarity', 'max pairwise Jaccard similarity', 'number of core gene aggregates', 'annotations']) + '\n')
 				sfes_handle.write(
 					'\t'.join(['GCF id', 'number of BGCs', 'number of samples', 'samples with multiple BGCs in GCF',
-							   'size of the SCC', 'mean number of OGs', 'stdev for number of OGs',
+							   'number of core OGs', 'mean number of OGs', 'stdev for number of OGs',
 							   'min pairwise Jaccard similarity', 'max pairwise Jaccard similarity', 'number of core gene aggregates', 'annotations']) + '\n')
 				sfes_handle.close()
 
@@ -395,13 +395,14 @@ class Pan:
 								diffs.add(self.pairwise_relations[bgc1][bgc2])
 					multi_same_sample = 0
 					num_ogs = []
+					core_hgs = set([])
 					for si, s in enumerate(samp_counts):
 						if samp_counts[s] > 1:
 							multi_same_sample += 1
 						if si == 0:
-							scc = samp_ogs[s]
+							core_hgs = samp_ogs[s]
 						else:
-							scc = scc.intersection(samp_ogs[s])
+							core_hgs = core_hgs.intersection(samp_ogs[s])
 						num_ogs.append(len(samp_ogs[s]))
 					stdev = "NA"
 					mean = "NA"
@@ -411,7 +412,7 @@ class Pan:
 					except:
 						pass
 					gcf_stats = ['GCF_' + str(gcf_identifier), len(gcf_mems), len(samp_counts.keys()), multi_same_sample,
-								 len(scc),
+								 len(core_hgs),
 								 mean, stdev, min(diffs),
 								 max(diffs), core_gene_cluster_counts,
 								 '; '.join([x[0] + ':' + str(x[1]) for x in products.items()])]
@@ -561,7 +562,7 @@ class Pan:
 			plot_input_1_handle.write('\t'.join(
 				['GCF', 'Parameters', 'JaccardSim', 'Inflation', 'Samples', 'Samples_Offset',
 				 'MultiBGCSamples_Offset',
-				 'SCCExists', 'SCCSize', 'CoreGeneClusters', 'AvgGeneCount', 'StdDevGeneCount', 'Unknown'] + sorted(
+				 'CoreExists', 'CoreSize', 'CoreGeneClusters', 'AvgGeneCount', 'StdDevGeneCount', 'Unknown'] + sorted(
 					list(all_annotation_classes))) + '\n')
 			plot_input_2_handle.write('\t'.join(['GCF', 'Parameters', 'Annotation', 'Count', 'Total BGCs']) + '\n')
 			plot_overview_handle.write('\t'.join(
@@ -621,7 +622,7 @@ class Pan:
 
 					samples = int(ls[4])
 					samples_with_multi_bgcs = int(ls[5])
-					size_of_scc = int(ls[6])
+					size_of_core = int(ls[6])
 					number_of_core_genes = ls[-2]
 					avg_gene_count = ls[-6]
 					stdev_gene_count = ls[-5]
@@ -640,9 +641,9 @@ class Pan:
 							coord_tuple = tuple(
 								[samples + random_offset_1, samples_with_multi_bgcs + random_offset_2])
 					coord_tuples[param_mod_id].add(coord_tuple)
-					scc_exists = "SCC DNE"
-					if size_of_scc > 0:
-						scc_exists = "SCC Exists"
+					core_exists = "Core DNE"
+					if size_of_core > 0:
+						core_exists = "Core Exists"
 
 					annot_count = defaultdict(float)
 					for an in annotations:
@@ -656,8 +657,8 @@ class Pan:
 					plot_input_1_handle.write('\t'.join([str(x) for x in
 														 [gcf_id + ' - ' + param_mod_id, param_mod_id, jcp, mcl,
 														  samples, samples + random_offset_1,
-														  samples_with_multi_bgcs + random_offset_2, scc_exists,
-														  size_of_scc, number_of_core_genes, avg_gene_count,
+														  samples_with_multi_bgcs + random_offset_2, core_exists,
+														  size_of_core, number_of_core_genes, avg_gene_count,
 														  stdev_gene_count] + annotation_class_abd]) + '\n')
 					if int(gcf_id.split('_')[1]) <= 50:
 						tot_count = sum(annot_count.values())
@@ -1098,7 +1099,7 @@ class Pan:
 			result_file = search_res_dir + sample + '.txt'
 			assert (os.path.isfile(result_file))
 
-			best_hit_per_gene = defaultdict(lambda: [set([]), 100000.0])
+			best_hit_per_gene = defaultdict(lambda: [set([]), 0.0])
 			with open(result_file) as orf:
 				for line in orf:
 					line = line.strip()
@@ -1106,21 +1107,21 @@ class Pan:
 					if quick_mode:
 						hg = ls[1].split('-consensus')[0]
 						gene_id = ls[0]
-						eval = decimal.Decimal(ls[10])
-						if eval < best_hit_per_gene[gene_id][1]:
-							best_hit_per_gene[gene_id][1] = eval
+						bitscore = float(ls[11])
+						if bitscore > best_hit_per_gene[gene_id][1]:
+							best_hit_per_gene[gene_id][1] = bitscore
 							best_hit_per_gene[gene_id][0] = set([hg])
-						elif eval == best_hit_per_gene[gene_id][1]:
+						elif bitscore == best_hit_per_gene[gene_id][1]:
 							best_hit_per_gene[gene_id][0].add(hg)
 					else:
 						if line.startswith("#"): continue
 						hg = ls[0]
 						gene_id = ls[2]
-						eval = decimal.Decimal(ls[4])
-						if eval < best_hit_per_gene[gene_id][1]:
-							best_hit_per_gene[gene_id][1] = eval
+						score = float(ls[5])
+						if score > best_hit_per_gene[gene_id][1]:
+							best_hit_per_gene[gene_id][1] = score
 							best_hit_per_gene[gene_id][0] = set([hg])
-						elif eval == best_hit_per_gene[gene_id][1]:
+						elif score == best_hit_per_gene[gene_id][1]:
 							best_hit_per_gene[gene_id][0].add(hg)
 
 			with open(result_file) as orf:
@@ -1135,15 +1136,16 @@ class Pan:
 						if not hg in best_hit_per_gene[gene_id][0]: continue
 						scaffold = self.gene_location[sample][gene_id]['scaffold']
 						eval = decimal.Decimal(ls[10])
+						bitscore = float(ls[11])
 						if eval < decimal.Decimal(1e-10):
 							self.hmmscan_results_lenient[sample][gene_id] = [hg, eval]
 						if (not is_boundary_gene) and \
 								(not (gene_length <= hg_valid_length_range[hg]['max_gene_length'] and gene_length >= hg_valid_length_range[hg]['min_gene_length'])) and \
 								(abs(gene_length - hg_valid_length_range[hg]['median_gene_length']) >= (2 * hg_valid_length_range[hg]['gene_length_deviation'])): continue
 						if eval <= self.hg_max_self_evalue[hg][0]:
-							self.hmmscan_results[gene_id].append([hg, eval, sample, scaffold])
+							self.hmmscan_results[gene_id].append([hg, eval, sample, scaffold, bitscore])
 						elif eval <= decimal.Decimal(1e-10) and is_boundary_gene:
-							self.hmmscan_results[gene_id].append([hg, eval, sample, scaffold])
+							self.hmmscan_results[gene_id].append([hg, eval, sample, scaffold, bitscore])
 					else:
 						if line.startswith("#"): continue
 						hg = ls[0]
@@ -1153,15 +1155,16 @@ class Pan:
 						if not hg in best_hit_per_gene[gene_id][0]: continue
 						scaffold = self.gene_location[sample][gene_id]['scaffold']
 						eval = decimal.Decimal(ls[4])
+						score = float(ls[5])
 						if eval < decimal.Decimal(1e-10):
 							self.hmmscan_results_lenient[sample][gene_id] = [hg, eval]
 						if (not is_boundary_gene) and \
 								(not (gene_length <= hg_valid_length_range[hg]['max_gene_length'] and gene_length >= hg_valid_length_range[hg]['min_gene_length'])) and \
 								(abs(gene_length - hg_valid_length_range[hg]['median_gene_length']) >= (2 * hg_valid_length_range[hg]['gene_length_deviation'])): continue
 						if eval <= self.hg_max_self_evalue[hg][0]:
-							self.hmmscan_results[gene_id].append([hg, eval, sample, scaffold])
+							self.hmmscan_results[gene_id].append([hg, eval, sample, scaffold, score])
 						elif eval <= decimal.Decimal(1e-10) and is_boundary_gene:
-							self.hmmscan_results[gene_id].append([hg, eval, sample, scaffold])
+							self.hmmscan_results[gene_id].append([hg, eval, sample, scaffold, score])
 
 def create_hmm_profiles(inputs):
 	"""

@@ -64,8 +64,9 @@ def create_parser():
     parser.add_argument('-o', '--output_directory', help="Prefix for output files.", required=True)
     parser.add_argument('-a', '--codon_alignments', help="File listing the codon alignments for each homolog group in the GCF.\nCan be found as part of PopGene output.", required=True)
     parser.add_argument('-p', '--bgc_prediction_software', help='Software used to predict BGCs (Options: antiSMASH, DeepBGC, GECCO).\nDefault is antiSMASH.', default='antiSMASH', required=False)
+    parser.add_argument('-awl', '--ambiguity_window_length', help='Length around beginning, end and ambiguous sites in codon alignments to avoid calling SNVs on due to more challenging alignment for reads. Default is 50.', required=False, default=50)
     parser.add_argument('-ch', '--core_homologs', nargs="+", help="List of homolog group identifiers comprising the core of the BGC/GCF.", required=False, default=[])
-    parser.add_argument('-ap', '--allow_phasing', action='store_true', help="Allow phasing with DESMAN. Requires manual installation of\nDESMAN (not through conda) and $PATH to be updated.", default=False)
+    parser.add_argument('-ap', '--allow_phasing', action='store_true', help="Allow phasing with DESMAN. Requires manual installation of\nDESMAN (not through conda) and $PATH to be updated.", required=False, default=False)
     parser.add_argument('-c', '--cpus', type=int, help="The number of cpus to use.", required=False, default=1)
 
     args = parser.parse_args()
@@ -113,6 +114,7 @@ def lsaBGC_DiscoVary():
     gcf_id = myargs.gcf_id
     allow_phasing = myargs.allow_phasing
     core_hg_set = myargs.core_homologs
+    ambiguity_window_length = myargs.ambiguity_window_length
     cpus = myargs.cpus
 
     try:
@@ -133,10 +135,10 @@ def lsaBGC_DiscoVary():
     logObject.info("Saving parameters for future records.")
     parameters_file = outdir + 'Parameter_Inputs.txt'
     parameter_values = [gcf_listing_file, orthofinder_matrix_file, paired_end_sequencing_file, outdir, gcf_id,
-                        bgc_prediction_software, len(core_hg_set) > 0, cpus]
+                        bgc_prediction_software, ambiguity_window_length, len(core_hg_set) > 0, allow_phasing, cpus]
     parameter_names = ["GCF Listing File", "OrthoFinder Orthogroups.csv File", "Paired-Sequencing Listing File",
-                       "Output Directory", "GCF Identifier", "BGC Prediction Software",
-                       "Core Homologs Manually Provided", "cpus"]
+                       "Output Directory", "GCF Identifier", "BGC Prediction Software", "Ambiguity Window Length",
+                       "Core Homologs Manually Provided", "Allow DESMAN Phasing?", "cpus"]
     util.logParametersToFile(parameters_file, parameter_names, parameter_values)
     logObject.info("Done saving parameters!")
 
@@ -196,7 +198,7 @@ def lsaBGC_DiscoVary():
     phased_alleles_outdir = outdir + 'Phased_Homolog_Group_Sequences/'
     if not os.path.isdir(phased_alleles_outdir): os.system('mkdir %s' % phased_alleles_outdir)
     logObject.info("Phasing or determining consensus allele and reporting of novel SNVs.")
-    GCF_Object.phaseAndSummarize(paired_end_sequencing_file, codon_alignments_file, results_outdir, phased_alleles_outdir, outdir, hg_nonunique_positions, cpus=cpus, allow_phasing=allow_phasing)
+    GCF_Object.phaseAndSummarize(paired_end_sequencing_file, codon_alignments_file, results_outdir, phased_alleles_outdir, outdir, hg_nonunique_positions, cpus=cpus, allow_phasing=allow_phasing, ambiguity_window_length=ambiguity_window_length)
     logObject.info("Successfully constructed matrices of allele typings.")
 
     # Step 9: Filter low coverage gene instances and construct gene-phylogenies

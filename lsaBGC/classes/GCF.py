@@ -1104,7 +1104,7 @@ class GCF(Pan):
 			sample_hgs = defaultdict(set)
 			sample_lt_to_evalue = defaultdict(dict)
 			for lt in self.hmmscan_results:
-				for i, hits in enumerate(sorted(self.hmmscan_results[lt], key=itemgetter(1))):
+				for i, hits in enumerate(sorted(self.hmmscan_results[lt], key=itemgetter(4))):
 					if i == 0 and hits[2] in block_samp_set:
 						sample_lt_to_hg[hits[2]][lt] = hits[0]
 						sample_hgs[hits[2]].add(hits[0])
@@ -1525,7 +1525,7 @@ class GCF(Pan):
 				self.logObject.error(traceback.format_exc())
 			raise RuntimeError(traceback.format_exc())
 
-	def generateGenePhylogenies(self, codon_alignments_file, phased_alleles_outdir, comp_hg_phylo_outdir, hg_nonunique_positions, ambiguity_filter=0.00001, sequence_filter=0.25, min_number_of_sites=10):
+	def generateGenePhylogenies(self, codon_alignments_file, phased_alleles_outdir, comp_hg_phylo_outdir, hg_nonunique_positions, ambiguity_filter=0.00001, sequence_filter=0.25, min_number_of_sites=10, ambiguity_window_length=50):
 		try:
 			codon_alignment_paths = {}
 			with open(codon_alignments_file) as ocaf:
@@ -1551,7 +1551,7 @@ class GCF(Pan):
 				ambiguous_positions_in_og_alignment = set([])
 				for i, pos_bases in enumerate(zip(*seqs)):
 					pos = i+1
-					if pos <= 50 or pos >= (cod_alg_len-50):
+					if pos <= ambiguity_window_length or pos >= (cod_alg_len-ambiguity_window_length):
 						ambiguous_positions_in_og_alignment.add(pos)
 						continue
 					pos_bases = list(pos_bases)
@@ -1559,7 +1559,7 @@ class GCF(Pan):
 					gap_seq_count = len([a for a in pos_bases if a == '-'])
 					amb_prop = float(gap_seq_count)/float(tot_seq_count)
 					if amb_prop >= 0.1:
-						for p in range(pos - 50, pos + 51):
+						for p in range(pos - ambiguity_window_length, pos + ambiguity_window_length + 1):
 							ambiguous_positions_in_og_alignment.add(p)
 				ambiguous_positions_in_og_alignment = ambiguous_positions_in_og_alignment.union(hg_nonunique_positions[hg])
 
@@ -1654,7 +1654,7 @@ class GCF(Pan):
 				self.logObject.error(traceback.format_exc())
 			raise RuntimeError(traceback.format_exc())
 
-	def phaseAndSummarize(self, paired_end_sequencing_file, codon_alignment_file, snv_mining_outdir, phased_alleles_outdir, outdir, hg_nonunique_positions, min_hetero_prop=0.05, min_allele_depth = 5, allow_phasing=True, metagenomic=True, cpus=1):
+	def phaseAndSummarize(self, paired_end_sequencing_file, codon_alignment_file, snv_mining_outdir, phased_alleles_outdir, outdir, hg_nonunique_positions, min_hetero_prop=0.05, min_allele_depth = 5, allow_phasing=True, metagenomic=True, cpus=1, ambiguity_window_length=50):
 		try:
 			specific_homolog_groups = set([])
 			for hg in self.hg_differentiation_stats:
@@ -1689,7 +1689,7 @@ class GCF(Pan):
 								core_genomes_with_hg.add(gene_id.split('_')[0])
 								total_core_genomes.add(gene_id.split('_')[0])
 							seqlen = len(sequence_without_gaps)
-							seqlen_lower = 50
+							seqlen_lower = ambiguity_window_length
 							seqlen_upper = seqlen - seqlen_lower
 							seqlen_information[gene_id] = [seqlen, seqlen_lower, seqlen_upper]
 
@@ -1712,13 +1712,13 @@ class GCF(Pan):
 							gene_core_positions[hg].add(pos)
 
 					cod_algn_len = max(msa_positions)
-					for p in (list(range(1, 51)) + list(range(cod_algn_len-50, cod_algn_len+1))):
+					for p in (list(range(1, ambiguity_window_length+1)) + list(range(cod_algn_len-ambiguity_window_length, cod_algn_len+1))):
 						gene_ignore_positions[hg].add(p)
 
 					for pos in msa_pos_ambiguous_counts:
 						msa_pos_ambiguous_freqs[hg][pos] = msa_pos_ambiguous_counts[pos] / float(seq_count)
 						if (msa_pos_ambiguous_counts[pos]/float(seq_count)) >= 0.1:
-							for p in range(pos - 50, pos + 51):
+							for p in range(pos - ambiguity_window_length, pos + ambiguity_window_length + 1):
 								gene_ignore_positions[hg].add(p)
 
 					gene_ignore_positions[hg] = gene_ignore_positions[hg].union(hg_nonunique_positions[hg])
@@ -2252,8 +2252,8 @@ def phase_and_id_snvs(input_args):
 							snv_is_major_allele = True
 
 						no_handle.write('\t'.join([str(x) for x in [gcf_id, pe_sample, hg, msa_pos,
-															site_total_coverage_standardized,
-															site_allele_coverage_standardized, snv_is_major_allele,
+															round(site_total_coverage_standardized,3),
+															round(site_allele_coverage_standardized,3), snv_is_major_allele,
 															alt_al, codon_position, alt_codon, alt_aa, alt_aa_novel, dn_or_ds,
 															ts_or_tv, ref_al, sample, gene, ref_pos,
 															ref_codon, ref_aa, snv_support_count, snv_support_reads]]) + '\n')
@@ -2723,10 +2723,11 @@ def popgen_analysis_of_hg(inputs):
 			sample_id, gene_id = rec.id.split('|')
 			if sample_population != None and population != None and population != sample_population[sample_id]: continue
 			if len(gene_id.split('_')[0]) == 3:
-				if comp_gene_info[gene_id]['core_overlap']:
-					core_counts['core'] += 1
-				else:
-					core_counts['auxiliary'] += 1
+				if not comp_gene_info[gene_id]['is_expansion_bgc']:
+					if comp_gene_info[gene_id]['core_overlap']:
+						core_counts['core'] += 1
+					else:
+						core_counts['auxiliary'] += 1
 			updated_codon_alignment_handle.write('>' + rec.description + '\n' + str(rec.seq) + '\n')
 			products.add(comp_gene_info[gene_id]['product'])
 			real_pos = 1
@@ -2756,7 +2757,7 @@ def popgen_analysis_of_hg(inputs):
 		if len(sample_leaf_names[sample]) > 1:
 			single_copy_in_gcf = False
 
-	median_beta_rd = "NA"
+	median_beta_rd = "NA"; max_beta_rd = "NA"
 	if comparem_used != None:
 		if gw_pairwise_similarities:
 			beta_rd_stats = []
@@ -2770,8 +2771,6 @@ def popgen_analysis_of_hg(inputs):
 						if gw_seq_sim != 0.0:
 							beta_rd = hg_seq_sim / float(gw_seq_sim)
 							beta_rd_stats.append(beta_rd)
-			median_beta_rd = "NA"
-			max_beta_rd = "NA"
 			if len(beta_rd_stats) >= 1:
 				median_beta_rd = round(statistics.median(beta_rd_stats), 2)
 				max_beta_rd = round(max(beta_rd_stats), 2)
