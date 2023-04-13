@@ -680,8 +680,8 @@ def lsaBGC_Easy():
 		exp_gcf_listing_dir = gcf_listing_dir
 
 	# Step 7: Run lsaBGC-AutoAnalyze.py
-	logObject.info('\n--------------------\nStep 7\n--------------------\nBeginning lsaBGC-AutoExpansion (which runs lsaBGC-See.py, lsaBGC-PopGene.py, and lsaBGC-Divergence.py + summarizes results across GCFs at the end.\n')
-	sys.stdout.write('--------------------\nStep 7\n--------------------\nBeginning lsaBGC-AutoExpansion (which runs lsaBGC-See.py, lsaBGC-PopGene.py,\nand lsaBGC-Divergence.py + summarizes results across GCFs at the end.\n')
+	logObject.info('\n--------------------\nStep 7\n--------------------\nBeginning lsaBGC-AutoAnalyze (which runs lsaBGC-See.py, lsaBGC-PopGene.py, and lsaBGC-Divergence.py + summarizes results across GCFs at the end.\n')
+	sys.stdout.write('--------------------\nStep 7\n--------------------\nBeginning lsaBGC-AutoAnalyze (which runs lsaBGC-See.py, lsaBGC-PopGene.py,\nand lsaBGC-Divergence.py + summarizes results across GCFs at the end.\n')
 
 	checkLsaBGCInputsExist(exp_annotation_listing_file, exp_gcf_listing_dir, exp_orthogroups_matrix_file)
 	try:
@@ -700,6 +700,10 @@ def lsaBGC_Easy():
 								  lsabgc_autoanalyze_dir, '-p', 'antiSMASH', '-u', population_file]
 		runCmdViaSubprocess(lsabgc_autoanalyze_cmd, logObject, check_directories=[lsabgc_autoanalyze_results_dir])
 
+
+	# Step 8: Run lsaBGC-AutoAnalyze.py
+	logObject.info('\n--------------------\nStep 8\n--------------------\nBeginning GSeeF analysis.')
+	sys.stdout.write('--------------------\nStep 8\n--------------------\nBeginning GSeeF analysis.')
 
 	gseef_results_dir = outdir + 'GSeeF_Results/'
 	gseef_final_results_dir = gseef_results_dir + 'Final_Results/'

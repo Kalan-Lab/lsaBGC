@@ -112,7 +112,6 @@ def lsaBGC_Euk_Easy():
 	outdir = os.path.abspath(myargs.output_directory) + '/'
 	cpus = myargs.cpus
 	genomes_directory = myargs.genomes_directory
-	gtotree_model = myargs.gtotree_model
 	skip_dereplication_flag = myargs.skip_dereplication
 	include_incomplete_bgcs_flag = myargs.include_incomplete_bgcs
 	skip_auto_expansion_flag = myargs.skip_auto_expansion
@@ -122,7 +121,6 @@ def lsaBGC_Euk_Easy():
 	orthofinder_mode = myargs.orthofinder_mode.upper()
 	use_bigscape_flag = myargs.use_bigscape
 	ignore_limits_flag = myargs.ignore_limits
-	use_pyrodigal = myargs.use_pyrodigal
 
 	try:
 		assert (orthofinder_mode in set(['GENOME_WIDE', 'BGC_ONLY']))
@@ -202,10 +200,11 @@ def lsaBGC_Euk_Easy():
 	namemapping_directory = outdir + 'Name_Mapping/'
 	fasta_directory = outdir + 'FASTA_Genomes/'
 
-	all_proteomes_listing_file = outdir + 'All_Proteomes_Listing.txt'
 	logObject.info('\n--------------------\nStep 2\n--------------------\nBeginning extraction of proteins from CDS features in GenBanks.')
 	sys.stdout.write('--------------------\nStep 2\n--------------------\nBeginning extraction of proteins from CDS features in GenBanks.\n')
 
+	all_proteomes_listing_file = outdir + 'All_Proteomes_Listing.txt'
+	all_genome_listings_fna_file = outdir + 'Genomes_Listings_for_N50.txt'
 	alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 	possible_locustags = sorted(list([''.join(list(x)) for x in list(itertools.product(alphabet, repeat=3))]))
 	if not os.path.isfile(all_proteomes_listing_file):
@@ -235,8 +234,7 @@ def lsaBGC_Euk_Easy():
 			all_proteomes_listing_handle.write(proteome_directory + f + '\n')
 		all_proteomes_listing_handle.close()
 
-		all_genome_listings_fna = outdir + 'Genomes_Listings_for_N50.txt'
-		aglf_handle = open(all_genome_listings_fna, 'w')
+		aglf_handle = open(all_genome_listings_fna_file, 'w')
 		for f in os.listdir(genbank_directory):
 			if not f.endswith('.gbk'): continue
 			sample = f.split('.gbk')[0]
@@ -255,14 +253,14 @@ def lsaBGC_Euk_Easy():
 	for f in os.listdir(genbank_directory):
 		if not f.endswith('.gbk'): continue
 		sample = f.split('.gbk')[0]
-		all_genome_listings_gbk[sample] = proteome_directory + f
+		all_genome_listings_gbk[sample] = genbank_directory + f
 
-	# Step 2: Construct GToTree phylogeny - dereplication + grouping - creating listing
+	# Step 3: Construct GToTree phylogeny - dereplication + grouping - creating listing
 	gtotree_outdir = outdir + 'GToTree_output/'
 	species_tree_file = gtotree_outdir + 'GToTree_output.tre'
 	expected_similarities_file = outdir + 'GToTree_Expected_Similarities.txt'
-	logObject.info('\n--------------------\nStep 2\n--------------------\nBeginning construction of species tree using GToTree.')
-	sys.stdout.write('--------------------\nStep 2\n--------------------\nBeginning construction of species tree using GToTree.\n')
+	logObject.info('\n--------------------\nStep 3\n--------------------\nBeginning construction of species tree using GToTree.')
+	sys.stdout.write('--------------------\nStep 3\n--------------------\nBeginning construction of species tree using GToTree.\n')
 	if not os.path.isfile(species_tree_file) or not os.path.isfile(expected_similarities_file):
 		os.system('rm -rf %s' % gtotree_outdir)
 		gtotree_cmd = ['GToTree', '-A', all_proteomes_listing_file, '-H', 'Universal_Hug_et_al', '-n', '4', '-j',
@@ -313,9 +311,11 @@ def lsaBGC_Euk_Easy():
 		n50_cmds = []
 		n50_directory = outdir + 'N50_Calculations/'
 		util.setupReadyDirectory([n50_directory])
-		for s, fna in all_genome_listings_fna.items():
-			cmd = ['n50', fna, '>', n50_directory + s + '.txt', logObject]
-			n50_cmds.append(cmd)
+		with open(all_genome_listings_fna_file) as oaglff:
+			for line in oaglff:
+				s, fna = line.strip().split('\t')
+				cmd = ['n50', fna, '>', n50_directory + s + '.txt', logObject]
+				n50_cmds.append(cmd)
 
 		p = multiprocessing.Pool(cpus)
 		p.map(util.multiProcess, n50_cmds)
@@ -413,8 +413,8 @@ def lsaBGC_Euk_Easy():
 
 	checkUlimitSettings(count_of_dereplicated_sample_set, logObject)
 
-	logObject.info("\n--------------------\nStep 3\n--------------------\nStarting creation of antiSMASH commands for de novo BGC prediction.")
-	sys.stdout.write("--------------------\nStep 3\n--------------------\nStarting creation of antiSMASH commands for de novo BGC prediction.\n")
+	logObject.info("\n--------------------\nStep 4\n--------------------\nStarting creation of antiSMASH commands for de novo BGC prediction.")
+	sys.stdout.write("--------------------\nStep 4\n--------------------\nStarting creation of antiSMASH commands for de novo BGC prediction.\n")
 
 	primary_genomes_listing_file = outdir + 'Primary_Genomes.txt'
 	primary_bgc_pred_directory = outdir + 'Primary_Genomes_BGC_Predictions/'
@@ -461,9 +461,9 @@ def lsaBGC_Euk_Easy():
 	logObject.info("Primary BGC predictions appear successful and are listed for samples/genomes at:\n%s" % primary_bgcs_listing_file)
 	sys.stdout.write("Primary BGC predictions appear successful and are listed for samples/genomes at:\n%s\n" % primary_bgcs_listing_file)
 
-	# Step 4: Run lsaBGC-Ready.py with lsaBGC-Cluster or BiG-SCAPE
-	logObject.info('\n--------------------\nStep 4\n--------------------\nBeginning clustering of BGCs using either lsaBGC-Cluster (default) or BiG-SCAPE (can be requested).')
-	sys.stdout.write('--------------------\nStep 4\n--------------------\nBeginning clustering of BGCs using either lsaBGC-Cluster (default) or BiG-SCAPE (can be requested).\n')
+	# Step 5: Run lsaBGC-Ready.py with lsaBGC-Cluster or BiG-SCAPE
+	logObject.info('\n--------------------\nStep 5\n--------------------\nBeginning clustering of BGCs using either lsaBGC-Cluster (default) or BiG-SCAPE (can be requested).')
+	sys.stdout.write('--------------------\nStep 5\n--------------------\nBeginning clustering of BGCs using either lsaBGC-Cluster (default) or BiG-SCAPE (can be requested).\n')
 	bigscape_listing_file = lsaBGC_main_directory + 'external_tools/bigscape_location.txt'
 	bigscape_prog_location, pfam_directory = [None] * 2
 	if os.path.isfile(bigscape_listing_file):
@@ -494,8 +494,6 @@ def lsaBGC_Euk_Easy():
 			lsabgc_ready_cmd += ['-b', bigscape_results_dir]
 		else:
 			lsabgc_ready_cmd += ['-lc']
-		if use_pyrodigal:
-			lsabgc_ready_cmd += ['-py']
 		if run_coarse_orthofinder:
 			lsabgc_ready_cmd += ['-mc']
 
@@ -506,10 +504,10 @@ def lsaBGC_Euk_Easy():
 							check_directories=[lsabgc_ready_results_directory, gcf_listing_dir],
 							check_files=[annotation_listing_file, orthogroups_matrix_file])
 
-	# Step 5: Run lsaBGC-AutoExpansion.py polishing to find GCF instances fragmented on multiple scaffolds
+	# Step 6: Run lsaBGC-AutoExpansion.py polishing to find GCF instances fragmented on multiple scaffolds
 	if not skip_auto_expansion_flag:
-		logObject.info('\n--------------------\nStep 5\n--------------------\nBeginning identification of fragmented BGC instances from completed instances using lsaBGC-AutoExpansion.')
-		sys.stdout.write('--------------------\nStep 5\n--------------------\nBeginning identification of fragmented BGC instances from completed instances using lsaBGC-AutoExpansion.\n')
+		logObject.info('\n--------------------\nStep 6\n--------------------\nBeginning identification of fragmented BGC instances from completed instances using lsaBGC-AutoExpansion.')
+		sys.stdout.write('--------------------\nStep 6\n--------------------\nBeginning identification of fragmented BGC instances from completed instances using lsaBGC-AutoExpansion.\n')
 
 	checkLsaBGCInputsExist(annotation_listing_file, gcf_listing_dir, orthogroups_matrix_file)
 
@@ -531,9 +529,9 @@ def lsaBGC_Euk_Easy():
 		exp_orthogroups_matrix_file = orthogroups_matrix_file
 		exp_gcf_listing_dir = gcf_listing_dir
 
-	# Step 6: Run lsaBGC-AutoAnalyze.py
-	logObject.info('\n--------------------\nStep 6\n--------------------\nBeginning lsaBGC-AutoExpansion (which runs lsaBGC-See.py, lsaBGC-PopGene.py, and lsaBGC-Divergence.py + summarizes results across GCFs at the end.\n')
-	sys.stdout.write('--------------------\nStep 6\n--------------------\nBeginning lsaBGC-AutoExpansion (which runs lsaBGC-See.py, lsaBGC-PopGene.py,\nand lsaBGC-Divergence.py + summarizes results across GCFs at the end.\n')
+	# Step 7: Run lsaBGC-AutoAnalyze.py
+	logObject.info('\n--------------------\nStep 7\n--------------------\nBeginning lsaBGC-AutoAnalyze (which runs lsaBGC-See.py, lsaBGC-PopGene.py, and lsaBGC-Divergence.py + summarizes results across GCFs at the end.\n')
+	sys.stdout.write('--------------------\nStep 7\n--------------------\nBeginning lsaBGC-AutoAnalyze (which runs lsaBGC-See.py, lsaBGC-PopGene.py,\nand lsaBGC-Divergence.py + summarizes results across GCFs at the end.\n')
 
 	checkLsaBGCInputsExist(exp_annotation_listing_file, exp_gcf_listing_dir, exp_orthogroups_matrix_file)
 	try:
@@ -551,6 +549,11 @@ def lsaBGC_Euk_Easy():
 								  expected_similarities_file, '-k', samples_to_keep_file, '-c', str(cpus), '-o',
 								  lsabgc_autoanalyze_dir, '-p', 'antiSMASH', '-u', population_file]
 		runCmdViaSubprocess(lsabgc_autoanalyze_cmd, logObject, check_directories=[lsabgc_autoanalyze_results_dir])
+
+
+	# Step 8: Run lsaBGC-AutoAnalyze.py
+	logObject.info('\n--------------------\nStep 8\n--------------------\nBeginning GSeeF analysis.')
+	sys.stdout.write('--------------------\nStep 8\n--------------------\nBeginning GSeeF analysis.')
 
 	gseef_results_dir = outdir + 'GSeeF_Results/'
 	gseef_final_results_dir = gseef_results_dir + 'Final_Results/'
