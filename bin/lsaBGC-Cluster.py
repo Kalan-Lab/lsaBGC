@@ -50,18 +50,19 @@ def create_parser():
 	Affiliation: Kalan Lab, UW Madison, Department of Medical Microbiology and Immunology
 
 	This program will cluster BGC Genbanks using MCL based on similarity exhibited in ortholog group presence/
-	absence data. Clustering uses MCL.""", formatter_class=argparse.RawTextHelpFormatter)
+	absence data. Clustering uses MCL.
+	""", formatter_class=argparse.RawTextHelpFormatter)
 
 	parser.add_argument('-b', '--bgc_listings', help='BGC listing file. Tab delimited 2-column file: (1) sample name (2) path to predicted BGC in Genbank format.', required=True)
 	parser.add_argument('-m', '--orthofinder_matrix', help="OrthoFinder matrix.", required=True)
 	parser.add_argument('-o', '--output_directory', help="Output directory.", required=True)
 	parser.add_argument('-p', '--bgc_prediction_software', help='Software used to predict BGCs (Options: antiSMASH, DeepBGC, GECCO).\nDefault is antiSMASH.', default='antiSMASH', required=False)
-	parser.add_argument('-c', '--cpus', type=int, help="Number of cpus to use for MCL step.", required=False, default=1)
 	parser.add_argument('-i', '--mcl_inflation', type=float, help="Inflation parameter to be used for MCL.", required=False, default=1.4)
 	parser.add_argument('-j', '--jaccard_cutoff', type=float, help="Cutoff for Jaccard similarity of homolog groups shared between two BGCs.", required=False, default=50.0)
 	parser.add_argument('-r', '--syntenic_correlation_cutoff', type=float, help="Minimum absolute correlation coefficient between two BGCs.", required=False, default=0.0)
 	parser.add_argument('-s', '--split_by_annotation', action='store_true', help="Partition BGCs into groups based on annotation first.", required=False, default=False)
 	parser.add_argument('-t', '--run_parameter_tests', action='store_true', help="Run tests for selecting the best inflation parameter and jaccard for MCL analysis and exit.", required=False, default=False)
+	parser.add_argument('-c', '--cpus', type=int, help="Number of cpus to use for MCL step.", required=False, default=1)
 	args = parser.parse_args()
 	return args
 
@@ -124,7 +125,7 @@ def lsaBGC_Cluster():
 	parameters_file = outdir + 'Parameter_Inputs.txt'
 	parameter_values = [bgc_listings_file, orthofinder_matrix_file, outdir, bgc_prediction_software, cpus, mcl_inflation,
 						jaccard_cutoff, syntenic_correlation_cutoff, run_parameter_tests, split_by_annotation]
-	parameter_names = ["BGC Listing File", "OrthoFinder Orthogroups.csv File", "Output Directory",
+	parameter_names = ["BGC Listing File", "OrthoFinder Orthogroups.tsv File", "Output Directory",
 					   "BGC Prediction Method", "cpus", "MCL Inflation Parameter", "Jaccard Similarity Cutoff",
 					   "Syntenic Correlation Coefficient Cutoff", "Run Inflation Parameter Tests?",
 					   "Split BGCs into Annotation Categories First Prior to Clustering?"]

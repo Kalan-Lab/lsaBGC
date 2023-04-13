@@ -125,6 +125,28 @@ class GCF(Pan):
 				self.logObject.error(traceback.format_exc())
 			raise RuntimeError(traceback.format_exc())
 
+	def aggregateProteins(self, gcf_prots_file, draft_mode=False):
+		"""
+		function to aggregate protein sequences from BGC genbanks and output to a file in FASTA format.
+		"""
+		try:
+			gpf_handle = open(gcf_prots_file, 'w')
+			for bgc in self.bgc_genes:
+				sample = self.bgc_sample[bgc]
+				set_id = bgc
+				if draft_mode:
+					set_id = sample
+				for lt in self.bgc_genes[bgc]:
+					lt_prot_seq = self.comp_gene_info[lt]['prot_seq']
+					gpf_handle.write('>' + set_id + '|' + lt + '\n' + lt_prot_seq + '\n')
+			gpf_handle.close()
+			assert(os.path.isfile(gcf_prots_file))
+		except Exception as e:
+			if self.logObject:
+				self.logObject.error("Issues with aggregating proteins from BGCs belonging to GCF to a FASTA file.")
+				self.logObject.error(traceback.format_exc())
+			raise RuntimeError(traceback.format_exc())
+
 	def modifyPhylogenyForSamplesWithMultipleBGCs(self, input_phylogeny, result_phylogeny, prune_set=None):
 		"""
 		Function which takes in an input phylogeny and produces a replicate resulting phylogeny with samples/leafs which

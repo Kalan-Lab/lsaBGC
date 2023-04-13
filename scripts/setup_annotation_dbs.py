@@ -2,12 +2,6 @@ import os
 import sys
 import argparse
 from Bio import SeqIO
-from collections import defaultdict
-from time import sleep
-from lsaBGC import util
-import subprocess
-import traceback
-import multiprocessing
 
 lsaBGC_main_directory = '/'.join(os.path.realpath(__file__).split('/')[:-2]) + '/'
 
@@ -40,6 +34,8 @@ def setup_annot_dbs():
     except:
         sys.stderr.write('Error: Provided directory for downloading annotation files does not exist!\n')
 
+    listing_file = lsaBGC_main_directory + 'db/database_location_paths.txt'
+
     # download files in requested directory
     try:
         os.chdir(download_path)
@@ -65,7 +61,6 @@ def setup_annot_dbs():
                 os.system('cat %s >> %s' % (download_path + 'profiles/' + f, ko_phmm_file))
 
             assert(os.path.isfile(ko_phmm_file))
-            listing_file = lsaBGC_main_directory + 'db/database_location_paths.txt'
             listing_handle = open(listing_file, 'w')
             listing_handle.write('ko\t' + ko_annot_info_file + '\t' + ko_phmm_file + '\n')
             listing_handle.close()
@@ -87,12 +82,33 @@ def setup_annot_dbs():
             for f in os.listdir(download_path + 'hmm_PGAP/'):
                 os.system('cat %s >> %s' % (download_path + 'hmm_PGAP/' + f, pgap_hmm_file))
             assert(os.path.isfile(ko_phmm_file))
-            listing_file = lsaBGC_main_directory + 'db/database_location_paths.txt'
             listing_handle = open(listing_file, 'a+')
             listing_handle.write('pgap\t' + pgap_info_file + '\t' + pgap_hmm_file + '\n')
             listing_handle.close()
             os.system('rm -rf %s %s' % (download_path + 'hmm_PGAP/', download_path + 'hmm_PGAP.HMM.tgz'))
 
+
+        mibig_faa_file = download_path + 'mibig_prot_seqs_3.1.fasta'
+        mibig_dmnd_file = download_path + 'mibig.dmnd'
+        mibig_info_file = download_path + 'mibig_info.txt'
+
+        if not os.path.isfile(mibig_info_file) or not os.path.isfile(mibig_dmnd_file):
+            # Download MIBiG
+            print('Setting up MIBiGv3.1 database!')
+            os.system('wget https://dl.secondarymetabolites.org/mibig/mibig_prot_seqs_3.1.fasta')
+            assert(os.path.isfile(mibig_faa_file))
+            os.system(' '.join(['diamond', 'makedb', '--in', mibig_faa_file, '-d', mibig_dmnd_file]))
+            assert(os.path.isfile(mibig_dmnd_file))
+            mdf_handle = open(mibig_info_file, 'w')
+            with open(mibig_faa_file) as omf:
+                for rec in SeqIO.parse(omf, 'fasta'):
+                    mdf_handle.write(rec.id + '\t' + rec.description + '\n')
+            mdf_handle.close()
+            assert(os.path.isfile(mibig_info_file))
+
+            listing_handle = open(listing_file, 'a+')
+            listing_handle.write('mibig\t' + mibig_info_file + '\t' + mibig_dmnd_file + '\n')
+            listing_handle.close()
     except:
         sys.stderr.write('Error: issues with downloading or seting up annotation database files! Please post to Github issues if unable to figure out!\n')
 

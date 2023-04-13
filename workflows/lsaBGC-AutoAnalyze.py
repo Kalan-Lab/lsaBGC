@@ -79,6 +79,7 @@ def create_parser():
 	parser.add_argument('-u', '--populations', help='Path to user defined populations/groupings file. Tab delimited with 2 columns: (1) sample name and (2) group identifier.', required=False, default=None)
 	parser.add_argument('-l', '--discovary_input_listing', help="Sequencing readsets for DiscoVary analysis. Tab delimited file listing: (1) sample name, (2) forward readset, (3) reverse readset for metagenomic/isolate sequencing data.", required=False, default=None)
 	parser.add_argument('-n', '--discovary_analysis_name', help="Identifier/name for DiscoVary. Not providing this parameter will avoid running lsaBGC-DiscoVary step.", required=False, default=None)
+	parser.add_argument('-mb', '--run_mibig_mapper', action='store_true', help="Run MIBiG mapping analysis.", default=False, required=False)
 	parser.add_argument('-c', '--cpus', type=int, help="Total number of cpus to use.", required=False, default=1)
 
 	args = parser.parse_args()
@@ -157,6 +158,7 @@ def lsaBGC_AutoAnalyze():
 	population_listing_file = myargs.populations
 	discovary_analysis_id = myargs.discovary_analysis_name
 	discovary_input_listing = myargs.discovary_input_listing
+	run_mibig_mapper = myargs.run_mibig_mapper
 	cpus = myargs.cpus
 
 	try:
@@ -222,13 +224,14 @@ def lsaBGC_AutoAnalyze():
 	parameters_file = outdir + 'Parameter_Inputs.txt'
 	parameter_values = [gcf_listing_dir, input_listing_file, original_orthofinder_matrix_file, outdir,
 						species_phylogeny_file, expected_distances, population_listing_file,
-						discovary_analysis_id, discovary_input_listing, bgc_prediction_software, sample_set_file, cpus]
+						discovary_analysis_id, discovary_input_listing, bgc_prediction_software,
+						sample_set_file, run_mibig_mapper, cpus]
 	parameter_names = ["GCF Listings Directory", "Listing File of Sample Annotation Files for Initial Set of Samples",
 					   "OrthoFinder Homolog Matrix", "Output Directory", "Species Phylogeny File in Newick Format",
 					   "File with Expected Sample to Sample Amino Acid Distance Estimations",
 					   "Clade/Population Listings File", "DiscoVary Analysis ID",
 					   "DiscoVary Sequencing Data Location Specification File", "BGC Prediction Software",
-					   "Sample Retention Set", "cpus"]
+					   "Sample Retention Set", "Run MIBiG Mapping Analysis?", "CPUs"]
 	util.logParametersToFile(parameters_file, parameter_names, parameter_values)
 	logObject.info("Done saving parameters!")
 
@@ -319,6 +322,10 @@ def lsaBGC_AutoAnalyze():
 		dis_outdir = outdir + 'DiscoVary_' + '_'.join(discovary_analysis_id.split()) + '/'
 		if not os.path.isdir(dis_outdir): os.system('mkdir %s' % dis_outdir)
 
+	if run_mibig_mapper:
+		mbmap_outdir = outdir + 'MIBiG_Mapping/'
+		if not os.path.isdir(mbmap_outdir): os.system('mkdir %s' % mbmap_outdir)
+
 	for g in os.listdir(gcf_listing_dir):
 		gcf_id = g.split('.txt')[0]
 		gcf_listing_file = gcf_listing_dir + g
@@ -376,7 +383,22 @@ def lsaBGC_AutoAnalyze():
 				logObject.warning("lsaBGC-Divergence.py was unsuccessful for GCF %s" % gcf_id)
 				sys.stderr.write("Warning: lsaBGC-Divergence.py was unsuccessful for GCF %s\n" % gcf_id)
 
-		# 4. Run lsaBGC-DiscoVary.py
+		# 4. Run lsaBGC-MIBiGMapper.py
+		gcf_mbm_outdir = mbmap_outdir + gcf_id + '/'
+		lsabgc_mibigmap_checkpoint = gcf_mbm_outdir + 'CHECKPOINT.txt'
+		if not os.path.isfile(lsabgc_mibigmap_checkpoint):
+			os.system('rm -rf %s' % gcf_div_outdir)
+			os.system('mkdir %s' % gcf_div_outdir)
+			cmd = ['lsaBGC-MIBiGMapper.py', '-g', gcf_listing_file, '-m', orthofinder_matrix_file, '-o', gcf_mbm_outdir,
+				   '-i', gcf_id,  '-c', str(cpus)]
+			try:
+				util.run_cmd(cmd, logObject)
+				assert(os.path.isfile(lsabgc_mibigmap_checkpoint))
+			except Exception as e:
+				logObject.warning("lsaBGC-MIBiGMapper.py was unsuccessful for GCF %s" % gcf_id)
+				sys.stderr.write("Warning: lsaBGC-MIBiGMapper.py was unsuccessful for GCF %s\n" % gcf_id)
+
+		# 5. Run lsaBGC-DiscoVary.py
 		if discovary_analysis_id and discovary_input_listing:
 			gcf_dis_outdir = dis_outdir + gcf_id + '/'
 			lsabgc_discovary_checkpoint = gcf_dis_outdir + 'CHECKPOINT.txt'
@@ -599,9 +621,6 @@ def lsaBGC_AutoAnalyze():
 	workbook.close()
 
 	# TODO: Add formatting to the Overview - Simple sheet
-	#workbook = writer.book
-	#scprf_sheet = writer.sheets['Overview - Simple']
-	#workbook.close()
 
 	# clean up final directory:
 	final_results_dir = outdir + 'Final_Results/'

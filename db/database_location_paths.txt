@@ -1,0 +1,3 @@
+ko	/home/rauf/Projects/KalanLab/lsaBGC_Development/Develop_v1.34/lsaBGC/db/ko_list	/home/rauf/Projects/KalanLab/lsaBGC_Development/Develop_v1.34/lsaBGC/db/profile.hmm
+pgap	/home/rauf/Projects/KalanLab/lsaBGC_Development/Develop_v1.34/lsaBGC/db/hmm_PGAP.tsv	/home/rauf/Projects/KalanLab/lsaBGC_Development/Develop_v1.34/lsaBGC/db/PGAP.hmm
+mibig	/home/rauf/Projects/KalanLab/lsaBGC_Development/Develop_v1.34/lsaBGC/db/mibig_info.txt	/home/rauf/Projects/KalanLab/lsaBGC_Development/Develop_v1.34/lsaBGC/db/mibig.dmnd

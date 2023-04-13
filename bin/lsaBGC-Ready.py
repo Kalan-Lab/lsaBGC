@@ -382,8 +382,8 @@ def lsaBGC_Ready():
         annot_directory = outdir + 'Annotations/'
         util.setupReadyDirectory([annot_directory])
         protein_annotations = util.performKOFamAndPGAPAnnotation(sample_bgc_proteins, bgc_prot_directory,
-                                                                       annot_directory, kofam_hmm_file, pgap_hmm_file,
-                                                                       kofam_pro_list, pgap_inf_list, logObject, cpus=cpus)
+                                                                 annot_directory, kofam_hmm_file, pgap_hmm_file,
+                                                                 kofam_pro_list, pgap_inf_list, logObject, cpus=cpus)
         bgcs_directory_updated = outdir + 'BGCs_Retagged_and_Annotated/'
         util.setupReadyDirectory([bgcs_directory_updated])
 

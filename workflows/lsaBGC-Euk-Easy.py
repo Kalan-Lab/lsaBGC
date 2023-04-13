@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-### Program: lsaBGC-Easy.py
+### Program: lsaBGC-Euk-Easy.py
 ### Author: Rauf Salamzade
 ### Kalan Lab
 ### UW Madison, Department of Medical Microbiology and Immunology
@@ -45,7 +45,7 @@ import math
 import itertools
 from operator import itemgetter
 from collections import defaultdict
-import gzip
+from Bio import SeqIO
 import resource
 from time import sleep
 from lsaBGC import util
@@ -62,7 +62,7 @@ def create_parser():
 	 / /  (_-</ _ `/ / _  |/ (_ / / /__  
 	/_/  /___/\_,_/ /____/ \___/  \___/  
 	*******************************************************************************************************************
-	Program: lsaBGC-Easy.py
+	Program: lsaBGC-Euk-Easy.py
 	Author: Rauf Salamzade
 	Affiliation: Kalan Lab, UW Madison, Department of Medical Microbiology and Immunology
 	
@@ -80,89 +80,38 @@ def create_parser():
 	*******************************************************************************************************************
 	OVERVIEW OF STEPS TAKEN:	
 		- Check number of genomes for taxa is not too crazy (<1000) or too small (>10)
-		- Step 1: Get set of Genbank assembly accessions from recent GTDB release matching taxa.
-		- Step 2: Download all genomes in FASTA format using ncbi-genome-download and perform gene-calling with prodigal.
-		- Step 3: Run GToTree, Dereplicate, Group Samples into Populations/Clades, and Create genomes listing
-		- Step 4: Run GECCO based annotation of BGCs and crete BGC listing or Create Task File with antiSMASH/DeepBGC coomands
-		- Step 5: Run lsaBGC-Ready.py with lsaBGC-Cluster or BiG-SCAPE
-		- Step 6: Run lsaBGC-AutoExpansion.py polishing to find GCF instances fragmented on multiple scaffolds
-		- Step 7: Run lsaBGC-AutoAnalyze.py
+			
+		- Step 1: Run GToTree, Dereplicate, Group Samples into Populations/Clades, and Create genomes listing
+		- Step 2: Run GECCO based annotation of BGCs and crete BGC listing or Create Task File with antiSMASH/DeepBGC coomands
+		- Step 3: Run lsaBGC-Ready.py with lsaBGC-Cluster or BiG-SCAPE
+		- Step 4: Run lsaBGC-AutoExpansion.py polishing to find GCF instances fragmented on multiple scaffolds
+		- Step 5: Run lsaBGC-AutoAnalyze.py
 	*******************************************************************************************************************
-	AVAILBLE SCG MODELS IN GTOTREE:
-           Actinobacteria                    (138 genes)
-           Alphaproteobacteria               (117 genes)
-           Archaea                            (76 genes)
-           Bacteria                           (74 genes)
-           Bacteria_and_Archaea               (25 genes)
-           Bacteroidetes                      (90 genes)
-           Betaproteobacteria                (203 genes)
-           Chlamydiae                        (286 genes)
-           Cyanobacteria                     (251 genes)
-           Epsilonproteobacteria             (260 genes)
-           Firmicutes                        (119 genes)
-           Gammaproteobacteria               (172 genes)
-           Proteobacteria                    (119 genes)
-           Tenericutes                        (99 genes)
-           Universal_Hug_et_al                (16 genes)
 	""", formatter_class=argparse.RawTextHelpFormatter)
 
-	parser.add_argument('-n', '--taxa_name',
-						help='Name of the taxa of interest as listed in GTDB. Currently restricted to bacteria - but lsaBGC\nitself- when using antiSMASH BGC predictions can run on\nEuks - check out the tutorial!! If there is a space in the\nname, please surround by quotes.',
-						required=True)
+	parser.add_argument('-g', '--genomes_directory', help='A directory with additional genomes, e.g. those recently sequenced by the\nuser, belonging to the taxa. Must be full GenBanks with gene-calling already performed and CDS features available.\nAccepted suffices include: .gbff, .gbk, .genbank.', required=False, default=None)
 	parser.add_argument('-o', '--output_directory', help='Parent output/workspace directory.', required=True)
-	parser.add_argument('-g', '--user_genomes_directory',
-						help='A directory with additional genomes, e.g. those recently sequenced by the\nuser, belonging to the taxa. Accepted formats include FASTA.\nAccepted suffices include: .fna, .fa, .fasta.',
-						required=False, default=None)
-	parser.add_argument('-p', '--bgc_prediction_software',
-						help='Software used to predict BGCs (Options: antiSMASH, DeepBGC, GECCO).\nDefault is GECCO - which will be automatic. For the other two,\nlsaBGC-Easy will produce a task-file which you will need to run in a seperate environment\nwith antiSMASH or DeepBGC installed, then rerun lsaBGC-Easy.py using the original command..',
-						default='gecco', required=False)
-	parser.add_argument('-om', '--orthofinder_mode',
-						help="Method for running OrthoFinder2. (Options: Genome_Wide, BGC_Only).\nDefault is Genome_Wide (BGC_Only is slightly experimental but much faster and should work\nespecially well for taxa with many BGCs).",
-						default='Genome_Wide', required=False)
-	parser.add_argument('-sd', '--skip_dereplication', action='store_true',
-						help="Whether to skip dereplication based on GToTree alignments of SCGs - not\nrecommended and can cause issues if there are a lot of\ngenomes for the taxa of interest.",
-						default=False, required=False)
-	parser.add_argument('-gtm', '--gtotree_model',
-						help="SCG model for secondary GToTree analysis and wdhat would be used for dereplication. Default is to use the \"Bacteria\" SCG set (n=74 genes).",
-						default='Bacteria', required=False)
-	parser.add_argument('-iib', '--include_incomplete_bgcs', action='store_true',
-						help="Whether to account for incomplete BGCs prior to clustering - not recommended.",
-						default=False, required=False)
-	parser.add_argument('-mc', '--run_coarse_orthofinder', action='store_true',
-						help='Use coarse clustering of homolog groups in OrthoFinder instead of more\nresolute hierarchical determined homolog groups. There are some advantages to coarse OGs, including their construction being deterministic.',
-						required=False, default=False)
-	parser.add_argument('-b', '--use_bigscape', action='store_true',
-						help="Use BiG-SCAPE for BGC clustering into GCFs instead of lsaBGC-Cluster. Recommended if you want to include incomplete BGCs for clustering and are using antiSMASH.",
-						required=False, default=False)
-	parser.add_argument('-sae', '--skip_auto_expansion', action='store_true',
-						help="Skip lsaBGC-AutoExpansion.py to find missing pieces of BGCs due to assembly fragmentation.",
-						required=False, default=False)
-	parser.add_argument('-c', '--cpus', type=int,
-						help="Total number of cpus/threads. Note, this is the total number of\nthreads to use (Default is 4). BGC prediction commands (via GECCO, antiSMASH, and DeepBGC) will\neach be set to use 4 cpus by default.",
-						required=False, default=4)
-	parser.add_argument('-dt', '--dereplicate_threshold', type=float,
-						help="Amino acid similarity threshold of SCGs for considering\ntwo genomes as redundant. (Default is 0.999)",
-						default=0.999, required=False)
-	parser.add_argument('-pt', '--population_threshold', type=float,
-						help="Amino acid similarity threshold of SCGs for considering\ntwo genomes as belonging to the same population. (Default is 0.99)",
-						default=0.99, required=False)
-	parser.add_argument('-x', '--ignore_limits', action='store_true',
-						help="Ignore limitations on number of genomes allowed.\nE.g. allow for analyses of taxa with more than 2000 genomes available and more than 100 genomes\nafter dereplication. Not recommend, be cautious!!! Also note,\nyou can always delete \"Dereplicated_Set_of_Genomes.txt\" in the results directory and redo\ndereplication with different threshold.")
-	parser.add_argument('-py', '--use_pyrodigal', action='store_true', help='Use pyrodigal instead of prodigal.',
-						required=False, default=False)
+	parser.add_argument('-om', '--orthofinder_mode', help="Method for running OrthoFinder2. (Options: Genome_Wide, BGC_Only).\nDefault is Genome_Wide (BGC_Only is slightly experimental but much faster and should work\nespecially well for taxa with many BGCs).", default='Genome_Wide', required=False)
+	parser.add_argument('-iib', '--include_incomplete_bgcs', action='store_true', help="Whether to account for incomplete BGCs prior to clustering - not recommended.", default=False, required=False)
+	parser.add_argument('-mc', '--run_coarse_orthofinder', action='store_true', help='Use coarse clustering of homolog groups in OrthoFinder instead of more\nresolute hierarchical determined homolog groups. There are some advantages to coarse OGs, including their construction being deterministic.', required=False, default=False)
+	parser.add_argument('-b', '--use_bigscape', action='store_true', help="Use BiG-SCAPE for BGC clustering into GCFs instead of lsaBGC-Cluster. Recommended if you want to include incomplete BGCs for clustering and are using antiSMASH.", required=False, default=False)
+	parser.add_argument('-sae', '--skip_auto_expansion', action='store_true', help="Skip lsaBGC-AutoExpansion.py to find missing pieces of BGCs due to assembly fragmentation.", required=False, default=False)
+	parser.add_argument('-dt', '--dereplicate_threshold', type=float, help="Amino acid similarity threshold of SCGs for considering\ntwo genomes as redundant. (Default is 0.999)", default=0.999, required=False)
+	parser.add_argument('-c', '--cpus', type=int, help="Total number of cpus/threads. Note, this is the total number of\nthreads to use (Default is 4). BGC prediction commands (via GECCO, antiSMASH, and DeepBGC) will\neach be set to use 4 cpus by default.", required=False, default=4)
+	parser.add_argument('-sd', '--skip_dereplication', action='store_true', help="Whether to skip dereplication based on GToTree alignments of SCGs - not\nrecommended and can cause issues if there are a lot of\ngenomes for the taxa of interest.", default=False, required=False)
+	parser.add_argument('-pt', '--population_threshold', type=float, help="Amino acid similarity threshold of SCGs for considering\ntwo genomes as belonging to the same population. (Default is 0.99)", default=0.99, required=False)
+	parser.add_argument('-x', '--ignore_limits', action='store_true', help="Ignore limitations on number of genomes allowed.\nE.g. allow for analyses of taxa with more than 2000 genomes available and more than 100 genomes\nafter dereplication. Not recommend, be cautious!!! Also note,\nyou can always delete \"Dereplicated_Set_of_Genomes.txt\" in the results directory and redo\ndereplication with different threshold.")
 
 	args = parser.parse_args()
 	return args
 
 
-def lsaBGC_Easy():
+def lsaBGC_Euk_Easy():
 	myargs = create_parser()
 
-	taxa_name = myargs.taxa_name.strip('"').strip()
 	outdir = os.path.abspath(myargs.output_directory) + '/'
 	cpus = myargs.cpus
-	user_genomes_directory = myargs.user_genomes_directory
-	bgc_prediction_software = myargs.bgc_prediction_software.upper()
+	genomes_directory = myargs.genomes_directory
 	gtotree_model = myargs.gtotree_model
 	skip_dereplication_flag = myargs.skip_dereplication
 	include_incomplete_bgcs_flag = myargs.include_incomplete_bgcs
@@ -180,20 +129,14 @@ def lsaBGC_Easy():
 	except:
 		sys.stderr.write('BGC prediction software option is not a valid option.\n')
 		sys.exit(1)
-	try:
-		assert (bgc_prediction_software in set(['ANTISMASH', 'DEEPBGC', 'GECCO']))
-	except:
-		sys.stderr.write('BGC prediction software option is not a valid option.\n')
-		sys.exit(1)
-	if user_genomes_directory:
+
+	if genomes_directory:
 		try:
-			user_genomes_directory = os.path.abspath(user_genomes_directory) + '/'
+			user_genomes_directory = os.path.abspath(genomes_directory) + '/'
 			assert (os.path.isdir(user_genomes_directory))
 		except:
 			sys.stderr.write('User defined genomes directory could not be validated to exist!\n')
 			sys.exit(1)
-
-	checkModelIsValid(gtotree_model)
 
 	if os.path.isdir(outdir):
 		sys.stderr.write(
@@ -227,81 +170,16 @@ def lsaBGC_Easy():
 
 	parallel_jobs_4cpu = max(math.floor(cpus / 4), 1)
 
-	# Step 1: parse GTDB information file, get list of Genbank accessions, and perform dry-run with ncbi-genome-download
-	genbank_accession_listing_file = outdir + 'NCBI_Genbank_Accession_Listing.txt'
-	sys.stdout.write(
-		"--------------------\nStep 1\n--------------------\nBeginning by assessing which genomic assemblies are available for the taxa %s in GTDB and NCBI's Genbank db\n" % taxa_name)
-	logObject.info(
-		"\n--------------------\nStep 1\n--------------------\nBeginning by assessing which genomic assemblies are available for the taxa %s in GTDB and NCBI's Genbank db" % taxa_name)
-	if not os.path.isfile(genbank_accession_listing_file):
-		genbank_accession_listing_handle = open(genbank_accession_listing_file, 'w')
-		with gzip.open(lsaBGC_main_directory + 'db/GTDB_R207_Information.txt.gz', 'rt') as ogtdb:
-			for line in ogtdb:
-				line = line.strip('\n')
-				ls = line.split('\t')
-				if ls[0] == 'none': continue
-				if len(taxa_name.split()) == 1:
-					if ls[1] == taxa_name:
-						genbank_accession_listing_handle.write(ls[0] + '\n')
-				elif len(taxa_name.split()) == 2:
-					if ls[2] == taxa_name:
-						genbank_accession_listing_handle.write(ls[0] + '\n')
-		genbank_accession_listing_handle.close()
+	# Step 1: process GenBanks in user-provided directory
+	logObject.info('\n--------------------\nStep 1\n--------------------\nBeginning processing of GenBanks.')
+	sys.stdout.write('\n--------------------\nStep 1\n--------------------\nBeginning processing of GenBanks.\n')
 
-	ogalf = open(genbank_accession_listing_file)
-	accession_count = len(ogalf.readlines())
-	ogalf.close()
-
-	if (accession_count >= 2000 or accession_count < 10) and (not ignore_limits_flag):
-		logObject.error(
-			"Currently not recommended to use lsaBGC-Easy for taxa with > 2000 genomes or < 10 genomes. In the future this will likely be updated to be a warning, but would rather not risk harming your server!")
-		sys.stderr.write(
-			"Currently not recommended to use lsaBGC-Easy for taxa with > 2000 genomes or < 10 genomes.\nIn the future this will likely be updated to be a warning, but would rather not risk harming your computer/server!\n")
-		sys.stderr.write(
-			'Exiting now, but you can move past this if you feel comfortable and are willing to wait for longer processing times using the -x flag.\n')
-		sys.exit(1)
-
-	genome_listing_file = outdir + 'NCBI_Genomes_from_Genbank_for_Taxa.txt'
-	if not os.path.isfile(genome_listing_file):
-		if accession_count != 0:
-			ngd_dry_cmd = ['ncbi-genome-download', '--dry-run', '--section', 'genbank', '-A',
-						   genbank_accession_listing_file,
-						   'bacteria', '>', genome_listing_file]
-			runCmdViaSubprocess(ngd_dry_cmd, logObject, check_files=[genome_listing_file])
-		else:
-			of = open(genome_listing_file, 'w')
-			of.close()
-
-	oglf = open(genome_listing_file)
-	genome_count = len(oglf.readlines())
-	oglf.close()
-
-	if (genome_count >= 2000 or genome_count < 10) and (not ignore_limits_flag):
-		logObject.error(
-			"Currently not recommended to use lsaBGC-Easy for taxa with > 2000 genomes or < 10 genomes. In the future this will likely be updated to be a warning, but would rather not risk harming your server!")
-		sys.stderr.write(
-			"Currently not recommended to use lsaBGC-Easy for taxa with > 2000 genomes or < 10 genomes.\nIn the future this will likely be updated to be a warning, but would rather not risk harming your computer/server!\n")
-		sys.stderr.write(
-			'Exiting now, but you can move past this if you feel comfortable and are willing to wait for longer processing times using the -x flag.\n')
-		sys.exit(1)
-
-	# Step 2: Download all genomes in FASTA format & prodigal gene calling
-	genomes_directory = outdir + 'genbank/'
 	all_genomes_listing_file = outdir + 'All_Genomes_Listing.txt'
 	uncompress_dir = outdir + 'Uncompressed_Genomes/'
 	if not os.path.isfile(all_genomes_listing_file):
-		if genome_count != 0:
-			ngd_real_cmd = ['ncbi-genome-download', '--formats', 'fasta', '--retries', '2', '--section',
-							'genbank', '-A', genbank_accession_listing_file, 'bacteria', '-o', outdir]
-			runCmdViaSubprocess(ngd_real_cmd, logObject, check_directories=[genomes_directory])
-			list_all_genomes_cmd = ['listAllGenomesInDirectory.py', '-i', genomes_directory, '-u', uncompress_dir, '-z',
-									'-d', genome_listing_file, '>', all_genomes_listing_file]
-			runCmdViaSubprocess(list_all_genomes_cmd, logObject, check_files=[all_genomes_listing_file])
-
-		if user_genomes_directory:
-			list_all_user_genomes_cmd = ['listAllGenomesInDirectory.py', '-i', user_genomes_directory,
-										 '-u', uncompress_dir, '-z', '>>', all_genomes_listing_file]
-			runCmdViaSubprocess(list_all_user_genomes_cmd, logObject)
+		list_all_user_genomes_cmd = ['listAllGenomesInDirectory.py', '-i', user_genomes_directory,
+									 '-u', uncompress_dir, '-z', '>>', all_genomes_listing_file]
+		runCmdViaSubprocess(list_all_user_genomes_cmd, logObject)
 
 	if not os.path.isfile(all_genomes_listing_file):
 		logObject.error('No genomes downloaded / provided. Exiting as more genomes are needed.')
@@ -317,70 +195,77 @@ def lsaBGC_Easy():
 			sys.exit(1)
 		else:
 			logObject.info('Great, we found or downloaded %d genomes belonging to the taxa!' % (genome_included_count))
-			sys.stdout.write(
-				'Great, we found or downloaded %d genomes belonging to the taxa!\n' % (genome_included_count))
+			sys.stdout.write('Great, we found or downloaded %d genomes belonging to the taxa!\n' % (genome_included_count))
 
-	prodigal_results_directory = outdir + 'Prodigal_and_Processing_Results/'
+	proteome_directory = outdir + 'Proteomes/'
+	genbank_directory = outdir + 'GenBanks_Genomes/'
+	namemapping_directory = outdir + 'Name_Mapping/'
+	fasta_directory = outdir + 'FASTA_Genomes/'
+
 	all_proteomes_listing_file = outdir + 'All_Proteomes_Listing.txt'
-	logObject.info('\n--------------------\nStep 2\n--------------------\nBeginning gene calling and processing.')
-	sys.stdout.write('--------------------\nStep 2\n--------------------\nBeginning gene calling and processing.\n')
+	logObject.info('\n--------------------\nStep 2\n--------------------\nBeginning extraction of proteins from CDS features in GenBanks.')
+	sys.stdout.write('--------------------\nStep 2\n--------------------\nBeginning extraction of proteins from CDS features in GenBanks.\n')
+
+	alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+	possible_locustags = sorted(list([''.join(list(x)) for x in list(itertools.product(alphabet, repeat=3))]))
 	if not os.path.isfile(all_proteomes_listing_file):
-		util.setupReadyDirectory(([prodigal_results_directory]))
-		run_prodigal_cmds = []
+		util.setupReadyDirectory(([proteome_directory, genbank_directory, namemapping_directory, fasta_directory]))
+		process_cmds = []
+
 		with open(all_genomes_listing_file) as oaglf:
-			for line in oaglf:
+			for i, line in enumerate(oaglf):
 				line = line.strip()
-				sample, fna = line.split('\t')
+				sample, gbk = line.split('\t')
+				sample_locus_tag = ''.join(list(possible_locustags[i]))
 				try:
-					assert (os.path.isfile(fna))
+					assert (os.path.isfile(gbk))
 				except:
 					raise RuntimeError("Could not validate the genome for sample %s exists." % sample)
-				rpc = ['runProdigalAndMakeProperGenbank.py', '-i', fna, '-s', sample, '-o', prodigal_results_directory,
-					   logObject]
-				run_prodigal_cmds.append(rpc)
+				rpc = ['processAndReformatNCBIGenbanks.py', '-i', gbk, '-s', sample, '-g', genbank_directory,
+					   '-p', proteome_directory, '-n', namemapping_directory, '-l', sample_locus_tag, logObject]
+				process_cmds.append(rpc)
 
 		p = multiprocessing.Pool(cpus)
-		p.map(util.multiProcess, run_prodigal_cmds)
+		p.map(util.multiProcess, process_cmds)
 		p.close()
 
 		all_proteomes_listing_handle = open(all_proteomes_listing_file, 'w')
-		for f in os.listdir(prodigal_results_directory):
+		for f in os.listdir(proteome_directory):
 			if not f.endswith('.faa'): continue
-			all_proteomes_listing_handle.write(prodigal_results_directory + f + '\n')
+			all_proteomes_listing_handle.write(proteome_directory + f + '\n')
 		all_proteomes_listing_handle.close()
 
-		logObject.info('Gene calling and processing completed.')
-		sys.stdout.write('Gene calling and processing completed.\n')
+		all_genome_listings_fna = outdir + 'Genomes_Listings_for_N50.txt'
+		aglf_handle = open(all_genome_listings_fna, 'w')
+		for f in os.listdir(genbank_directory):
+			if not f.endswith('.gbk'): continue
+			sample = f.split('.gbk')[0]
+			fasta_file = fasta_directory + sample + '.fasta'
+			genbankToFasta(genbank_directory + f, fasta_file)
+			aglf_handle.write(sample + '\t' + fasta_file + '\n')
+		aglf_handle.close()
+
+		logObject.info('Extracting proteins from CDS features of GenBanks completed.')
+		sys.stdout.write('Extracting proteins from CDS features of GenBanks completed.\n')
 	else:
-		logObject.info(
-			'Listing of predicted proteomes (from prior gene-calling) already found in directory, will skip reprocessing.')
-		sys.stdout.write(
-			'Listing of predicted proteomes (from prior gene-calling) already found in directory, will skip reprocessing.\n')
+		logObject.info('Listing of predicted proteomes already found in directory, will skip reprocessing.')
+		sys.stdout.write('Listing of predicted proteomes already found in directory, will skip reprocessing.\n')
 
 	all_genome_listings_gbk = {}
-	for f in os.listdir(prodigal_results_directory):
+	for f in os.listdir(genbank_directory):
 		if not f.endswith('.gbk'): continue
 		sample = f.split('.gbk')[0]
-		all_genome_listings_gbk[sample] = prodigal_results_directory + f
+		all_genome_listings_gbk[sample] = proteome_directory + f
 
-	all_genome_listings_fna = {}
-	with open(all_genomes_listing_file) as oglf:
-		for line in oglf:
-			line = line.strip()
-			sample, fna_path = line.split('\t')
-			all_genome_listings_fna[sample] = fna_path
-
-	# Step 3: Construct GToTree phylogeny - dereplication + grouping - creating listing
+	# Step 2: Construct GToTree phylogeny - dereplication + grouping - creating listing
 	gtotree_outdir = outdir + 'GToTree_output/'
 	species_tree_file = gtotree_outdir + 'GToTree_output.tre'
 	expected_similarities_file = outdir + 'GToTree_Expected_Similarities.txt'
-	logObject.info(
-		'\n--------------------\nStep 3\n--------------------\nBeginning construction of species tree using GToTree.')
-	sys.stdout.write(
-		'--------------------\nStep 3\n--------------------\nBeginning construction of species tree using GToTree.\n')
+	logObject.info('\n--------------------\nStep 2\n--------------------\nBeginning construction of species tree using GToTree.')
+	sys.stdout.write('--------------------\nStep 2\n--------------------\nBeginning construction of species tree using GToTree.\n')
 	if not os.path.isfile(species_tree_file) or not os.path.isfile(expected_similarities_file):
 		os.system('rm -rf %s' % gtotree_outdir)
-		gtotree_cmd = ['GToTree', '-A', all_proteomes_listing_file, '-H', gtotree_model, '-n', '4', '-j',
+		gtotree_cmd = ['GToTree', '-A', all_proteomes_listing_file, '-H', 'Universal_Hug_et_al', '-n', '4', '-j',
 					   str(parallel_jobs_4cpu), '-M', '4', '-o', gtotree_outdir]
 		runCmdViaSubprocess(gtotree_cmd, logObject, check_files=[species_tree_file])
 
@@ -402,10 +287,8 @@ def lsaBGC_Easy():
 	population_file = outdir + 'Genomes_to_Populations_Mapping.txt'
 	samples_to_keep_file = outdir + 'Dereplicated_Set_of_Genomes.txt'
 	if not os.path.isfile(population_file) or not os.path.isfile(samples_to_keep_file):
-		logObject.info(
-			'Beginning determination of populations/clades and dereplication (assuming dereplication not requested to be skipped via -sd flag).')
-		sys.stdout.write(
-			'Beginning determination of populations/clades and dereplication (assuming dereplication not requested to be skipped via -sd flag).\n')
+		logObject.info('Beginning determination of populations/clades and dereplication (assuming dereplication not requested to be skipped via -sd flag).')
+		sys.stdout.write('Beginning determination of populations/clades and dereplication (assuming dereplication not requested to be skipped via -sd flag).\n')
 
 		all_samples = set([])
 		population_pairs = []
@@ -530,12 +413,8 @@ def lsaBGC_Easy():
 
 	checkUlimitSettings(count_of_dereplicated_sample_set, logObject)
 
-	if bgc_prediction_software != 'GECCO':
-		logObject.info("\n--------------------\nStep 4\n--------------------\nStarting creation of %s commands for de novo BGC prediction." % bgc_prediction_software)
-		sys.stdout.write("--------------------\nStep 4\n--------------------\nStarting creation of %s commands for de novo BGC prediction.\n" % bgc_prediction_software)
-	else:
-		logObject.info("\n--------------------\nStep 4\n--------------------\nRunning GECCO for de novo BGC predictions.")
-		sys.stdout.write("--------------------\nStep 4\n--------------------\nRunning GECCO for de novo BGC predictions.\n")
+	logObject.info("\n--------------------\nStep 3\n--------------------\nStarting creation of antiSMASH commands for de novo BGC prediction.")
+	sys.stdout.write("--------------------\nStep 3\n--------------------\nStarting creation of antiSMASH commands for de novo BGC prediction.\n")
 
 	primary_genomes_listing_file = outdir + 'Primary_Genomes.txt'
 	primary_bgc_pred_directory = outdir + 'Primary_Genomes_BGC_Predictions/'
@@ -548,58 +427,33 @@ def lsaBGC_Easy():
 			for s in oskf:
 				s = s.strip()
 				primary_genomes_listing_handle.write(s + '\t' + all_genome_listings_gbk[s] + '\n')
-				if bgc_prediction_software == 'GECCO':
-					gecco_cmd = ['gecco', 'run', '-j', '4', '-o', primary_bgc_pred_directory + s + '/', '-g',
-								 all_genome_listings_fna[s]]
-					if not include_incomplete_bgcs_flag:
-						gecco_cmd += ['-E', '10']
-					gecco_cmd += [logObject]
-					primary_bgc_pred_cmds.append(gecco_cmd)
-				if bgc_prediction_software == 'ANTISMASH':
-					antismash_cmd = ['antismash', '--output-dir', primary_bgc_pred_directory + s + '/', '-c', '4',
-									 '--genefinding-tool', 'none', '--output-basename', s, all_genome_listings_gbk[s]]
-					primary_bgc_pred_cmds.append(antismash_cmd)
-				elif bgc_prediction_software == 'DEEPBGC':
-					deepbgc_cmd = ['deepbgc', 'pipeline', '--output', primary_bgc_pred_directory + s + '/',
-								   all_genome_listings_fna[s]]
-					primary_bgc_pred_cmds.append(deepbgc_cmd)
+				antismash_cmd = ['antismash', '--output-dir', primary_bgc_pred_directory + s + '/', '-c', '4',
+								 '--taxon', 'fungi', '--genefinding-tool', 'none', '--output-basename',
+								 s, all_genome_listings_gbk[s]]
+				primary_bgc_pred_cmds.append(antismash_cmd)
 		primary_genomes_listing_handle.close()
 
-		# Step 4: Run GECCO or print commands for others and exit based annotation of BGCs and crete BGC listing
-		if bgc_prediction_software == 'GECCO':
-			p = multiprocessing.Pool(parallel_jobs_4cpu)
-			p.map(util.multiProcess, primary_bgc_pred_cmds)
-			p.close()
-		else:
-			cmd_handle = open(cmd_file, 'w')
-			for cmd in primary_bgc_pred_cmds:
-				cmd_handle.write(' '.join(cmd) + '\n')
-			cmd_handle.close()
-			logObject.info(
-				'%s BGC prediction commands written to %s.Please run these and afterwards restart lsaBGC-Easy.py with the same command afterwards.' % (
-				bgc_prediction_software, cmd_file))
-			sys.stdout.write(
-				'************************\nPlease run the following BGC prediction commands using a different conda envirnoment with the BGC prediction\nsoftware (%s) installed and afterwards restart lsaBGC-Easy.py with the same command as used initially.\nExiting now, see you back soon, here is the task file with the %s commands:\n%s\n' % (
-				bgc_prediction_software, bgc_prediction_software, cmd_file))
-			sys.exit(0)
+		cmd_handle = open(cmd_file, 'w')
+		for cmd in primary_bgc_pred_cmds:
+			cmd_handle.write(' '.join(cmd) + '\n')
+		cmd_handle.close()
+		logObject.info('antiSMASH BGC prediction commands written to %s.Please run these and afterwards restart lsaBGC-Easy.py with the same command afterwards.' % (cmd_file))
+		sys.stdout.write('************************\nPlease run the following BGC prediction commands using a different conda envirnoment with the BGC prediction\nsoftware antiSMASH installed and afterwards restart lsaBGC-Easy.py with the same command as used initially.\nExiting now, see you back soon, here is the task file with the antiSMASH commands:\n%s\n' % (cmd_file))
+		sys.exit(0)
 
 	bgc_prediciton_count = 0
 	for f in os.listdir(primary_bgc_pred_directory):
 		bgc_prediciton_count += 1
 
-	if bgc_prediciton_count == 0 and (bgc_prediction_software == 'ANTISMASH' or bgc_prediction_software == 'DEEPBGC'):
-		logObject.error(
-			"************************\nLooks like you didn't run the BGC prediction commands (or at least successfully),\nplease run them in a different environment where %s is present in the environment.\nOnly after they have been successfully run and written to the directory:\n%s\ncan you restart the lsaBGC command. Here are the %s commands again:\n%s" % (
-			bgc_prediction_software, primary_bgc_pred_directory, bgc_prediction_software, cmd_file))
-		sys.stderr.write(
-			"************************\nLooks like you didn't run the BGC prediction commands (or at least successfully),\nplease run them in a different environment where %s is present in the environment.\nOnly after they have been successfully run and written to the directory:\n%s\ncan you restart the lsaBGC command. Here are the %s commands again:\n%s\n" % (
-			bgc_prediction_software, primary_bgc_pred_directory, bgc_prediction_software, cmd_file))
+	if bgc_prediciton_count == 0:
+		logObject.error("************************\nLooks like you didn't run the BGC prediction commands (or at least successfully),\nplease run them in a different environment where antiSMASH is present in the environment.\nOnly after they have been successfully run and written to the directory:\n%s\ncan you restart the lsaBGC command. Here are the antiSMASH commands again:\n%s" % (primary_bgc_pred_directory, cmd_file))
+		sys.stderr.write("************************\nLooks like you didn't run the BGC prediction commands (or at least successfully),\nplease run them in a different environment where antiSMASH is present in the environment.\nOnly after they have been successfully run and written to the directory:\n%s\ncan you restart the lsaBGC command. Here are the antiSMASH commands again:\n%s\n" % (primary_bgc_pred_directory, cmd_file))
 		sys.exit(1)
 
 	primary_bgcs_listing_file = outdir + 'BGCs_in_Primary_Genomes.txt'
 	if not os.path.isfile(primary_bgcs_listing_file):
-		list_primary_bgc_cmd = ['listAllBGCGenbanksInDirectory.py', '-i', primary_bgc_pred_directory, '-p',
-								bgc_prediction_software, '>', primary_bgcs_listing_file]
+		list_primary_bgc_cmd = ['listAllBGCGenbanksInDirectory.py', '-i', primary_bgc_pred_directory, '-p', 'antiSMASH',
+								'>', primary_bgcs_listing_file]
 		if not include_incomplete_bgcs_flag:
 			list_primary_bgc_cmd += ['-f']
 		runCmdViaSubprocess(list_primary_bgc_cmd, logObject, check_files=[primary_bgcs_listing_file])
@@ -607,9 +461,9 @@ def lsaBGC_Easy():
 	logObject.info("Primary BGC predictions appear successful and are listed for samples/genomes at:\n%s" % primary_bgcs_listing_file)
 	sys.stdout.write("Primary BGC predictions appear successful and are listed for samples/genomes at:\n%s\n" % primary_bgcs_listing_file)
 
-	# Step 5: Run lsaBGC-Ready.py with lsaBGC-Cluster or BiG-SCAPE
-	logObject.info('\n--------------------\nStep 5\n--------------------\nBeginning clustering of BGCs using either lsaBGC-Cluster (default) or BiG-SCAPE (can be requested).')
-	sys.stdout.write('--------------------\nStep 5\n--------------------\nBeginning clustering of BGCs using either lsaBGC-Cluster (default) or BiG-SCAPE (can be requested).\n')
+	# Step 4: Run lsaBGC-Ready.py with lsaBGC-Cluster or BiG-SCAPE
+	logObject.info('\n--------------------\nStep 4\n--------------------\nBeginning clustering of BGCs using either lsaBGC-Cluster (default) or BiG-SCAPE (can be requested).')
+	sys.stdout.write('--------------------\nStep 4\n--------------------\nBeginning clustering of BGCs using either lsaBGC-Cluster (default) or BiG-SCAPE (can be requested).\n')
 	bigscape_listing_file = lsaBGC_main_directory + 'external_tools/bigscape_location.txt'
 	bigscape_prog_location, pfam_directory = [None] * 2
 	if os.path.isfile(bigscape_listing_file):
@@ -635,9 +489,7 @@ def lsaBGC_Easy():
 			[f for f in os.listdir(lsabgc_ready_results_directory)]) <= 2:
 		os.system('rm -rf %s' % lsabgc_ready_directory)
 		lsabgc_ready_cmd = ['lsaBGC-Ready.py', '-i', primary_genomes_listing_file, '-l', primary_bgcs_listing_file,
-							'-o', lsabgc_ready_directory, '-c', str(cpus), '-p', bgc_prediction_software,
-							'-m', orthofinder_mode]
-
+							'-o', lsabgc_ready_directory, '-c', str(cpus), '-p', 'antiSMASH', '-m', orthofinder_mode]
 		if use_bigscape_flag and os.path.isdir(bigscape_results_dir):
 			lsabgc_ready_cmd += ['-b', bigscape_results_dir]
 		else:
@@ -654,10 +506,10 @@ def lsaBGC_Easy():
 							check_directories=[lsabgc_ready_results_directory, gcf_listing_dir],
 							check_files=[annotation_listing_file, orthogroups_matrix_file])
 
-	# Step 6: Run lsaBGC-AutoExpansion.py polishing to find GCF instances fragmented on multiple scaffolds
+	# Step 5: Run lsaBGC-AutoExpansion.py polishing to find GCF instances fragmented on multiple scaffolds
 	if not skip_auto_expansion_flag:
-		logObject.info('\n--------------------\nStep 6\n--------------------\nBeginning identification of fragmented BGC instances from completed instances using lsaBGC-AutoExpansion.')
-		sys.stdout.write('--------------------\nStep 6\n--------------------\nBeginning identification of fragmented BGC instances from completed instances using lsaBGC-AutoExpansion.\n')
+		logObject.info('\n--------------------\nStep 5\n--------------------\nBeginning identification of fragmented BGC instances from completed instances using lsaBGC-AutoExpansion.')
+		sys.stdout.write('--------------------\nStep 5\n--------------------\nBeginning identification of fragmented BGC instances from completed instances using lsaBGC-AutoExpansion.\n')
 
 	checkLsaBGCInputsExist(annotation_listing_file, gcf_listing_dir, orthogroups_matrix_file)
 
@@ -669,7 +521,7 @@ def lsaBGC_Easy():
 	if not os.path.isdir(exp_gcf_listing_dir) and (not skip_auto_expansion_flag):
 		lsabgc_expansion_cmd = ['lsaBGC-AutoExpansion.py', '-g', gcf_listing_dir, '-m', orthogroups_matrix_file, '-l',
 								annotation_listing_file, '-e', annotation_listing_file, '-q', '-c', str(cpus),
-								'-o', lsabgc_autoexpansion_results_directory, '-p', bgc_prediction_software]
+								'-o', lsabgc_autoexpansion_results_directory, '-p', 'antiSMASH']
 		runCmdViaSubprocess(lsabgc_expansion_cmd, logObject,
 							check_directories=[lsabgc_autoexpansion_results_directory, exp_gcf_listing_dir],
 							check_files=[exp_orthogroups_matrix_file, exp_orthogroups_matrix_file])
@@ -679,9 +531,9 @@ def lsaBGC_Easy():
 		exp_orthogroups_matrix_file = orthogroups_matrix_file
 		exp_gcf_listing_dir = gcf_listing_dir
 
-	# Step 7: Run lsaBGC-AutoAnalyze.py
-	logObject.info('\n--------------------\nStep 7\n--------------------\nBeginning lsaBGC-AutoExpansion (which runs lsaBGC-See.py, lsaBGC-PopGene.py, and lsaBGC-Divergence.py + summarizes results across GCFs at the end.\n')
-	sys.stdout.write('--------------------\nStep 7\n--------------------\nBeginning lsaBGC-AutoExpansion (which runs lsaBGC-See.py, lsaBGC-PopGene.py,\nand lsaBGC-Divergence.py + summarizes results across GCFs at the end.\n')
+	# Step 6: Run lsaBGC-AutoAnalyze.py
+	logObject.info('\n--------------------\nStep 6\n--------------------\nBeginning lsaBGC-AutoExpansion (which runs lsaBGC-See.py, lsaBGC-PopGene.py, and lsaBGC-Divergence.py + summarizes results across GCFs at the end.\n')
+	sys.stdout.write('--------------------\nStep 6\n--------------------\nBeginning lsaBGC-AutoExpansion (which runs lsaBGC-See.py, lsaBGC-PopGene.py,\nand lsaBGC-Divergence.py + summarizes results across GCFs at the end.\n')
 
 	checkLsaBGCInputsExist(exp_annotation_listing_file, exp_gcf_listing_dir, exp_orthogroups_matrix_file)
 	try:
@@ -699,7 +551,6 @@ def lsaBGC_Easy():
 								  expected_similarities_file, '-k', samples_to_keep_file, '-c', str(cpus), '-o',
 								  lsabgc_autoanalyze_dir, '-p', 'antiSMASH', '-u', population_file]
 		runCmdViaSubprocess(lsabgc_autoanalyze_cmd, logObject, check_directories=[lsabgc_autoanalyze_results_dir])
-
 
 	gseef_results_dir = outdir + 'GSeeF_Results/'
 	gseef_final_results_dir = gseef_results_dir + 'Final_Results/'
@@ -724,7 +575,7 @@ def lsaBGC_Easy():
 
 		gseef_cmd = ['GSeeF.py', '-l', exp_annotation_listing_file, '-g', exp_gcf_listing_dir,
 					 '-s', pruned_species_tree_file,  '-c', str(cpus),
-					 '-o', gseef_results_dir, '-p', bgc_prediction_software]
+					 '-o', gseef_results_dir, '-p', 'antiSMASH']
 		runCmdViaSubprocess(gseef_cmd, logObject, check_directories=[gseef_final_results_dir])
 
 	# Close logging object and exit
@@ -749,6 +600,17 @@ def runCmdViaSubprocess(cmd, logObject, check_files=[], check_directories=[]):
 		logObject.error('Had an issue running: %s' % ' '.join(cmd))
 		logObject.error(traceback.format_exc())
 		raise RuntimeError('Had an issue running: %s' % ' '.join(cmd))
+
+def genbankToFasta(gbk_file, fasta_file):
+	try:
+		fhandle = open(fasta_file, 'w')
+		with open(gbk_file) as ogf:
+			for rec in SeqIO.parse(ogf, 'genbank'):
+				fhandle.write('>' + rec.id + '\n' + str(rec.seq) + '\n')
+		fhandle.close()
+	except Exception as e:
+		sys.stderr.write(traceback.format_exc())
+		raise RuntimeError('Issues extracting genomic sequences from GenBank.')
 
 
 def checkUlimitSettings(num_genomes, logObject):
@@ -782,16 +644,6 @@ def checkUlimitSettings(num_genomes, logObject):
 			"Great news! Your ulimit settings look good and we believe OrthoFinder2 should be able to run smoothly!")
 
 
-def checkModelIsValid(gtotree_model):
-	try:
-		assert (gtotree_model in set(['Actinobacteria', 'Alphaproteobacteria', 'Bacteria', 'Archaea',
-									  'Bacteria_and_Archaea', 'Bacteroidetes', 'Betaproteobacteria', 'Chlamydiae',
-									  'Cyanobacteria', 'Epsilonproteobacteria', 'Firmicutes', 'Gammaproteobacteria',
-									  'Proteobacteria', 'Tenericutes', 'Universal_Hug_et_al']))
-	except:
-		raise RuntimeError('Model for GToTree specified is not a valid model!')
-
-
 def checkLsaBGCInputsExist(annotation_listing_file, gcf_listing_dir, orthogroups_matrix_file):
 	try:
 		assert (os.path.isfile(annotation_listing_file))
@@ -810,4 +662,4 @@ def checkLsaBGCInputsExist(annotation_listing_file, gcf_listing_dir, orthogroups
 
 
 if __name__ == '__main__':
-	lsaBGC_Easy()
+	lsaBGC_Euk_Easy()

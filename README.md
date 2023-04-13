@@ -1,5 +1,5 @@
 # *lsa*BGC
-### Lineage Specific Analysis of Biosynthetic Gene Clusters
+### Lineage Specific Analysis (*lsa*) of Biosynthetic Gene Clusters (BGC)
 
 [![Preprint](https://img.shields.io/badge/preprint-bioRxiv-darkblue?style=flat-square&maxAge=2678400)](https://www.biorxiv.org/content/10.1101/2022.04.20.488953v2)
 
@@ -11,6 +11,8 @@
 ## Documentation:
 
 Documentation can currently be found on this Github repo's wiki: https://github.com/Kalan-Lab/lsaBGC/wiki
+
+1. What 
 
 1. [Background on lsaBGC - what it does and does not do](https://github.com/Kalan-Lab/lsaBGC/wiki/00.-Background-&-Considerations)
 2. [An Overview of Final Results from lsaBGC](https://github.com/Kalan-Lab/lsaBGC/wiki/13.-Overview-of-lsaBGC-AutoAnalyze's-Final-Results)
