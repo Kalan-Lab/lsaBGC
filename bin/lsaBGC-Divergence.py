@@ -42,8 +42,8 @@ from time import sleep
 import argparse
 from collections import defaultdict
 from lsaBGC import util
-from lsaBGC.classes.GCF import GCF
-from lsaBGC.classes.Pan import Pan
+import warnings
+warnings.filterwarnings('ignore')
 
 def create_parser():
     """ Parse arguments """
@@ -57,15 +57,15 @@ def create_parser():
 	lsaBGC-Ready, for all pairs of samples featuring a BGC belonging to a focal GCF of interest.
 	""", formatter_class=argparse.RawTextHelpFormatter)
 
-    parser.add_argument('-g', '--gcf_listing', help='BGC specifications file. Tab delimited: 1st column contains path to BGC Genbank and 2nd column contains sample name.', required=True)
-    parser.add_argument('-l', '--input_listing', help="Path to tab delimited file listing: (1) sample name (2) path to Prokka Genbank and (3) path to Prokka predicted proteome. This file is produced by lsaBGC-Process.py.", required=True)
-    parser.add_argument('-a', '--codon_alignments', help="File listing the codon alignments for each homolog group in the GCF. Can be found as part of PopGene output.", required=True)
+    parser.add_argument('-g', '--gcf_listing', help='BGC specifications file. Tab delimited: 1st column contains\npath to BGC GenBank and 2nd column contains sample name.', required=True)
+    parser.add_argument('-l', '--input_listing', help="Path to tab delimited file listing: (1) sample name (2) path to Prokka\nGenBank and (3) path to Prokka predicted proteome. This file is\nproduced by lsaBGC-Process.py.", required=True)
+    parser.add_argument('-a', '--codon_alignments', help="File listing the codon alignments for each homolog group in the GCF.\nCan be found as part of PopGene output.", required=True)
     parser.add_argument('-w', '--expected_similarities', help="Path to file listing expected similarities between genomes/samples. This is\ncomputed most easily by running lsaBGC-Ready.py with '-t' specified, which will estimate\nsample to sample similarities based on alignment used to create species phylogeny.", required=True)
-    parser.add_argument('-i', '--gcf_id', help="GCF identifier.", required=False, default='GCF_X')
+    parser.add_argument('-i', '--gcf_id', help="GCF identifier [Default is GCF_X].", required=False, default='GCF_X')
     parser.add_argument('-o', '--output_directory', help="Prefix for output files.", required=True)
-    parser.add_argument('-k', '--sample_set', help="Sample set to keep in analysis. Should be file with one sample id per line.", required=False)
-    parser.add_argument('-n', '--use_codon', help="Expected sample to sample similarities are reflective of DNA distances instead of protein distances (e.g. if FastANI or MASH were used in computeGenomeWideDistances.py).", required=False, default=False)
-    parser.add_argument('-c', '--cpus', type=int, help="The number of cpus to use.", required=False, default=1)
+    parser.add_argument('-k', '--sample_set', help="Sample set to keep in analysis. Should be file with\none sample id per line.", required=False)
+    parser.add_argument('-n', '--use_codon', help="Expected sample to sample similarities are reflective of\nDNA distances instead of protein distances (e.g. if FastANI or\nMASH were used in computeGenomeWideDistances.py).", required=False, default=False)
+    parser.add_argument('-c', '--cpus', type=int, help="The number of CPUs to use [Default is 1].", required=False, default=1)
     args = parser.parse_args()
 
     return args

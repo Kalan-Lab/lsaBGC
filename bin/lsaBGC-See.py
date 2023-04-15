@@ -41,6 +41,8 @@ from time import sleep
 import argparse
 from lsaBGC import util
 from lsaBGC.classes.GCF import GCF
+import warnings
+warnings.filterwarnings('ignore')
 
 def create_parser():
     """ Parse arguments """
@@ -54,21 +56,16 @@ def create_parser():
 	available, it will also create a phylogeny based on single copy core genes of the GCF.
 	""", formatter_class=argparse.RawTextHelpFormatter)
 
-    parser.add_argument('-g', '--gcf_listing',
-                        help='BGC listings file for a gcf. Tab delimited: 1st column lists sample name while the 2nd column is the path to a BGC prediction in Genbank format.', required=True)
+    parser.add_argument('-g', '--gcf_listing', help='BGC listings file for a GCF. Tab delimited:\n1st column lists sample name while the 2nd column\nis the path to a BGC prediction in Genbank format.', required=True)
     parser.add_argument('-m', '--orthofinder_matrix', help="OrthoFinder matrix.", required=True)
     parser.add_argument('-o', '--output_directory', help="Output directory.", required=True)
-    parser.add_argument('-i', '--gcf_id', help="GCF identifier.", required=False, default='GCF_X')
     parser.add_argument('-s', '--species_phylogeny', help="The species phylogeny in Newick format.", required=False, default=None)
-    parser.add_argument('-p', '--bgc_prediction_software', help='Software used to predict BGCs (Options: antiSMASH, DeepBGC, GECCO).\nDefault is antiSMASH.', default='antiSMASH', required=False)
-    parser.add_argument('-c', '--cpus', type=int, help="Number of cpus to use for MCL step.", required=False, default=1)
-    parser.add_argument('-k', '--sample_set',
-                        help="Sample set to keep in analysis. Should be file with one sample id per line.", required=False)
-    parser.add_argument('-y', '--create_gcf_phylogeny', action='store_true',
-                        help="Create phylogeny from sequences of homolog groups in GCF.", required=False, default=False)
-    parser.add_argument('-f', '--only_scc', action='store_true',
-                        help="Use only single-copy-core homolog groups for constructing GCF phylogeny.", required=False,
-                        default=False)
+    parser.add_argument('-i', '--gcf_id', help="GCF identifier [Default is GCF_X].", required=False, default='GCF_X')
+    parser.add_argument('-p', '--bgc_prediction_software', help='Software used to predict BGCs (Options: antiSMASH, DeepBGC, GECCO)\n[Default is antiSMASH].', default='antiSMASH', required=False)
+    parser.add_argument('-k', '--sample_set', help="Sample set to keep in analysis. Should be file with one sample id per line.", required=False)
+    parser.add_argument('-y', '--create_gcf_phylogeny', action='store_true', help="Create phylogeny from sequences of homolog groups in GCF.", required=False, default=False)
+    parser.add_argument('-f', '--only_scc', action='store_true', help="Use only single-copy-core homolog groups for constructing GCF phylogeny.", required=False, default=False)
+    parser.add_argument('-c', '--cpus', type=int, help="Number of CPUs to use for MCL step [Default is 1].", required=False, default=1)
 
 
     args = parser.parse_args()

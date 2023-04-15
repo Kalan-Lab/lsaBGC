@@ -57,9 +57,9 @@ def create_parser():
 
     parser.add_argument('-g', '--gcf_listing', help='BGC listings file for a gcf. Tab delimited: 1st column lists sample name while the 2nd column is the path to a BGC prediction in Genbank format.', required=True)
     parser.add_argument('-m', '--orthofinder_matrix', help="OrthoFinder homolog by sample matrix.", required=True)
-    parser.add_argument('-i', '--gcf_id', help="GCF identifier.", required=False, default='GCF_X')
     parser.add_argument('-o', '--output_directory', help="Output directory.", required=True)
-    parser.add_argument('-p', '--bgc_prediction_software', help='Software used to predict BGCs (Options: antiSMASH, DeepBGC, GECCO).\nDefault is antiSMASH.', default='antiSMASH', required=False)
+    parser.add_argument('-i', '--gcf_id', help="GCF identifier [Default is GCF_X].", required=False, default='GCF_X')
+    parser.add_argument('-p', '--bgc_prediction_software', help='Software used to predict BGCs (Options: antiSMASH, DeepBGC, GECCO).=\n[Default is antiSMASH].', default='antiSMASH', required=False)
     parser.add_argument('-b1', '--first_boundary_homolog', help="Identifier for the first homolog group to be used as boundary for pruning BGCs..", required=True)
     parser.add_argument('-b2', '--second_boundary_homolog', help="Identifier for the second homolog group to be used as boundary for pruning BGCs.", required=True)
     args = parser.parse_args()

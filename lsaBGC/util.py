@@ -19,6 +19,9 @@ import numpy as np
 import gzip
 import pathlib
 import operator
+import warnings
+warnings.filterwarnings('ignore')
+
 
 valid_alleles = set(['A', 'C', 'G', 'T'])
 curr_dir = os.path.abspath(pathlib.Path(__file__).parent.resolve()) + '/'
@@ -2625,8 +2628,11 @@ def is_numeric(x):
 
 def castToNumeric(x):
 	try:
-		x = float(x)
-		return (x)
+		if x != '< 3 segregating sites':
+			x = float(x)
+			return(x)
+		else:
+			return(x)
 	except:
 		return float('nan')
 
@@ -2709,16 +2715,25 @@ def loadSamplesIntoPandaDataFrame(sample_annot_file, pop_spec_file=None):
 	return panda_df
 
 
-def loadTableInPandaDataFrame(input_file):
+def loadTableInPandaDataFrame(input_file, mibig_info=None):
 	import pandas as pd
 	panda_df = None
 	try:
 		data = []
+		mibig_col = []
 		with open(input_file) as oif:
-			for line in oif:
+			for i, line in enumerate(oif):
 				line = line.strip('\n')
 				ls = line.split('\t')
 				data.append(ls)
+				gcf = ls[0]
+				hg = ls[2]
+				key = gcf + '|' + hg
+				if mibig_info != None and i > 0:
+					if len(mibig_info[key]) > 0:
+						mibig_col.append('; '.join(sorted(mibig_info[key])))
+					else:
+						mibig_col.append('NA')
 
 		panda_dict = {}
 		for ls in zip(*data):
@@ -2729,6 +2744,8 @@ def loadTableInPandaDataFrame(input_file):
 				for val in ls[1:]:
 					cast_vals.append(castToNumeric(val))
 			panda_dict[key] = cast_vals
+			if key == 'annotation' and mibig_info != None:
+				panda_dict['MIBiG mapping'] = mibig_col
 		panda_df = pd.DataFrame(panda_dict)
 
 	except Exception as e:
@@ -2736,7 +2753,7 @@ def loadTableInPandaDataFrame(input_file):
 	return panda_df
 
 
-def loadCustomPopGeneTableInPandaDataFrame(input_file):
+def loadCustomPopGeneTableInPandaDataFrame(input_file, mibig_info=None):
 	import pandas as pd
 	panda_df = None
 	try:
@@ -2747,10 +2764,19 @@ def loadCustomPopGeneTableInPandaDataFrame(input_file):
 							'most_negative_population_Tajimas_D', 'most_positive_population_Tajimas_D',
 							'population_entropy', 'median_fst_like_estimate'}
 		data = []
+		mibig_col = []
 		with open(input_file) as oif:
-			for line in oif:
+			for i, line in enumerate(oif):
 				line = line.strip('\n')
 				ls = line.split('\t')
+				gcf = ls[0]
+				hg = ls[2]
+				key = gcf + '|' + hg
+				if mibig_info != None and i > 0:
+					if len(mibig_info[key]) > 0:
+						mibig_col.append('; '.join(sorted(mibig_info[key])))
+					else:
+						mibig_col.append('NA')
 				data.append(ls)
 
 		panda_dict = {}
@@ -2778,10 +2804,13 @@ def loadCustomPopGeneTableInPandaDataFrame(input_file):
 					else:
 						cleaned_annots.append('; '.join(ca))
 				panda_dict[key] = cleaned_annots
+				if mibig_info != None:
+					panda_dict['MIBiG mapping'] = mibig_col
 			else:
 				key = ' '.join(ls[0].split('_'))
 				cast_vals = ls[1:]
 				if key in numeric_columns:
+
 					cast_vals = []
 					for val in ls[1:]:
 						cast_vals.append(castToNumeric(val))

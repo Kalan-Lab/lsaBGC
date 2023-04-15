@@ -58,16 +58,16 @@ def create_parser():
 
     parser.add_argument('-g', '--gcf_listing', help='BGC specifications file. Tab delimited: 1st column contains path to BGC Genbanks and 2nd column contains sample name.', required=True)
     parser.add_argument('-s', '--sequencing_readsets_listing', help="Sequencing data specifications file. Tab delimited: 1st column contains metagenomic sample name, whereas 2nd, 3rd, and so on columns contain full paths to sequencing reads.", required=True)
-    parser.add_argument('-i', '--gcf_id', help="GCF identifier.", required=False, default='GCF_X')
     parser.add_argument('-l', '--input_listing', type=str, help="Tab delimited text file for samples with three columns: (1) sample name\n(2) path to whole-genome generated Genbank file (*.gbk), and (3)path to whole-genome generated\npredicted-proteome file (*.faa).", required=True)
     parser.add_argument('-m', '--orthofinder_matrix', help="OrthoFinder matrix.", required=True)
     parser.add_argument('-o', '--output_directory', help="Prefix for output files.", required=True)
+    parser.add_argument('-i', '--gcf_id', help="GCF identifier [Default is GCF_X].", required=False, default='GCF_X')
     parser.add_argument('-a', '--codon_alignments', help="File listing the codon alignments for each homolog group in the GCF.\nCan be found as part of PopGene output.", required=True)
     parser.add_argument('-p', '--bgc_prediction_software', help='Software used to predict BGCs (Options: antiSMASH, DeepBGC, GECCO).\nDefault is antiSMASH.', default='antiSMASH', required=False)
     parser.add_argument('-awl', '--ambiguity_window_length', help='Length around beginning, end and ambiguous sites in codon alignments to avoid calling SNVs on due to more challenging alignment for reads. Default is 50.', required=False, default=50)
     parser.add_argument('-ch', '--core_homologs', nargs="+", help="List of homolog group identifiers comprising the core of the BGC/GCF.", required=False, default=[])
     parser.add_argument('-ap', '--allow_phasing', action='store_true', help="Allow phasing with DESMAN. Requires manual installation of\nDESMAN (not through conda) and $PATH to be updated.", required=False, default=False)
-    parser.add_argument('-c', '--cpus', type=int, help="The number of cpus to use.", required=False, default=1)
+    parser.add_argument('-c', '--cpus', type=int, help="The number of CPUs to use [Default ", required=False, default=1)
 
     args = parser.parse_args()
 

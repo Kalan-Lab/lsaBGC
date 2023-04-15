@@ -53,13 +53,13 @@ def create_parser():
 	absence data. Clustering uses MCL.
 	""", formatter_class=argparse.RawTextHelpFormatter)
 
-	parser.add_argument('-b', '--bgc_listings', help='BGC listing file. Tab delimited 2-column file: (1) sample name (2) path to predicted BGC in Genbank format.', required=True)
+	parser.add_argument('-b', '--bgc_listings', help='BGC listing file. Tab delimited 2-column file: (1) sample name (2) path\nto predicted BGC in Genbank format.', required=True)
 	parser.add_argument('-m', '--orthofinder_matrix', help="OrthoFinder matrix.", required=True)
 	parser.add_argument('-o', '--output_directory', help="Output directory.", required=True)
-	parser.add_argument('-p', '--bgc_prediction_software', help='Software used to predict BGCs (Options: antiSMASH, DeepBGC, GECCO).\nDefault is antiSMASH.', default='antiSMASH', required=False)
-	parser.add_argument('-i', '--mcl_inflation', type=float, help="Inflation parameter to be used for MCL.", required=False, default=1.4)
-	parser.add_argument('-j', '--jaccard_cutoff', type=float, help="Cutoff for Jaccard similarity of homolog groups shared between two BGCs.", required=False, default=50.0)
-	parser.add_argument('-r', '--syntenic_correlation_cutoff', type=float, help="Minimum absolute correlation coefficient between two BGCs.", required=False, default=0.0)
+	parser.add_argument('-p', '--bgc_prediction_software', help='Software used to predict BGCs (Options: antiSMASH, DeepBGC,\nGECCO)\n[Default is antiSMASH].', default='antiSMASH', required=False)
+	parser.add_argument('-i', '--mcl_inflation', type=float, help="Inflation parameter to be used for MCL [Default is 1.4].", required=False, default=1.4)
+	parser.add_argument('-j', '--jaccard_cutoff', type=float, help="Cutoff for Jaccard similarity of homolog groups shared between two BGCs [Default is 50.0].", required=False, default=50.0)
+	parser.add_argument('-r', '--syntenic_correlation_cutoff', type=float, help="Minimum absolute correlation coefficient between two BGCs [Default is 0.0].", required=False, default=0.0)
 	parser.add_argument('-s', '--split_by_annotation', action='store_true', help="Partition BGCs into groups based on annotation first.", required=False, default=False)
 	parser.add_argument('-t', '--run_parameter_tests', action='store_true', help="Run tests for selecting the best inflation parameter and jaccard for MCL analysis and exit.", required=False, default=False)
 	parser.add_argument('-c', '--cpus', type=int, help="Number of cpus to use for MCL step.", required=False, default=1)

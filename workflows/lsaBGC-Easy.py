@@ -66,12 +66,12 @@ def create_parser():
 	Author: Rauf Salamzade
 	Affiliation: Kalan Lab, UW Madison, Department of Medical Microbiology and Immunology
 	
-	QUICK DESCRIPTION: 
+	QUICK DESCRIPTION:
 	Workflow to run the majority of lsaBGC functionalities for a specific taxa or manually defined set of user-provided
 	genomes or both. For information on the workflow and examples on how to run please take a look at the Wiki:
-	https://github.com/Kalan-Lab/lsaBGC/wiki/14.-lsaBGC-Easy-Tutorial:-Combining-lsaBGC-with-ncbi-genome-download
+	https://github.com/Kalan-Lab/lsaBGC/wiki/14.-lsaBGC-Easy-Tutorial
 		
-	Currently only works for bacteria, but lsaBGC can handle fungi now - just not lsaBGC-Easy ... yet
+	If interested in fungal investigation please check out lsaBGC-Euk-Easy.py.
 	*******************************************************************************************************************
 	CONSIDERATIONS:	
 	* Check out the considerations wiki page: https://github.com/Kalan-Lab/lsaBGC/wiki/00.-Background-&-Considerations  	
@@ -83,73 +83,36 @@ def create_parser():
 		- Step 1: Get set of Genbank assembly accessions from recent GTDB release matching taxa.
 		- Step 2: Download all genomes in FASTA format using ncbi-genome-download and perform gene-calling with prodigal.
 		- Step 3: Run GToTree, Dereplicate, Group Samples into Populations/Clades, and Create genomes listing
-		- Step 4: Run GECCO based annotation of BGCs and crete BGC listing or Create Task File with antiSMASH/DeepBGC coomands
+		- Step 4: Run GECCO based annotation of BGCs and crete BGC listing or Create Task File with antiSMASH/DeepBGC commands
 		- Step 5: Run lsaBGC-Ready.py with lsaBGC-Cluster or BiG-SCAPE
 		- Step 6: Run lsaBGC-AutoExpansion.py polishing to find GCF instances fragmented on multiple scaffolds
 		- Step 7: Run lsaBGC-AutoAnalyze.py
+		- Step 8: Run GSeeF.py
 	*******************************************************************************************************************
-	AVAILBLE SCG MODELS IN GTOTREE:
-           Actinobacteria                    (138 genes)
-           Alphaproteobacteria               (117 genes)
-           Archaea                            (76 genes)
-           Bacteria                           (74 genes)
-           Bacteria_and_Archaea               (25 genes)
-           Bacteroidetes                      (90 genes)
-           Betaproteobacteria                (203 genes)
-           Chlamydiae                        (286 genes)
-           Cyanobacteria                     (251 genes)
-           Epsilonproteobacteria             (260 genes)
-           Firmicutes                        (119 genes)
-           Gammaproteobacteria               (172 genes)
-           Proteobacteria                    (119 genes)
-           Tenericutes                        (99 genes)
-           Universal_Hug_et_al                (16 genes)
+	GToTree taxa models available (more resolute taxonomic groups will have more genes to use for building phylogeny):
+	(1) Actinobacteria, (2) Alphaproteobacteria, (3) Archaea, (4) Bacteria, (5) Bacteria_and_Archaea, 
+ 	(6) Betaproteobacteria, (7) Chlamydiae, (8) Cyanobacteria, (9) Epsilonproteobacteria, (10) Firmicutes, 
+ 	(11) Firmicutes, (12) Gammaproteobacteria, (13) Proteobacteria, (14) Tenericutes, (15) Universal_Hug_et_al
+ 	*******************************************************************************************************************
 	""", formatter_class=argparse.RawTextHelpFormatter)
 
-	parser.add_argument('-n', '--taxa_name',
-						help='Name of the taxa of interest as listed in GTDB. Currently restricted to bacteria - but lsaBGC\nitself- when using antiSMASH BGC predictions can run on\nEuks - check out the tutorial!! If there is a space in the\nname, please surround by quotes.',
-						required=True)
+	parser.add_argument('-n', '--taxa_name', help='Name of the taxa of interest as listed in GTDB. If there is a space in the\nname, please surround by quotes.', required=True)
+	parser.add_argument('-g', '--user_genomes_directory', help='A directory with additional genomes, e.g. those recently sequenced by the\nuser, belonging to the taxa. Accepted formats include FASTA.\nAccepted suffices include: .fna, .fa, .fasta.', required=False, default=None)
 	parser.add_argument('-o', '--output_directory', help='Parent output/workspace directory.', required=True)
-	parser.add_argument('-g', '--user_genomes_directory',
-						help='A directory with additional genomes, e.g. those recently sequenced by the\nuser, belonging to the taxa. Accepted formats include FASTA.\nAccepted suffices include: .fna, .fa, .fasta.',
-						required=False, default=None)
-	parser.add_argument('-p', '--bgc_prediction_software',
-						help='Software used to predict BGCs (Options: antiSMASH, DeepBGC, GECCO).\nDefault is GECCO - which will be automatic. For the other two,\nlsaBGC-Easy will produce a task-file which you will need to run in a seperate environment\nwith antiSMASH or DeepBGC installed, then rerun lsaBGC-Easy.py using the original command..',
-						default='gecco', required=False)
-	parser.add_argument('-om', '--orthofinder_mode',
-						help="Method for running OrthoFinder2. (Options: Genome_Wide, BGC_Only).\nDefault is Genome_Wide (BGC_Only is slightly experimental but much faster and should work\nespecially well for taxa with many BGCs).",
-						default='Genome_Wide', required=False)
-	parser.add_argument('-sd', '--skip_dereplication', action='store_true',
-						help="Whether to skip dereplication based on GToTree alignments of SCGs - not\nrecommended and can cause issues if there are a lot of\ngenomes for the taxa of interest.",
-						default=False, required=False)
-	parser.add_argument('-gtm', '--gtotree_model',
-						help="SCG model for secondary GToTree analysis and wdhat would be used for dereplication. Default is to use the \"Bacteria\" SCG set (n=74 genes).",
-						default='Bacteria', required=False)
-	parser.add_argument('-iib', '--include_incomplete_bgcs', action='store_true',
-						help="Whether to account for incomplete BGCs prior to clustering - not recommended.",
-						default=False, required=False)
-	parser.add_argument('-mc', '--run_coarse_orthofinder', action='store_true',
-						help='Use coarse clustering of homolog groups in OrthoFinder instead of more\nresolute hierarchical determined homolog groups. There are some advantages to coarse OGs, including their construction being deterministic.',
-						required=False, default=False)
-	parser.add_argument('-b', '--use_bigscape', action='store_true',
-						help="Use BiG-SCAPE for BGC clustering into GCFs instead of lsaBGC-Cluster. Recommended if you want to include incomplete BGCs for clustering and are using antiSMASH.",
-						required=False, default=False)
-	parser.add_argument('-sae', '--skip_auto_expansion', action='store_true',
-						help="Skip lsaBGC-AutoExpansion.py to find missing pieces of BGCs due to assembly fragmentation.",
-						required=False, default=False)
-	parser.add_argument('-c', '--cpus', type=int,
-						help="Total number of cpus/threads. Note, this is the total number of\nthreads to use (Default is 4). BGC prediction commands (via GECCO, antiSMASH, and DeepBGC) will\neach be set to use 4 cpus by default.",
-						required=False, default=4)
-	parser.add_argument('-dt', '--dereplicate_threshold', type=float,
-						help="Amino acid similarity threshold of SCGs for considering\ntwo genomes as redundant. (Default is 0.999)",
-						default=0.999, required=False)
-	parser.add_argument('-pt', '--population_threshold', type=float,
-						help="Amino acid similarity threshold of SCGs for considering\ntwo genomes as belonging to the same population. (Default is 0.99)",
-						default=0.99, required=False)
-	parser.add_argument('-x', '--ignore_limits', action='store_true',
-						help="Ignore limitations on number of genomes allowed.\nE.g. allow for analyses of taxa with more than 2000 genomes available and more than 100 genomes\nafter dereplication. Not recommend, be cautious!!! Also note,\nyou can always delete \"Dereplicated_Set_of_Genomes.txt\" in the results directory and redo\ndereplication with different threshold.")
-	parser.add_argument('-py', '--use_pyrodigal', action='store_true', help='Use pyrodigal instead of prodigal.',
-						required=False, default=False)
+	parser.add_argument('-p', '--bgc_prediction_software', help='Software used to predict BGCs (Options: antiSMASH, DeepBGC, GECCO).\nDefault is GECCO - which will be automatic. For the other two,\nlsaBGC-Easy will produce a task-file which you will need to run in a seperate environment\nwith antiSMASH or DeepBGC installed, then rerun lsaBGC-Easy.py using the original command..', default='gecco', required=False)
+	parser.add_argument('-x', '--ignore_limits', action='store_true', help="Ignore limitations on number of genomes allowed.\nE.g. allow for analyses of taxa with more than 2000 genomes available and more than 100 genomes\nafter dereplication. Not recommend, be cautious!!! Also note,\nyou can always delete \"Dereplicated_Set_of_Genomes.txt\" in the results directory and redo\ndereplication with different threshold.")
+	parser.add_argument('-gtm', '--gtotree_model', help="SCG model for secondary GToTree analysis and wdhat would be used for dereplication. Default is to use the \"Bacteria\" SCG set (n=74 genes).", default='Bacteria', required=False)
+	parser.add_argument('-iib', '--include_incomplete_bgcs', action='store_true', help="Whether to account for incomplete BGCs prior to clustering - not recommended.", default=False, required=False)
+	parser.add_argument('-b', '--use_bigscape', action='store_true', help="Use BiG-SCAPE for BGC clustering into GCFs instead of lsaBGC-Cluster. Recommended if you want to include incomplete BGCs for clustering and are using antiSMASH.", required=False, default=False)
+	parser.add_argument('-sae', '--skip_auto_expansion', action='store_true', help="Skip lsaBGC-AutoExpansion.py to find missing pieces of BGCs due to assembly fragmentation.", required=False, default=False)
+	parser.add_argument('-sd', '--skip_dereplication', action='store_true', help="Whether to skip dereplication based on GToTree alignments of SCGs - not\nrecommended and can cause issues if there are a lot of\ngenomes for the taxa of interest.", default=False, required=False)
+	parser.add_argument('-dt', '--dereplicate_threshold', type=float, help="Amino acid similarity threshold of SCGs for considering\ntwo genomes as redundant. (Default is 0.999)", default=0.999, required=False)
+	parser.add_argument('-pt', '--population_threshold', type=float, help="Amino acid similarity threshold of SCGs for considering\ntwo genomes as belonging to the same population. (Default is 0.99)", default=0.99, required=False)
+	parser.add_argument('-py', '--use_pyrodigal', action='store_true', help='Use pyrodigal instead of prodigal.', required=False, default=False)
+	parser.add_argument('-om', '--orthofinder_mode', help="Method for running OrthoFinder2. (Options: Genome_Wide, BGC_Only).\nDefault is Genome_Wide (BGC_Only is slightly experimental but much faster and should work\nespecially well for taxa with many BGCs).", default='Genome_Wide', required=False)
+	parser.add_argument('-mc', '--run_coarse_orthofinder', action='store_true', help='Use coarse clustering of homolog groups in OrthoFinder instead of more\nresolute hierarchical determined homolog groups. There are some advantages to coarse OGs, including their construction being deterministic.', required=False, default=False)
+	parser.add_argument('-c', '--cpus', type=int, help="Total number of CPUs to use [Default is 4].", required=False, default=4)
+	parser.add_argument('-a', '--antismash_prediction_cpus', type=int, help="Number of CPUs to specify for each antiSMASH command in\ntask file [Default is 4].", required=False, default=4)
 
 	args = parser.parse_args()
 	return args
@@ -161,6 +124,7 @@ def lsaBGC_Easy():
 	taxa_name = myargs.taxa_name.strip('"').strip()
 	outdir = os.path.abspath(myargs.output_directory) + '/'
 	cpus = myargs.cpus
+	bgc_prediction_cpus = myargs.antismash_prediction_cpus
 	user_genomes_directory = myargs.user_genomes_directory
 	bgc_prediction_software = myargs.bgc_prediction_software.upper()
 	gtotree_model = myargs.gtotree_model
@@ -556,8 +520,9 @@ def lsaBGC_Easy():
 					gecco_cmd += [logObject]
 					primary_bgc_pred_cmds.append(gecco_cmd)
 				if bgc_prediction_software == 'ANTISMASH':
-					antismash_cmd = ['antismash', '--output-dir', primary_bgc_pred_directory + s + '/', '-c', '4',
-									 '--genefinding-tool', 'none', '--output-basename', s, all_genome_listings_gbk[s]]
+					antismash_cmd = ['antismash', '--output-dir', primary_bgc_pred_directory + s + '/', '-c',
+									 str(bgc_prediction_cpus), '--genefinding-tool', 'none', '--output-basename', s,
+									 all_genome_listings_gbk[s]]
 					primary_bgc_pred_cmds.append(antismash_cmd)
 				elif bgc_prediction_software == 'DEEPBGC':
 					deepbgc_cmd = ['deepbgc', 'pipeline', '--output', primary_bgc_pred_directory + s + '/',
@@ -576,7 +541,7 @@ def lsaBGC_Easy():
 				cmd_handle.write(' '.join(cmd) + '\n')
 			cmd_handle.close()
 			logObject.info(
-				'%s BGC prediction commands written to %s.Please run these and afterwards restart lsaBGC-Easy.py with the same command afterwards.' % (
+				'%s BGC prediction commands written to %s.Please run these and afterwards restart lsaBGC-Easy.py with the same command as used initially.' % (
 				bgc_prediction_software, cmd_file))
 			sys.stdout.write(
 				'************************\nPlease run the following BGC prediction commands using a different conda envirnoment with the BGC prediction\nsoftware (%s) installed and afterwards restart lsaBGC-Easy.py with the same command as used initially.\nExiting now, see you back soon, here is the task file with the %s commands:\n%s\n' % (
@@ -695,9 +660,9 @@ def lsaBGC_Easy():
 	if not os.path.isdir(lsabgc_autoanalyze_results_dir):
 		os.system('rm -rf %s' % lsabgc_autoanalyze_dir)
 		lsabgc_autoanalyze_cmd = ['lsaBGC-AutoAnalyze.py', '-i', exp_annotation_listing_file, '-g', exp_gcf_listing_dir,
-								  '-m', exp_orthogroups_matrix_file, '-mb', '-s', species_tree_file, '-w',
+								  '-mb', '-m', exp_orthogroups_matrix_file, '-mb', '-s', species_tree_file, '-w',
 								  expected_similarities_file, '-k', samples_to_keep_file, '-c', str(cpus), '-o',
-								  lsabgc_autoanalyze_dir, '-p', 'antiSMASH', '-u', population_file]
+								  lsabgc_autoanalyze_dir, '-p', bgc_prediction_software, '-u', population_file]
 		runCmdViaSubprocess(lsabgc_autoanalyze_cmd, logObject, check_directories=[lsabgc_autoanalyze_results_dir])
 
 

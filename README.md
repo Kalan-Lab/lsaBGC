@@ -2,35 +2,26 @@
 ### Lineage Specific Analysis (*lsa*) of Biosynthetic Gene Clusters (BGC)
 
 [![Preprint](https://img.shields.io/badge/preprint-bioRxiv-darkblue?style=flat-square&maxAge=2678400)](https://www.biorxiv.org/content/10.1101/2022.04.20.488953v2)
+[![Documentation](https://img.shields.io/badge/documentation-wiki-darkgreen?style=flat-square&maxAge=2678400)](https://github.com/Kalan-Lab/lsaBGC/wiki)
 
 
-*lsa*BGC is a modular software suite designed to provide a comprehensive set of functions for investigating and mining for biosynthetic gene cluster diversity across a focal lineage/taxa of interest using AntiSMASH based annotation. It consists of 8 independent programs: `lsaBGC-Ready.py`, `lsaBGC-Cluster.py`, `lsaBGC-Expansion`, `lsaBGC-Refine.py`, `lsaBGC-See.py`, `lsaBGC-PopGene.py`, `lsaBGC-Divergence.py`, and `lsaBGC-DiscoVary.py`.
+*lsa*BGC offers modular programs, as well as workflows, designed for investigating and mining for biosynthetic gene cluster diversity across a focal lineage/taxa of interest. 
 
-![](https://github.com/Kalan-Lab/lsaBGC/blob/main/docs/images/lsaBGC1.1_Simplified.png)
+Almost all programs are compatible with antiSMASH, GECCO, and DeepBGC programs. 
 
-## Documentation:
+<image src="https://github.com/Kalan-Lab/lsaBGC/blob/main/docs/images/lsaBGC1.1_Simplified.png">
+
+## Documentation and How to Get Started:
 
 Documentation can currently be found on this Github repo's wiki: https://github.com/Kalan-Lab/lsaBGC/wiki
 
-1. What 
-
 1. [Background on lsaBGC - what it does and does not do](https://github.com/Kalan-Lab/lsaBGC/wiki/00.-Background-&-Considerations)
 2. [An Overview of Final Results from lsaBGC](https://github.com/Kalan-Lab/lsaBGC/wiki/13.-Overview-of-lsaBGC-AutoAnalyze's-Final-Results)
-3. [Really Quick Start - Using lsaBGC-Easy.py](https://github.com/Kalan-Lab/lsaBGC/wiki/14.-lsaBGC-Easy-Tutorial)
-4. [Quick Start & Tutorial: Exploring BGCs in Cutibacterium](https://github.com/Kalan-Lab/lsaBGC/wiki/03.-Quick-Start-&-In-Depth-Tutorial:-Exploring-BGCs-in-Cutibacterium)
-5. [Generating Required Inputs for lsaBGC](https://github.com/Kalan-Lab/lsaBGC/wiki/04.-Generating-Required-Inputs-for-lsaBGC)
-6. [Clustering BGCs into GCFs](https://github.com/Kalan-Lab/lsaBGC/wiki/05.-Clustering-BGCs-into-GCFs)
-7. [Refinement of BGCs Belonging to GCF](https://github.com/Kalan-Lab/lsaBGC/wiki/06.-Refinement-of-BGCs-Belonging--to-GCF)
-8. [Visualizing GCFs Across Phylogenies](https://github.com/Kalan-Lab/lsaBGC/wiki/07.-Visualizing-GCFs-Across-Phylogenies)
-9. [High throughput Detection of New GCF Instances Across Draft Genome Assemblies](https://github.com/Kalan-Lab/lsaBGC/wiki/08.-High-throughput-Detection-of-New-GCF-Instances-Across-Draft-Genome-Assemblies)
-10. [Assessing Evolutionary Linkage of BGCs with their Genome wide Contexts](https://github.com/Kalan-Lab/lsaBGC/wiki/09.-Assessing-Evolutionary-Linkage-of-BGCs-with-their-Genome-wide-Contexts)
-11. [Population Genetics Analysis of Genes Found in a GCF](https://github.com/Kalan-Lab/lsaBGC/wiki/10.-Population-Genetics-Analysis-of-Genes-Found-in-a-GCF)
-12. [Discovering Novel Variations in GCF Genes from Raw Sequencing Reads](https://github.com/Kalan-Lab/lsaBGC/wiki/11.-Discovering-Novel-Variations-in-GCF-Genes-from-Raw-Sequencing-Reads)
-13. [The lsaBGC AutoAnalyze Workflow](https://github.com/Kalan-Lab/lsaBGC/wiki/12.-The-lsaBGC-AutoAnalyze-Workflow)
-14. [Benchmarking Gene Detection through Expansion vs. DiscoVary](https://github.com/Kalan-Lab/lsaBGC/wiki/15.-Benchmarking-Gene-Detection-through-Expansion-vs.-DiscoVary)
-15. [Running additional test datasets for core lsaBGC programs](https://github.com/Kalan-Lab/lsaBGC_Ckefir_Testing_Cases)
-16. [GSeeF - quick and simple visualization of BGCs across a species phylogeny](https://github.com/Kalan-Lab/lsaBGC/wiki/17.-GSeeF---Visualizing-GCF-Cluster-Presence-and-Annotation-Along-a-Species-Phylogeny)
-
+3. [Quick Start - Using the simple lsaBGC-Easy.py (bacterial) and lsaBGC-Euk-Easy.py (fungal) workflows](https://github.com/Kalan-Lab/lsaBGC/wiki/14.-lsaBGC-Easy-Tutorial)
+4. [Modular Usage: Exploring BGCs in Cutibacterium](https://github.com/Kalan-Lab/lsaBGC/wiki/03.-Quick-Start-&-In-Depth-Tutorial:-Exploring-BGCs-in-Cutibacterium)
+5. [GSeeF - quick and simple visualization of GCFs/BGCs across a species phylogeny](https://github.com/Kalan-Lab/lsaBGC/wiki/17.-GSeeF---Visualizing-GCF-Cluster-Presence-and-Annotation-Along-a-Species-Phylogeny)
+6. [visualizeBGC_BGC-ome - quick and simple visualization of a sample's BGC-ome](https://github.com/Kalan-Lab/lsaBGC/wiki/19.-Plot-Sample-BGC-ome)
+7. [***new***: Investigate a single cluster of related BGCs using the sibling suite *zol*](https://github.com/Kalan-Lab/zol)
 
 ## Installation:
 
@@ -50,7 +41,7 @@ python setup.py install
 pip install -e .
 ```
 
-Optional, but recommended, command to download KOfams + PGAP HMMs for annotation:
+Optional, but recommended, command to download KOfams + PGAP HMMs + MIBiG protein FASTA for annotation:
 
 ```
 # Warning: can take >10 minutes! 
@@ -74,49 +65,19 @@ A small test case is provided here and can be run after installation by simply i
 bash run_tests.sh
 ```
 
-Additionally, we suggest checking out additional [test cases](https://github.com/Kalan-Lab/lsaBGC_Ckefir_Testing_Cases) to demonstrate usage of individual programs along with expected outputs from commands. We also have a [quick start + walk-through tutorial Wiki page](https://github.com/Kalan-Lab/lsaBGC/wiki/03.-Quick-Start-&-In-Depth-Tutorial:-Exploring-BGCs-in-Cutibacterium) to showcase the use of the suite and relations between core programs.
+Additionally, there are additional [test cases](https://github.com/Kalan-Lab/lsaBGC_Ckefir_Testing_Cases) to demonstrate usage of individual programs along with expected outputs from commands. We also have a [quick start + walk-through tutorial Wiki page](https://github.com/Kalan-Lab/lsaBGC/wiki/03.-Quick-Start-&-In-Depth-Tutorial:-Exploring-BGCs-in-Cutibacterium) to showcase the use of the suite and relations between core programs.
 
 The major outputs of the final `lsaBGC-AutoAnalyze.py` run are in the resulting folder `test_case/lsaBGC_AutoAnalyze_Results/Final_Results/` and described on [this wiki page](https://github.com/Kalan-Lab/lsaBGC/wiki/16.-Overview-of-lsaBGC-AutoAnalyze's-Final-Results). Examples for the final AutoAnalyze results from an `lsaBGC-Easy.py` run on Cutibacterium avidum can be found [here on Google Drive](https://drive.google.com/drive/u/1/folders/1jHFFOUTd4SbIO-xiGG8MWTZaP1U4RF1j). 
 
-## Quick Start - using `lsaBGC-Easy.py`
+## Quick Start - using `lsaBGC-Easy.py` and `lsaBGC-Euk-Easy.py` 
 
-Check out how to use `lsaBGC-Easy.py` on [it's wiki page](https://github.com/Kalan-Lab/lsaBGC/wiki/14.-lsaBGC-Easy-Tutorial:-Combining-lsaBGC-with-ncbi-genome-download)!
+Check out how to use `lsaBGC-Easy.py` and `lsaBGC-Euk-Easy.py` on [it's wiki page](https://github.com/Kalan-Lab/lsaBGC/wiki/14.-lsaBGC-Easy-Tutorial:-Combining-lsaBGC-with-ncbi-genome-download)!
 
 ![image](https://user-images.githubusercontent.com/4260723/181613839-df183cdc-1103-403f-b5d1-889484f52be9.png)
 
-## Notes on the PopGene Report Table
-
-If you run `lsaBGC-PopGene.py` for an individual GCF or `lsaBGC-AutoAnalyze.py` for all the GCFs one of the major outputs from the suite will be a table with each row corresponding to a homolog group from each GCF.
-
-This report is automatically sorted by the consensus order of homolog groups allowing for easy intuitive scrolling. For full information on each column, check out the [data dictionary table](https://github.com/Kalan-Lab/lsaBGC/wiki/10.-Population-Genetics-Analysis-of-Genes-Found-in-a-GCF#data-dictionary) on the `lsaBGC-PopGene.py` wiki.
-
-For more advanced evolutionary statistics, I recommend primarily consulting the Tajima's D and Median Beta-RD statistics, ***dN/dS & Fst are experimental implementations!!!*** and often times not very informative. 
-
-**Median Beta-RD** is the median value of pairwise calculations of gene divergence to expected divergence for a pair of genomes based on genome-wide values such as ANI/AAI or divergence of single-copy core genes (e.g. ribosomal proteins).
-
-**Tajima's D** can be most intiutively thought of as the proportion of high-frequency to low-frequency/rare minor allele positions along the multiple sequence alignment of a gene. It is thus essential to account for representation bias in your dataset and as such we perform de-replication (check out [drep](https://github.com/MrOlm/drep)) of genomes prior to `lsaBGC-PopGene.py`/`lsaBGC-AutoAnalyze.py` analysis to properly compute the statistic.
-
-In the near future, I plan to incorporate a phylogeny-aware calculation of dN/dS, as well as update other evolutionary / pop-gen stats. Will announce these in major updates as they are incorporated.
-
-A highlight of some key columns in the table after loading into Google sheets:
-
-![image](https://user-images.githubusercontent.com/4260723/178626400-9563427f-d98d-48d6-8b4b-0e9673c6d0cd.png)
-
-## Notes on Scalability:
-
-Updated 06/19/2022
-
-lsaBGC strives for large-scalability and is designed to be high-throughput. We previously ran it on >15,000 Staphylococci. However, it is recommended that the number of "Primary" genomes not exceed 300 (or 500 at most!) because de novo ortholog grouping is performed for this set (an all vs. all procedure). It is therefore recommended that users first select a distributed set of representative, "primary" genomes for their taxa of interest (which can be done via genome dereplication, check out [drep](https://github.com/MrOlm/drep)!). Then treat the rest of the genomes as "additional" (this can be 1000s of genomes!).
-
-For evolutionary statistics calculations, codon alignments are now built using MAGUS (a divide and conquer wrapper of MAFFT) by default! 
-
-## Future Updates Planned and of High Priority:
-
-* Incorporate additional/update evolutionary statistics in `lsaBGC-PopGene.py`! 
-
 ## Acknowledgements:
 
-We would like to thank members of the Kalan lab, Currie lab, Kwan lab, and Anantharaman lab at UW Madison for feedback on the development of lsaBGC.
+We would like to thank members of the Kalan lab, Currie lab, Kwan lab, Anantharaman, and Pepperell labs at UW Madison for feedback on the development of lsaBGC.
 
 ## License:
 

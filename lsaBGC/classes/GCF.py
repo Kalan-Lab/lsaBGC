@@ -27,8 +27,8 @@ from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 from Bio.codonalign.codonseq import CodonSeq, cal_dn_ds
 from lsaBGC.classes.BGC import BGC
+warnings.filterwarnings('ignore')
 
-warnings.filterwarnings("ignore")
 # updated 07/22/2022 to have key term be transpos instead of transp - because of transporter now appearing in definitions
 # due to switch from Prokka annotation to custom KO/PGAP annotations
 mges = set(['transpos', 'integrase'])
@@ -3050,7 +3050,7 @@ def popgen_analysis_of_hg(inputs):
 
 		# calculate Tajima's D
 		tajimas_d = util.calculateTajimasD(list(sequences_filtered.values()))
-		if tajimas_d != 'NA':
+		if tajimas_d != '< 3 segregating sites':
 			tajimas_d = round(tajimas_d, 2)
 
 	prop_samples_with_hg = len(samples) / float(len(set(bgc_sample.values())))
@@ -3105,7 +3105,7 @@ def popgen_analysis_of_hg(inputs):
 					population_sequences.append(sequences_filtered[seq_id])
 			if len(population_sequences) >= 4 and len(list(sequences_filtered.values())[0]) >= 21:
 				p_tajimas_d = util.calculateTajimasD(population_sequences)
-				if p_tajimas_d != 'NA':
+				if p_tajimas_d != '< 3 segregating sites':
 					p_tajimas_d = round(p_tajimas_d, 3)
 					all_tajimas_d.append(p_tajimas_d)
 					if p_tajimas_d > most_positive_tajimas_d[1]:
