@@ -7,7 +7,7 @@
 
 *lsa*BGC offers modular programs, as well as workflows, designed for investigating and mining for biosynthetic gene cluster diversity across a focal lineage/taxa of interest. 
 
-Almost all programs are compatible with antiSMASH, GECCO, and DeepBGC programs. 
+Compatible with antiSMASH, GECCO, and DeepBGC. 
 
 <image src="https://github.com/Kalan-Lab/lsaBGC/blob/main/docs/images/lsaBGC1.1_Simplified.png">
 
