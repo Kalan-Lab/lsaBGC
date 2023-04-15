@@ -660,7 +660,7 @@ def lsaBGC_Easy():
 	if not os.path.isdir(lsabgc_autoanalyze_results_dir):
 		os.system('rm -rf %s' % lsabgc_autoanalyze_dir)
 		lsabgc_autoanalyze_cmd = ['lsaBGC-AutoAnalyze.py', '-i', exp_annotation_listing_file, '-g', exp_gcf_listing_dir,
-								  '-mb', '-m', exp_orthogroups_matrix_file, '-mb', '-s', species_tree_file, '-w',
+								  '-mb', '-m', exp_orthogroups_matrix_file, '-s', species_tree_file, '-w',
 								  expected_similarities_file, '-k', samples_to_keep_file, '-c', str(cpus), '-o',
 								  lsabgc_autoanalyze_dir, '-p', bgc_prediction_software, '-u', population_file]
 		runCmdViaSubprocess(lsabgc_autoanalyze_cmd, logObject, check_directories=[lsabgc_autoanalyze_results_dir])
