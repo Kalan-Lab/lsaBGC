@@ -20,7 +20,7 @@ Documentation can currently be found on this Github repo's wiki: https://github.
 3. [Quick Start - Using the simple lsaBGC-Easy.py (bacterial) and lsaBGC-Euk-Easy.py (fungal) workflows](https://github.com/Kalan-Lab/lsaBGC/wiki/14.-lsaBGC-Easy-Tutorial)
 4. [Modular Usage: Exploring BGCs in Cutibacterium](https://github.com/Kalan-Lab/lsaBGC/wiki/03.-Quick-Start-&-In-Depth-Tutorial:-Exploring-BGCs-in-Cutibacterium)
 5. [GSeeF - quick and simple visualization of GCFs/BGCs across a species phylogeny](https://github.com/Kalan-Lab/lsaBGC/wiki/17.-GSeeF---Visualizing-GCF-Cluster-Presence-and-Annotation-Along-a-Species-Phylogeny)
-6. [visualizeBGC_BGC-ome - quick and simple visualization of a sample's BGC-ome](https://github.com/Kalan-Lab/lsaBGC/wiki/19.-Plot-Sample-BGC-ome)
+6. [visualize_BGC-ome - quick and simple visualization of a sample's BGC-ome](https://github.com/Kalan-Lab/lsaBGC/wiki/19.-Plot-Sample-BGC-ome)
 7. [***new***: Investigate a single cluster of related BGCs using the sibling suite *zol*](https://github.com/Kalan-Lab/zol)
 
 ## Installation:
@@ -114,6 +114,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
 
 ## Major Updates 
+* Apr 14, 2023 - Introduced lsaBGC-MIBiGMapper.py, lsaBGC-Euk-Easy.py, visualize_BGC-ome.py, slight updates to plots, added automatic color formatting to spreadsheet, simplified README. 
 * Mar 2, 2023 - Added GSeeF analysis to the end of the lsaBGC-Easy workflow and added support for parsing annotations from DeepBGC and GECCO into GSeeF.
 * Feb 28, 2023 - Handle similarly named BGCs from different genomic assemblies (due to similar scaffold names) in lsaBGC-Ready.py/lsaBGC-Easy.py + automated ulimit setting updates in lsaBGC-Ready.py similar to what is employed in lsaBGC-Easy.py 
 * Feb 5, 2023 - Corrected flag to make prodigal the default and pyrodigal optional unless requested by the user - we are considering formally making pyrodigal the default gene-caller however because there are a number of improvements/corrections pyprodigal offers and it is being actively maintained.
