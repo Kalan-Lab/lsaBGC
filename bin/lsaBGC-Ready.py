@@ -96,32 +96,24 @@ def create_parser():
 	***************************************************************************************************************** 
 	""", formatter_class=argparse.RawTextHelpFormatter)
 
-    parser.add_argument('-i', '--genome_listing',
-                        help='Tab-delimited, two column file for primary samples (ideally with high-quality or complete genomes)\nwhere the first column is the sample/isolate/genome name and the second is the\nfull path to the genome file (Genbank or FASTA).\nCheck note above about available scripts to automatically create this.',
-                        required=True)
-    parser.add_argument('-d', '--additional_genome_listing', help='Tab-delimited, two column file for samples with additional/draft\ngenomes (same format as for the "--genome_listing" argument). The genomes/BGCs of these\nsamples won\'t be used in ortholog-grouping of proteins and clustering of BGCs, but will simply have gene\ncalling run for them. This will enable more sensitive/expanded detection of GCF instances later\nusing lsaBGC-Expansion/AutoExpansion.\nCheck note above about available scripts to automatically create this.',
-                        required=False, default=None)
-    parser.add_argument('-l', '--bgc_genbank_listing',
-                        help='Tab-delimited, two column file listing BGC predictions results for primary samples\n(those from the "--genome_listing" argument), where the first column is the sample name and the second\nis the full path to BGC prediction in Genbank format.',
-                        required=True)
-    parser.add_argument('-p', '--bgc_prediction_software', help='Software used to predict BGCs (Options: antiSMASH, DeepBGC, GECCO).\nDefault is antiSMASH.', default='antiSMASH', required=False)
-    parser.add_argument('-b', '--bigscape_results', help='Path to BiG-SCAPE results directory of antiSMASH/DeepBGC/GECCO results predicted in primary\ngenomes.Please make sure the sample names match what is provided for "--genome_listings".', required=False,
-                        default=None)
+    parser.add_argument('-i', '--genome_listing', help='Tab-delimited, two column file for primary samples (ideally with high-quality or complete genomes)\nwhere the first column is the sample/isolate/genome name and the second is the\nfull path to the genome file (Genbank or FASTA).\nCheck note above about available scripts to automatically create this.', required=True)
+    parser.add_argument('-d', '--additional_genome_listing', help='Tab-delimited, two column file for samples with additional/draft\ngenomes (same format as for the "--genome_listing" argument). The genomes/BGCs of these\nsamples won\'t be used in ortholog-grouping of proteins and clustering of BGCs, but will simply have gene\ncalling run for them. This will enable more sensitive/expanded detection of GCF instances later\nusing lsaBGC-Expansion/AutoExpansion.\nCheck note above about available scripts to automatically create this.', required=False, default=None)
+    parser.add_argument('-l', '--bgc_genbank_listing', help='Tab-delimited, two column file listing BGC predictions results for primary samples\n(those from the "--genome_listing" argument), where the first column is the sample name and the second\nis the full path to BGC prediction in Genbank format.', required=True)
+    parser.add_argument('-p', '--bgc_prediction_software', help='Software used to predict BGCs (Options: antiSMASH, DeepBGC, GECCO).\n[Default is antiSMASH].', default='antiSMASH', required=False)
+    parser.add_argument('-b', '--bigscape_results', help='Path to BiG-SCAPE results directory of antiSMASH/DeepBGC/GECCO results predicted\nin primary genomes. Please make sure the sample names match what is provided for "--genome_listings".', required=False, default=None)
     parser.add_argument('-o', '--output_directory', help='Parent output/workspace directory.', required=True)
-    parser.add_argument('-m', '--orthofinder_mode', help='Method for running OrthoFinder2. (Options: Genome_Wide, BGC_Only). Default is Genome_Wide.', required=False, default='Genome_Wide')
-    parser.add_argument('-mc', '--run_coarse_orthofinder', action='store_true', help='Use coarse clustering of homolog groups in OrthoFinder instead of more resolute hierarchical determined homolog groups.', required=False, default=False)
-    parser.add_argument('-a', '--annotate', action='store_true',
-                        help='Perform annotation of BGC proteins using KOfam and PGAP (including TIGR) HMM profiles.', required=False, default=False)
+    parser.add_argument('-m', '--orthofinder_mode', help='Method for running OrthoFinder2. (Options: Genome_Wide,\nBGC_Only) [Default is Genome_Wide].', required=False, default='Genome_Wide')
+    parser.add_argument('-mc', '--run_coarse_orthofinder', action='store_true', help='Use coarse clustering of homolog groups in OrthoFinder instead of more\nresolute hierarchical determined homolog groups.', required=False, default=False)
+    parser.add_argument('-a', '--annotate', action='store_true', help='Perform annotation of BGC proteins using KOfam and PGAP (including TIGR)\nHMM profiles.', required=False, default=False)
     parser.add_argument('-t', '--run_gtotree', action='store_true', help='Whether to create phylogeny and expected sample-vs-sample\ndivergence for downstream analyses using GToTree.', required=False, default=False)
-    parser.add_argument('-gtm', '--gtotree_model', help='Set of core genes to use for phylogeny construction in GToTree. Default is Universal_Hug_et_al', required=False, default="Universal_Hug_et_al")
-    parser.add_argument('-lc', '--lsabgc_cluster', action='store_true', help='Run lsaBGC-Cluster with default parameters. Note, we recommend running lsaBGC-Cluster manually\nand exploring parameters through its ability to generate a user-report for setting clustering parameters.', required=False, default=False)
+    parser.add_argument('-gtm', '--gtotree_model', help='Set of core genes to use for phylogeny construction in GToTree\n[Default is Universal_Hug_et_al].', required=False, default="Universal_Hug_et_al")
+    parser.add_argument('-lc', '--lsabgc_cluster', action='store_true', help='Run lsaBGC-Cluster with default parameters. Note, we recommend running lsaBGC-Cluster\nmanually and exploring parameters through its ability to generate a user-report for setting\nclustering parameters.', required=False, default=False)
     parser.add_argument('-le', '--lsabgc_expansion', action='store_true', help='Run lsaBGC-AutoExpansion with default parameters. Assumes either "--bigscape_results" or\n"--lsabgc_cluster" is specified.', default=False, required=False)
-    parser.add_argument('-c', '--cpus', type=int,
-                        help="Total number of cpus/threads to use for running OrthoFinder2/prodigal.", required=False,
-                        default=1)
-    parser.add_argument('-k', '--keep_intermediates', action='store_true', help='Keep intermediate directories / files which are likely not useful for downstream analyses.', required=False, default=False)
+    parser.add_argument('-k', '--keep_intermediates', action='store_true', help='Keep intermediate directories / files which are likely not\nuseful for downstream analyses.', required=False, default=False)
     parser.add_argument('-spe', '--skip_primary_expansion', action='store_true', help='Skip expansion on primary genomes as well.', required=False, default=False)
     parser.add_argument('-py', '--use_pyrodigal', action='store_true', help='Use pyrodigal instead of prodigal.', required=False, default=False)
+    parser.add_argument('-c', '--cpus', type=int, help="Total number of CPUs to use [Default is 1].", required=False, default=1)
+
     args = parser.parse_args()
     return args
 
@@ -382,8 +374,8 @@ def lsaBGC_Ready():
         annot_directory = outdir + 'Annotations/'
         util.setupReadyDirectory([annot_directory])
         protein_annotations = util.performKOFamAndPGAPAnnotation(sample_bgc_proteins, bgc_prot_directory,
-                                                                       annot_directory, kofam_hmm_file, pgap_hmm_file,
-                                                                       kofam_pro_list, pgap_inf_list, logObject, cpus=cpus)
+                                                                 annot_directory, kofam_hmm_file, pgap_hmm_file,
+                                                                 kofam_pro_list, pgap_inf_list, logObject, cpus=cpus)
         bgcs_directory_updated = outdir + 'BGCs_Retagged_and_Annotated/'
         util.setupReadyDirectory([bgcs_directory_updated])
 

@@ -8,6 +8,7 @@ from operator import itemgetter
 import traceback
 import copy
 import _pickle as cPickle
+from lsaBGC import util
 
 lsaBGC_main_directory = '/'.join(os.path.realpath(__file__).split('/')[:-3])
 gecco_pickle_weights_file_file = lsaBGC_main_directory + '/db/GECCO_PF_Weights.pkl'
@@ -323,24 +324,7 @@ class BGC:
 				full_sequence = str(rec.seq)
 				for feature in rec.features:
 					if comprehensive_parsing and feature.type in domain_feature_types:
-						start = None
-						end = None
-						is_multi_part = False
-						if not 'join' in str(feature.location):
-							start = min([int(x.strip('>').strip('<')) for x in str(feature.location)[1:].split(']')[0].split(':')])
-							end = max([int(x.strip('>').strip('<')) for x in str(feature.location)[1:].split(']')[0].split(':')])
-						else:
-							is_multi_part = True
-							all_starts = []
-							all_ends = []
-							for exon_coord in str(feature.location)[5:-1].split(', '):
-								start = min(
-									[int(x.strip('>').strip('<')) for x in exon_coord[1:].split(']')[0].split(':')])
-								end = max([int(x.strip('>').strip('<')) for x in exon_coord[1:].split(']')[0].split(':')])
-								all_starts.append(start);
-								all_ends.append(end);
-							start = min(all_starts)
-							end = max(all_ends)
+						all_coords, start, end, direction, is_multi_part = util.parseCDSCoord(str(feature.location))
 
 						aSDomain = "NA"
 						description = "NA"
@@ -391,31 +375,8 @@ class BGC:
 				for feature in rec.features:
 					if feature.type == "CDS":
 						lt = feature.qualifiers.get('locus_tag')[0]
-						start = None
-						end = None
-						direction = None
-						all_coords = []
-						is_multi_part = False
-						if not 'join' in str(feature.location):
-							start = min([int(x.strip('>').strip('<')) for x in str(feature.location)[1:].split(']')[0].split(':')]) + 1
-							end = max([int(x.strip('>').strip('<')) for x in str(feature.location)[1:].split(']')[0].split(':')])
-							direction = str(feature.location).split('(')[1].split(')')[0]
-							all_coords.append([start, end, direction])
-						else:
-							is_multi_part = True
-							all_starts = []
-							all_ends = []
-							all_directions = []
-							for exon_coord in str(feature.location)[5:-1].split(', '):
-								start = min([int(x.strip('>').strip('<')) for x in exon_coord[1:].split(']')[0].split(':')]) + 1
-								end = max([int(x.strip('>').strip('<')) for x in exon_coord[1:].split(']')[0].split(':')])
-								direction = exon_coord.split('(')[1].split(')')[0]
-								all_starts.append(start); all_ends.append(end); all_directions.append(direction)
-								all_coords.append([start, end, direction])
-							assert(len(set(all_directions)) == 1)
-							start = min(all_starts)
-							end = max(all_ends)
-							direction = all_directions[0]
+						all_coords, start, end, direction, is_multi_part = util.parseCDSCoord(str(feature.location))
+
 						try:
 							product = feature.qualifiers.get('product')[0]
 						except:
@@ -546,49 +507,7 @@ class BGC:
 
 					updated_features = []
 					for feature in rec.features:
-						start = None
-						end = None
-						direction = None
-						all_coords = []
-						if not 'join' in str(feature.location) and not 'order' in str(feature.location):
-							start = min([int(x.strip('>').strip('<')) for x in
-										 str(feature.location)[1:].split(']')[0].split(':')]) + 1
-							end = max([int(x.strip('>').strip('<')) for x in
-									   str(feature.location)[1:].split(']')[0].split(':')])
-							direction = str(feature.location).split('(')[1].split(')')[0]
-							all_coords.append([start, end, direction])
-						elif 'order' in str(feature.location):
-							all_starts = []
-							all_ends = []
-							all_directions = []
-							for exon_coord in str(feature.location)[6:-1].split(', '):
-								start = min(
-									[int(x.strip('>').strip('<')) for x in exon_coord[1:].split(']')[0].split(':')]) + 1
-								end = max(
-									[int(x.strip('>').strip('<')) for x in exon_coord[1:].split(']')[0].split(':')])
-								direction = exon_coord.split('(')[1].split(')')[0]
-								all_starts.append(start)
-								all_ends.append(end)
-								all_directions.append(direction)
-								all_coords.append([start, end, direction])
-							start = min(all_starts)
-							end = max(all_ends)
-						else:
-							all_starts = []
-							all_ends = []
-							all_directions = []
-							for exon_coord in str(feature.location)[5:-1].split(', '):
-								start = min(
-									[int(x.strip('>').strip('<')) for x in exon_coord[1:].split(']')[0].split(':')]) + 1
-								end = max(
-									[int(x.strip('>').strip('<')) for x in exon_coord[1:].split(']')[0].split(':')])
-								direction = exon_coord.split('(')[1].split(')')[0]
-								all_starts.append(start)
-								all_ends.append(end)
-								all_directions.append(direction)
-								all_coords.append([start, end, direction])
-							start = min(all_starts)
-							end = max(all_ends)
+						all_coords, start, end, direction, is_multi_part = util.parseCDSCoord(str(feature.location))
 
 						feature_coords = set(range(start, end+1))
 						if len(feature_coords.intersection(pruned_coords)) > 0:
@@ -621,4 +540,4 @@ class BGC:
 					SeqIO.write(updated_rec, rgf_handle, 'genbank')
 			rgf_handle.close()
 		except Exception as e:
-      			raise RuntimeError(traceback.format_exc())
+			raise RuntimeError(traceback.format_exc())

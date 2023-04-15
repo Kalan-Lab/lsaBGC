@@ -46,11 +46,14 @@ from Bio import SeqIO
 from lsaBGC import util
 import pandas as pd
 from ete3 import Tree
+import warnings
+warnings.filterwarnings('ignore')
 
 lsaBGC_main_directory = '/'.join(os.path.realpath(__file__).split('/')[:-2])
 RSCRIPT_FOR_NJTREECONSTRUCTION = lsaBGC_main_directory + '/lsaBGC/Rscripts/createNJTree.R'
 RSCRIPT_FOR_DEFINECLADES_FROM_PHYLO = lsaBGC_main_directory + '/lsaBGC/Rscripts/defineCladesFromPhylo.R'
 RSCRIPT_FOR_BIGPICTUREHEATMAP = lsaBGC_main_directory + '/lsaBGC/Rscripts/plotBigPictureHeatmap.R'
+RSCRIPT_FOR_BIGPICTUREPHYLO = lsaBGC_main_directory + '/lsaBGC/Rscripts/plotBigPicturePhyloWithLabels.R'
 RSCRIPT_FOR_GCFGENEPLOTS = lsaBGC_main_directory + '/lsaBGC/Rscripts/gcfGenePlots.R'
 RSCRIPT_FOR_DIVERGENCEPLOT = lsaBGC_main_directory + '/lsaBGC/Rscripts/divergencePlot.R'
 RSCRIPT_FOR_POPULATIONS_ON_PHYLO = lsaBGC_main_directory + '/lsaBGC/Rscripts/GeneRatePhylogeny.R'
@@ -68,18 +71,19 @@ def create_parser():
 	each GCF in a GCF listings directory, produced by lsaBGC-Ready, lsaBGC-Cluster, or lsaBGC-AutoExpansion.py.
 	""", formatter_class=argparse.RawTextHelpFormatter)
 
-	parser.add_argument('-o', '--output_directory', help="Parent output/workspace directory.", required=True)
-	parser.add_argument('-i', '--input_listing', help="Path to tab delimited file listing: (1) sample name\n(2) path to whole-genome Genbank and (3) path to whole-genome predicted proteome\n(an output of lsaBGC-Ready.py or lsaBGC-AutoExpansion.py).", required=False, default=None)
+	parser.add_argument('-i', '--input_listing', help="Path to tab delimited file listing: (1) sample name\n(2) path to whole-genome Genbank and (3) path to whole-genome predicted proteome\n(an output of lsaBGC-Ready.py or lsaBGC-AutoExpansion.py).", required=True)
 	parser.add_argument('-g', '--gcf_listing_dir', help='Directory with GCF listing files.', required=True)
 	parser.add_argument('-m', '--orthofinder_matrix', help="OrthoFinder homolog group by sample matrix.", required=True)
-	parser.add_argument('-k', '--sample_set', help="Sample set to keep in analysis. Should be file with one sample id per line.", required=False)
-	parser.add_argument('-s', '--species_phylogeny', help="Path to species phylogeny. If not provided a FastANI based neighborjoining tree will be constructed and used.", default=None, required=False)
+	parser.add_argument('-o', '--output_directory', help="Parent output/workspace directory.", required=True)
+	parser.add_argument('-k', '--sample_set', help="Sample set to keep in analysis. Should be file with one sample\nid per line.", required=False, default=None)
+	parser.add_argument('-s', '--species_phylogeny', help="Path to species phylogeny. If not provided a FastANI based neighborjoining\ntree will be constructed and used.", default=None, required=False)
 	parser.add_argument('-w', '--expected_similarities', help="Path to file listing expected similarities between genomes/samples. This is\ncomputed most easily by running lsaBGC-Ready.py with '-t' specified, which will estimate\nsample to sample similarities based on alignment used to create species phylogeny.", required=True)
-	parser.add_argument('-p', '--bgc_prediction_software', help='Software used to predict BGCs (Options: antiSMASH, DeepBGC, GECCO).\nDefault is antiSMASH.', default='antiSMASH', required=False)
+	parser.add_argument('-p', '--bgc_prediction_software', help='Software used to predict BGCs (Options: antiSMASH, DeepBGC, GECCO)\n[Default is antiSMASH].', default='antiSMASH', required=False)
 	parser.add_argument('-u', '--populations', help='Path to user defined populations/groupings file. Tab delimited with 2 columns: (1) sample name and (2) group identifier.', required=False, default=None)
-	parser.add_argument('-l', '--discovary_input_listing', help="Sequencing readsets for DiscoVary analysis. Tab delimited file listing: (1) sample name, (2) forward readset, (3) reverse readset for metagenomic/isolate sequencing data.", required=False, default=None)
-	parser.add_argument('-n', '--discovary_analysis_name', help="Identifier/name for DiscoVary. Not providing this parameter will avoid running lsaBGC-DiscoVary step.", required=False, default=None)
-	parser.add_argument('-c', '--cpus', type=int, help="Total number of cpus to use.", required=False, default=1)
+	parser.add_argument('-l', '--discovary_input_listing', help="Sequencing readsets for DiscoVary analysis. Tab delimited file listing:\n(1) sample name, (2) forward readset, (3) reverse readset for metagenomic/isolate\nsequencing data.", required=False, default=None)
+	parser.add_argument('-n', '--discovary_analysis_name', help="Identifier/name for DiscoVary. Not providing this parameter will avoid\nrunning lsaBGC-DiscoVary step.", required=False, default=None)
+	parser.add_argument('-mb', '--run_mibig_mapper', action='store_true', help="Run MIBiG mapping analysis.", default=False, required=False)
+	parser.add_argument('-c', '--cpus', type=int, help="Total number of CPUs to use [Default is 1].", required=False, default=1)
 
 	args = parser.parse_args()
 	return args
@@ -157,6 +161,7 @@ def lsaBGC_AutoAnalyze():
 	population_listing_file = myargs.populations
 	discovary_analysis_id = myargs.discovary_analysis_name
 	discovary_input_listing = myargs.discovary_input_listing
+	run_mibig_mapper = myargs.run_mibig_mapper
 	cpus = myargs.cpus
 
 	try:
@@ -222,13 +227,14 @@ def lsaBGC_AutoAnalyze():
 	parameters_file = outdir + 'Parameter_Inputs.txt'
 	parameter_values = [gcf_listing_dir, input_listing_file, original_orthofinder_matrix_file, outdir,
 						species_phylogeny_file, expected_distances, population_listing_file,
-						discovary_analysis_id, discovary_input_listing, bgc_prediction_software, sample_set_file, cpus]
+						discovary_analysis_id, discovary_input_listing, bgc_prediction_software,
+						sample_set_file, run_mibig_mapper, cpus]
 	parameter_names = ["GCF Listings Directory", "Listing File of Sample Annotation Files for Initial Set of Samples",
 					   "OrthoFinder Homolog Matrix", "Output Directory", "Species Phylogeny File in Newick Format",
 					   "File with Expected Sample to Sample Amino Acid Distance Estimations",
 					   "Clade/Population Listings File", "DiscoVary Analysis ID",
 					   "DiscoVary Sequencing Data Location Specification File", "BGC Prediction Software",
-					   "Sample Retention Set", "cpus"]
+					   "Sample Retention Set", "Run MIBiG Mapping Analysis?", "CPUs"]
 	util.logParametersToFile(parameters_file, parameter_names, parameter_values)
 	logObject.info("Done saving parameters!")
 
@@ -311,6 +317,8 @@ def lsaBGC_AutoAnalyze():
 	see_outdir = outdir + 'See/'
 	pop_outdir = outdir + 'PopGene/'
 	div_outdir = outdir + 'Divergence/'
+	mbmap_outdir = outdir + 'MIBiG_Mapping/'
+
 	if not os.path.isdir(see_outdir): os.system('mkdir %s' % see_outdir)
 	if not os.path.isdir(pop_outdir): os.system('mkdir %s' % pop_outdir)
 	if not os.path.isdir(div_outdir): os.system('mkdir %s' % div_outdir)
@@ -319,9 +327,20 @@ def lsaBGC_AutoAnalyze():
 		dis_outdir = outdir + 'DiscoVary_' + '_'.join(discovary_analysis_id.split()) + '/'
 		if not os.path.isdir(dis_outdir): os.system('mkdir %s' % dis_outdir)
 
+	if run_mibig_mapper:
+		if not os.path.isdir(mbmap_outdir): os.system('mkdir %s' % mbmap_outdir)
+
 	for g in os.listdir(gcf_listing_dir):
 		gcf_id = g.split('.txt')[0]
 		gcf_listing_file = gcf_listing_dir + g
+
+		gcf_samples = set([])
+		with open(gcf_listing_file) as oglf:
+			for line in oglf:
+				line = line.strip()
+				sample, bgc_gbk = line.split('\t')
+				gcf_samples.add(sample)
+
 		orthofinder_matrix_file = original_orthofinder_matrix_file
 		logObject.info("Beginning analysis for GCF %s" % gcf_id)
 		sys.stderr.write("Beginning analysis for GCF %s\n" % gcf_id)
@@ -331,10 +350,10 @@ def lsaBGC_AutoAnalyze():
 		lsabgc_see_checkpoint = gcf_see_outdir + 'CHECKPOINT.txt'
 		if not os.path.isfile(lsabgc_see_checkpoint):
 			os.system('rm -rf %s' % gcf_see_outdir)
-			os.system('mkdir %s' % gcf_see_outdir)
 			cmd = ['lsaBGC-See.py', '-g', gcf_listing_file, '-m', orthofinder_matrix_file, '-o', gcf_see_outdir,
 				   '-i', gcf_id, '-s', species_phylogeny_file, '-p', bgc_prediction_software, '-c', str(cpus)]
 			try:
+				#print(' '.join(cmd))
 				util.run_cmd(cmd, logObject)
 				assert(os.path.isfile(lsabgc_see_checkpoint))
 			except Exception as e:
@@ -346,7 +365,6 @@ def lsaBGC_AutoAnalyze():
 		lsabgc_popgene_checkpoint = gcf_pop_outdir + 'CHECKPOINT.txt'
 		if not os.path.isfile(lsabgc_popgene_checkpoint):
 			os.system('rm -rf %s' % gcf_pop_outdir)
-			os.system('mkdir %s' % gcf_pop_outdir)
 			cmd = ['lsaBGC-PopGene.py', '-g', gcf_listing_file, '-m', orthofinder_matrix_file, '-o', gcf_pop_outdir,
 				   '-i', gcf_id, '-p', bgc_prediction_software, '-c', str(cpus)]
 			if expected_distances != None:
@@ -354,6 +372,7 @@ def lsaBGC_AutoAnalyze():
 			if population_listing_file != None:
 				cmd += ['-u', population_listing_file]
 			try:
+				#print(' '.join(cmd))
 				util.run_cmd(cmd, logObject, stderr=sys.stderr, stdout=sys.stdout)
 				assert(os.path.isfile(lsabgc_popgene_checkpoint))
 			except Exception as e:
@@ -363,26 +382,40 @@ def lsaBGC_AutoAnalyze():
 		# 3. Run lsaBGC-Divergence.py
 		gcf_div_outdir = div_outdir + gcf_id + '/'
 		lsabgc_divergence_checkpoint = gcf_div_outdir + 'CHECKPOINT.txt'
-		if not os.path.isfile(lsabgc_divergence_checkpoint) and expected_distances:
+		if (not os.path.isfile(lsabgc_divergence_checkpoint)) and expected_distances and len(gcf_samples) > 1:
 			os.system('rm -rf %s' % gcf_div_outdir)
-			os.system('mkdir %s' % gcf_div_outdir)
 			cmd = ['lsaBGC-Divergence.py', '-g', gcf_listing_file, '-l', input_listing_file, '-o', gcf_div_outdir,
 				   '-i', gcf_id, '-a',	gcf_pop_outdir + 'Codon_Alignments_Listings.txt', '-c', str(cpus),'-w',
 				   expected_distances]
 			try:
+				#print(' '.join(cmd))
 				util.run_cmd(cmd, logObject)
 				assert(os.path.isfile(lsabgc_divergence_checkpoint))
 			except Exception as e:
 				logObject.warning("lsaBGC-Divergence.py was unsuccessful for GCF %s" % gcf_id)
 				sys.stderr.write("Warning: lsaBGC-Divergence.py was unsuccessful for GCF %s\n" % gcf_id)
 
-		# 4. Run lsaBGC-DiscoVary.py
+		# 4. Run lsaBGC-MIBiGMapper.py
+		gcf_mbm_outdir = mbmap_outdir + gcf_id + '/'
+		lsabgc_mibigmap_checkpoint = gcf_mbm_outdir + 'CHECKPOINT.txt'
+		if not os.path.isfile(lsabgc_mibigmap_checkpoint) and run_mibig_mapper:
+			os.system('rm -rf %s' % gcf_mbm_outdir)
+			cmd = ['lsaBGC-MIBiGMapper.py', '-g', gcf_listing_file, '-m', orthofinder_matrix_file, '-o', gcf_mbm_outdir,
+				   '-i', gcf_id,  '-c', str(cpus)]
+			try:
+				#print(' '.join(cmd))
+				util.run_cmd(cmd, logObject)
+				assert(os.path.isfile(lsabgc_mibigmap_checkpoint))
+			except Exception as e:
+				logObject.warning("lsaBGC-MIBiGMapper.py was unsuccessful for GCF %s" % gcf_id)
+				sys.stderr.write("Warning: lsaBGC-MIBiGMapper.py was unsuccessful for GCF %s\n" % gcf_id)
+
+		# 5. Run lsaBGC-DiscoVary.py
 		if discovary_analysis_id and discovary_input_listing:
 			gcf_dis_outdir = dis_outdir + gcf_id + '/'
 			lsabgc_discovary_checkpoint = gcf_dis_outdir + 'CHECKPOINT.txt'
 			if not os.path.isfile(lsabgc_discovary_checkpoint):
 				os.system('rm -rf %s' % gcf_dis_outdir)
-				os.system('mkdir %s' % gcf_dis_outdir)
 				cmd = ['lsaBGC-DiscoVary.py', '-g', gcf_listing_file, '-m', orthofinder_matrix_file, '-o',
 					   gcf_dis_outdir, '-i', gcf_id, '-c', str(cpus), '-p', discovary_input_listing, '-a',
 					   gcf_pop_outdir + 'Codon_Alignments_Listings.txt', '-l', input_listing_file]
@@ -400,6 +433,7 @@ def lsaBGC_AutoAnalyze():
 	combined_consensus_similarity_file = outdir + 'GCF_Homolog_Group_Consensus_Sequence_Similarity.txt'
 	combined_divergence_results_file = outdir + 'GCF_Divergences.txt'
 	consolidated_popgene_report_file = outdir + 'GCF_Homolog_Group_Information.txt'
+	consolidated_mibig_report_file = outdir + 'Consolidated_MIBiG_Report.txt'
 
 	combined_tajimd_plot_input_handle = open(combined_tajimd_plot_input_file, 'w')
 	combined_betard_plot_input_handle = open(combined_betard_plot_input_file, 'w')
@@ -408,6 +442,10 @@ def lsaBGC_AutoAnalyze():
 	combined_consensus_similarity_handle = open(combined_consensus_similarity_file, 'w')
 	combined_orthoresults_unrefined_handle = open(consolidated_popgene_report_file, 'w')
 	combined_divergence_results_handle = open(combined_divergence_results_file, 'w')
+	combined_mibig_handle = open(consolidated_mibig_report_file, 'w')
+
+	if not run_mibig_mapper:
+		combined_mibig_handle.write('Did not request running lsaBGC-MIBiGMapper to map GCFs/homolog grousp to MIBiG.\n')
 
 	combined_tajimd_plot_input_handle.write('\t'.join(['GCF', 'HG', 'start', 'end', 'con_dir', 'proportion', 'core', 'Tajimas_D', 'Single_Copy_in_GCF']) + '\n')
 	combined_betard_plot_input_handle.write('\t'.join(['GCF', 'HG', 'start', 'end', 'con_dir', 'proportion', 'core', 'Beta_RD', 'Single_Copy_in_GCF']) + '\n')
@@ -416,21 +454,35 @@ def lsaBGC_AutoAnalyze():
 	if sample_retention_set == None:
 		sample_retention_set = all_samples
 
+	gcf_hg_to_mibig_prot = defaultdict(set)
 	hg_gcfs = defaultdict(set)
 	likely_mge_hgs = set([])
 	combined_consensus_similarity_handle.write('\t'.join(['GCF', 'GCF_Order', 'Homolog_Group', 'Homolog_Group_Order', 'label', 'Difference_to_Consensus_Sequence']) + '\n')
 	for i, g in enumerate(os.listdir(gcf_listing_dir)):
 		gcf_id = g.split('.txt')[0]
+
 		gcf_pop_outdir = pop_outdir + gcf_id + '/'
 		gcf_div_outdir = div_outdir + gcf_id + '/'
+		gcf_mib_outdir = mbmap_outdir + gcf_id + '/'
 
 		gcf_pop_results_unrefined = gcf_pop_outdir + 'Homolog_Group_Information.txt'
 		gcf_div_results = gcf_div_outdir + 'Relative_Divergence_Report.txt'
+		gcf_mib_results = gcf_mib_outdir + 'GCF_to_MIBiG_Relations.txt'
 
 		include_header = False
 		if i == 0: include_header = True
 		if os.path.isfile(gcf_pop_results_unrefined): writeToOpenHandle(gcf_pop_results_unrefined, combined_orthoresults_unrefined_handle, include_header)
 		if os.path.isfile(gcf_div_results): writeToOpenHandle(gcf_div_results, combined_divergence_results_handle, include_header)
+
+		if os.path.isfile(gcf_mib_results):
+			with open(gcf_mib_results) as ogmr:
+				for i, line in enumerate(ogmr):
+					line = line.strip()
+					if i == 0 and not include_header:
+						continue
+					ls = line.split('\t')
+					gcf_hg_to_mibig_prot[ls[0] + '|' + ls[2]].add(ls[3])
+					combined_mibig_handle.write(line + '\n')
 
 		hg_data = {}
 		hg_coord_info = []
@@ -519,6 +571,7 @@ def lsaBGC_AutoAnalyze():
 	combined_consensus_similarity_handle.close()
 	combined_orthoresults_unrefined_handle.close()
 	combined_divergence_results_handle.close()
+	combined_mibig_handle.close()
 
 	# Create Final R plots:
 
@@ -526,6 +579,16 @@ def lsaBGC_AutoAnalyze():
 	big_picture_heatmap_pdf_file = outdir + 'Consensus_Sequence_Similarity_of_Homolog_Groups.pdf'
 	cmd = ['Rscript', RSCRIPT_FOR_BIGPICTUREHEATMAP, species_phylogeny_file, combined_consensus_similarity_file,
 		   str(population_listing_file), big_picture_heatmap_pdf_file]
+	try:
+		util.run_cmd(cmd, logObject)
+	except Exception as e:
+		logObject.error("Had issues with creating big picture heatmap.")
+		raise RuntimeError("Had issues with creating big picture heatmap.")
+
+	# create big-picture phylo with labels
+	big_picture_phylo_pdf_file = outdir + 'Phylogeny_with_Labels.pdf'
+	cmd = ['Rscript', RSCRIPT_FOR_BIGPICTUREPHYLO, species_phylogeny_file, str(population_listing_file),
+		   big_picture_phylo_pdf_file]
 	try:
 		util.run_cmd(cmd, logObject)
 	except Exception as e:
@@ -588,20 +651,93 @@ def lsaBGC_AutoAnalyze():
 	dd_sheet.write(2, 0, 'https://github.com/Kalan-Lab/lsaBGC/wiki/10.-Population-Genetics-Analysis-of-Genes-Found-in-a-GCF#data-dictionary')
 	sl_df = util.loadSamplesIntoPandaDataFrame(input_listing_file, pop_spec_file=population_listing_file)
 	sl_df.to_excel(writer, sheet_name='Samples used in AutoAnalyze', index=False, na_rep="NA")
-	scprf_df = util.loadCustomPopGeneTableInPandaDataFrame(consolidated_popgene_report_file)
+	scprf_df = util.loadCustomPopGeneTableInPandaDataFrame(consolidated_popgene_report_file, mibig_info=gcf_hg_to_mibig_prot)
 	scprf_df.to_excel(writer, sheet_name='Overview - Simple', index=False, na_rep="NA")
 	cprf_df = util.loadTableInPandaDataFrame(multi_gcf_hgs_file)
 	cprf_df.to_excel(writer, sheet_name='Multi-GCF HGs', index=False, na_rep="NA")
 	stg_df = util.loadSampleToGCFIntoPandaDataFrame(gcf_listing_dir)
 	stg_df.to_excel(writer, sheet_name='GCF to Sample Listings', index=False, na_rep="NA")
-	cprf_df = util.loadTableInPandaDataFrame(consolidated_popgene_report_file)
+	if run_mibig_mapper:
+		mibig_df = util.loadTableInPandaDataFrame(consolidated_mibig_report_file)
+		mibig_df.to_excel(writer, sheet_name='GCFs and HGs to MIBiG Mapping', index=False, na_rep="NA")
+	cprf_df = util.loadTableInPandaDataFrame(consolidated_popgene_report_file, mibig_info=gcf_hg_to_mibig_prot)
 	cprf_df.to_excel(writer, sheet_name='Overview - Full', index=False, na_rep="NA")
-	workbook.close()
 
-	# TODO: Add formatting to the Overview - Simple sheet
-	#workbook = writer.book
-	#scprf_sheet = writer.sheets['Overview - Simple']
-	#workbook.close()
+	# format overview simple sheet
+	worksheet = writer.sheets['Overview - Simple']
+	num_rows, num_cols = scprf_df.shape
+
+	warn_format = workbook.add_format({'bg_color': '#bf241f', 'bold': True, 'font_color': '#FFFFFF'})
+	na_format = workbook.add_format({'font_color': '#a6a6a6', 'bg_color': '#FFFFFF', 'italic': True})
+	header_format = workbook.add_format(
+		{'bold': True, 'text_wrap': True, 'valign': 'top', 'fg_color': '#D7E4BC', 'border': 1})
+
+	worksheet.conditional_format('A2:BA' + str(num_rows), {'type': 'cell', 'criteria': '==', 'value': '"NA"', 'format': na_format})
+	worksheet.conditional_format('A1:BA1', {'type': 'cell', 'criteria': '!=', 'value': 'NA', 'format': header_format})
+
+	if run_mibig_mapper:
+		# warn against non-single-copy in GCF context
+		worksheet.conditional_format('I2:I' + str(num_rows), {'type': 'cell', 'criteria': '==', 'value': '"False"', 'format': warn_format})
+
+		# prop gene-clusters with hg
+		worksheet.conditional_format('N2:N' + str(num_rows),
+								 {'type': '2_color_scale', 'min_color': "#f7de99", 'max_color': "#c29006",
+								  "min_value": 0.0, "max_value": 1.0, 'min_type': 'num', 'max_type': 'num'})
+		# gene-lengths
+		worksheet.conditional_format('J2:J' + str(num_rows),
+									 {'type': '2_color_scale', 'min_color': "#a3dee3", 'max_color': "#1ebcc9",
+									  "min_value": 100, "max_value": 2500, 'min_type': 'num', 'max_type': 'num'})
+
+		# taj-d
+		worksheet.conditional_format('P2:P' + str(num_rows),
+									 {'type': '3_color_scale', 'min_color': "#f7a09c", "mid_color": "#e0e0e0",
+									  'min_type': 'num', 'max_type': 'num', 'mid_type': 'num',
+									  'max_color': "#87cefa", "min_value": -2.0, "mid_value": 0.0, "max_value": 2.0})
+
+		# beta-rd
+		worksheet.conditional_format('Q2:Q' + str(num_rows),
+									 {'type': '3_color_scale', 'min_color': "#fac087", "mid_color": "#e0e0e0",
+									  'min_type': 'num', 'max_type': 'num', 'mid_type': 'num',
+									  'max_color': "#9eb888", "min_value": 0.75, "mid_value": 1.0, "max_value": 1.25})
+
+		# max beta-rd gc
+		worksheet.conditional_format('R2:R' + str(num_rows),
+									 {'type': '3_color_scale', 'min_color': "#fac087", "mid_color": "#e0e0e0",
+									  'min_type': 'num', 'max_type': 'num', 'mid_type': 'num',
+									  'max_color': "#9eb888", "min_value": 0.75, "mid_value": 1.0, "max_value": 1.25})
+
+	else:
+		# warn against non-single-copy in GCF context
+		worksheet.conditional_format('H2:H' + str(num_rows), {'type': 'cell', 'criteria': '==', 'value': '"False"', 'format': warn_format})
+
+		# prop gene-clusters with hg
+		worksheet.conditional_format('M2:M' + str(num_rows),
+								 {'type': '2_color_scale', 'min_color': "#f7de99", 'max_color': "#c29006",
+								  "min_value": 0.0, "max_value": 1.0, 'min_type': 'num', 'max_type': 'num'})
+		# gene-lengths
+		worksheet.conditional_format('I2:I' + str(num_rows),
+									 {'type': '2_color_scale', 'min_color': "#a3dee3", 'max_color': "#1ebcc9",
+									  "min_value": 100, "max_value": 2500, 'min_type': 'num', 'max_type': 'num'})
+
+		# taj-d
+		worksheet.conditional_format('O2:O' + str(num_rows),
+									 {'type': '3_color_scale', 'min_color': "#f7a09c", "mid_color": "#e0e0e0",
+									  'min_type': 'num', 'max_type': 'num', 'mid_type': 'num',
+									  'max_color': "#87cefa", "min_value": -2.0, "mid_value": 0.0, "max_value": 2.0})
+
+		# beta-rd
+		worksheet.conditional_format('P2:P' + str(num_rows),
+									 {'type': '3_color_scale', 'min_color': "#fac087", "mid_color": "#e0e0e0",
+									  'min_type': 'num', 'max_type': 'num', 'mid_type': 'num',
+									  'max_color': "#9eb888", "min_value": 0.75, "mid_value": 1.0, "max_value": 1.25})
+
+		# max beta-rd gc
+		worksheet.conditional_format('Q2:Q' + str(num_rows),
+									 {'type': '3_color_scale', 'min_color': "#fac087", "mid_color": "#e0e0e0",
+									  'min_type': 'num', 'max_type': 'num', 'mid_type': 'num',
+									  'max_color': "#9eb888", "min_value": 0.75, "mid_value": 1.0, "max_value": 1.25})
+
+	workbook.close()
 
 	# clean up final directory:
 	final_results_dir = outdir + 'Final_Results/'

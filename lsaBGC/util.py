@@ -19,11 +19,69 @@ import numpy as np
 import gzip
 import pathlib
 import operator
+import warnings
+warnings.filterwarnings('ignore')
+
 
 valid_alleles = set(['A', 'C', 'G', 'T'])
 curr_dir = os.path.abspath(pathlib.Path(__file__).parent.resolve()) + '/'
 main_dir = '/'.join(curr_dir.split('/')[:-2]) + '/'
 
+def parseCDSCoord(str_gbk_loc):
+	try:
+		start = None
+		end = None
+		direction = None
+		all_coords = []
+		is_multi_part = False
+		if not 'join' in str(str_gbk_loc) and not 'order' in str(str_gbk_loc):
+			start = min([int(x.strip('>').strip('<')) for x in
+						 str(str_gbk_loc)[1:].split(']')[0].split(':')]) + 1
+			end = max([int(x.strip('>').strip('<')) for x in
+					   str(str_gbk_loc)[1:].split(']')[0].split(':')])
+			direction = str(str_gbk_loc).split('(')[1].split(')')[0]
+			all_coords.append([start, end, direction])
+		elif 'order' in str(str_gbk_loc):
+			is_multi_part = True
+			all_starts = []
+			all_ends = []
+			all_directions = []
+			for exon_coord in str(str_gbk_loc)[6:-1].split(', '):
+				ec_start = min(
+					[int(x.strip('>').strip('<')) for x in exon_coord[1:].split(']')[0].split(':')]) + 1
+				ec_end = max(
+					[int(x.strip('>').strip('<')) for x in exon_coord[1:].split(']')[0].split(':')])
+				ec_direction = exon_coord.split('(')[1].split(')')[0]
+				all_starts.append(ec_start)
+				all_ends.append(ec_end)
+				all_directions.append(ec_direction)
+				all_coords.append([ec_start, ec_end, ec_direction])
+			assert (len(set(all_directions)) == 1)
+			start = min(all_starts)
+			end = max(all_ends)
+			direction = all_directions[0]
+		else:
+			is_multi_part = True
+			all_starts = []
+			all_ends = []
+			all_directions = []
+			for exon_coord in str(str_gbk_loc)[5:-1].split(', '):
+				ec_start = min(
+					[int(x.strip('>').strip('<')) for x in exon_coord[1:].split(']')[0].split(':')]) + 1
+				ec_end = max(
+					[int(x.strip('>').strip('<')) for x in exon_coord[1:].split(']')[0].split(':')])
+				ec_direction = exon_coord.split('(')[1].split(')')[0]
+				all_starts.append(ec_start)
+				all_ends.append(ec_end)
+				all_directions.append(ec_direction)
+				all_coords.append([ec_start, ec_end, ec_direction])
+			assert (len(set(all_directions)) == 1)
+			start = min(all_starts)
+			end = max(all_ends)
+			direction = all_directions[0]
+		return(all_coords, start, end, direction, is_multi_part)
+	except Exception as e:
+		raise RuntimeError(traceback.format_exc())
 
 def writeRefinedProteomes(s, sample_bgcs, refined_proteomes_outdir, logObject):
 	try:
@@ -692,49 +750,7 @@ def createBGCGenbank(full_genbank_file, new_genbank_file, scaffold, start_coord,
 
 				updated_features = []
 				for feature in rec.features:
-					start = None
-					end = None
-					direction = None
-					all_coords = []
-
-					if not 'join' in str(feature.location) and not 'order' in str(feature.location):
-						start = min([int(x.strip('>').strip('<')) for x in
-									 str(feature.location)[1:].split(']')[0].split(':')]) + 1
-						end = max(
-							[int(x.strip('>').strip('<')) for x in str(feature.location)[1:].split(']')[0].split(':')])
-						direction = str(feature.location).split('(')[1].split(')')[0]
-						all_coords.append([start, end, direction])
-					elif 'order' in str(feature.location):
-						all_starts = []
-						all_ends = []
-						all_directions = []
-						for exon_coord in str(feature.location)[6:-1].split(', '):
-							start = min(
-								[int(x.strip('>').strip('<')) for x in exon_coord[1:].split(']')[0].split(':')]) + 1
-							end = max([int(x.strip('>').strip('<')) for x in exon_coord[1:].split(']')[0].split(':')])
-							direction = exon_coord.split('(')[1].split(')')[0]
-							all_starts.append(start)
-							all_ends.append(end)
-							all_directions.append(direction)
-							all_coords.append([start, end, direction])
-						start = min(all_starts)
-						end = max(all_ends)
-					else:
-						all_starts = []
-						all_ends = []
-						all_directions = []
-						for exon_coord in str(feature.location)[5:-1].split(', '):
-							start = min(
-								[int(x.strip('>').strip('<')) for x in exon_coord[1:].split(']')[0].split(':')]) + 1
-							end = max([int(x.strip('>').strip('<')) for x in exon_coord[1:].split(']')[0].split(':')])
-							direction = exon_coord.split('(')[1].split(')')[0]
-							all_starts.append(start)
-							all_ends.append(end)
-							all_directions.append(direction)
-							all_coords.append([start, end, direction])
-						start = min(all_starts)
-						end = max(all_ends)
-
+					all_coords, start, end, direction, is_multi_part = parseCDSCoord(str(feature.location))
 					feature_coords = set(range(start, end + 1))
 					if len(feature_coords.intersection(pruned_coords)) > 0:
 						fls = []
@@ -807,28 +823,7 @@ def parseGenbankAndFindBoundaryGenes(inputs):
 			if not feature.type == 'CDS': continue
 			locus_tag = feature.qualifiers.get('locus_tag')[0]
 
-			start = None
-			end = None
-			direction = None
-			if not 'join' in str(feature.location):
-				start = min(
-					[int(x.strip('>').strip('<')) for x in str(feature.location)[1:].split(']')[0].split(':')]) + 1
-				end = max([int(x.strip('>').strip('<')) for x in str(feature.location)[1:].split(']')[0].split(':')])
-				direction = str(feature.location).split('(')[1].split(')')[0]
-			else:
-				all_starts = []
-				all_ends = []
-				all_directions = []
-				for exon_coord in str(feature.location)[5:-1].split(', '):
-					start = min([int(x.strip('>').strip('<')) for x in exon_coord[1:].split(']')[0].split(':')]) + 1
-					end = max([int(x.strip('>').strip('<')) for x in exon_coord[1:].split(']')[0].split(':')])
-					direction = exon_coord.split('(')[1].split(')')[0]
-					all_starts.append(start)
-					all_ends.append(end)
-					all_directions.append(direction)
-				start = min(all_starts)
-				end = max(all_ends)
-				direction = all_directions[0]
+			all_coords, start, end, direction, is_multi_part = parseCDSCoord(str(feature.location))
 
 			gene_location[locus_tag] = {'scaffold': scaffold, 'start': start, 'end': end, 'direction': direction}
 			scaffold_genes[scaffold].add(locus_tag)
@@ -1490,35 +1485,7 @@ def processBGCGenbanks(bgc_listing_file, bgc_mappings, bgc_prediction_software, 
 						for feature in rec.features:
 							if feature.type == 'CDS':
 								try:
-									start = None
-									end = None
-									all_starts = []
-									all_ends = []
-									all_directions = []
-									all_coords = []
-									if not 'join' in str(feature.location):
-										start = min(
-											[int(x.strip('>').strip('<')) for x in
-											 str(feature.location)[1:].split(']')[0].split(':')]) + 1
-										end = max([int(x.strip('>').strip('<')) for x in
-												   str(feature.location)[1:].split(']')[0].split(':')])
-										direction = str(feature.location).split('(')[1].split(')')[0]
-										all_starts.append(start)
-										all_ends.append(end)
-									else:
-										all_starts = []
-										all_ends = []
-										all_directions = []
-										for exon_coord in str(feature.location)[5:-1].split(', '):
-											start = min([int(x.strip('>').strip('<')) for x in
-														 exon_coord[1:].split(']')[0].split(':')]) + 1
-											end = max([int(x.strip('>').strip('<')) for x in
-													   exon_coord[1:].split(']')[0].split(':')])
-											direction = exon_coord.split('(')[1].split(')')[0]
-											all_starts.append(start)
-											all_ends.append(end)
-									start = min(all_starts)
-									end = max(all_ends)
+									all_coords, start, end, direction, is_multi_part = parseCDSCoord(str(feature.location))
 									start = scaff_start + start
 									end = scaff_start + end
 									loc_tuple = tuple([scaff_id, str(start), str(end)])
@@ -1558,39 +1525,7 @@ def extractProteinsFromBGCs(sample_bgcs, bgc_prot_directory, logObject):
 						for feature in rec.features:
 							if feature.type == 'CDS':
 								prot_lt = feature.qualifiers.get('locus_tag')[0]
-								start = None
-								end = None
-								direction = None
-								all_starts = []
-								all_ends = []
-								all_directions = []
-								if not 'join' in str(feature.location):
-									start = min(
-										[int(x.strip('>').strip('<')) for x in
-										 str(feature.location)[1:].split(']')[0].split(':')]) + 1
-									end = max([int(x.strip('>').strip('<')) for x in
-											   str(feature.location)[1:].split(']')[0].split(':')])
-									direction = str(feature.location).split('(')[1].split(')')[0]
-									all_starts.append(start);
-									all_ends.append(end);
-									all_directions.append(direction)
-								else:
-									all_starts = []
-									all_ends = []
-									all_directions = []
-									for exon_coord in str(feature.location)[5:-1].split(', '):
-										start = min([int(x.strip('>').strip('<')) for x in
-													 exon_coord[1:].split(']')[0].split(':')]) + 1
-										end = max([int(x.strip('>').strip('<')) for x in
-												   exon_coord[1:].split(']')[0].split(':')])
-										direction = exon_coord.split('(')[1].split(')')[0]
-										all_starts.append(start);
-										all_ends.append(end);
-										all_directions.append(direction)
-								assert (len(set(all_directions)) == 1)
-								start = min(all_starts)
-								end = max(all_ends)
-								direction = all_directions[0]
+								all_coords, start, end, direction, is_multi_part = parseCDSCoord(str(feature.location))
 								prot_seq = str(feature.qualifiers.get('translation')[0]).replace('*', '')
 								sample_bgc_prots[sample][bgc].add(prot_lt)
 								samp_bgc_prot_handle.write('>' + ' '.join([str(x) for x in
@@ -1987,23 +1922,7 @@ def incorporateBGCProteinsIntoProteomesAndGenbanks(sample_bgc_proteins, sample_g
 							if feature.type == 'CDS':
 								prot_lt = feature.qualifiers.get('locus_tag')[0]
 								if prot_lt in bgc_prots_1x:
-									all_coords = []
-									if not 'join' in str(feature.location):
-										start = scaff_start + min(
-											[int(x.strip('>').strip('<')) for x in
-											 str(feature.location)[1:].split(']')[0].split(':')]) + 1
-										end = scaff_start + max([int(x.strip('>').strip('<')) for x in
-																 str(feature.location)[1:].split(']')[0].split(':')])
-										direction = str(feature.location).split('(')[1].split(')')[0]
-										all_coords.append([start, end, direction])
-									else:
-										for exon_coord in str(feature.location)[5:-1].split(', '):
-											start = scaff_start + min([int(x.strip('>').strip('<')) for x in
-																	   exon_coord[1:].split(']')[0].split(':')]) + 1
-											end = scaff_start + max([int(x.strip('>').strip('<')) for x in
-																	 exon_coord[1:].split(']')[0].split(':')])
-											direction = exon_coord.split('(')[1].split(')')[0]
-											all_coords.append([start, end, direction])
+									all_coords, start, end, direction, is_multi_part = parseCDSCoord(str(feature.location))
 									fls = []
 									for sc, ec, dc in all_coords:
 										dir = 1
@@ -2073,17 +1992,7 @@ def incorporateBGCProteinsIntoProteomesAndGenbanks(sample_bgc_proteins, sample_g
 						feature.qualifiers.move_to_end('translation')
 						if prot_lt in sample_lts_to_prune: continue
 						updated_features.append(feature)
-						all_starts = []
-						if not 'join' in str(feature.location):
-							start = min([int(x.strip('>').strip('<')) for x in
-										 str(feature.location)[1:].split(']')[0].split(':')]) + 1
-							all_starts.append(start)
-						else:
-							for exon_coord in str(feature.location)[5:-1].split(', '):
-								start = min(
-									[int(x.strip('>').strip('<')) for x in exon_coord[1:].split(']')[0].split(':')]) + 1
-								all_starts.append(start)
-						start = min(all_starts)
+						all_coords, start, end, direction, is_multi_part = parseCDSCoord(str(feature.location))
 						starts.append([cds_iter, start])
 						cds_iter += 1
 				for feature in sample_lts_to_add_genbank_features[rec.id]:
@@ -2095,17 +2004,7 @@ def incorporateBGCProteinsIntoProteomesAndGenbanks(sample_bgc_proteins, sample_g
 							feature.qualifiers['product'] = [protein_annotations[sample][prot_lt]]
 						feature.qualifiers.move_to_end('translation')
 						updated_features.append(feature)
-						all_starts = []
-						if not 'join' in str(feature.location):
-							start = min([int(x.strip('>').strip('<')) for x in
-										 str(feature.location)[1:].split(']')[0].split(':')]) + 1
-							all_starts.append(start)
-						else:
-							for exon_coord in str(feature.location)[5:-1].split(', '):
-								start = min(
-									[int(x.strip('>').strip('<')) for x in exon_coord[1:].split(']')[0].split(':')]) + 1
-								all_starts.append(start)
-						start = min(all_starts)
+						all_coords, start, end, direction, is_multi_part = parseCDSCoord(str(feature.location))
 						starts.append([cds_iter, start])
 						cds_iter += 1
 				sorted_updated_features = []
@@ -2225,22 +2124,7 @@ def identifyParalogsAndCreateResultFiles(samp_hg_lts, lt_to_hg, sample_bgc_prote
 							if feature.type == 'CDS':
 								prot_lt = feature.qualifiers.get('locus_tag')[0]
 								if not prot_lt in bgc_prots_1x: continue
-								all_coords = []
-								if not 'join' in str(feature.location):
-									start = scaff_start + min(
-										[int(x) for x in str(feature.location)[1:].split(']')[0].split(':')]) + 1
-									end = scaff_start + max(
-										[int(x) for x in str(feature.location)[1:].split(']')[0].split(':')])
-									direction = str(feature.location).split('(')[1].split(')')[0]
-									all_coords.append([start, end, direction])
-								else:
-									for exon_coord in str(feature.location)[5:-1].split(', '):
-										start = scaff_start + min([int(x.strip('>').strip('<')) for x in
-																   exon_coord[1:].split(']')[0].split(':')]) + 1
-										end = scaff_start + max([int(x.strip('>').strip('<')) for x in
-																 exon_coord[1:].split(']')[0].split(':')])
-										direction = exon_coord.split('(')[1].split(')')[0]
-										all_coords.append([start, end, direction])
+								all_coords, start, end, direction, is_multi_part = parseCDSCoord(str(feature.location))
 								fls = []
 								for sc, ec, dc in all_coords:
 									dir = 1
@@ -2300,17 +2184,7 @@ def identifyParalogsAndCreateResultFiles(samp_hg_lts, lt_to_hg, sample_bgc_prote
 						feature.qualifiers.move_to_end('translation')
 						if prot_lt in sample_lts_to_prune: continue
 						updated_features.append(feature)
-						all_starts = []
-						if not 'join' in str(feature.location):
-							start = min([int(x.strip('>').strip('<')) for x in
-										 str(feature.location)[1:].split(']')[0].split(':')]) + 1
-							all_starts.append(start)
-						else:
-							for exon_coord in str(feature.location)[5:-1].split(', '):
-								start = min(
-									[int(x.strip('>').strip('<')) for x in exon_coord[1:].split(']')[0].split(':')]) + 1
-								all_starts.append(start)
-						start = min(all_starts)
+						all_coords, start, end, direction, is_multi_part = parseCDSCoord(str(feature.location))
 						starts.append([cds_iter, start])
 						cds_iter += 1
 				for feature in sample_lts_to_add_genbank_features[rec.id]:
@@ -2322,17 +2196,7 @@ def identifyParalogsAndCreateResultFiles(samp_hg_lts, lt_to_hg, sample_bgc_prote
 							feature.qualifiers['product'] = [protein_annotations[sample][prot_lt]]
 						feature.qualifiers.move_to_end('translation')
 						updated_features.append(feature)
-						all_starts = []
-						if not 'join' in str(feature.location):
-							start = min([int(x.strip('>').strip('<')) for x in
-										 str(feature.location)[1:].split(']')[0].split(':')]) + 1
-							all_starts.append(start)
-						else:
-							for exon_coord in str(feature.location)[5:-1].split(', '):
-								start = min(
-									[int(x.strip('>').strip('<')) for x in exon_coord[1:].split(']')[0].split(':')]) + 1
-								all_starts.append(start)
-						start = min(all_starts)
+						all_coords, start, end, direction, is_multi_part = parseCDSCoord(str(feature.location))
 						starts.append([cds_iter, start])
 						cds_iter += 1
 				sorted_updated_features = []
@@ -2751,7 +2615,7 @@ def calculateTajimasD(sequences):
 		D = (float(pi - (float(S) / a1)) / math.sqrt((e1 * S) + ((e2 * S) * (S - 1))))
 		return (D)
 	else:
-		return ("NA")
+		return ("< 3 segregating sites")
 
 
 def is_numeric(x):
@@ -2764,8 +2628,11 @@ def is_numeric(x):
 
 def castToNumeric(x):
 	try:
-		x = float(x)
-		return (x)
+		if x != '< 3 segregating sites':
+			x = float(x)
+			return(x)
+		else:
+			return(x)
 	except:
 		return float('nan')
 
@@ -2848,16 +2715,25 @@ def loadSamplesIntoPandaDataFrame(sample_annot_file, pop_spec_file=None):
 	return panda_df
 
 
-def loadTableInPandaDataFrame(input_file):
+def loadTableInPandaDataFrame(input_file, mibig_info=None):
 	import pandas as pd
 	panda_df = None
 	try:
 		data = []
+		mibig_col = []
 		with open(input_file) as oif:
-			for line in oif:
+			for i, line in enumerate(oif):
 				line = line.strip('\n')
 				ls = line.split('\t')
 				data.append(ls)
+				gcf = ls[0]
+				hg = ls[2]
+				key = gcf + '|' + hg
+				if mibig_info != None and i > 0:
+					if len(mibig_info[key]) > 0:
+						mibig_col.append('; '.join(sorted(mibig_info[key])))
+					else:
+						mibig_col.append('NA')
 
 		panda_dict = {}
 		for ls in zip(*data):
@@ -2868,6 +2744,8 @@ def loadTableInPandaDataFrame(input_file):
 				for val in ls[1:]:
 					cast_vals.append(castToNumeric(val))
 			panda_dict[key] = cast_vals
+			if key == 'annotation' and mibig_info != None:
+				panda_dict['MIBiG mapping'] = mibig_col
 		panda_df = pd.DataFrame(panda_dict)
 
 	except Exception as e:
@@ -2875,7 +2753,7 @@ def loadTableInPandaDataFrame(input_file):
 	return panda_df
 
 
-def loadCustomPopGeneTableInPandaDataFrame(input_file):
+def loadCustomPopGeneTableInPandaDataFrame(input_file, mibig_info=None):
 	import pandas as pd
 	panda_df = None
 	try:
@@ -2886,10 +2764,19 @@ def loadCustomPopGeneTableInPandaDataFrame(input_file):
 							'most_negative_population_Tajimas_D', 'most_positive_population_Tajimas_D',
 							'population_entropy', 'median_fst_like_estimate'}
 		data = []
+		mibig_col = []
 		with open(input_file) as oif:
-			for line in oif:
+			for i, line in enumerate(oif):
 				line = line.strip('\n')
 				ls = line.split('\t')
+				gcf = ls[0]
+				hg = ls[2]
+				key = gcf + '|' + hg
+				if mibig_info != None and i > 0:
+					if len(mibig_info[key]) > 0:
+						mibig_col.append('; '.join(sorted(mibig_info[key])))
+					else:
+						mibig_col.append('NA')
 				data.append(ls)
 
 		panda_dict = {}
@@ -2917,10 +2804,13 @@ def loadCustomPopGeneTableInPandaDataFrame(input_file):
 					else:
 						cleaned_annots.append('; '.join(ca))
 				panda_dict[key] = cleaned_annots
+				if mibig_info != None:
+					panda_dict['MIBiG mapping'] = mibig_col
 			else:
 				key = ' '.join(ls[0].split('_'))
 				cast_vals = ls[1:]
 				if key in numeric_columns:
+
 					cast_vals = []
 					for val in ls[1:]:
 						cast_vals.append(castToNumeric(val))

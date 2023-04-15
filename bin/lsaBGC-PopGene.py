@@ -42,6 +42,8 @@ import argparse
 from collections import defaultdict
 from lsaBGC import util
 from lsaBGC.classes.GCF import GCF
+import warnings
+warnings.filterwarnings('ignore')
 
 def create_parser():
     """ Parse arguments """
@@ -54,19 +56,18 @@ def create_parser():
 	observed in BGCs belonging to a single GCF.
 	""", formatter_class=argparse.RawTextHelpFormatter)
 
-    parser.add_argument('-g', '--gcf_listing', help='BGC listings file for a gcf. Tab delimited: 1st column lists sample name while the 2nd column is the path to a BGC prediction in Genbank format.', required=True)
-    parser.add_argument('-m', '--orthofinder_matrix', help="OrthoFinder matrix.", required=True)
-    parser.add_argument('-i', '--gcf_id', help="GCF identifier.", required=False, default='GCF_X')
+    parser.add_argument('-g', '--gcf_listing', help='BGC listings file for a gcf. Tab delimited: 1st column lists sample name\nwhile the 2nd column is the path to a BGC prediction in Genbank format.', required=True)
+    parser.add_argument('-m', '--orthofinder_matrix', help="OrthoFinder homolog by sample matrix.", required=True)
+    parser.add_argument('-i', '--gcf_id', help="GCF identifier [Default is GCF_X].", required=False, default='GCF_X')
     parser.add_argument('-o', '--output_directory', help="Path to output directory.", required=True)
-    parser.add_argument('-k', '--sample_set', help="Sample set to keep in analysis. Should be file with one sample id per line.", required=False)
-    parser.add_argument('-s', '--species_phylogeny', help="The species phylogeny in Newick format. Specifies that dN/dS should be calculated by comparing extant homolog-group sequences to ancestral state reconstruction. Does not currently work!!!", required=False, default=None)
-    parser.add_argument('-u', '--population_classification', help='Popualation classifications for each sample. Tab delemited: 1st column lists sample name while the 2nd column is an identifier for the population the sample belongs to.', required=False, default=None)
-    parser.add_argument('-p', '--bgc_prediction_software', help='Software used to predict BGCs (Options: antiSMASH, DeepBGC, GECCO).\nDefault is antiSMASH.', default='antiSMASH', required=False)
-    parser.add_argument('-c', '--cpus', type=int, help="The number of cpus to use.", required=False, default=1)
-    parser.add_argument('-d', '--regular_mafft', action='store_true', help="Run mafft --linsi and not the MAGUS divide-and-conquer approach which allows for scalability and more efficient computing.", default=False, required=False)
+    parser.add_argument('-k', '--sample_set', help="Sample set to keep in analysis. Should be file with one\nsample id per line.", required=False)
+    parser.add_argument('-u', '--population_classification', help='Popualation classifications for each sample. Tab delemited: 1st column lists sample\nname while the 2nd column is an identifier for the population the sample\nbelongs to.', required=False, default=None)
+    parser.add_argument('-p', '--bgc_prediction_software', help='Software used to predict BGCs (Options: antiSMASH, DeepBGC, GECCO)\n[Default is antiSMASH].', default='antiSMASH', required=False)
+    parser.add_argument('-d', '--regular_mafft', action='store_true', help="Run mafft --linsi and not the MAGUS divide-and-conquer approach which\nallows for scalability and more efficient computing.", default=False, required=False)
     parser.add_argument('-e', '--each_pop', action='store_true', help='Run analyses individually for each population as well.', required=False, default=False)
-    parser.add_argument('-t', '--filter_for_outliers', action='store_true', help='Filter instances of homolog groups which deviate too much from the median gene length observed for the initial set of proteins.', required=False, default=False)
-    parser.add_argument('-w', '--expected_similarities', help="Path to file listing expected similarities between genomes/samples. This is\ncomputed most easily by running lsaBGC-Ready.py with '-t' specified, which will estimate\nsample to sample similarities based on alignment used to create species phylogeny.", required=False, default=None)
+    parser.add_argument('-t', '--filter_for_outliers', action='store_true', help='Filter instances of homolog groups which deviate too much from\nthe median gene length observed for the initial set of proteins.', required=False, default=False)
+    parser.add_argument('-w', '--expected_similarities', help="Path to file listing expected similarities between genomes/samples. This is\ncomputed most easily by running lsaBGC-Ready.py with '-t' specified,\nwhich will estimate\nsample to sample similarities based on alignment used to create\nspecies phylogeny.", required=False, default=None)
+    parser.add_argument('-c', '--cpus', type=int, help="The number of CPUs to use [Default is 1].", required=False, default=1)
     args = parser.parse_args()
 
     return args
@@ -102,7 +103,7 @@ def lsaBGC_PopGene():
     PARSE OPTIONAL INPUTS
     """
 
-    species_phylogeny = myargs.species_phylogeny
+    #species_phylogeny = myargs.species_phylogeny
     sample_set_file = myargs.sample_set
     gcf_id = myargs.gcf_id
     bgc_prediction_software = myargs.bgc_prediction_software.upper()
@@ -131,12 +132,12 @@ def lsaBGC_PopGene():
     logObject.info("Saving parameters for future records.")
     parameters_file = outdir + 'Parameter_Inputs.txt'
     parameter_values = [gcf_listing_file, orthofinder_matrix_file, outdir, gcf_id, bgc_prediction_software,
-                        population_classification_file, sample_set_file, species_phylogeny, run_for_each_pop,
+                        population_classification_file, sample_set_file, run_for_each_pop,
                         filter_for_outliers, expected_distances, regular_mafft, cpus]
     parameter_names = ["GCF Listing File", "OrthoFinder Orthogroups.csv File", "Output Directory", "GCF Identifier",
                        "BGC Prediction Software", "Populations Specification/Listing File", "Sample Retention Set",
-                       "Species Phylogeny Newick File", "Run Analysis for Each Population",
-                       "Filter for Outlier Homolog Group Instances", "File with Expected Amino Acid Differences Between Genomes/Samples",
+                       "Run Analysis for Each Population", "Filter for Outlier Homolog Group Instances",
+                       "File with Expected Amino Acid Differences Between Genomes/Samples",
                        "AAI Similarity Instead of ANI", "Use Regular MAFFT - not MAGUS?", "cpus"]
     util.logParametersToFile(parameters_file, parameter_names, parameter_values)
     logObject.info("Done saving parameters!")
@@ -202,13 +203,13 @@ def lsaBGC_PopGene():
         population_analysis_on = True
     if run_for_each_pop:
         for pop in populations:
-            GCF_Object.runPopulationGeneticsAnalysis(outdir, cpus=cpus, population=pop, filter_outliers=False, population_analysis_on=population_analysis_on, gw_pairwise_similarities=gw_pairwise_similarities, use_translation=True, species_phylogeny=species_phylogeny)
+            GCF_Object.runPopulationGeneticsAnalysis(outdir, cpus=cpus, population=pop, filter_outliers=False, population_analysis_on=population_analysis_on, gw_pairwise_similarities=gw_pairwise_similarities, use_translation=True)
             if filter_for_outliers:
-                GCF_Object.runPopulationGeneticsAnalysis(outdir, cpus=cpus, population=pop, filter_outliers=True, population_analysis_on=population_analysis_on, gw_pairwise_similarities=gw_pairwise_similarities, use_translation=True, species_phylogeny=species_phylogeny)
+                GCF_Object.runPopulationGeneticsAnalysis(outdir, cpus=cpus, population=pop, filter_outliers=True, population_analysis_on=population_analysis_on, gw_pairwise_similarities=gw_pairwise_similarities, use_translation=True)
     else:
-        GCF_Object.runPopulationGeneticsAnalysis(outdir, cpus=cpus, population=None, filter_outliers=False, population_analysis_on=population_analysis_on, gw_pairwise_similarities=gw_pairwise_similarities, use_translation=True, species_phylogeny=species_phylogeny)
+        GCF_Object.runPopulationGeneticsAnalysis(outdir, cpus=cpus, population=None, filter_outliers=False, population_analysis_on=population_analysis_on, gw_pairwise_similarities=gw_pairwise_similarities, use_translation=True)
         if filter_for_outliers:
-            GCF_Object.runPopulationGeneticsAnalysis(outdir, cpus=cpus, population=None, filter_outliers=True, population_analysis_on=population_analysis_on, gw_pairwise_similarities=gw_pairwise_similarities, use_translation=True, species_phylogeny=species_phylogeny)
+            GCF_Object.runPopulationGeneticsAnalysis(outdir, cpus=cpus, population=None, filter_outliers=True, population_analysis_on=population_analysis_on, gw_pairwise_similarities=gw_pairwise_similarities, use_translation=True)
     logObject.info("Successfully ran population genetics and evolutionary analyses of each codon alignment.")
 
     # Write checkpoint file for lsaBGC-AutoAnalyze.py

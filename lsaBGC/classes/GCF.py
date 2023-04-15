@@ -27,8 +27,8 @@ from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 from Bio.codonalign.codonseq import CodonSeq, cal_dn_ds
 from lsaBGC.classes.BGC import BGC
+warnings.filterwarnings('ignore')
 
-warnings.filterwarnings("ignore")
 # updated 07/22/2022 to have key term be transpos instead of transp - because of transporter now appearing in definitions
 # due to switch from Prokka annotation to custom KO/PGAP annotations
 mges = set(['transpos', 'integrase'])
@@ -122,6 +122,28 @@ class GCF(Pan):
 		except Exception as e:
 			if self.logObject:
 				self.logObject.error("Issues with identifying key homolog groups.")
+				self.logObject.error(traceback.format_exc())
+			raise RuntimeError(traceback.format_exc())
+
+	def aggregateProteins(self, gcf_prots_file, draft_mode=False):
+		"""
+		function to aggregate protein sequences from BGC genbanks and output to a file in FASTA format.
+		"""
+		try:
+			gpf_handle = open(gcf_prots_file, 'w')
+			for bgc in self.bgc_genes:
+				sample = self.bgc_sample[bgc]
+				set_id = bgc
+				if draft_mode:
+					set_id = sample
+				for lt in self.bgc_genes[bgc]:
+					lt_prot_seq = self.comp_gene_info[lt]['prot_seq']
+					gpf_handle.write('>' + set_id + '|' + lt + '\n' + lt_prot_seq + '\n')
+			gpf_handle.close()
+			assert(os.path.isfile(gcf_prots_file))
+		except Exception as e:
+			if self.logObject:
+				self.logObject.error("Issues with aggregating proteins from BGCs belonging to GCF to a FASTA file.")
 				self.logObject.error(traceback.format_exc())
 			raise RuntimeError(traceback.format_exc())
 
@@ -3028,7 +3050,7 @@ def popgen_analysis_of_hg(inputs):
 
 		# calculate Tajima's D
 		tajimas_d = util.calculateTajimasD(list(sequences_filtered.values()))
-		if tajimas_d != 'NA':
+		if tajimas_d != '< 3 segregating sites':
 			tajimas_d = round(tajimas_d, 2)
 
 	prop_samples_with_hg = len(samples) / float(len(set(bgc_sample.values())))
@@ -3083,7 +3105,7 @@ def popgen_analysis_of_hg(inputs):
 					population_sequences.append(sequences_filtered[seq_id])
 			if len(population_sequences) >= 4 and len(list(sequences_filtered.values())[0]) >= 21:
 				p_tajimas_d = util.calculateTajimasD(population_sequences)
-				if p_tajimas_d != 'NA':
+				if p_tajimas_d != '< 3 segregating sites':
 					p_tajimas_d = round(p_tajimas_d, 3)
 					all_tajimas_d.append(p_tajimas_d)
 					if p_tajimas_d > most_positive_tajimas_d[1]:
