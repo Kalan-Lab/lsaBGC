@@ -642,6 +642,8 @@ def lsaBGC_AutoAnalyze():
 	multi_gcf_hgs_handle.close()
 	corason_reference_faa_handle.close()
 
+	if not run_mibig_mapper: gcf_hg_to_mibig_prot = None
+	
 	# create Excel spreadsheet
 	writer = pd.ExcelWriter(outdir + 'lsaBGC_Pan_Secondary_Metabolome_Overview.xlsx', engine='xlsxwriter')
 	workbook = writer.book
