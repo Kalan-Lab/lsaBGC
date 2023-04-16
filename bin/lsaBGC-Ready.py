@@ -108,6 +108,9 @@ def create_parser():
     parser.add_argument('-t', '--run_gtotree', action='store_true', help='Whether to create phylogeny and expected sample-vs-sample\ndivergence for downstream analyses using GToTree.', required=False, default=False)
     parser.add_argument('-gtm', '--gtotree_model', help='Set of core genes to use for phylogeny construction in GToTree\n[Default is Universal_Hug_et_al].', required=False, default="Universal_Hug_et_al")
     parser.add_argument('-lc', '--lsabgc_cluster', action='store_true', help='Run lsaBGC-Cluster with default parameters. Note, we recommend running lsaBGC-Cluster\nmanually and exploring parameters through its ability to generate a user-report for setting\nclustering parameters.', required=False, default=False)
+    parser.add_argument('-lci', '--lsabgc_cluster_inflation', type=float, help='Value for MCL inflation parameter to use in lsaBGC-Cluster [Default is 4.0].', required=False, default=4.0)
+    parser.add_argument('-lcj', '--lsabgc_cluster_jaccard', type=float, help='Minimal Jaccard Index cutoff to regard two BGCs as potentially homologous\nin lsaBGC-Cluster [Default is 20.0].', required=False, default=20.0)
+    parser.add_argument('-lcr', '--lsabgc_cluster_synteny', type=float, help='Minimal absolute correlation coefficient to measure syntenic similarity and\nregard two BGCs as potentially homologous in lsaBGC-Cluster [Default is 0.7].', required=False, default=0.7)
     parser.add_argument('-le', '--lsabgc_expansion', action='store_true', help='Run lsaBGC-AutoExpansion with default parameters. Assumes either "--bigscape_results" or\n"--lsabgc_cluster" is specified.', default=False, required=False)
     parser.add_argument('-k', '--keep_intermediates', action='store_true', help='Keep intermediate directories / files which are likely not\nuseful for downstream analyses.', required=False, default=False)
     parser.add_argument('-spe', '--skip_primary_expansion', action='store_true', help='Skip expansion on primary genomes as well.', required=False, default=False)
@@ -169,6 +172,9 @@ def lsaBGC_Ready():
     keep_intermediates = myargs.keep_intermediates
     skip_primary_expansion = myargs.skip_primary_expansion
     use_pyrodigal = myargs.use_pyrodigal
+    lsabgc_cluster_inflation = myargs.lsabgc_cluster_inflation
+    lsabgc_cluster_jaccard = myargs.lsabgc_cluster_jaccard
+    lsabgc_cluster_synteny = myargs.lsabgc_cluster_synteny
 
     try:
         assert(orthofinder_mode in set(['GENOME_WIDE', 'BGC_ONLY']))
@@ -237,12 +243,15 @@ def lsaBGC_Ready():
     parameters_file = outdir + 'Parameter_Inputs.txt'
     parameter_values = [genome_listing_file, bgc_genbank_listing_file, outdir, additional_genome_listing_file,
                         bgc_prediction_software, orthofinder_mode, bigscape_results_dir, annotate, run_lsabgc_cluster,
-                        run_lsabgc_expansion, keep_intermediates, use_pyrodigal, cpus]
+                        lsabgc_cluster_inflation, lsabgc_cluster_jaccard, lsabgc_cluster_synteny, run_lsabgc_expansion,
+                        keep_intermediates, use_pyrodigal, cpus]
     parameter_names = ["Primary Genome Listing File", "BGC Predictions Genbanks Listing File", "Output Directory",
                        "Additional Genome Listing File", "BGC Prediction Software", "OrthoFinder Mode",
                        "BiG-SCAPE Results Directory", "Perform KOfam/PGAP Annotation?", "Run lsaBGC-Cluster Analysis?",
+                       "Inflation Parameter Value for MCL clustering in lsaBGC-Cluster",
+                       "Jaccard Index Threshold for lsaBGC-Cluster", "Syntenic Similarity Threshold for lsaBGC-Cluster",
                        "Run lsaBGC-AutoExpansion Analysis?", "Keep Intermediate Files/Directories?",
-                       "Use pyrodigal instead of prodigal", "Number of cpus"]
+                       "Use pyrodigal instead of prodigal", "Number of CPUs"]
     util.logParametersToFile(parameters_file, parameter_names, parameter_values)
     logObject.info("Done saving parameters!")
 
@@ -472,8 +481,9 @@ def lsaBGC_Ready():
     elif run_lsabgc_cluster:
         lsabgc_cluster_results_dir = outdir + 'lsaBGC_Cluster_Results/'
         lsabgc_cluster_cmd = ['lsaBGC-Cluster.py', '-b', primary_bgc_listing_file, '-m', primary_orthofinder_matrix_file,
-                              '-c', str(cpus), '-o', lsabgc_cluster_results_dir, '-r', '0.7', '-i', '4.0', '-j',
-                              '20.0', '-p', bgc_prediction_software]
+                              '-c', str(cpus), '-o', lsabgc_cluster_results_dir, '-r', str(lsabgc_cluster_synteny),
+                              '-i', str(lsabgc_cluster_inflation), '-j', str(lsabgc_cluster_jaccard), '-p',
+                              bgc_prediction_software]
         try:
             subprocess.call(' '.join(lsabgc_cluster_cmd), shell=True, stdout=subprocess.DEVNULL,
                             stderr=subprocess.DEVNULL,

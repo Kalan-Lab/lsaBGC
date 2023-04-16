@@ -99,18 +99,21 @@ def create_parser():
 	parser.add_argument('-n', '--taxa_name', help='Name of the taxa of interest as listed in GTDB. If there is a space in the\nname, please surround by quotes.', required=True)
 	parser.add_argument('-g', '--user_genomes_directory', help='A directory with additional genomes, e.g. those recently sequenced by the\nuser, belonging to the taxa. Accepted formats include FASTA.\nAccepted suffices include: .fna, .fa, .fasta.', required=False, default=None)
 	parser.add_argument('-o', '--output_directory', help='Parent output/workspace directory.', required=True)
-	parser.add_argument('-p', '--bgc_prediction_software', help='Software used to predict BGCs (Options: antiSMASH, DeepBGC, GECCO).\nDefault is GECCO - which will be automatic. For the other two,\nlsaBGC-Easy will produce a task-file which you will need to run in a seperate environment\nwith antiSMASH or DeepBGC installed, then rerun lsaBGC-Easy.py using the original command..', default='gecco', required=False)
+	parser.add_argument('-p', '--bgc_prediction_software', help='Software used to predict BGCs (Options: antiSMASH, DeepBGC, GECCO). GECCO is\nautomatic, but for the other two, lsaBGC-Easy will produce a task-file which you will need to run in a\nseperate environment with antiSMASH or DeepBGC installed, then rerun lsaBGC-Easy.py using the\noriginal command [Default is GECCO].', default='gecco', required=False)
 	parser.add_argument('-x', '--ignore_limits', action='store_true', help="Ignore limitations on number of genomes allowed.\nE.g. allow for analyses of taxa with more than 2000 genomes available and more than 100 genomes\nafter dereplication. Not recommend, be cautious!!! Also note,\nyou can always delete \"Dereplicated_Set_of_Genomes.txt\" in the results directory and redo\ndereplication with different threshold.")
-	parser.add_argument('-gtm', '--gtotree_model', help="SCG model for secondary GToTree analysis and wdhat would be used for dereplication. Default is to use the \"Bacteria\" SCG set (n=74 genes).", default='Bacteria', required=False)
-	parser.add_argument('-iib', '--include_incomplete_bgcs', action='store_true', help="Whether to account for incomplete BGCs prior to clustering - not recommended.", default=False, required=False)
-	parser.add_argument('-b', '--use_bigscape', action='store_true', help="Use BiG-SCAPE for BGC clustering into GCFs instead of lsaBGC-Cluster. Recommended if you want to include incomplete BGCs for clustering and are using antiSMASH.", required=False, default=False)
+	parser.add_argument('-gtm', '--gtotree_model', help="SCG model for secondary GToTree analysis and what would be used for dereplication. [Default is \"Bacteria\"].", default='Bacteria', required=False)
+	parser.add_argument('-iib', '--include_incomplete_bgcs', action='store_true', help="Whether to account for incomplete BGCs (those near contig edges) prior to clustering.", default=False, required=False)
+	parser.add_argument('-b', '--use_bigscape', action='store_true', help="Use BiG-SCAPE for BGC clustering into GCFs instead of lsaBGC-Cluster. Recommended if\nyou want to include incomplete BGCs for clustering and are using antiSMASH.", required=False, default=False)
+	parser.add_argument('-lci', '--lsabgc_cluster_inflation', type=float, help='Value for MCL inflation parameter to use in lsaBGC-Cluster [Default is 4.0].', required=False, default=4.0)
+	parser.add_argument('-lcj', '--lsabgc_cluster_jaccard', type=float, help='Minimal Jaccard Index cutoff to regard two BGCs as potentially homologous\nin lsaBGC-Cluster [Default is 20.0].', required=False, default=20.0)
+	parser.add_argument('-lcr', '--lsabgc_cluster_synteny', type=float, help='Minimal absolute correlation coefficient to measure syntenic similarity and\nregard two BGCs as potentially homologous in lsaBGC-Cluster [Default is 0.7].', required=False, default=0.7)
 	parser.add_argument('-sae', '--skip_auto_expansion', action='store_true', help="Skip lsaBGC-AutoExpansion.py to find missing pieces of BGCs due to assembly fragmentation.", required=False, default=False)
 	parser.add_argument('-sd', '--skip_dereplication', action='store_true', help="Whether to skip dereplication based on GToTree alignments of SCGs - not\nrecommended and can cause issues if there are a lot of\ngenomes for the taxa of interest.", default=False, required=False)
-	parser.add_argument('-dt', '--dereplicate_threshold', type=float, help="Amino acid similarity threshold of SCGs for considering\ntwo genomes as redundant. (Default is 0.999)", default=0.999, required=False)
-	parser.add_argument('-pt', '--population_threshold', type=float, help="Amino acid similarity threshold of SCGs for considering\ntwo genomes as belonging to the same population. (Default is 0.99)", default=0.99, required=False)
+	parser.add_argument('-dt', '--dereplicate_threshold', type=float, help="Amino acid similarity threshold of SCGs for considering\ntwo genomes as redundant [Default is 0.999].", default=0.999, required=False)
+	parser.add_argument('-pt', '--population_threshold', type=float, help="Amino acid similarity threshold of SCGs for considering\ntwo genomes as belonging to the same population [Default is 0.99].", default=0.99, required=False)
 	parser.add_argument('-py', '--use_pyrodigal', action='store_true', help='Use pyrodigal instead of prodigal.', required=False, default=False)
-	parser.add_argument('-om', '--orthofinder_mode', help="Method for running OrthoFinder2. (Options: Genome_Wide, BGC_Only).\nDefault is Genome_Wide (BGC_Only is slightly experimental but much faster and should work\nespecially well for taxa with many BGCs).", default='Genome_Wide', required=False)
-	parser.add_argument('-mc', '--run_coarse_orthofinder', action='store_true', help='Use coarse clustering of homolog groups in OrthoFinder instead of more\nresolute hierarchical determined homolog groups. There are some advantages to coarse OGs, including their construction being deterministic.', required=False, default=False)
+	parser.add_argument('-om', '--orthofinder_mode', help="Method for running OrthoFinder2. (Options: Genome_Wide, BGC_Only).\nBGC_Only is experimental but much faster and should work especially well for\ntaxa with many BGCs [Default is Genome_Wide].", default='Genome_Wide', required=False)
+	parser.add_argument('-mc', '--run_coarse_orthofinder', action='store_true', help='Use coarse clustering of homolog groups in OrthoFinder instead of more\nresolute hierarchical determined homolog groups. There are some advantages to coarse\nOGs, including their construction being deterministic.', required=False, default=False)
 	parser.add_argument('-c', '--cpus', type=int, help="Total number of CPUs to use [Default is 4].", required=False, default=4)
 	parser.add_argument('-a', '--antismash_prediction_cpus', type=int, help="Number of CPUs to specify for each antiSMASH command in\ntask file [Default is 4].", required=False, default=4)
 
@@ -138,6 +141,9 @@ def lsaBGC_Easy():
 	use_bigscape_flag = myargs.use_bigscape
 	ignore_limits_flag = myargs.ignore_limits
 	use_pyrodigal = myargs.use_pyrodigal
+	lsabgc_cluster_inflation = myargs.lsabgc_cluster_inflation
+	lsabgc_cluster_jaccard = myargs.lsabgc_cluster_jaccard
+	lsabgc_cluster_synteny = myargs.lsabgc_cluster_synteny
 
 	try:
 		assert (orthofinder_mode in set(['GENOME_WIDE', 'BGC_ONLY']))
@@ -606,7 +612,8 @@ def lsaBGC_Easy():
 		if use_bigscape_flag and os.path.isdir(bigscape_results_dir):
 			lsabgc_ready_cmd += ['-b', bigscape_results_dir]
 		else:
-			lsabgc_ready_cmd += ['-lc']
+			lsabgc_ready_cmd += ['-lc', '-lci', str(lsabgc_cluster_inflation), '-lcj', str(lsabgc_cluster_jaccard),
+								 '-lcr', str(lsabgc_cluster_synteny)]
 		if use_pyrodigal:
 			lsabgc_ready_cmd += ['-py']
 		if run_coarse_orthofinder:

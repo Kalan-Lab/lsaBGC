@@ -2744,7 +2744,7 @@ def loadTableInPandaDataFrame(input_file, mibig_info=None):
 				for val in ls[1:]:
 					cast_vals.append(castToNumeric(val))
 			panda_dict[key] = cast_vals
-			if key == 'annotation' and mibig_info != None:
+			if key == 'annotation' and mibig_info != None and len(mibig_info) > 0:
 				panda_dict['MIBiG mapping'] = mibig_col
 		panda_df = pd.DataFrame(panda_dict)
 
@@ -2804,7 +2804,7 @@ def loadCustomPopGeneTableInPandaDataFrame(input_file, mibig_info=None):
 					else:
 						cleaned_annots.append('; '.join(ca))
 				panda_dict[key] = cleaned_annots
-				if mibig_info != None:
+				if mibig_info != None and len(mibig_info) > 0:
 					panda_dict['MIBiG mapping'] = mibig_col
 			else:
 				key = ' '.join(ls[0].split('_'))

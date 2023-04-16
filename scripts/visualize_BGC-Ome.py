@@ -69,7 +69,7 @@ def create_parser():
 	""", formatter_class=argparse.RawTextHelpFormatter)
 
 	parser.add_argument('-b', '--bgc_results_dir', help='Sample-specific results directory from antiSMASH, DeepBGC, or GECCO.', required=True)
-	parser.add_argument('-p', '--bgc_prediction_software', help='Software used to predict BGCs (Options: antiSMASH, DeepBGC, GECCO).\nDefault is antiSMASH. Will only work for GECCO and DeepBGC if\n-l and -g arguments are used (a.k.a. in lsaBGC mode) to provide paths to genomes and BGC predictions.', default='antismash', required=False)
+	parser.add_argument('-p', '--bgc_prediction_software', help='Software used to predict BGCs (Options: antiSMASH, DeepBGC, GECCO) [Default is antiSMASH].', default='antismash', required=False)
 	parser.add_argument('-o', '--output_pdf', help='Path to output PDF file [Default is ./Sample_BGC-ome.pdf].')
 	parser.add_argument('-t', '--tmp_dir', help='Path to temporary dir. [Default is ./tmp_dir_$INDIR_BASE_NAME].', required=False, default=None)
 	parser.add_argument('-l', '--length', type=int, help='Specify the height/length of the heatmap plot. [Default is 7].', required=False, default=7)
