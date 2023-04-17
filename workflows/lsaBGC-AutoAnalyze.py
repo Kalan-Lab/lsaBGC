@@ -67,8 +67,9 @@ def create_parser():
 
 	Wrapper program to automate running lsaBGC analytical programs for each GCF. 
 	
-	Iteratively runs lsaBGC-See.py, lsaBGC-PopGene.py, lsaBGC-Divergence.py, and optionally lsaBGC-DiscoVary.py for
-	each GCF in a GCF listings directory, produced by lsaBGC-Ready, lsaBGC-Cluster, or lsaBGC-AutoExpansion.py.
+	Iteratively runs lsaBGC-See.py, lsaBGC-PopGene.py, lsaBGC-Divergence.py, lsaBGC-MIBiGMapper, lsaBGC-ComprehenSeeIve, 
+	and optionally lsaBGC-DiscoVary.py for each GCF in a GCF listings directory, produced by lsaBGC-Ready, 
+	lsaBGC-Cluster, or lsaBGC-AutoExpansion.py.
 	""", formatter_class=argparse.RawTextHelpFormatter)
 
 	parser.add_argument('-i', '--input_listing', help="Path to tab delimited file listing: (1) sample name\n(2) path to whole-genome Genbank and (3) path to whole-genome predicted proteome\n(an output of lsaBGC-Ready.py or lsaBGC-AutoExpansion.py).", required=True)
@@ -83,6 +84,7 @@ def create_parser():
 	parser.add_argument('-l', '--discovary_input_listing', help="Sequencing readsets for DiscoVary analysis. Tab delimited file listing:\n(1) sample name, (2) forward readset, (3) reverse readset for metagenomic/isolate\nsequencing data.", required=False, default=None)
 	parser.add_argument('-n', '--discovary_analysis_name', help="Identifier/name for DiscoVary. Not providing this parameter will avoid\nrunning lsaBGC-DiscoVary step.", required=False, default=None)
 	parser.add_argument('-mb', '--run_mibig_mapper', action='store_true', help="Run MIBiG mapping analysis.", default=False, required=False)
+	parser.add_argument('-ogm', '--og_orthofinder_matrix', help="The original OrthoFinder homolog group by sample matrix - prior to possible expansion.", required=False, default=None)
 	parser.add_argument('-c', '--cpus', type=int, help="Total number of CPUs to use [Default is 1].", required=False, default=1)
 
 	args = parser.parse_args()
@@ -100,11 +102,11 @@ def lsaBGC_AutoAnalyze():
 
 	outdir = os.path.abspath(myargs.output_directory) + '/'
 	gcf_listing_dir = os.path.abspath(myargs.gcf_listing_dir) + '/'
-	original_orthofinder_matrix_file = os.path.abspath(myargs.orthofinder_matrix)
+	orthofinder_matrix_file = os.path.abspath(myargs.orthofinder_matrix)
 	input_listing_file = os.path.abspath(myargs.input_listing)
 
 	try:
-		assert(os.path.isdir(gcf_listing_dir) and os.path.isfile(original_orthofinder_matrix_file) and os.path.isfile(input_listing_file))
+		assert(os.path.isdir(gcf_listing_dir) and os.path.isfile(orthofinder_matrix_file) and os.path.isfile(input_listing_file))
 	except:
 		raise RuntimeError('Input directory with GCF listings does not exist, sample annotation file, or the OrthoFinder matrix does not exist. Exiting now ...')
 
@@ -136,7 +138,7 @@ def lsaBGC_AutoAnalyze():
 		raise RuntimeError("Issue with validating at least single GCF listing file in the GCF listings directory.")
 
 	try:
-		with open(original_orthofinder_matrix_file) as omf:
+		with open(orthofinder_matrix_file) as omf:
 			for i, line in enumerate(omf):
 				line = line.strip('\n')
 				ls = line.split('\t')
@@ -162,7 +164,23 @@ def lsaBGC_AutoAnalyze():
 	discovary_analysis_id = myargs.discovary_analysis_name
 	discovary_input_listing = myargs.discovary_input_listing
 	run_mibig_mapper = myargs.run_mibig_mapper
+	original_orthofinder_matrix_file = myargs.og_orthofinder_matrix
 	cpus = myargs.cpus
+
+	if original_orthofinder_matrix_file != None:
+		try:
+			with open(original_orthofinder_matrix_file) as omf:
+				for i, line in enumerate(omf):
+					line = line.strip('\n')
+					ls = line.split('\t')
+					if i == 0:
+						for samp in ls[1:]:
+							if samp != '':
+								assert (samp in all_samples)
+					else:
+						assert (ls[0].startswith("OG") or ls[0].startswith("HOG"))
+		except:
+			raise RuntimeError("Issue with validating the original OrthoFinder matrix is in correct format.")
 
 	try:
 		assert (bgc_prediction_software in set(['ANTISMASH', 'DEEPBGC', 'GECCO']))
@@ -225,16 +243,17 @@ def lsaBGC_AutoAnalyze():
 	# Step 0: Log input arguments and update reference and query FASTA files.
 	logObject.info("Saving parameters for easier determination of results basis in the future.")
 	parameters_file = outdir + 'Parameter_Inputs.txt'
-	parameter_values = [gcf_listing_dir, input_listing_file, original_orthofinder_matrix_file, outdir,
+	parameter_values = [gcf_listing_dir, input_listing_file, orthofinder_matrix_file, outdir,
 						species_phylogeny_file, expected_distances, population_listing_file,
 						discovary_analysis_id, discovary_input_listing, bgc_prediction_software,
-						sample_set_file, run_mibig_mapper, cpus]
+						sample_set_file, run_mibig_mapper, original_orthofinder_matrix_file, cpus]
 	parameter_names = ["GCF Listings Directory", "Listing File of Sample Annotation Files for Initial Set of Samples",
 					   "OrthoFinder Homolog Matrix", "Output Directory", "Species Phylogeny File in Newick Format",
 					   "File with Expected Sample to Sample Amino Acid Distance Estimations",
 					   "Clade/Population Listings File", "DiscoVary Analysis ID",
 					   "DiscoVary Sequencing Data Location Specification File", "BGC Prediction Software",
-					   "Sample Retention Set", "Run MIBiG Mapping Analysis?", "CPUs"]
+					   "Sample Retention Set", "Run MIBiG Mapping Analysis?", "Original OrthoFinder Homolog Matrix",
+					   "CPUs"]
 	util.logParametersToFile(parameters_file, parameter_names, parameter_values)
 	logObject.info("Done saving parameters!")
 
@@ -315,10 +334,13 @@ def lsaBGC_AutoAnalyze():
 				pop_size[pop] += 1
 
 	see_outdir = outdir + 'See/'
+	csee_outdir = outdir + 'ComprehenSeeIve/'
 	pop_outdir = outdir + 'PopGene/'
 	div_outdir = outdir + 'Divergence/'
 	mbmap_outdir = outdir + 'MIBiG_Mapping/'
 
+	if original_orthofinder_matrix_file != None:
+		if not os.path.isdir(csee_outdir): os.system('mkdir %s' % csee_outdir)
 	if not os.path.isdir(see_outdir): os.system('mkdir %s' % see_outdir)
 	if not os.path.isdir(pop_outdir): os.system('mkdir %s' % pop_outdir)
 	if not os.path.isdir(div_outdir): os.system('mkdir %s' % div_outdir)
@@ -341,7 +363,6 @@ def lsaBGC_AutoAnalyze():
 				sample, bgc_gbk = line.split('\t')
 				gcf_samples.add(sample)
 
-		orthofinder_matrix_file = original_orthofinder_matrix_file
 		logObject.info("Beginning analysis for GCF %s" % gcf_id)
 		sys.stderr.write("Beginning analysis for GCF %s\n" % gcf_id)
 
@@ -360,7 +381,24 @@ def lsaBGC_AutoAnalyze():
 				logObject.warning("lsaBGC-See.py was unsuccessful for GCF %s" % gcf_id)
 				sys.stderr.write("Warning: lsaBGC-See.py was unsuccessful for GCF %s\n" % gcf_id)
 
-		# 2. Run lsaBGC-PopGene.py
+		# 2. Run lsaBGC-ComprehenSeeIve.py
+		if original_orthofinder_matrix_file != None:
+			gcf_csee_outdir = csee_outdir + gcf_id + '/'
+			lsabgc_csee_checkpoint = gcf_csee_outdir + 'CHECKPOINT.txt'
+			if not os.path.isfile(lsabgc_csee_checkpoint):
+				os.system('rm -rf %s' % gcf_csee_outdir)
+				cmd = ['lsaBGC-ComprehenSeeIve.py', '-g', gcf_listing_file, '-m', original_orthofinder_matrix_file, '-o',
+					   gcf_csee_outdir, '-i', gcf_id, '-s', species_phylogeny_file, '-p', bgc_prediction_software, '-c',
+					   str(cpus)]
+				try:
+					#print(' '.join(cmd))
+					util.run_cmd(cmd, logObject)
+					assert(os.path.isfile(lsabgc_csee_checkpoint))
+				except Exception as e:
+					logObject.warning("lsaBGC-ComprehenSeeIve.py was unsuccessful for GCF %s" % gcf_id)
+					sys.stderr.write("Warning: lsaBGC-ComprehenSeeIve.py was unsuccessful for GCF %s\n" % gcf_id)
+
+		# 3. Run lsaBGC-PopGene.py
 		gcf_pop_outdir = pop_outdir + gcf_id + '/'
 		lsabgc_popgene_checkpoint = gcf_pop_outdir + 'CHECKPOINT.txt'
 		if not os.path.isfile(lsabgc_popgene_checkpoint):
@@ -379,7 +417,7 @@ def lsaBGC_AutoAnalyze():
 				logObject.warning("lsaBGC-PopGene.py was unsuccessful for GCF %s" % gcf_id)
 				sys.stderr.write("Warning: lsaBGC-PopGene.py was unsuccessful for GCF %s\n" % gcf_id)
 
-		# 3. Run lsaBGC-Divergence.py
+		# 4. Run lsaBGC-Divergence.py
 		gcf_div_outdir = div_outdir + gcf_id + '/'
 		lsabgc_divergence_checkpoint = gcf_div_outdir + 'CHECKPOINT.txt'
 		if (not os.path.isfile(lsabgc_divergence_checkpoint)) and expected_distances and len(gcf_samples) > 1:
@@ -395,7 +433,7 @@ def lsaBGC_AutoAnalyze():
 				logObject.warning("lsaBGC-Divergence.py was unsuccessful for GCF %s" % gcf_id)
 				sys.stderr.write("Warning: lsaBGC-Divergence.py was unsuccessful for GCF %s\n" % gcf_id)
 
-		# 4. Run lsaBGC-MIBiGMapper.py
+		# 5. Run lsaBGC-MIBiGMapper.py
 		gcf_mbm_outdir = mbmap_outdir + gcf_id + '/'
 		lsabgc_mibigmap_checkpoint = gcf_mbm_outdir + 'CHECKPOINT.txt'
 		if not os.path.isfile(lsabgc_mibigmap_checkpoint) and run_mibig_mapper:
@@ -410,7 +448,7 @@ def lsaBGC_AutoAnalyze():
 				logObject.warning("lsaBGC-MIBiGMapper.py was unsuccessful for GCF %s" % gcf_id)
 				sys.stderr.write("Warning: lsaBGC-MIBiGMapper.py was unsuccessful for GCF %s\n" % gcf_id)
 
-		# 5. Run lsaBGC-DiscoVary.py
+		# 6. Run lsaBGC-DiscoVary.py
 		if discovary_analysis_id and discovary_input_listing:
 			gcf_dis_outdir = dis_outdir + gcf_id + '/'
 			lsabgc_discovary_checkpoint = gcf_dis_outdir + 'CHECKPOINT.txt'
@@ -425,6 +463,7 @@ def lsaBGC_AutoAnalyze():
 				except Exception as e:
 					logObject.warning("lsaBGC-DiscoVary.py was unsuccessful for GCF %s" % gcf_id)
 					sys.stderr.write("Warning: lsaBGC-DiscoVary.py was unsuccessful for GCF %s\n" % gcf_id)
+
 
 	combined_tajimd_plot_input_file = outdir + 'Tajimas_D_Plotting_Input.txt'
 	combined_betard_plot_input_file = outdir + 'Beta-RD_Plotting_Input.txt'
@@ -670,9 +709,9 @@ def lsaBGC_AutoAnalyze():
 	num_rows, num_cols = scprf_df.shape
 
 	warn_format = workbook.add_format({'bg_color': '#bf241f', 'bold': True, 'font_color': '#FFFFFF'})
+	core_format = workbook.add_format({'bg_color': '#606896', 'bold': True, 'font_color': '#FFFFFF'})
 	na_format = workbook.add_format({'font_color': '#a6a6a6', 'bg_color': '#FFFFFF', 'italic': True})
-	header_format = workbook.add_format(
-		{'bold': True, 'text_wrap': True, 'valign': 'top', 'fg_color': '#D7E4BC', 'border': 1})
+	header_format = workbook.add_format({'bold': True, 'text_wrap': True, 'valign': 'top', 'fg_color': '#D7E4BC', 'border': 1})
 
 	worksheet.conditional_format('A2:BA' + str(num_rows), {'type': 'cell', 'criteria': '==', 'value': '"NA"', 'format': na_format})
 	worksheet.conditional_format('A1:BA1', {'type': 'cell', 'criteria': '!=', 'value': 'NA', 'format': header_format})
@@ -680,6 +719,9 @@ def lsaBGC_AutoAnalyze():
 	if run_mibig_mapper:
 		# warn against non-single-copy in GCF context
 		worksheet.conditional_format('I2:I' + str(num_rows), {'type': 'cell', 'criteria': '==', 'value': '"False"', 'format': warn_format})
+
+		# highlight 'key' homolog groups in detection process of BGC
+		worksheet.conditional_format('K2:K' + str(num_rows), {'type': 'cell', 'criteria': '==', 'value': '"True"', 'format': core_format})
 
 		# prop gene-clusters with hg
 		worksheet.conditional_format('N2:N' + str(num_rows),
@@ -711,6 +753,9 @@ def lsaBGC_AutoAnalyze():
 	else:
 		# warn against non-single-copy in GCF context
 		worksheet.conditional_format('H2:H' + str(num_rows), {'type': 'cell', 'criteria': '==', 'value': '"False"', 'format': warn_format})
+
+		# highlight 'key' homolog groups in detection process of BGC
+		worksheet.conditional_format('J2:J' + str(num_rows), {'type': 'cell', 'criteria': '==', 'value': '"True"', 'format': core_format})
 
 		# prop gene-clusters with hg
 		worksheet.conditional_format('M2:M' + str(num_rows),
@@ -758,6 +803,16 @@ def lsaBGC_AutoAnalyze():
 		if os.path.isfile(see_species_pdf_result):
 			new_name = final_results_see_dir + gcf + '.pdf'
 			os.system('cp %s %s' % (see_species_pdf_result, new_name))
+
+	if original_orthofinder_matrix_file != None:
+		final_results_csee_dir = final_results_dir + 'GCFs_across_Species_Tree_Views_from_lsaBGC-ComprehenSeeIve/'
+		util.setupReadyDirectory([final_results_csee_dir])
+		lsabgc_csee_outdir = outdir + 'ComprehenSeeIve/'
+		for gcf in os.listdir(lsabgc_csee_outdir):
+			csee_species_pdf_result = lsabgc_csee_outdir + gcf + '/BGC_Visualization.species_phylogeny.pdf'
+			if os.path.isfile(csee_species_pdf_result):
+				new_name = final_results_csee_dir + gcf + '.pdf'
+				os.system('cp %s %s' % (csee_species_pdf_result, new_name))
 
 	# Close logging object and exit
 	util.closeLoggerObject(logObject)

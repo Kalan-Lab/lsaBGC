@@ -1,4 +1,5 @@
 # Major Updates 
+* Apr 17, 2023 - Set AutoExpansion to off by default in lsaBGC-(Euk)-Easy, introduced lsaBGC-ComprehenSeeIve, changed handling off primary genomes being rerun through lsaBGC-AutoExpansion.
 * Apr 14, 2023 - Introduced lsaBGC-MIBiGMapper.py, lsaBGC-Euk-Easy.py, visualize_BGC-ome.py, slight updates to plots, added automatic color formatting to spreadsheet, simplified README. 
 * Mar 2, 2023 - Added GSeeF analysis to the end of the lsaBGC-Easy workflow and added support for parsing annotations from DeepBGC and GECCO into GSeeF.
 * Feb 28, 2023 - Handle similarly named BGCs from different genomic assemblies (due to similar scaffold names) in lsaBGC-Ready.py/lsaBGC-Easy.py + automated ulimit setting updates in lsaBGC-Ready.py similar to what is employed in lsaBGC-Easy.py 
