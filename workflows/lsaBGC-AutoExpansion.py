@@ -306,10 +306,14 @@ def lsaBGC_AutoExpansion():
 	updated_listings_file = outdir + 'Sample_Annotation_Files.txt'
 	updated_listings_handle = open(updated_listings_file, 'w')
 	all_samples = set([])
+	primary_initial_samples = set([])
 	with open(initial_listing_file) as oilf:
 		for line in oilf:
-			all_samples.add(util.cleanUpSampleName(line.strip().split('\t')[0]))
+			cleaned_sample_name = util.cleanUpSampleName(line.strip().split('\t')[0])
+			all_samples.add(cleaned_sample_name)
+			primary_initial_samples.add(cleaned_sample_name)
 			updated_listings_handle.write(line)
+
 	with open(expansion_listing_file) as oelf:
 		for line in oelf:
 			if not util.cleanUpSampleName(line.strip().split('\t')[0]) in all_samples:
@@ -344,6 +348,7 @@ def lsaBGC_AutoExpansion():
 					continue
 				if (bgc_gbk_path in bgcs_to_discard) and (not bgc_gbk_path in original_gcfs): continue
 				final_expanded_gcf_listing_handle.write(line + '\n')
+				if sample in primary_initial_samples: continue
 				if bgc_gbk_path in original_gcfs: continue
 				expansion_flag = False
 				if '_Expansion_BGC' in bgc_gbk_path:

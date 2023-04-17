@@ -95,7 +95,7 @@ def create_parser():
 	parser.add_argument('-lci', '--lsabgc_cluster_inflation', type=float, help='Value for MCL inflation parameter to use in lsaBGC-Cluster [Default is 4.0].', required=False, default=4.0)
 	parser.add_argument('-lcj', '--lsabgc_cluster_jaccard', type=float, help='Minimal Jaccard Index cutoff to regard two BGCs as potentially homologous\nin lsaBGC-Cluster [Default is 20.0].', required=False, default=20.0)
 	parser.add_argument('-lcr', '--lsabgc_cluster_synteny', type=float, help='Minimal absolute correlation coefficient to measure syntenic similarity and\nregard two BGCs as potentially homologous in lsaBGC-Cluster [Default is 0.7].', required=False, default=0.7)
-	parser.add_argument('-sae', '--skip_auto_expansion', action='store_true', help="Skip lsaBGC-AutoExpansion.py to find missing pieces of BGCs due to assembly\nfragmentation.", required=False, default=False)
+	parser.add_argument('-pae', '--perform_auto_expansion', action='store_true', help="Perform lsaBGC-AutoExpansion.py to find missing pieces of BGCs due to assembly\nfragmentation. Will increase sensitivity at the potential cost of false positives, recommended for\ntaxa with <10 BGCs per genome or more constrained lineages/species. For genus-wide analyses,\nespecially of BGC-rich organisms, please use expansion manually and assess lsaBGC-See reports\nto filter false positives.", required=False, default=False)
 	parser.add_argument('-dt', '--dereplicate_threshold', type=float, help="Amino acid similarity threshold of SCGs for considering\ntwo genomes as redundant [Default is 0.999].", default=0.999, required=False)
 	parser.add_argument('-sd', '--skip_dereplication', action='store_true', help="Whether to skip dereplication based on GToTree alignments of SCGs - not\nrecommended and can cause issues if there are a lot of genomes for the taxa\nof interest.", default=False, required=False)
 	parser.add_argument('-pt', '--population_threshold', type=float, help="Amino acid similarity threshold of SCGs for considering\ntwo genomes as belonging to the same population [Default is 0.99].", default=0.99, required=False)
@@ -117,7 +117,7 @@ def lsaBGC_Euk_Easy():
 	genomes_directory = myargs.genomes_directory
 	skip_dereplication_flag = myargs.skip_dereplication
 	include_incomplete_bgcs_flag = myargs.include_incomplete_bgcs
-	skip_auto_expansion_flag = myargs.skip_auto_expansion
+	perform_auto_expansion_flag = myargs.perform_auto_expansion
 	dereplicate_threshold = myargs.dereplicate_threshold
 	population_threshold = myargs.population_threshold
 	run_coarse_orthofinder = myargs.run_coarse_orthofinder
@@ -524,9 +524,9 @@ def lsaBGC_Euk_Easy():
 							check_files=[annotation_listing_file, orthogroups_matrix_file])
 
 	# Step 6: Run lsaBGC-AutoExpansion.py polishing to find GCF instances fragmented on multiple scaffolds
-	if not skip_auto_expansion_flag:
-		logObject.info('\n--------------------\nStep 6\n--------------------\nBeginning identification of fragmented BGC instances from completed instances using lsaBGC-AutoExpansion.')
-		sys.stdout.write('--------------------\nStep 6\n--------------------\nBeginning identification of fragmented BGC instances from completed instances using lsaBGC-AutoExpansion.\n')
+	if perform_auto_expansion_flag:
+		logObject.info('\n--------------------\nStep 6\n--------------------\nBeginning identification of fragmented BGC instances using completed instances as references with lsaBGC-AutoExpansion.')
+		sys.stdout.write('--------------------\nStep 6\n--------------------\nBeginning identification of fragmented BGC instances using completed instances as references with lsaBGC-AutoExpansion.\n')
 
 	checkLsaBGCInputsExist(annotation_listing_file, gcf_listing_dir, orthogroups_matrix_file)
 
@@ -535,7 +535,7 @@ def lsaBGC_Euk_Easy():
 	exp_orthogroups_matrix_file = lsabgc_autoexpansion_results_directory + 'Orthogroups.expanded.tsv'
 	exp_gcf_listing_dir = lsabgc_autoexpansion_results_directory + 'Updated_GCF_Listings/'
 
-	if not os.path.isdir(exp_gcf_listing_dir) and (not skip_auto_expansion_flag):
+	if not os.path.isdir(exp_gcf_listing_dir) and perform_auto_expansion_flag:
 		lsabgc_expansion_cmd = ['lsaBGC-AutoExpansion.py', '-g', gcf_listing_dir, '-m', orthogroups_matrix_file, '-l',
 								annotation_listing_file, '-e', annotation_listing_file, '-q', '-c', str(cpus),
 								'-o', lsabgc_autoexpansion_results_directory, '-p', 'antiSMASH']
@@ -543,7 +543,7 @@ def lsaBGC_Euk_Easy():
 							check_directories=[lsabgc_autoexpansion_results_directory, exp_gcf_listing_dir],
 							check_files=[exp_orthogroups_matrix_file, exp_orthogroups_matrix_file])
 
-	if skip_auto_expansion_flag:
+	if not perform_auto_expansion_flag:
 		exp_annotation_listing_file = annotation_listing_file
 		exp_orthogroups_matrix_file = orthogroups_matrix_file
 		exp_gcf_listing_dir = gcf_listing_dir
@@ -566,7 +566,8 @@ def lsaBGC_Euk_Easy():
 		lsabgc_autoanalyze_cmd = ['lsaBGC-AutoAnalyze.py', '-i', exp_annotation_listing_file, '-g', exp_gcf_listing_dir,
 								  '-m', exp_orthogroups_matrix_file, '-mb', '-s', species_tree_file, '-w',
 								  expected_similarities_file, '-k', samples_to_keep_file, '-c', str(cpus), '-o',
-								  lsabgc_autoanalyze_dir, '-p', 'antiSMASH', '-u', population_file]
+								  lsabgc_autoanalyze_dir, '-p', 'antiSMASH', '-u', population_file,
+								  '-ogm', orthogroups_matrix_file]
 		runCmdViaSubprocess(lsabgc_autoanalyze_cmd, logObject, check_directories=[lsabgc_autoanalyze_results_dir])
 
 

@@ -37,6 +37,7 @@ purine_alleles = set(['A', 'G'])
 lsaBGC_main_directory = '/'.join(os.path.realpath(__file__).split('/')[:-3])
 RSCRIPT_FOR_COLORBREW = lsaBGC_main_directory + '/lsaBGC/Rscripts/brewColors.R'
 RSCRIPT_FOR_BGSEE = lsaBGC_main_directory + '/lsaBGC/Rscripts/bgSee.R'
+RSCRIPT_FOR_BGCOMPREHENSEE = lsaBGC_main_directory + '/lsaBGC/Rscripts/bgComprehenSee.R'
 RSCRIPT_FOR_CLUSTER_ASSESSMENT_PLOTTING = lsaBGC_main_directory + '/lsaBGC/Rscripts/generatePopGenePlots.R'
 RSCRIPT_FOR_TAJIMA = lsaBGC_main_directory + '/lsaBGC/Rscripts/calculateTajimasD.R'
 RSCRIPT_FOR_GENERATE = lsaBGC_main_directory + '/lsaBGC/Rscripts/GeneRatePhylogeny.R'
@@ -330,6 +331,117 @@ class GCF(Pan):
 				self.logObject.error(traceback.format_exc())
 			raise RuntimeError(traceback.format_exc())
 
+	def visualizeComprehenSeeIveGCFViaR(self, orthofinder_matrix_file, phylogeny_newick_file, heatmap_track_file,
+										detection_track_file, result_pdf_file):
+		"""
+		Function to create tracks for visualization of gene architecture of BGCs belonging to GCF and run Rscript bgSee.R
+		to produce automatic PDFs of plots. In addition, bgSee.R also produces a heatmap to more easily identify homolog
+		groups which are conserved across isolates found to feature GCF.
+
+		:param gggenes_track_file: Path to file with gggenes track information (will be created/written to by function, if it doesn't exist!)
+		:param heatmap_track_file: Path to file for heatmap visual component (will be created/written to by function, if it doesn't exist!)
+		:param phylogeny_file: Phylogeny to use for visualization.
+		:param result_pdf_file: Path to PDF file where plots from bgSee.R will be written to.
+		"""
+		try:
+			if os.path.isfile(heatmap_track_file) or os.path.isfile(detection_track_file):
+				os.system('rm -f %s %s' % (detection_track_file, heatmap_track_file))
+			heatmap_track_handle = open(heatmap_track_file, 'w')
+			detection_track_handle = open(detection_track_file, 'w')
+
+			if self.logObject:
+				self.logObject.info("Writing heatmap input file to: %s" % heatmap_track_file)
+				self.logObject.info("Writing detection-method input file to: %s" % detection_track_file)
+
+			# write header for track files
+			heatmap_track_handle.write('label\tog\tog_copy\n')
+			detection_track_handle.write('name\tdetection_method\n')
+
+			gcf_relevant_hgs = set([])
+			for bgc in self.bgc_hgs:
+				for hg in self.bgc_hgs[bgc]:
+					gcf_relevant_hgs.add(hg)
+
+			sample_detection_methods = defaultdict(set)
+			for bgc in self.bgc_gbk:
+				gbk_path = self.bgc_gbk[bgc]
+				detection_method = 'antiSMASH/GECCO/DeepBGC'
+				if '_Expansion_BGC' in gbk_path.split('/')[-1]:
+					detection_method = 'lsaBGC-AutoExpansion'
+				bgc_sample = self.bgc_sample[bgc]
+				sample_detection_methods[bgc_sample].add(detection_method)
+
+			for sample in sample_detection_methods:
+				dm = 'Not Detected'
+				if len(sample_detection_methods[sample]) == 1:
+					if list(sample_detection_methods[sample])[0] == 'lsaBGC-AutoExpansion':
+						dm = 'lsaBGC-AutoExpansion'
+					else:
+						dm = 'antiSMASH/GECCO/DeepBGC'
+				elif len(sample_detection_methods[sample]) > 1:
+					dm = 'antiSMASH/GECCO/DeepBGC + lsaBGC-AutoExpansion'
+				detection_track_handle.write(sample + '\t' + dm + '\n')
+
+			detection_track_handle.close()
+
+			sample_names = []
+			sample_hg_counts = defaultdict(lambda: defaultdict(int))
+			with open(orthofinder_matrix_file) as omf:
+				for i, line in enumerate(omf):
+					line = line.strip('\n')
+					ls = line.split('\t')
+					if i == 0:
+						sample_names = ls[1:]
+					else:
+						hg = ls[0]
+						if not hg in gcf_relevant_hgs: continue
+						for j, lts in enumerate(ls[1:]):
+							lts = lts.strip()
+							sname = sample_names[j]
+							if lts == '':
+								sample_hg_counts[sname][hg] = 0
+							else:
+								num_lts = len(lts.split(','))
+								sample_hg_counts[sname][hg] = num_lts
+
+			tree_obj = Tree(phylogeny_newick_file)
+			for node in tree_obj.traverse('postorder'):
+				if not node.is_leaf(): continue
+				sname = node.name
+				for hg in gcf_relevant_hgs:
+					copy_count = '0'
+					if sample_hg_counts[sname][hg] == 1:
+						copy_count = '1'
+					elif sample_hg_counts[sname][hg] > 1:
+						copy_count = 'Multi'
+					heatmap_track_handle.write(sname + '\t' + hg + '\t' + copy_count + '\n')
+			heatmap_track_handle.close()
+
+		except Exception as e:
+			if self.logObject:
+				self.logObject.error("Had difficulties creating tracks for visualization of BGC gene architecture along phylogeny using R libraries.")
+				self.logObject.error(traceback.format_exc())
+			raise RuntimeError(traceback.format_exc())
+
+		rscript_plot_cmd = ["Rscript", RSCRIPT_FOR_BGCOMPREHENSEE, phylogeny_newick_file, heatmap_track_file,
+							detection_track_file, result_pdf_file]
+		if self.logObject:
+			self.logObject.info('Running R-based plotting with the following command: %s' % ' '.join(rscript_plot_cmd))
+		try:
+			subprocess.call(' '.join(rscript_plot_cmd), shell=True, stdout=subprocess.DEVNULL,
+							stderr=subprocess.DEVNULL,
+							executable='/bin/bash')
+			assert(os.path.isfile(result_pdf_file))
+			self.logObject.info('Successfully ran: %s' % ' '.join(rscript_plot_cmd))
+		except Exception as e:
+			if self.logObject:
+				self.logObject.error('Had an issue running: %s' % ' '.join(rscript_plot_cmd))
+				self.logObject.error(traceback.format_exc())
+			raise RuntimeError('Had an issue running: %s' % ' '.join(rscript_plot_cmd))
+
+		if self.logObject:
+			self.logObject.info('Plotting completed (I think successfully)!')
+
 	def visualizeGCFViaR(self, gggenes_track_file, heatmap_track_file, phylogeny_file, result_pdf_file):
 		"""
 		Function to create tracks for visualization of gene architecture of BGCs belonging to GCF and run Rscript bgSee.R
@@ -459,6 +571,7 @@ class GCF(Pan):
 			subprocess.call(' '.join(rscript_plot_cmd), shell=True, stdout=subprocess.DEVNULL,
 							stderr=subprocess.DEVNULL,
 							executable='/bin/bash')
+			assert(os.path.isfile(result_pdf_file))
 			self.logObject.info('Successfully ran: %s' % ' '.join(rscript_plot_cmd))
 		except Exception as e:
 			if self.logObject:
@@ -1217,7 +1330,8 @@ class GCF(Pan):
 						hg = ls[0]
 						all_hgs.add(hg)
 						for j, prot in enumerate(ls[1:]):
-							sample_hg_proteins[original_samples[j]][hg] = sample_hg_proteins[original_samples[j]][hg].union(set(prot.split(', ')))
+							if prot.strip() != '':
+								sample_hg_proteins[original_samples[j]][hg] = sample_hg_proteins[original_samples[j]][hg].union(set(prot.split(', ')))
 
 			expanded_orthofinder_matrix_file = outdir + 'Orthogroups.expanded.tsv'
 			expanded_orthofinder_matrix_handle = open(expanded_orthofinder_matrix_file, 'w')
