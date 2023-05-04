@@ -77,11 +77,11 @@ def setup_annot_dbs():
             os.system('tar -zxvf hmm_PGAP.HMM.tgz')
 
             assert(os.path.isfile(pgap_info_file))
-            assert(os.path.isdir(download_path + 'hmm_PGAP/'))
+            assert(os.path.isdir(download_path + 'hmm_PGAP.HMM/'))
 
-            for f in os.listdir(download_path + 'hmm_PGAP/'):
-                os.system('cat %s >> %s' % (download_path + 'hmm_PGAP/' + f, pgap_hmm_file))
-            assert(os.path.isfile(ko_phmm_file))
+            for f in os.listdir(download_path + 'hmm_PGAP.HMM/'):
+                os.system('cat %s >> %s' % (download_path + 'hmm_PGAP.HMM/' + f, pgap_hmm_file))
+            assert(os.path.isfile(pgap_hmm_file))
             listing_handle = open(listing_file, 'a+')
             listing_handle.write('pgap\t' + pgap_info_file + '\t' + pgap_hmm_file + '\n')
             listing_handle.close()
