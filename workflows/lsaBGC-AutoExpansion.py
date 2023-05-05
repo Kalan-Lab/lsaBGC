@@ -69,6 +69,14 @@ def create_parser():
 	parser.add_argument('-o', '--output_directory', help="Parent output/workspace directory.", required=True)
 	parser.add_argument('-p', '--bgc_prediction_software', help='Software used to predict BGCs (Options: antiSMASH, DeepBGC, GECCO)\n[Default is antiSMASH].', default='antiSMASH', required=False)
 	parser.add_argument('-q', '--quick_mode', action='store_true', help='Whether to run lsaBGC-Expansion in quick mode?', required=False, default=False)
+	parser.add_argument('-ms', '--min_segment_size', type=float, help="The minimum number of homolog groups (>3) needed to report discrete\nsegments of the GCF. Ignored if GCF specific or functionally core (e.g. harboring key domain for\ndetection of BGC) homolog group is found in segment [Default is 5].", required=False, default=5)
+	parser.add_argument('-mcs', '--min_segment_core_size', type=float, help="The minimum number of core (to the known instances of the GCF) homololog groups needed\nto report discrete segments of the GCF [Default is 3].", required=False, default=3)
+	parser.add_argument('-sct', '--syntenic_correlation_threshold', type=float, help="The minimum syntenic correlation needed to at least one known\nGCF instance to report segment [Default is 0.8].", required=False, default=0.8)
+	parser.add_argument('-tg', '--transition_from_gcf_to_gcf', type=float, help="GCF to GCF state transition probability for HMM. Should be between\n0.0 and 1.0 [Default is 0.9].", required=False, default=0.9)
+	parser.add_argument('-tb', '--transition_from_bg_to_bg', type=float, help="Background to background state transition probability for HMM. Should be\nbetween 0.0 and 1.0 [Default is 0.9].", required=False, default=0.9)
+	parser.add_argument('-no', '--no_orthogroup_matrix', action='store_true', help="Avoid writing the updated OrthoFinder matrix at the end.", required=False, default=False)
+	parser.add_argument('-w', '--loose_mode', action='store_true', help="Remove requirement for proto-core/rule-based homolog group being detected in\na single neighborhood for GCF to be reported as present.", required=False, default=False)
+	parser.add_argument('-ap', '--all_primary', action='store_true', help='Treat all known GCF instances as primary (use if BGC Genbanks\nwere not processed through lsaBGC-Ready).', required=False, default=False)
 	parser.add_argument('-z', '--pickle_expansion_annotation_data', help="Pickle file with serialization of annotation data in the expansion listing file.", required=False, default=None)
 	parser.add_argument('-ph', '--protocore_homologs', help="File with manual listings of proto-core homolog groups.\nThis should be provided as 2 column tab-delmited file: (1) GCF id and\n(2) space delmited listing of homolog groups.", required=False, default=None)
 	parser.add_argument('-c', '--cpus', type=int, help="Total number of CPUs to use [Default is 1].", required=False, default=1)
@@ -112,6 +120,14 @@ def lsaBGC_AutoExpansion():
 	quick_mode = myargs.quick_mode
 	pickle_expansion_annotation_data_file = myargs.pickle_expansion_annotation_data
 	protocore_homologs_file = myargs.protocore_homologs
+	min_segment_size = myargs.min_segment_size
+	min_segment_core_size = myargs.min_segment_core_size
+	syntenic_correlation_threshold = myargs.syntenic_correlation_threshold
+	transition_from_gcf_to_gcf = myargs.transition_from_gcf_to_gcf
+	transition_from_bg_to_bg = myargs.transition_from_bg_to_bg
+	no_orthogroup_matrix = myargs.no_orthogroup_matrix
+	loose_mode = myargs.loose_mode
+	all_primary = myargs.all_primary
 
 	try:
 		assert (bgc_prediction_software in set(['ANTISMASH', 'DEEPBGC', 'GECCO']))
@@ -143,13 +159,19 @@ def lsaBGC_AutoExpansion():
 	parameter_values = [gcf_listing_dir, initial_listing_file,
 						expansion_listing_file, original_orthofinder_matrix_file, outdir,
 						pickle_expansion_annotation_data_file, quick_mode, bgc_prediction_software,
-						protocore_homologs_file, cpus]
+						protocore_homologs_file, min_segment_size, min_segment_core_size,
+						syntenic_correlation_threshold, transition_from_gcf_to_gcf, transition_from_bg_to_bg,
+						no_orthogroup_matrix, loose_mode, all_primary, cpus]
 	parameter_names = ["GCF Listings Directory", "Listing File of Prokka Annotation Files for Initial Set of Samples",
 					   "Listing File of Prokka Annotation Files for Expansion/Additional Set of Samples",
 					   "OrthoFinder Homolog Matrix", "Output Directory",
 					   "Pickle File with Annotation Data in Expansion Listing for Quick Loading",
 					   "Run in Quick Mode?", "BGC Prediction Software", "ProtoCore-Like Homolog Group Specifications",
-					   "CPUs"]
+					   "Minimum Segment Size", "Minimum Core Segment Size", "Syntenic Correlation Threshold",
+					   "Transition probability from GCF state to GCF state",
+					   "Transition probability from Background to Background",
+					   "Avoid Orthogroup Matrix Construction for Individual GCF", "Loose Mode",
+					   "All Primary", "CPUs"]
 	util.logParametersToFile(parameters_file, parameter_names, parameter_values)
 	logObject.info("Done saving parameters!")
 
@@ -204,13 +226,24 @@ def lsaBGC_AutoExpansion():
 		if not os.path.isdir(gcf_exp_outdir):
 			cmd = ['lsaBGC-Expansion.py', '-g', gcf_listing_file, '-m', orthofinder_matrix_file, '-l',
 				   initial_listing_file, '-p', bgc_prediction_software, '-e', expansion_listing_file,
-				   '-o', gcf_exp_outdir, '-i', gcf_id, '-c', str(cpus)]
+				   '-o', gcf_exp_outdir, '-i', gcf_id, '-ms', min_segment_size, '-mcs', min_segment_core_size,
+				   '-sct', syntenic_correlation_threshold, '-tg', transition_from_bg_to_bg,
+				   '-tb', transition_from_bg_to_bg, '-c', cpus]
+			cmd = [str(cmd_piece) for cmd_piece in cmd]
+
 			if quick_mode:
 				cmd += ['-q']
 			if pickle_expansion_annotation_data_file:
 				cmd += ['-z', pickle_expansion_annotation_data_file]
 			if protocore_hgs != None:
 				cmd += ['-ph', '"' + protocore_hgs[gcf_id] + '"']
+			if no_orthogroup_matrix:
+				cmd += ['-no']
+			if loose_mode:
+				cmd += ['-w']
+			if all_primary:
+				cmd += ['-ap']
+
 			try:
 				util.run_cmd(cmd, logObject, stderr=sys.stderr, stdout=sys.stdout)
 			except:

@@ -100,10 +100,11 @@ def create_parser():
 	parser.add_argument('-g', '--user_genomes_directory', help='A directory with additional genomes, e.g. those recently sequenced by the\nuser, belonging to the taxa. Accepted formats include FASTA.\nAccepted suffices include: .fna, .fa, .fasta.', required=False, default=None)
 	parser.add_argument('-o', '--output_directory', help='Parent output/workspace directory.', required=True)
 	parser.add_argument('-p', '--bgc_prediction_software', help='Software used to predict BGCs (Options: antiSMASH, DeepBGC, GECCO). GECCO is\nautomatic, but for the other two, lsaBGC-Easy will produce a task-file which you will need to run in a\nseperate environment with antiSMASH or DeepBGC installed, then rerun lsaBGC-Easy.py using the\noriginal command [Default is GECCO].', default='gecco', required=False)
-	parser.add_argument('-x', '--ignore_limits', action='store_true', help="Ignore limitations on number of genomes allowed.\nE.g. allow for analyses of taxa with more than 2000 genomes available and more than 100 genomes\nafter dereplication. Not recommend, be cautious!!! Also note,\nyou can always delete \"Dereplicated_Set_of_Genomes.txt\" in the results directory and redo\ndereplication with different threshold.")
+	parser.add_argument('-x', '--ignore_limits', action='store_true', help="Ignore limitations on number of genomes allowed.\nE.g. allow for analyses of taxa with more than 2000 genomes available before dereplication and more than 100 genomes\nafter dereplication. Not recommend, be cautious!!! Also note,\nyou can always delete \"Dereplicated_Set_of_Genomes.txt\" in the results directory and redo\ndereplication with different threshold.")
 	parser.add_argument('-gtm', '--gtotree_model', help="SCG model for secondary GToTree analysis and what would be used for dereplication. [Default is \"Bacteria\"].", default='Bacteria', required=False)
 	parser.add_argument('-iib', '--include_incomplete_bgcs', action='store_true', help="Whether to account for incomplete BGCs (those near contig edges) prior to clustering.", default=False, required=False)
 	parser.add_argument('-b', '--use_bigscape', action='store_true', help="Use BiG-SCAPE for BGC clustering into GCFs instead of lsaBGC-Cluster. Recommended if\nyou want to include incomplete BGCs for clustering and are using antiSMASH.", required=False, default=False)
+	parser.add_argument('-bo', '--bigscape_options', action='store_true', help="Options for BiG-SCAPE clustering of BGCs if requested (should be surrounded by quotes). [Default is \"--hybrids-off --include_singletons\"].", required=False, default="--hybrids-off --include_singletons")
 	parser.add_argument('-lci', '--lsabgc_cluster_inflation', type=float, help='Value for MCL inflation parameter to use in lsaBGC-Cluster [Default is 4.0].', required=False, default=4.0)
 	parser.add_argument('-lcj', '--lsabgc_cluster_jaccard', type=float, help='Minimal Jaccard Index cutoff to regard two BGCs as potentially homologous\nin lsaBGC-Cluster [Default is 20.0].', required=False, default=20.0)
 	parser.add_argument('-lcr', '--lsabgc_cluster_synteny', type=float, help='Minimal absolute correlation coefficient to measure syntenic similarity and\nregard two BGCs as potentially homologous in lsaBGC-Cluster [Default is 0.7].', required=False, default=0.7)
@@ -115,8 +116,7 @@ def create_parser():
 	parser.add_argument('-om', '--orthofinder_mode', help="Method for running OrthoFinder2. (Options: Genome_Wide, BGC_Only).\nBGC_Only is experimental but much faster and should work especially well for\ntaxa with many BGCs [Default is Genome_Wide].", default='Genome_Wide', required=False)
 	parser.add_argument('-mc', '--run_coarse_orthofinder', action='store_true', help='Use coarse clustering of homolog groups in OrthoFinder instead of more\nresolute hierarchical determined homolog groups. There are some advantages to coarse\nOGs, including their construction being deterministic.', required=False, default=False)
 	parser.add_argument('-c', '--cpus', type=int, help="Total number of CPUs to use [Default is 4].", required=False, default=4)
-	parser.add_argument('-a', '--antismash_prediction_cpus', type=int, help="Number of CPUs to specify for each antiSMASH command in\ntask file [Default is 4].", required=False, default=4)
-
+	parser.add_argument('-ao', '--antismash_options', help="Options for antiSMASH prediction analysis (should be surrounded by quotes). [Default is \"--genefinding-tool none --cpus 4\"]", required=False, default="--genefinding-tool none --cpus 4")
 	args = parser.parse_args()
 	return args
 
@@ -127,7 +127,7 @@ def lsaBGC_Easy():
 	taxa_name = myargs.taxa_name.strip('"').strip()
 	outdir = os.path.abspath(myargs.output_directory) + '/'
 	cpus = myargs.cpus
-	bgc_prediction_cpus = myargs.antismash_prediction_cpus
+	antismash_options = myargs.antismash_options
 	user_genomes_directory = myargs.user_genomes_directory
 	bgc_prediction_software = myargs.bgc_prediction_software.upper()
 	gtotree_model = myargs.gtotree_model
@@ -139,6 +139,7 @@ def lsaBGC_Easy():
 	run_coarse_orthofinder = myargs.run_coarse_orthofinder
 	orthofinder_mode = myargs.orthofinder_mode.upper()
 	use_bigscape_flag = myargs.use_bigscape
+	bigscape_options = myargs.bigscape_options
 	ignore_limits_flag = myargs.ignore_limits
 	use_pyrodigal = myargs.use_pyrodigal
 	lsabgc_cluster_inflation = myargs.lsabgc_cluster_inflation
@@ -205,7 +206,7 @@ def lsaBGC_Easy():
 		"\n--------------------\nStep 1\n--------------------\nBeginning by assessing which genomic assemblies are available for the taxa %s in GTDB and NCBI's Genbank db" % taxa_name)
 	if not os.path.isfile(genbank_accession_listing_file):
 		genbank_accession_listing_handle = open(genbank_accession_listing_file, 'w')
-		with gzip.open(lsaBGC_main_directory + 'db/GTDB_R207_Information.txt.gz', 'rt') as ogtdb:
+		with gzip.open(lsaBGC_main_directory + 'db/GTDB_R214_Information.txt.gz', 'rt') as ogtdb:
 			for line in ogtdb:
 				line = line.strip('\n')
 				ls = line.split('\t')
@@ -222,7 +223,7 @@ def lsaBGC_Easy():
 	accession_count = len(ogalf.readlines())
 	ogalf.close()
 
-	if (accession_count >= 2000 or accession_count < 10) and (not ignore_limits_flag):
+	if (accession_count > 2000) and (not ignore_limits_flag) and (not (accession_count < 10 and os.path.isdir(user_genomes_directory))):
 		logObject.error(
 			"Currently not recommended to use lsaBGC-Easy for taxa with > 2000 genomes or < 10 genomes. In the future this will likely be updated to be a warning, but would rather not risk harming your server!")
 		sys.stderr.write(
@@ -245,15 +246,6 @@ def lsaBGC_Easy():
 	oglf = open(genome_listing_file)
 	genome_count = len(oglf.readlines())
 	oglf.close()
-
-	if (genome_count >= 2000 or genome_count < 10) and (not ignore_limits_flag):
-		logObject.error(
-			"Currently not recommended to use lsaBGC-Easy for taxa with > 2000 genomes or < 10 genomes. In the future this will likely be updated to be a warning, but would rather not risk harming your server!")
-		sys.stderr.write(
-			"Currently not recommended to use lsaBGC-Easy for taxa with > 2000 genomes or < 10 genomes.\nIn the future this will likely be updated to be a warning, but would rather not risk harming your computer/server!\n")
-		sys.stderr.write(
-			'Exiting now, but you can move past this if you feel comfortable and are willing to wait for longer processing times using the -x flag.\n')
-		sys.exit(1)
 
 	# Step 2: Download all genomes in FASTA format & prodigal gene calling
 	genomes_directory = outdir + 'genbank/'
@@ -284,6 +276,14 @@ def lsaBGC_Easy():
 		if genome_included_count <= 2:
 			logObject.error('Fewer than 3 genomes downloaded / provided. Exiting as more genomes are needed.')
 			sys.stderr.write('Fewer than 3 genomes downloaded / provided. Exiting as more genomes are needed.\n')
+			sys.exit(1)
+		elif (genome_included_count > 2000 or genome_included_count < 10) and not ignore_limits_flag:
+			logObject.error(
+				"Currently not recommended to use lsaBGC-Easy for taxa with > 2000 genomes or < 10 genomes. In the future this will likely be updated to be a warning, but would rather not risk harming your server!")
+			sys.stderr.write(
+				"Currently not recommended to use lsaBGC-Easy for taxa with > 2000 genomes or < 10 genomes.\nIn the future this will likely be updated to be a warning, but would rather not risk harming your computer/server!\n")
+			sys.stderr.write(
+				'Exiting now, but you can move past this if you feel comfortable and are willing to wait for longer processing times using the -x flag.\n')
 			sys.exit(1)
 		else:
 			logObject.info('Great, we found or downloaded %d genomes belonging to the taxa!' % (genome_included_count))
@@ -350,8 +350,18 @@ def lsaBGC_Easy():
 		'--------------------\nStep 3\n--------------------\nBeginning construction of species tree using GToTree.\n')
 	if not os.path.isfile(species_tree_file) or not os.path.isfile(expected_similarities_file):
 		os.system('rm -rf %s' % gtotree_outdir)
-		gtotree_cmd = ['GToTree', '-A', all_proteomes_listing_file, '-H', gtotree_model, '-n', '4', '-j',
-					   str(parallel_jobs_4cpu), '-M', '4', '-o', gtotree_outdir]
+
+		actino_hmm_file = lsaBGC_main_directory + '/db/Actinobacteria.hmm'
+		bacteria_hmm_file = lsaBGC_main_directory + '/db/Bacteria.hmm'
+		universal_hmm_file = lsaBGC_main_directory + '/db/Universal_et_al_Hug.hmm'
+
+		gtotree_model_arg = gtotree_model
+		if gtotree_model == 'Actinobacteria' and os.path.isfile(actino_hmm_file): gtotree_model_arg =  actino_hmm_file
+		elif gtotree_model == 'Bacteria' and os.path.isfile(bacteria_hmm_file): gtotree_model_arg = bacteria_hmm_file
+		elif gtotree_model == 'Universal_et_al_Hug' and os.path.isfile(universal_hmm_file): gtotree_model_arg = universal_hmm_file
+
+		gtotree_cmd = ['GToTree', '-A', all_proteomes_listing_file, '-H', gtotree_model_arg, '-n', str(max([cpus, 4])),
+					   '-j', str(parallel_jobs_4cpu), '-M', str(max([cpus, 4])), '-o', gtotree_outdir]
 		runCmdViaSubprocess(gtotree_cmd, logObject, check_files=[species_tree_file])
 
 		protein_msa_file = gtotree_outdir + 'Aligned_SCGs.faa'
@@ -486,12 +496,15 @@ def lsaBGC_Easy():
 		for line in oskf:
 			count_of_dereplicated_sample_set += 1
 	if (count_of_dereplicated_sample_set > 100) and (not ignore_limits_flag):
-		logObject.error(
-			"Currently not recommended to use lsaBGC-Easy for taxa with > 100 genomes after dereplication. In the future this will likely be updated to be a warning, but would rather not risk harming your computer/server!")
-		sys.stderr.write(
-			"Currently not recommended to use lsaBGC-Easy for taxa with > 100 genomes\nafter dereplication. In the future this will likely be updated\nto be a warning, but would rather not risk harming\nyour computer/server!")
-		sys.stderr.write(
-			'Exiting now, but you can move past this if you feel comfortable and are willing to wait for longer processing times using the -x flag.\n')
+		logObject.error("Currently not recommended to use lsaBGC-Easy for taxa with > 100 genomes after dereplication. In the future this will likely be updated to be a warning, but would rather not risk harming your computer/server!")
+		sys.stderr.write("Currently not recommended to use lsaBGC-Easy for taxa with > 100 genomes\nafter dereplication. In the future this will likely be updated\nto be a warning, but would rather not risk harming\nyour computer/server!")
+		sys.stderr.write("Exiting now, but you can move past this if you feel comfortable and are willing to wait for longer processing times using the -x flag.\n")
+		sys.exit(1)
+	elif (count_of_dereplicated_sample_set > 300):
+		logObject.error("You have >300 genomes after dereplication and probably don't want to continue - OrthoFinder will need to perform a lot of pairwise comparisons... over 90K! You can reperform dereplication using more stringent thresholds to get fewer genomes.")
+		sys.stderr.write("You have >300 genomes after dereplication and probably don't want to continue - OrthoFinder will need to perform a lot of pairwise comparisons... over 90K! You can reperform dereplication using more stringent thresholds to get fewer genomes.\n")
+		sys.stderr.write("Exiting now, if you really must get past this and feel comfortable - you can edit this program.\n")
+		sys.exit(1)
 	else:
 		logObject.info(
 			"After dereplication (if performed) there are %d samples/genomes being considered." % count_of_dereplicated_sample_set)
@@ -526,9 +539,8 @@ def lsaBGC_Easy():
 					gecco_cmd += [logObject]
 					primary_bgc_pred_cmds.append(gecco_cmd)
 				if bgc_prediction_software == 'ANTISMASH':
-					antismash_cmd = ['antismash', '--output-dir', primary_bgc_pred_directory + s + '/', '-c',
-									 str(bgc_prediction_cpus), '--genefinding-tool', 'none', '--output-basename', s,
-									 all_genome_listings_gbk[s]]
+					antismash_cmd = ['antismash', '--output-dir', primary_bgc_pred_directory + s + '/',
+									 antismash_options, '--output-basename', s, all_genome_listings_gbk[s]]
 					primary_bgc_pred_cmds.append(antismash_cmd)
 				elif bgc_prediction_software == 'DEEPBGC':
 					deepbgc_cmd = ['deepbgc', 'pipeline', '--output', primary_bgc_pred_directory + s + '/',
@@ -588,7 +600,7 @@ def lsaBGC_Easy():
 	bigscape_results_dir = outdir + 'BiG_SCAPE_Clustering_Results/'
 	if use_bigscape_flag and not os.path.isdir(bigscape_results_dir) and os.path.isfile(bigscape_prog_location):
 		bigscape_cmd = ['python', bigscape_prog_location, '-i', primary_bgc_pred_directory, '-o', bigscape_results_dir,
-						'-c', str(cpus), '--include_singletons', '--pfam_dir', pfam_directory]
+						'-c', str(cpus), '--pfam_dir', pfam_directory, bigscape_options]
 		runCmdViaSubprocess(bigscape_cmd, logObject, check_directories=[bigscape_results_dir])
 		try:
 			assert (os.path.isdir(bigscape_results_dir + 'network_files/'))
@@ -674,7 +686,7 @@ def lsaBGC_Easy():
 		runCmdViaSubprocess(lsabgc_autoanalyze_cmd, logObject, check_directories=[lsabgc_autoanalyze_results_dir])
 
 
-	# Step 8: Run lsaBGC-AutoAnalyze.py
+	# Step 8: Run GSeeF.py
 	logObject.info('\n--------------------\nStep 8\n--------------------\nBeginning GSeeF analysis.')
 	sys.stdout.write('--------------------\nStep 8\n--------------------\nBeginning GSeeF analysis.')
 
