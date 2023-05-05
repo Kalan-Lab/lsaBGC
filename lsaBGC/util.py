@@ -1547,29 +1547,31 @@ def performKOFamAndPGAPAnnotation(sample_bgc_proteins, bgc_prot_directory, annot
 		ko_score_cutoffs = {}
 		ko_score_types = {}
 		ko_descriptions = defaultdict(lambda: "NA")
-		with open(kofam_pro_list) as okpl:
-			for i, line in enumerate(okpl):
-				if i == 0: continue
-				line = line.strip()
-				ls = line.split('\t')
-				ko = ls[0]
-				if ls[1] == '-': continue
-				score_cutoff = float(ls[1])
-				profile_type = ls[2]
-				description = ls[-1]
-				ko_score_cutoffs[ko] = score_cutoff
-				ko_score_types[ko] = profile_type
+		pgap_descriptions = defaultdict(lambda: "NA")
+		if kofam_pro_list != None and kofam_hmm_file != None:
+			with open(kofam_pro_list) as okpl:
+				for i, line in enumerate(okpl):
+					if i == 0: continue
+					line = line.strip()
+					ls = line.split('\t')
+					ko = ls[0]
+					if ls[1] == '-': continue
+					score_cutoff = float(ls[1])
+					profile_type = ls[2]
+					description = ls[-1]
+					ko_score_cutoffs[ko] = score_cutoff
+					ko_score_types[ko] = profile_type
 				ko_descriptions[ko] = description
 
-		pgap_descriptions = defaultdict(lambda: "NA")
-		with open(pgap_inf_list) as opil:
-			for i, line in enumerate(opil):
-				if i == 0: continue
-				line = line.strip()
-				ls = line.split('\t')
-				label = ls[2]
-				description = ls[10]
-				pgap_descriptions[label] = description
+		if pgap_inf_list != None and pgap_hmm_file != None:
+			with open(pgap_inf_list) as opil:
+				for i, line in enumerate(opil):
+					if i == 0: continue
+					line = line.strip()
+					ls = line.split('\t')
+					label = ls[2]
+					description = ls[10]
+					pgap_descriptions[label] = description
 
 		hmmsearch_cmds = []
 		for f in os.listdir(bgc_prot_directory):
@@ -1577,12 +1579,14 @@ def performKOFamAndPGAPAnnotation(sample_bgc_proteins, bgc_prot_directory, annot
 			prot_file = bgc_prot_directory + f
 			ko_annot_result = annot_directory + sample + '.ko.txt'
 			pgap_annot_result = annot_directory + sample + '.pgap.txt'
-			hmmsearch_ko_cmd = ['hmmsearch', '--cpu', '2', '--tblout', ko_annot_result, kofam_hmm_file,
-								prot_file, logObject]
-			hmmsearch_pgap_cmd = ['hmmsearch', '--cpu', '2', '--tblout', pgap_annot_result, pgap_hmm_file,
-								  prot_file, logObject]
-			hmmsearch_cmds.append(hmmsearch_ko_cmd)
-			hmmsearch_cmds.append(hmmsearch_pgap_cmd)
+			if kofam_pro_list != None and kofam_hmm_file != None:
+				hmmsearch_ko_cmd = ['hmmsearch', '--cpu', '2', '--tblout', ko_annot_result, kofam_hmm_file,
+									prot_file, logObject]
+				hmmsearch_cmds.append(hmmsearch_ko_cmd)
+			if pgap_inf_list != None and pgap_hmm_file != None:
+				hmmsearch_pgap_cmd = ['hmmsearch', '--cpu', '2', '--tblout', pgap_annot_result, pgap_hmm_file,
+									  prot_file, logObject]
+				hmmsearch_cmds.append(hmmsearch_pgap_cmd)
 
 		p = multiprocessing.Pool(math.floor(cpus / 2))
 		p.map(multiProcess, hmmsearch_cmds)
@@ -1593,34 +1597,36 @@ def performKOFamAndPGAPAnnotation(sample_bgc_proteins, bgc_prot_directory, annot
 			pgap_annot_result = annot_directory + sample + '.pgap.txt'
 			hits_per_prot = defaultdict(list)
 
-			with open(ko_annot_result) as orf:
-				for line in orf:
-					if line.startswith("#"): continue
-					line = line.strip()
-					ls = line.split()
-					ko = ls[2]
-					prot_id = ls[0]
-					full_eval = float(ls[4])
-					full_score = float(ls[5])
-					dom_score = float(ls[8])
-					if ko in ko_score_types:
-						if ko_score_types[ko] == 'full' and full_score >= ko_score_cutoffs[ko]:
-							hits_per_prot[prot_id].append(['ko', ko, -full_score, full_eval])
-						elif ko_score_types[ko] == 'domain' and dom_score >= ko_score_cutoffs[ko]:
-							hits_per_prot[prot_id].append(['ko', ko, -dom_score, full_eval])
-					if full_eval < 1e-10:
-						hits_per_prot[prot_id].append(['ko', ko, 1E10, full_eval])
+			if os.path.isfile(ko_annot_result):
+				with open(ko_annot_result) as orf:
+					for line in orf:
+						if line.startswith("#"): continue
+						line = line.strip()
+						ls = line.split()
+						ko = ls[2]
+						prot_id = ls[0]
+						full_eval = float(ls[4])
+						full_score = float(ls[5])
+						dom_score = float(ls[8])
+						if ko in ko_score_types:
+							if ko_score_types[ko] == 'full' and full_score >= ko_score_cutoffs[ko]:
+								hits_per_prot[prot_id].append(['ko', ko, -full_score, full_eval])
+							elif ko_score_types[ko] == 'domain' and dom_score >= ko_score_cutoffs[ko]:
+								hits_per_prot[prot_id].append(['ko', ko, -dom_score, full_eval])
+						if full_eval < 1e-10:
+							hits_per_prot[prot_id].append(['ko', ko, 1E10, full_eval])
 
-			with open(pgap_annot_result) as orf:
-				for line in orf:
-					if line.startswith("#"): continue
-					line = line.strip()
-					ls = line.split()
-					pgap = ls[2]
-					prot_id = ls[0]
-					full_eval = float(ls[4])
-					if full_eval < 1e-10:
-						hits_per_prot[prot_id].append(['pgap', pgap, 1E10, full_eval])
+			if os.path.isfile(pgap_annot_result):
+				with open(pgap_annot_result) as orf:
+					for line in orf:
+						if line.startswith("#"): continue
+						line = line.strip()
+						ls = line.split()
+						pgap = ls[2]
+						prot_id = ls[0]
+						full_eval = float(ls[4])
+						if full_eval < 1e-10:
+							hits_per_prot[prot_id].append(['pgap', pgap, 1E10, full_eval])
 
 			best_hits = defaultdict(lambda: 'hypothetical protein')
 			for pi in hits_per_prot:

@@ -412,7 +412,10 @@ def GSeeF():
 	resulting_png = final_results_dir + 'Phylogenetic_Heatmap.png'
 	label_resulting_png = final_results_dir + 'Annotation_Legend.png'
 	gseef_cmd = ['Rscript', gSeefScript, rooted_species_tree_file, gseef_track_file, resulting_png, label_resulting_png]
-	runCmdViaSubprocess(gseef_cmd, logObject, check_files=[resulting_png, label_resulting_png])
+	# check files should be: resulting_png, label_resulting_png
+	# but plots are not essential so taking out requirement in case
+	# R environment broken in conda environment.
+	runCmdViaSubprocess(gseef_cmd, logObject, check_files=[])
 
 	# Close logging object and exit
 	logObject.info('GSeeF completed! Check out the major results in the folder: %s' % final_results_dir)

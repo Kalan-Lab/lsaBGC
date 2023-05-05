@@ -17,25 +17,25 @@ dependencies:
   - bioconda::fasttree=2.1.11
   - conda-forge::ete3=3.1.2
   - bioconda::diamond=2.0.15
-  - conda-forge::r-base=4.0.3
-  - conda-forge::r-ggplot2=3.3.5
-  - conda-forge::r-cowplot=1.1.1
-  - conda-forge::r-phytools=0.7_80
-  - conda-forge::r-ape=5.5
-  - conda-forge::r-scatterpie=0.1.6
-  - conda-forge::r-dplyr=1.0.4
-  - conda-forge::r-gggenes=0.4.1
-  - bioconda::bioconductor-ggtree=2.4.0
-  - conda-forge::r-ggalluvial=0.12.3
-  - conda-forge::r-rvcheck=0.1.8
-  - conda-forge::pomegranate=0.13.3
-  - conda-forge::r-data.table=1.14.0
-  - conda-forge::r-plyr=1.8.6
-  - conda-forge::r-gridextra=2.3
+  - r-base
+  - r-ggplot2
+  - r-cowplot
+  - r-phytools
+  - r-ape
+  - r-scatterpie
+  - r-dplyr
+  - r-gggenes
+  - bioconductor-ggtree
+  - r-ggalluvial
+  - r-data.table
+  - r-plyr
+  - r-gridextra
   - bioconda::orthofinder=2.5.4
-  - bioconda::prodigal=2.6.3
+  - bioconda::prodigal
   - bioconda::pyrodigal
+  - conda-forge::tar
   - conda-forge::pandas=1.4.2
+  - conda-forge::pomegranate=0.13.3
   - bioconda::mash
   - bioconda::gtotree
   - conda-forge::xlsxwriter=3.0.3
@@ -46,3 +46,4 @@ dependencies:
   - conda-forge::scikit-learn
   - pip:
       - magus-msa
+

@@ -19,15 +19,23 @@ def create_parser():
     parser.add_argument('-p', '--download_path',
                         help='Path to where database is installed.',
                         required=False, default=lsaBGC_main_directory + 'db/')
+    parser.add_argument('-nk', '--no_ko', action='store_true',
+                        help='Do not download KO database.',
+                        required=False, default=False)
+    parser.add_argument('-dsh', '--download_scc_hmms', action='store_true',
+                        help='Download SCC HMMs from GToTree for Actinobacteria, Bacteria, and Universal models. Added for Docker.',
+                        required=False, default=False)
 
     args = parser.parse_args()
     return args
 
-
 def setup_annot_dbs():
-    myargs = create_parser()
+    #TODO Create substructe in db subdirectory to allow force deletion of all previous database download attempts.
 
+    myargs = create_parser()
     download_path = os.path.abspath(myargs.download_path) + '/'
+    no_ko = myargs.no_ko
+    download_scc_hmms = myargs.download_scc_hmms
 
     try:
         assert(os.path.isdir(download_path))
@@ -43,7 +51,7 @@ def setup_annot_dbs():
         ko_annot_info_file = download_path + 'ko_list'
         ko_phmm_file = download_path + 'profile.hmm'
 
-        if not os.path.isfile(ko_annot_info_file) or not os.path.isfile(ko_phmm_file):
+        if (not os.path.isfile(ko_annot_info_file) or not os.path.isfile(ko_phmm_file)) and (not no_ko):
             os.system('rm -f %s' % ko_annot_info_file)
             # Download KOfam HMMs
             print('Setting up KO database!')
@@ -85,8 +93,7 @@ def setup_annot_dbs():
             listing_handle = open(listing_file, 'a+')
             listing_handle.write('pgap\t' + pgap_info_file + '\t' + pgap_hmm_file + '\n')
             listing_handle.close()
-            os.system('rm -rf %s %s' % (download_path + 'hmm_PGAP/', download_path + 'hmm_PGAP.HMM.tgz'))
-
+            os.system('rm -rf %s %s' % (download_path + 'hmm_PGAP.HMM/', download_path + 'hmm_PGAP.HMM.tgz'))
 
         mibig_faa_file = download_path + 'mibig_prot_seqs_3.1.fasta'
         mibig_dmnd_file = download_path + 'mibig.dmnd'
@@ -109,6 +116,26 @@ def setup_annot_dbs():
             listing_handle = open(listing_file, 'a+')
             listing_handle.write('mibig\t' + mibig_info_file + '\t' + mibig_dmnd_file + '\n')
             listing_handle.close()
+
+        actino_hmm_file = download_path + 'Actinobacteria.hmm'
+        bacteria_hmm_file = download_path + 'Bacteria.hmm'
+        universal_hmm_file = download_path + 'Universal_Hug_et_al.hmm'
+
+        if download_scc_hmms and not (os.path.isfile(actino_hmm_file) and os.path.isfile(bacteria_hmm_file) and os.path.isfile(universal_hmm_file)):
+            print('Setting up GToTree SCC HMMs!')
+
+            if not os.path.isfile(actino_hmm_file):
+                os.system('wget https://zenodo.org/record/7860735/files/Actinobacteria.hmm?download=1 -O ' + actino_hmm_file)
+                assert (os.path.isfile(actino_hmm_file))
+
+            if not os.path.isfile(bacteria_hmm_file):
+                os.system('wget https://zenodo.org/record/7860735/files/Bacteria.hmm?download=1 -O ' + bacteria_hmm_file)
+                assert (os.path.isfile(bacteria_hmm_file))
+
+            if not os.path.isfile(universal_hmm_file):
+                os.system('wget https://zenodo.org/record/7860735/files/Universal_Hug_et_al.hmm?download=1 -O ' + universal_hmm_file)
+                assert (os.path.isfile(universal_hmm_file))
+
     except:
         sys.stderr.write('Error: issues with downloading or seting up annotation database files! Please post to Github issues if unable to figure out!\n')
 
