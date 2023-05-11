@@ -367,7 +367,8 @@ def lsaBGC_Ready():
         util.setupReadyDirectory([deepbgc_split_directory])
         bgc_genbank_listing_file = util.splitDeepBGCGenbank(bgc_genbank_listing_file, deepbgc_split_directory, outdir, logObject)
 
-    bgc_mappings = util.mapBGCtoGenomeBySequence(bgc_genbank_listing_file, sample_genomes, outdir, logObject, cpus=cpus)
+    bgc_mappings = util.mapBGCtoGenomeBySequence(bgc_genbank_listing_file, sample_genomes, outdir,
+                                                 bgc_prediction_software, logObject, cpus=cpus)
     sample_bgcs, bgc_to_sample = util.processBGCGenbanks(bgc_genbank_listing_file, bgc_mappings, bgc_prediction_software,
                                                          sample_genomes, bgcs_directory, proteomes_directory, logObject)
 

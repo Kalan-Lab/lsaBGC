@@ -116,10 +116,10 @@ def create_parser():
 	parser.add_argument('-om', '--orthofinder_mode', help="Method for running OrthoFinder2. (Options: Genome_Wide, BGC_Only).\nBGC_Only is experimental but much faster and should work especially well for\ntaxa with many BGCs [Default is Genome_Wide].", default='Genome_Wide', required=False)
 	parser.add_argument('-mc', '--run_coarse_orthofinder', action='store_true', help='Use coarse clustering of homolog groups in OrthoFinder instead of more\nresolute hierarchical determined homolog groups. There are some advantages to coarse\nOGs, including their construction being deterministic.', required=False, default=False)
 	parser.add_argument('-c', '--cpus', type=int, help="Total number of CPUs to use [Default is 4].", required=False, default=4)
-	parser.add_argument('-ao', '--antismash_options', help="Options for antiSMASH prediction analysis (should be surrounded by quotes). [Default is \"--genefinding-tool none --cpus 4\"]", required=False, default="--genefinding-tool none --cpus 4")
+	parser.add_argument('-ao', '--antismash_options', help="Options for antiSMASH prediction analysis (should be surrounded by\nquotes, in Docker - it is assumed each individual job will have 4 CPUs). [Default is\n\"--taxon fungi --genefinding-tool none --cpus 4\"]", required=False, default="--taxon fungi --genefinding-tool none --cpus 4")
+	parser.add_argument('-d', '--docker_mode', help=argparse.SUPPRESS, required=False, default=False)
 	args = parser.parse_args()
 	return args
-
 
 def lsaBGC_Easy():
 	myargs = create_parser()
@@ -145,6 +145,7 @@ def lsaBGC_Easy():
 	lsabgc_cluster_inflation = myargs.lsabgc_cluster_inflation
 	lsabgc_cluster_jaccard = myargs.lsabgc_cluster_jaccard
 	lsabgc_cluster_synteny = myargs.lsabgc_cluster_synteny
+	docker_mode = myargs.docker_mode
 
 	try:
 		assert (orthofinder_mode in set(['GENOME_WIDE', 'BGC_ONLY']))
@@ -153,6 +154,12 @@ def lsaBGC_Easy():
 		sys.exit(1)
 	try:
 		assert (bgc_prediction_software in set(['ANTISMASH', 'DEEPBGC', 'GECCO']))
+		if docker_mode:
+			try:
+				assert(bgc_prediction_software in set(['ANTISMASH', 'GECCO']))
+			except:
+				sys.stderr.write('Only antiSMASH and GECCO are supported in Docker mode currently.\n')
+				sys.exit(1)
 	except:
 		sys.stderr.write('BGC prediction software option is not a valid option.\n')
 		sys.exit(1)
@@ -164,7 +171,7 @@ def lsaBGC_Easy():
 			sys.stderr.write('User defined genomes directory could not be validated to exist!\n')
 			sys.exit(1)
 
-	checkModelIsValid(gtotree_model)
+	checkModelIsValid(gtotree_model, docker_mode)
 
 	if os.path.isdir(outdir):
 		sys.stderr.write(
@@ -204,6 +211,12 @@ def lsaBGC_Easy():
 		"--------------------\nStep 1\n--------------------\nBeginning by assessing which genomic assemblies are available for the taxa %s in GTDB and NCBI's Genbank db\n" % taxa_name)
 	logObject.info(
 		"\n--------------------\nStep 1\n--------------------\nBeginning by assessing which genomic assemblies are available for the taxa %s in GTDB and NCBI's Genbank db" % taxa_name)
+
+	if docker_mode:
+		taxa_name = "None"
+		sys.stdout.write("Running in Docker mode, so will not download any genomes from NCBI.\n")
+		logObject.info("Running in Docker mode, so will not download any genomes from NCBI.")
+
 	if not os.path.isfile(genbank_accession_listing_file):
 		genbank_accession_listing_handle = open(genbank_accession_listing_file, 'w')
 		with gzip.open(lsaBGC_main_directory + 'db/GTDB_R214_Information.txt.gz', 'rt') as ogtdb:
@@ -223,7 +236,7 @@ def lsaBGC_Easy():
 	accession_count = len(ogalf.readlines())
 	ogalf.close()
 
-	if (accession_count > 2000) and (not ignore_limits_flag) and (not (accession_count < 10 and os.path.isdir(user_genomes_directory))):
+	if ((accession_count > 2000) or (accession_count < 10 and not os.path.isdir(user_genomes_directory))) and not ignore_limits_flag:
 		logObject.error(
 			"Currently not recommended to use lsaBGC-Easy for taxa with > 2000 genomes or < 10 genomes. In the future this will likely be updated to be a warning, but would rather not risk harming your server!")
 		sys.stderr.write(
@@ -278,12 +291,9 @@ def lsaBGC_Easy():
 			sys.stderr.write('Fewer than 3 genomes downloaded / provided. Exiting as more genomes are needed.\n')
 			sys.exit(1)
 		elif (genome_included_count > 2000 or genome_included_count < 10) and not ignore_limits_flag:
-			logObject.error(
-				"Currently not recommended to use lsaBGC-Easy for taxa with > 2000 genomes or < 10 genomes. In the future this will likely be updated to be a warning, but would rather not risk harming your server!")
-			sys.stderr.write(
-				"Currently not recommended to use lsaBGC-Easy for taxa with > 2000 genomes or < 10 genomes.\nIn the future this will likely be updated to be a warning, but would rather not risk harming your computer/server!\n")
-			sys.stderr.write(
-				'Exiting now, but you can move past this if you feel comfortable and are willing to wait for longer processing times using the -x flag.\n')
+			logObject.error("Currently not recommended to use lsaBGC-Easy for taxa with > 2000 genomes or < 10 genomes. In the future this will likely be updated to be a warning, but would rather not risk harming your server!")
+			sys.stderr.write("Currently not recommended to use lsaBGC-Easy for taxa with > 2000 genomes or < 10 genomes.\nIn the future this will likely be updated to be a warning, but would rather not risk harming your computer/server!\n")
+			sys.stderr.write("Exiting now, but you can move past this if you feel comfortable and are willing to wait for longer processing times using the -x flag.\n")
 			sys.exit(1)
 		else:
 			logObject.info('Great, we found or downloaded %d genomes belonging to the taxa!' % (genome_included_count))
@@ -382,10 +392,8 @@ def lsaBGC_Easy():
 	population_file = outdir + 'Genomes_to_Populations_Mapping.txt'
 	samples_to_keep_file = outdir + 'Dereplicated_Set_of_Genomes.txt'
 	if not os.path.isfile(population_file) or not os.path.isfile(samples_to_keep_file):
-		logObject.info(
-			'Beginning determination of populations/clades and dereplication (assuming dereplication not requested to be skipped via -sd flag).')
-		sys.stdout.write(
-			'Beginning determination of populations/clades and dereplication (assuming dereplication not requested to be skipped via -sd flag).\n')
+		logObject.info('Beginning determination of populations/clades and dereplication (assuming dereplication not requested to be skipped via -sd flag).')
+		sys.stdout.write('Beginning determination of populations/clades and dereplication (assuming dereplication not requested to be skipped via -sd flag).\n')
 
 		all_samples = set([])
 		population_pairs = []
@@ -506,10 +514,8 @@ def lsaBGC_Easy():
 		sys.stderr.write("Exiting now, if you really must get past this and feel comfortable - you can edit this program.\n")
 		sys.exit(1)
 	else:
-		logObject.info(
-			"After dereplication (if performed) there are %d samples/genomes being considered." % count_of_dereplicated_sample_set)
-		sys.stdout.write(
-			"After dereplication (if performed) there are %d samples/genomes being considered.\n" % count_of_dereplicated_sample_set)
+		logObject.info("After dereplication (if performed) there are %d samples/genomes being considered." % count_of_dereplicated_sample_set)
+		sys.stdout.write("After dereplication (if performed) there are %d samples/genomes being considered.\n" % count_of_dereplicated_sample_set)
 
 	checkUlimitSettings(count_of_dereplicated_sample_set, logObject)
 
@@ -539,8 +545,14 @@ def lsaBGC_Easy():
 					gecco_cmd += [logObject]
 					primary_bgc_pred_cmds.append(gecco_cmd)
 				if bgc_prediction_software == 'ANTISMASH':
+					# TODO ASSERT THAT IN FUTURE ANTISMASH VERSIONS DEFINITION LINE STICKS AROUND FOR PARSING OF BGC LOCATION
 					antismash_cmd = ['antismash', '--output-dir', primary_bgc_pred_directory + s + '/',
 									 antismash_options, '--output-basename', s, all_genome_listings_gbk[s]]
+					if docker_mode:
+						antismash_cmd = ['. /opt/conda/etc/profile.d/conda.sh && conda activate /usr/src/antismash_conda_env/ &&',
+										 'antismash', '--output-dir', primary_bgc_pred_directory + s + '/',
+										 antismash_options, '--output-basename', s, all_genome_listings_gbk[s], logObject]
+
 					primary_bgc_pred_cmds.append(antismash_cmd)
 				elif bgc_prediction_software == 'DEEPBGC':
 					deepbgc_cmd = ['deepbgc', 'pipeline', '--output', primary_bgc_pred_directory + s + '/',
@@ -553,31 +565,31 @@ def lsaBGC_Easy():
 			p = multiprocessing.Pool(parallel_jobs_4cpu)
 			p.map(util.multiProcess, primary_bgc_pred_cmds)
 			p.close()
+		elif docker_mode and bgc_prediction_software == 'ANTISMASH':
+			p = multiprocessing.Pool(parallel_jobs_4cpu)
+			p.map(util.multiProcess, primary_bgc_pred_cmds)
+			p.close()
 		else:
 			cmd_handle = open(cmd_file, 'w')
 			for cmd in primary_bgc_pred_cmds:
 				cmd_handle.write(' '.join(cmd) + '\n')
 			cmd_handle.close()
-			logObject.info(
-				'%s BGC prediction commands written to %s.Please run these and afterwards restart lsaBGC-Easy.py with the same command as used initially.' % (
-				bgc_prediction_software, cmd_file))
-			sys.stdout.write(
-				'************************\nPlease run the following BGC prediction commands using a different conda envirnoment with the BGC prediction\nsoftware (%s) installed and afterwards restart lsaBGC-Easy.py with the same command as used initially.\nExiting now, see you back soon, here is the task file with the %s commands:\n%s\n' % (
-				bgc_prediction_software, bgc_prediction_software, cmd_file))
+			logObject.info('%s BGC prediction commands written to %s.Please run these and afterwards restart lsaBGC-Easy.py with the same command as used initially.' % (bgc_prediction_software, cmd_file))
+			sys.stdout.write('************************\nPlease run the following BGC prediction commands using a different conda environment with the BGC prediction\nsoftware (%s) installed and afterwards restart lsaBGC-Easy.py with the same command as used initially.\nExiting now, see you back soon, here is the task file with the %s commands:\n%s\n' % (bgc_prediction_software, bgc_prediction_software, cmd_file))
 			sys.exit(0)
 
-	bgc_prediciton_count = 0
+	bgc_prediction_count = 0
 	for f in os.listdir(primary_bgc_pred_directory):
-		bgc_prediciton_count += 1
+		bgc_prediction_count += 1
 
-	if bgc_prediciton_count == 0 and (bgc_prediction_software == 'ANTISMASH' or bgc_prediction_software == 'DEEPBGC'):
-		logObject.error(
-			"************************\nLooks like you didn't run the BGC prediction commands (or at least successfully),\nplease run them in a different environment where %s is present in the environment.\nOnly after they have been successfully run and written to the directory:\n%s\ncan you restart the lsaBGC command. Here are the %s commands again:\n%s" % (
-			bgc_prediction_software, primary_bgc_pred_directory, bgc_prediction_software, cmd_file))
-		sys.stderr.write(
-			"************************\nLooks like you didn't run the BGC prediction commands (or at least successfully),\nplease run them in a different environment where %s is present in the environment.\nOnly after they have been successfully run and written to the directory:\n%s\ncan you restart the lsaBGC command. Here are the %s commands again:\n%s\n" % (
-			bgc_prediction_software, primary_bgc_pred_directory, bgc_prediction_software, cmd_file))
+	if bgc_prediction_count == 0 and (bgc_prediction_software == 'ANTISMASH' or bgc_prediction_software == 'DEEPBGC'):
+		logObject.error("************************\nLooks like you didn't run the BGC prediction commands (or at least successfully),\nplease run them in a different environment where %s is present in the environment.\nOnly after they have been successfully run and written to the directory:\n%s\ncan you restart the lsaBGC command. Here are the %s commands again:\n%s" % (bgc_prediction_software, primary_bgc_pred_directory, bgc_prediction_software, cmd_file))
+		sys.stderr.write("************************\nLooks like you didn't run the BGC prediction commands (or at least successfully),\nplease run them in a different environment where %s is present in the environment.\nOnly after they have been successfully run and written to the directory:\n%s\ncan you restart the lsaBGC command. Here are the %s commands again:\n%s\n" % (bgc_prediction_software, primary_bgc_pred_directory, bgc_prediction_software, cmd_file))
 		sys.exit(1)
+	elif bgc_prediction_count == 0:
+		logObject.error("************************\nLooks like no BGCs were predicted in any of your genomes, thus there is not much we can do\ndownstream - perhaps try running antiSMASH/GECCO/DeepBGC for a few genomes to confirm this isn\t' an lsaBGC configuration issue.',\nplease run them in a different environment where %s is present in the environment.\nOnly after they have been successfully run and written to the directory:\n%s\ncan you restart the lsaBGC command. Here are the paths to the %s commands again:\n%s" % (bgc_prediction_software, cmd_file))
+		sys.stderr.write("************************\nLooks like no BGCs were predicted in any of your genomes, thus there is not much we can do\ndownstream - perhaps try running antiSMASH/GECCO/DeepBGC for a few genomes to confirm this isn\t' an lsaBGC configuration issue.',\nplease run them in a different environment where %s is present in the environment.\nOnly after they have been successfully run and written to the directory:\n%s\ncan you restart the lsaBGC command. Here are the paths to the %s commands again:\n%s\n" % (bgc_prediction_software, cmd_file))
+		sys.exit(0)
 
 	primary_bgcs_listing_file = outdir + 'BGCs_in_Primary_Genomes.txt'
 	if not os.path.isfile(primary_bgcs_listing_file):
@@ -771,15 +783,20 @@ def checkUlimitSettings(num_genomes, logObject):
 			"Great news! Your ulimit settings look good and we believe OrthoFinder2 should be able to run smoothly!")
 
 
-def checkModelIsValid(gtotree_model):
-	try:
-		assert (gtotree_model in set(['Actinobacteria', 'Alphaproteobacteria', 'Bacteria', 'Archaea',
-									  'Bacteria_and_Archaea', 'Bacteroidetes', 'Betaproteobacteria', 'Chlamydiae',
-									  'Cyanobacteria', 'Epsilonproteobacteria', 'Firmicutes', 'Gammaproteobacteria',
-									  'Proteobacteria', 'Tenericutes', 'Universal_Hug_et_al']))
-	except:
-		raise RuntimeError('Model for GToTree specified is not a valid model!')
-
+def checkModelIsValid(gtotree_model, docker_mode=False):
+	if not docker_mode:
+		try:
+			assert (gtotree_model in set(['Actinobacteria', 'Alphaproteobacteria', 'Bacteria', 'Archaea',
+										  'Bacteria_and_Archaea', 'Bacteroidetes', 'Betaproteobacteria', 'Chlamydiae',
+										  'Cyanobacteria', 'Epsilonproteobacteria', 'Firmicutes', 'Gammaproteobacteria',
+										  'Proteobacteria', 'Tenericutes', 'Universal_Hug_et_al']))
+		except:
+			raise RuntimeError('Model for GToTree specified is not a valid model!')
+	else:
+		try:
+			assert (gtotree_model in set(['Actinobacteria', 'Bacteria', 'Universal_Hug_et_al']))
+		except:
+			raise RuntimeError('Only GToTree SCC models for Actinobacteria, Bacteria, and Universal_Hug_et_al are available in Docker mode!\n')
 
 def checkLsaBGCInputsExist(annotation_listing_file, gcf_listing_dir, orthogroups_matrix_file):
 	try:
