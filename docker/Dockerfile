@@ -11,7 +11,7 @@ SHELL ["/bin/bash", "-c"]
 RUN apt-get update && apt-get install -y git wget
 
 # Clone lsaBGC github repo and create conda environment
-RUN git clone https://github.com/Kalan-Lab/lsaBGC && rm -rf lsaBGC/test_case.tar.gz
+RUN git clone --branch develop https://github.com/Kalan-Lab/lsaBGC && rm -rf lsaBGC/test_case.tar.gz
 
 # Create and activate conda environment
 RUN conda install -c conda-forge mamba && \
