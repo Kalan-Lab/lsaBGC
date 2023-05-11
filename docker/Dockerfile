@@ -8,8 +8,6 @@ LABEL maintainer="Rauf Salamzade - Kalan Lab, UW-Madison"
 
 WORKDIR /usr/src
 SHELL ["/bin/bash", "-c"]
-RUN which conda
-RUN dfaf af 
 RUN apt-get update && apt-get install -y git wget
 
 # Clone lsaBGC github repo and create conda environment
