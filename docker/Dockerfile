@@ -8,16 +8,17 @@ LABEL maintainer="Rauf Salamzade - Kalan Lab, UW-Madison"
 
 WORKDIR /usr/src
 SHELL ["/bin/bash", "-c"]
-RUN apt-get update && apt-get install -y git wget
 
-# Clone lsaBGC github repo and create conda environment
-RUN git clone --branch develop https://github.com/Kalan-Lab/lsaBGC && rm -rf lsaBGC/test_case.tar.gz
 
-# Create and activate conda environment
-RUN conda install -c conda-forge mamba && \
+# Clone lsaBGC github repo and create conda environment, then create and activate conda environment,
+# and install lsaBGC
+RUN apt-get update && apt-get install -y git wget && \
+    git clone --branch develop https://github.com/Kalan-Lab/lsaBGC && rm -rf lsaBGC/test_case.tar.gz && \
+    RUN conda install -c conda-forge mamba && \
     mamba env create -f /usr/src/lsaBGC/lsaBGC_env.yml -p /usr/src/lsaBGC_conda_env/ && \
     mamba create -p /usr/src/antismash_conda_env/ -c bioconda -c conda-forge -c defaults antismash -y && \
-    source activate /usr/src/antismash_conda_env/ && download-antismash-databases && conda deactivate && \
+    source activate /usr/src/antismash_conda_env/ && download-antismash-databases && \
+    conda remove --force meme && conda deactivate && \
     conda clean --all -y && conda remove mamba && \
     echo "source activate /usr/src/lsaBGC_conda_env/" > ~/.bashrc && source ~/.bashrc && \
     apt-get clean -y && apt-get autoclean -y && apt-get autoremove -y && \
