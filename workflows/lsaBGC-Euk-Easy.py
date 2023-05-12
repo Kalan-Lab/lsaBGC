@@ -104,7 +104,7 @@ def create_parser():
 	parser.add_argument('-mc', '--run_coarse_orthofinder', action='store_true', help='Use coarse clustering of homolog groups in OrthoFinder instead\nof more resolute hierarchical determined homolog groups. There are some advantages to\ncoarse OGs, including their construction being deterministic.', required=False, default=False)
 	parser.add_argument('-c', '--cpus', type=int, help="Total number of CPUs to use [Default is 4].", required=False, default=4)
 	parser.add_argument('-ao', '--antismash_options', help="Options for antiSMASH prediction analysis (should be surrounded by\nquotes, in Docker - it is assumed each individual job will have 4 CPUs). [Default is\n\"--taxon fungi --genefinding-tool none --cpus 4\"]", required=False, default="--taxon fungi --genefinding-tool none --cpus 4")
-	parser.add_argument('-d', '--docker_mode', help=argparse.SUPPRESS, required=False, default=False)
+	parser.add_argument('-d', '--docker_mode', action='store_true', help=argparse.SUPPRESS, required=False, default=False)
 	args = parser.parse_args()
 	return args
 
