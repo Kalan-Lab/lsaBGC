@@ -91,7 +91,7 @@ elif [[ $1 == 'lsaBGC-Euk-Easy.py' ]]; then
         ABS_VALUE=$(get_abs_filename $1)
         INPUT_DIR=$(basename $ABS_VALUE)
         INPUT_PARENT_DIR=$(dirname $ABS_VALUE)
-        EASY_ARGS+="-i $CONTAINER_INPUT_DIR/$INPUT_DIR "
+        EASY_ARGS+="-g $CONTAINER_INPUT_DIR/$INPUT_DIR "
         DOCKER_VOLUME_ARGS+="--volume $INPUT_PARENT_DIR:$CONTAINER_INPUT_DIR:ro "
         shift
       elif [[ "$1" == '-o' || "$1" == '--output_directory' ]]; then
