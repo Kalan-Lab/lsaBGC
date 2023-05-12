@@ -47,7 +47,7 @@ if __name__ == '__main__':
 	args = sys.argv[1:]
 	if len(args) == 0 or '--help' == args[0] or '-h' == args[0] or '-v' == args[0] or '--version' == args[0] or not (args[0] in prog_set):
 		print("""	
-		Program: ZOL
+		Program: LSABGC
 		Version: %s""" % (version))
 		print("""
 		Author: Rauf Salamzade
