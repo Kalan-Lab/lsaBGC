@@ -41,7 +41,7 @@ from lsaBGC import util
 
 prog_set = set(['lsaBGC-Easy.py', 'lsaBGC-Euk-Easy.py'])
 
-version = util.getVersion()
+version = util.parseVersionFromSetupPy()
 
 if __name__ == '__main__':
 	args = sys.argv[1:]
