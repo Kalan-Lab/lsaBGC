@@ -63,7 +63,7 @@ def create_parser():
     parser.add_argument('-k', '--sample_set', help="Sample set to keep in analysis. Should be file with one\nsample id per line.", required=False)
     parser.add_argument('-u', '--population_classification', help='Popualation classifications for each sample. Tab delemited: 1st column lists sample\nname while the 2nd column is an identifier for the population the sample\nbelongs to.', required=False, default=None)
     parser.add_argument('-p', '--bgc_prediction_software', help='Software used to predict BGCs (Options: antiSMASH, DeepBGC, GECCO)\n[Default is antiSMASH].', default='antiSMASH', required=False)
-    parser.add_argument('-d', '--regular_mafft', action='store_true', help="Run mafft --linsi and not the MAGUS divide-and-conquer approach which\nallows for scalability and more efficient computing.", default=False, required=False)
+    parser.add_argument('-d', '--regular_mafft', action='store_true', help="Run 'mafft --linsi' instead of MUSCLE in super5 mode (default). Should lead to higher accuracy in MSA at the expense of efficiency.", default=False, required=False)
     parser.add_argument('-e', '--each_pop', action='store_true', help='Run analyses individually for each population as well.', required=False, default=False)
     parser.add_argument('-t', '--filter_for_outliers', action='store_true', help='Filter instances of homolog groups which deviate too much from\nthe median gene length observed for the initial set of proteins.', required=False, default=False)
     parser.add_argument('-w', '--expected_similarities', help="Path to file listing expected similarities between genomes/samples. This is\ncomputed most easily by running lsaBGC-Ready.py with '-t' specified,\nwhich will estimate\nsample to sample similarities based on alignment used to create\nspecies phylogeny.", required=False, default=None)
@@ -138,7 +138,7 @@ def lsaBGC_PopGene():
                        "BGC Prediction Software", "Populations Specification/Listing File", "Sample Retention Set",
                        "Run Analysis for Each Population", "Filter for Outlier Homolog Group Instances",
                        "File with Expected Amino Acid Differences Between Genomes/Samples",
-                       "AAI Similarity Instead of ANI", "Use Regular MAFFT - not MAGUS?", "cpus"]
+                       "AAI Similarity Instead of ANI", "Use Regular MAFFT - not MUSCLE super5?", "cpus"]
     util.logParametersToFile(parameters_file, parameter_names, parameter_values)
     logObject.info("Done saving parameters!")
 
@@ -188,10 +188,10 @@ def lsaBGC_PopGene():
 
     # Step 5: Create codon alignments if not provided a directory with them (e.g. one produced by lsaBGC-See.py)
     logObject.info("User requested construction of phylogeny from SCCs in BGC! Beginning phylogeny construction.")
-    logObject.info("Beginning process of creating protein alignments for each homolog group using mafft, then translating these to codon alignments using PAL2NAL.")
+    logObject.info("Beginning process of creating protein alignments for each homolog group using mafft/or , then translating these to codon alignments using PAL2NAL.")
     GCF_Object.constructCodonAlignments(outdir, only_scc=False, cpus=cpus, list_alignments=True, filter_outliers=False)
     if filter_for_outliers:
-        GCF_Object.constructCodonAlignments(outdir, only_scc=False, cpus=cpus, list_alignments=True, filter_outliers=True, use_magus=(not regular_mafft))
+        GCF_Object.constructCodonAlignments(outdir, only_scc=False, cpus=cpus, list_alignments=True, filter_outliers=True, use_ms5=(not regular_mafft))
     logObject.info("All codon alignments for SCC homologs now successfully achieved!")
 
     # Step 6: Analyze codon alignments and parse population genetics and conservation stats
