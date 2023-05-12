@@ -3353,7 +3353,7 @@ def create_codon_msas(inputs):
 	pal2nal_cmd = ['pal2nal.pl', hg_prot_msa, hg_nucl_fasta, '-output', 'fasta', '>', hg_codo_msa]
 
 	if logObject:
-		logObject.info('Running multiple sequence alignment with the following command: %s' % ' '.join(mafft_cmd))
+		logObject.info('Running multiple sequence alignment with the following command: %s' % ' '.join(align_cmd))
 	try:
 		subprocess.call(' '.join(align_cmd), shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
 						executable='/bin/bash')
