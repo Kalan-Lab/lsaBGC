@@ -37,7 +37,7 @@
 
 import os
 import sys
-from zol import util
+from lsaBGC import util
 
 prog_set = set(['lsaBGC-Easy.py', 'lsaBGC-Euk-Easy.py'])
 
