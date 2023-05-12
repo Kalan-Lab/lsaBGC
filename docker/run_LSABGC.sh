@@ -57,7 +57,7 @@ elif [[ $1 == 'lsaBGC-Easy.py' ]]; then
         DOCKER_VOLUME_ARGS+="--volume $OUTPUT_PARENT_DIR:$CONTAINER_OUTPUT_DIR:rw "
         shift
       else
-        PREPTG_ARGS+="$1 "
+        EASY_ARGS+="$1 "
         shift
       fi
     done
@@ -68,7 +68,7 @@ elif [[ $1 == 'lsaBGC-Easy.py' ]]; then
    		mkdir ${OUTPUT_PARENT_DIR}
 	fi
 
-  # run prepTG
+  # run workflow
 	docker pull raufs/lsabgc:latest
 	docker run ${DOCKER_VOLUME_ARGS} --detach=false --rm --user=$(id -u):$(id -g) raufs/lsabgc:latest ${EASY_ARGS}
 
@@ -103,7 +103,7 @@ elif [[ $1 == 'lsaBGC-Euk-Easy.py' ]]; then
         DOCKER_VOLUME_ARGS+="--volume $OUTPUT_PARENT_DIR:$CONTAINER_OUTPUT_DIR:rw "
         shift
       else
-        PREPTG_ARGS+="$1 "
+        EASY_ARGS+="$1 "
         shift
       fi
     done
@@ -114,7 +114,7 @@ elif [[ $1 == 'lsaBGC-Euk-Easy.py' ]]; then
    		mkdir ${OUTPUT_PARENT_DIR}
 	fi
 
-  # run prepTG
+  # run workflow
 	docker pull raufs/lsabgc:latest
 	docker run ${DOCKER_VOLUME_ARGS} --detach=false --rm --user=$(id -u):$(id -g) raufs/lsabgc:latest ${EASY_ARGS}
 
