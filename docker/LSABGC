@@ -65,7 +65,13 @@ if __name__ == '__main__':
 		lsaBGC-Easy.py -n "None" -g Directory_of_Genomes_in_FASTA/ -o Results/ -c 10
 		lsaBGC-Euk-Easy.py -g Directory_of_Genomes_in_GenBank/ -o Results/ -c 10
 		
-		Note, for lsaBGC-Easy.py, the -n "None" is currently required.
+		----------------------------------------------------------------------------------------------------------------------------
+		KEY NOTES:
+
+		----------------------------------------------------------------------------------------------------------------------------
+		* For lsaBGC-Easy.py (but not lsaBGC-Euk-Easy.py), the -n "None" is currently required.
+		* MEME (used in antiSMASH for CASSIS and RODEO) has been manually uninstalled in the antiSMASH conda environment within the 
+		  lsaBGC Docker image because it requires a commercial license.
 		""")
 	else:
 		os.system(' '.join(args))
