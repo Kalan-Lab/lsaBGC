@@ -35,5 +35,5 @@ WORKDIR /home
 ENV LANG C.UTF-8
 ENV LC_ALL C.UTF-8
 
-ENTRYPOINT ["lsaBGC-Easy.py"]
+ENTRYPOINT ["LSABGC"]
 CMD ["--help"]
