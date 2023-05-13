@@ -613,7 +613,11 @@ def lsaBGC_Easy():
 	if use_bigscape_flag and not os.path.isdir(bigscape_results_dir) and os.path.isfile(bigscape_prog_location):
 		bigscape_cmd = ['python', bigscape_prog_location, '-i', primary_bgc_pred_directory, '-o', bigscape_results_dir,
 						'-c', str(cpus), '--pfam_dir', pfam_directory, bigscape_options]
-		runCmdViaSubprocess(bigscape_cmd, logObject, check_directories=[bigscape_results_dir], stdout=outdir+'bigscape_stdout.log', stderr=outdir+'bigscape_stderr.log')
+		bsout = open(outdir+'bigscape_stdout.log', 'w')
+		bserr = open(outdir+'bigscape_stderr.log', 'w')
+		runCmdViaSubprocess(bigscape_cmd, logObject, check_directories=[bigscape_results_dir], stdout=bsout, stderr=bserr)
+		bsout.close()
+		bserr.close()
 		try:
 			assert (os.path.isdir(bigscape_results_dir + 'network_files/'))
 		except:
