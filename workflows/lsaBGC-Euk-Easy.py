@@ -466,13 +466,13 @@ def lsaBGC_Euk_Easy():
 			for s in oskf:
 				s = s.strip()
 				primary_genomes_listing_handle.write(s + '\t' + all_genome_listings_gbk[s] + '\n')
-					# TODO ASSERT THAT IN FUTURE ANTISMASH VERSIONS DEFINITION LINE STICKS AROUND FOR PARSING OF BGC LOCATION
-					antismash_cmd = ['antismash', '--output-dir', primary_bgc_pred_directory + s + '/',
-									 antismash_options, '--output-basename', s, all_genome_listings_gbk[s]]
-					if docker_mode:
-						antismash_cmd = ['. /opt/conda/etc/profile.d/conda.sh && conda activate /usr/src/antismash_conda_env/ &&',
-										 'antismash', '--output-dir', primary_bgc_pred_directory + s + '/',
-										 antismash_options, '--output-basename', s, all_genome_listings_gbk[s], logObject]
+				# TODO ASSERT THAT IN FUTURE ANTISMASH VERSIONS DEFINITION LINE STICKS AROUND FOR PARSING OF BGC LOCATION
+				antismash_cmd = ['antismash', '--output-dir', primary_bgc_pred_directory + s + '/',
+						 antismash_options, '--output-basename', s, all_genome_listings_gbk[s]]
+				if docker_mode:
+					antismash_cmd = ['. /opt/conda/etc/profile.d/conda.sh && conda activate /usr/src/antismash_conda_env/ &&',
+							 'antismash', '--output-dir', primary_bgc_pred_directory + s + '/',
+							 antismash_options, '--output-basename', s, all_genome_listings_gbk[s], logObject]
 				primary_bgc_pred_cmds.append(antismash_cmd)
 		primary_genomes_listing_handle.close()
 
