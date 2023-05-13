@@ -736,7 +736,7 @@ def lsaBGC_Easy():
 	sys.exit(0)
 
 
-def runCmdViaSubprocess(cmd, logObject, check_files=[], check_directories=[], stdout=subprocess.DEVNULL, stderr=subprocss.DEVNULL):
+def runCmdViaSubprocess(cmd, logObject, check_files=[], check_directories=[], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL):
 	logObject.info('Running %s' % ' '.join(cmd))
 	try:
 		subprocess.call(' '.join(cmd), shell=True, stdout=stdout, stderr=stderr,
