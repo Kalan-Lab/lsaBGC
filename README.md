@@ -55,9 +55,7 @@ If clustering of BGCs into GCFs using BiG-SCAPE is preferred to lsaBGC-Cluster.p
 ```
 setup_bigscape.py
 ```
-
-Additional, information pertaining to installation can be found at: [Installation Guide](https://github.com/Kalan-Lab/lsaBGC/wiki/01.-Installation)
-
+   
 A small test case is provided here and can be run after installation by simply issuing (takes around ~7 minutes using 4 cpus/threads):
 
 ```
@@ -68,13 +66,30 @@ bash run_tests.sh
 There are also additional [test cases](https://github.com/Kalan-Lab/lsaBGC_Ckefir_Testing_Cases) to demonstrate usage of individual programs along with expected outputs from commands. We also have a [walk-through tutorial Wiki page](https://github.com/Kalan-Lab/lsaBGC/wiki/03.-Quick-Start-&-In-Depth-Tutorial:-Exploring-BGCs-in-Cutibacterium) to showcase the use of the suite and relations between core programs.
 
 The major outputs of the final `lsaBGC-AutoAnalyze.py` run are in the resulting folder `test_case/lsaBGC_AutoAnalyze_Results/Final_Results/` and described on [this wiki page](https://github.com/Kalan-Lab/lsaBGC/wiki/13.-Overview-of-lsaBGC-AutoAnalyze's-Final-Results). Examples for the final AutoAnalyze results from an `lsaBGC-Easy.py` run on Cutibacterium avidum can be found [here on Google Drive](https://drive.google.com/drive/u/1/folders/1jHFFOUTd4SbIO-xiGG8MWTZaP1U4RF1j). 
-
+   
 ## Quick Start - using `lsaBGC-Easy.py` and `lsaBGC-Euk-Easy.py` 
 
 Check out how to use `lsaBGC-Easy.py` and `lsaBGC-Euk-Easy.py` on [their wiki page](https://github.com/Kalan-Lab/lsaBGC/wiki/14.-lsaBGC-Easy-Tutorial)!
 
 ![image](https://user-images.githubusercontent.com/4260723/181613839-df183cdc-1103-403f-b5d1-889484f52be9.png)
 
+### Using Docker
+
+A docker image is provided for the `lsaBGC-Easy.py` and `lsaBGC-Euk-Easy.py` workflows together with a wrapper script. The image is pretty large (~21Gb) but includes all the databases and dependencies needed for lsaBGC, BiG-SCAPE, antiSMASH, and GECCO analysis. For lsaBGC, to save space, only the . For antiSMASH, meme was manually removed from.
+   
+To use the latest Docker image, please: (1) install Docker and (2) download the wrapper script:
+
+```
+# download
+wget https://github.com/Kalan-Lab/lsaBGC/blob/main/docker/run_LSABGC.sh
+
+# change permissions
+chmod +x run_LSABGC.sh
+
+# run the wrapper script 
+./run_LSAbGC.sh 
+```
+   
 ## Acknowledgements:
 
 We would like to thank members of the Kalan lab, Currie lab, Kwan lab, Anantharaman, and Pepperell labs at UW Madison for feedback on the development of lsaBGC.
