@@ -466,18 +466,28 @@ def lsaBGC_Euk_Easy():
 			for s in oskf:
 				s = s.strip()
 				primary_genomes_listing_handle.write(s + '\t' + all_genome_listings_gbk[s] + '\n')
-				antismash_cmd = ['antismash', '--output-dir', primary_bgc_pred_directory + s + '/', antismash_options,
-								 '--output-basename', s, all_genome_listings_gbk[s]]
+					# TODO ASSERT THAT IN FUTURE ANTISMASH VERSIONS DEFINITION LINE STICKS AROUND FOR PARSING OF BGC LOCATION
+					antismash_cmd = ['antismash', '--output-dir', primary_bgc_pred_directory + s + '/',
+									 antismash_options, '--output-basename', s, all_genome_listings_gbk[s]]
+					if docker_mode:
+						antismash_cmd = ['. /opt/conda/etc/profile.d/conda.sh && conda activate /usr/src/antismash_conda_env/ &&',
+										 'antismash', '--output-dir', primary_bgc_pred_directory + s + '/',
+										 antismash_options, '--output-basename', s, all_genome_listings_gbk[s], logObject]
 				primary_bgc_pred_cmds.append(antismash_cmd)
 		primary_genomes_listing_handle.close()
 
-		cmd_handle = open(cmd_file, 'w')
-		for cmd in primary_bgc_pred_cmds:
-			cmd_handle.write(' '.join(cmd) + '\n')
-		cmd_handle.close()
-		logObject.info('antiSMASH BGC prediction commands written to %s. Please run these and afterwards restart lsaBGC-Easy.py with the same command as used initially.' % (cmd_file))
-		sys.stdout.write('************************\nPlease run the following BGC prediction commands using a different conda envirnoment with the BGC prediction\nsoftware antiSMASH installed and afterwards restart lsaBGC-Easy.py with the same command as used initially.\nExiting now, see you back soon, here is the task file with the antiSMASH commands:\n%s\n' % (cmd_file))
-		sys.exit(0)
+		if docker_mode:
+			p = multiprocessing.Pool(parallel_jobs_4cpu)
+			p.map(util.multiProcess, primary_bgc_pred_cmds)
+			p.close()
+		else:
+			cmd_handle = open(cmd_file, 'w')
+			for cmd in primary_bgc_pred_cmds:
+				cmd_handle.write(' '.join(cmd) + '\n')
+			cmd_handle.close()
+			logObject.info('antiSMASH BGC prediction commands written to %s. Please run these and afterwards restart lsaBGC-Easy.py with the same command as used initially.' % (cmd_file))
+			sys.stdout.write('************************\nPlease run the following BGC prediction commands using a different conda envirnoment with the BGC prediction\nsoftware antiSMASH installed and afterwards restart lsaBGC-Easy.py with the same command as used initially.\nExiting now, see you back soon, here is the task file with the antiSMASH commands:\n%s\n' % (cmd_file))
+			sys.exit(0)
 
 	bgc_prediciton_count = 0
 	for f in os.listdir(primary_bgc_pred_directory):
