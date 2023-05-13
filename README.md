@@ -75,7 +75,7 @@ Check out how to use `lsaBGC-Easy.py` and `lsaBGC-Euk-Easy.py` on [their wiki pa
 
 ### Using Docker
 
-A docker image is provided for the `lsaBGC-Easy.py` and `lsaBGC-Euk-Easy.py` workflows together with a wrapper script. The image is pretty large (~21Gb) but includes all the databases and dependencies needed for lsaBGC, BiG-SCAPE, antiSMASH, and GECCO analysis. For lsaBGC, to save space, only the . For antiSMASH, meme was manually removed from.
+A docker image is provided for the `lsaBGC-Easy.py` and `lsaBGC-Euk-Easy.py` workflows together with a wrapper script. The image is pretty large (~21Gb) but includes all the databases and dependencies needed for lsaBGC, BiG-SCAPE, antiSMASH, and GECCO analysis. For lsaBGC, to save space, only the . For antiSMASH, MEME was manually removed to allow for usage in commercial applications.
    
 To use the latest Docker image, please: (1) install Docker and (2) download the wrapper script:
 
