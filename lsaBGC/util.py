@@ -1437,14 +1437,18 @@ def mapBGCtoGenomeBySequence(bgc_genbank_listing_file, sample_genomes, outdir, b
 		p.close()
 
 		loc_tuples = defaultdict(int)
-		for f in os.listdir(locate_bgc_directory):
-			outf = locate_bgc_directory + f
-			bgc_gbk, sample = outf_to_info[outf]
-			with open(outf) as of:
-				for i, line in enumerate(of):
-					scaff, start = line.strip().split('\t')
-					loc_tuple = tuple([sample, scaff, start])
-					loc_tuples[loc_tuple] += 1
+		with open(bgc_genbank_listing_file) as obglf:
+			for line in obglf:
+				line = line.strip()
+				sample, bgc_gbk = line.split('\t')
+				full_gbk = sample_genomes[sample]
+				outf = locate_bgc_directory + sample + '_BGC-ID_' + bgc_gbk.split('/')[-1] + '.txt'
+				if os.path.isfile(outf):
+					with open(outf) as of:
+						for i, line in enumerate(of):
+							scaff, start = line.strip().split('\t')
+							loc_tuple = tuple([sample, scaff, start])
+							loc_tuples[loc_tuple] += 1
 
 		with open(bgc_genbank_listing_file) as obglf:
 			for line in obglf:
