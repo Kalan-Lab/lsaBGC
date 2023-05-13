@@ -236,7 +236,7 @@ def lsaBGC_Easy():
 	accession_count = len(ogalf.readlines())
 	ogalf.close()
 
-	if ((accession_count > 2000) or (accession_count < 10 and not os.path.isdir(user_genomes_directory))) and not ignore_limits_flag:
+	if ((accession_count > 2000) or (accession_count < 10 and user_genomes_directory == None)) and not ignore_limits_flag:
 		logObject.error(
 			"Currently not recommended to use lsaBGC-Easy for taxa with > 2000 genomes or < 10 genomes. In the future this will likely be updated to be a warning, but would rather not risk harming your server!")
 		sys.stderr.write(
