@@ -1,14 +1,15 @@
 from setuptools import setup
 
 setup(name='lsaBGC',
-      version='1.36',
+      version='1.37',
       description='Suite for comparative genomic, population genetics and evolutionary analysis, as well as metagenomic mining of micro-evolutionary novelty in BGCs all in the context of a single lineage of interest.',
       url='http://github.com/Kalan-Lab/lsaBGC/',
       author='Rauf Salamzade',
       author_email='salamzader@gmail.com',
       license='BSD-3',
       packages=['lsaBGC'],
-      scripts=['scripts/setup_annotation_dbs.py',
+      scripts=['docker/LSABGC',
+               'scripts/setup_annotation_dbs.py',
                'scripts/setup_bigscape.py',
                'scripts/GSeeF.py',
                'scripts/compareBGCtoGenomeCodonUsage.py',

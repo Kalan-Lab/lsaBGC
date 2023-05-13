@@ -103,11 +103,10 @@ def create_parser():
 	parser.add_argument('-om', '--orthofinder_mode', help="Method for running OrthoFinder2. (Options: Genome_Wide, BGC_Only).\nDefault is Genome_Wide (BGC_Only is slightly experimental but much faster and should work\nespecially well for taxa with many BGCs).", default='Genome_Wide', required=False)
 	parser.add_argument('-mc', '--run_coarse_orthofinder', action='store_true', help='Use coarse clustering of homolog groups in OrthoFinder instead\nof more resolute hierarchical determined homolog groups. There are some advantages to\ncoarse OGs, including their construction being deterministic.', required=False, default=False)
 	parser.add_argument('-c', '--cpus', type=int, help="Total number of CPUs to use [Default is 4].", required=False, default=4)
-	parser.add_argument('-ao', '--antismash_options', help="Options for antiSMASH prediction analysis (should be surrounded by quotes). [Default is \"--taxon fungi --genefinding-tool none --cpus 4\"]", required=False, default="--taxon fungi --genefinding-tool none --cpus 4")
-
+	parser.add_argument('-ao', '--antismash_options', help="Options for antiSMASH prediction analysis (should be surrounded by\nquotes, in Docker - it is assumed each individual job will have 4 CPUs). [Default is\n\"--taxon fungi --genefinding-tool none --cpus 4\"]", required=False, default="--taxon fungi --genefinding-tool none --cpus 4")
+	parser.add_argument('-d', '--docker_mode', action='store_true', help=argparse.SUPPRESS, required=False, default=False)
 	args = parser.parse_args()
 	return args
-
 
 def lsaBGC_Euk_Easy():
 	myargs = create_parser()
@@ -129,6 +128,7 @@ def lsaBGC_Euk_Easy():
 	lsabgc_cluster_inflation = myargs.lsabgc_cluster_inflation
 	lsabgc_cluster_jaccard = myargs.lsabgc_cluster_jaccard
 	lsabgc_cluster_synteny = myargs.lsabgc_cluster_synteny
+	docker_mode = myargs.docker_mode
 
 	try:
 		assert (orthofinder_mode in set(['GENOME_WIDE', 'BGC_ONLY']))
@@ -466,18 +466,28 @@ def lsaBGC_Euk_Easy():
 			for s in oskf:
 				s = s.strip()
 				primary_genomes_listing_handle.write(s + '\t' + all_genome_listings_gbk[s] + '\n')
-				antismash_cmd = ['antismash', '--output-dir', primary_bgc_pred_directory + s + '/', antismash_options,
-								 '--output-basename', s, all_genome_listings_gbk[s]]
+				# TODO ASSERT THAT IN FUTURE ANTISMASH VERSIONS DEFINITION LINE STICKS AROUND FOR PARSING OF BGC LOCATION
+				antismash_cmd = ['antismash', '--output-dir', primary_bgc_pred_directory + s + '/',
+						 antismash_options, '--output-basename', s, all_genome_listings_gbk[s]]
+				if docker_mode:
+					antismash_cmd = ['. /opt/conda/etc/profile.d/conda.sh && conda activate /usr/src/antismash_conda_env/ &&',
+							 'antismash', '--output-dir', primary_bgc_pred_directory + s + '/',
+							 antismash_options, '--output-basename', s, all_genome_listings_gbk[s], logObject]
 				primary_bgc_pred_cmds.append(antismash_cmd)
 		primary_genomes_listing_handle.close()
 
-		cmd_handle = open(cmd_file, 'w')
-		for cmd in primary_bgc_pred_cmds:
-			cmd_handle.write(' '.join(cmd) + '\n')
-		cmd_handle.close()
-		logObject.info('antiSMASH BGC prediction commands written to %s. Please run these and afterwards restart lsaBGC-Easy.py with the same command as used initially.' % (cmd_file))
-		sys.stdout.write('************************\nPlease run the following BGC prediction commands using a different conda envirnoment with the BGC prediction\nsoftware antiSMASH installed and afterwards restart lsaBGC-Easy.py with the same command as used initially.\nExiting now, see you back soon, here is the task file with the antiSMASH commands:\n%s\n' % (cmd_file))
-		sys.exit(0)
+		if docker_mode:
+			p = multiprocessing.Pool(parallel_jobs_4cpu)
+			p.map(util.multiProcess, primary_bgc_pred_cmds)
+			p.close()
+		else:
+			cmd_handle = open(cmd_file, 'w')
+			for cmd in primary_bgc_pred_cmds:
+				cmd_handle.write(' '.join(cmd) + '\n')
+			cmd_handle.close()
+			logObject.info('antiSMASH BGC prediction commands written to %s. Please run these and afterwards restart lsaBGC-Easy.py with the same command as used initially.' % (cmd_file))
+			sys.stdout.write('************************\nPlease run the following BGC prediction commands using a different conda envirnoment with the BGC prediction\nsoftware antiSMASH installed and afterwards restart lsaBGC-Easy.py with the same command as used initially.\nExiting now, see you back soon, here is the task file with the antiSMASH commands:\n%s\n' % (cmd_file))
+			sys.exit(0)
 
 	bgc_prediciton_count = 0
 	for f in os.listdir(primary_bgc_pred_directory):

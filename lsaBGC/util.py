@@ -20,7 +20,10 @@ import gzip
 import pathlib
 import operator
 import warnings
+import pkg_resources  # part of setuptools
+
 warnings.filterwarnings('ignore')
+version = pkg_resources.require("lsaBGC")[0].version
 
 
 valid_alleles = set(['A', 'C', 'G', 'T'])
@@ -789,7 +792,7 @@ def createBGCGenbank(full_genbank_file, new_genbank_file, scaffold, start_coord,
 
 def parseGenbankAndFindBoundaryGenes(inputs):
 	"""
-	Function to parse Genbanks from Prokka and return a dictionary of genes per scaffold, gene to scaffold, and a
+	Function to parse Genbanks and return a dictionary of genes per scaffold, gene to scaffold, and a
 	set of genes which lie on the boundary of scaffolds.
 
 	:param sample_genbank: Prokka generated Genbank file.
@@ -1355,40 +1358,71 @@ def splitDeepBGCGenbank(bgc_genbank_listing_file, deepbgc_split_directory, outdi
 
 def findBGCInFullGenbank(inputs):
 	try:
-		bgc_gbk, full_gbk, outf = inputs
+		bgc_gbk, full_gbk, outf, bgc_prediction_software = inputs
 
-		bgc_seq = None
-		with open(bgc_gbk) as obgf:
-			for rec in SeqIO.parse(obgf, 'genbank'):
-				bgc_seq = str(rec.seq.upper())
+		bgc_scaffold = None
+		bgc_starts = []
+		if bgc_prediction_software == 'ANTISMASH':
+			with open(bgc_gbk) as ogbf:
+				for line in ogbf:
+					line = line.strip()
+					if line.startswith('LOCUS'):
+						bgc_scaffold = line.split()[1].strip()
+					elif line.startswith('Orig. start  ::'):
+						bgc_starts.append(int(line.split()[-1].replace('>', '').replace('<', '')))			
+					elif line.startswith('Original ID  ::'):
+						bgc_scaffold = line.split()[-1].strip()
 
-		scaff_id, scaff_start = [None] * 2
-		off = None
-		if full_gbk.endswith('.gz'):
-			off = gzip.open(full_gbk, 'rt')
-		else:
-			off = open(full_gbk)
+		elif bgc_prediction_software == 'DEEPBGC':
+			with open(bgc_gbk) as ogbf:
+				for line in ogbf:
+					line = line.strip()
+					if line.startswith('ACCESSION'):
+						line = ' '.join(line.strip().split()[1:])
+						bgc_scaffold = '_'.join(line.strip().split('_')[:-1])
+						bgc_starts.append(int(line.strip().split('_')[-1].split('-')[0]))
+
+		elif bgc_prediction_software == 'GECCO':
+			bgc_seq = None
+			with open(bgc_gbk) as obgf:
+				for rec in SeqIO.parse(obgf, 'genbank'):
+					bgc_seq = str(rec.seq.upper())
+
+			bgc_scaffold = None
+			with open(bgc_gbk) as obgf:
+				for line in obgf:
+					line = line.strip()
+					if line.startswith('DEFINITION'):
+						bgc_scaffold = line.strip().split()[1].split()[0]
+
+			off = None
+			if full_gbk.endswith('.gz'):
+				off = gzip.open(full_gbk, 'rt')
+			else:
+				off = open(full_gbk)
+			for rec in SeqIO.parse(off, 'genbank'):
+				if bgc_seq in str(rec.seq).upper():
+					if rec.id == bgc_scaffold:
+						bgc_starts.append(str(rec.seq).find(bgc_seq))
+			if off:
+				off.close()
+
 		outf_handle = open(outf, 'w')
-		for rec in SeqIO.parse(off, 'genbank'):
-			if bgc_seq in str(rec.seq).upper():
-				scaff_id = rec.id
-				scaff_start = str(rec.seq).find(bgc_seq)
-				outf_handle.write(scaff_id + '\t' + str(scaff_start) + '\n')
+		for start_coord in bgc_starts:
+			outf_handle.write(bgc_scaffold + '\t' + str(start_coord) + '\n')
 		outf_handle.close()
-		if off:
-			off.close()
+
 	except Exception as e:
-		raise RuntimeError(traceback.format_exc())
+		raise RuntimeWarning(traceback.format_exc())
 
-
-def mapBGCtoGenomeBySequence(bgc_genbank_listing_file, sample_genomes, outdir, logObject, cpus=1):
+def mapBGCtoGenomeBySequence(bgc_genbank_listing_file, sample_genomes, outdir, bgc_prediction_software, logObject,
+							 cpus=1):
+	# method can be either "sequence_map" or "genbank_parse"
 	bgc_mappings = {}
 	locate_bgc_directory = outdir + 'Map_BGC_to_Full_Genbanks/'
-	bgcs_without_mappings_handle = open(outdir + 'BGCs_Unable_to_be_Mapped_to_Genome.txt', 'w')
-	bgcs_with_multiple_mappings_handle = open(outdir + 'BGCs_with_Multiple_Perfect_Mappings_to_Genome.txt', 'w')
+	dropped_bgcs_handle = open(outdir + 'BGCs_with_Problems_Mapping_to_Genome.txt', 'w')
 	setupReadyDirectory([locate_bgc_directory])
 	try:
-		outf_to_info = {}
 		find_inputs = []
 		with open(bgc_genbank_listing_file) as obglf:
 			for line in obglf:
@@ -1396,39 +1430,60 @@ def mapBGCtoGenomeBySequence(bgc_genbank_listing_file, sample_genomes, outdir, l
 				sample, bgc_gbk = line.split('\t')
 				full_gbk = sample_genomes[sample]
 				outf = locate_bgc_directory + sample + '_BGC-ID_' + bgc_gbk.split('/')[-1] + '.txt'
-				outf_to_info[outf] = [bgc_gbk, sample]
-				find_inputs.append([bgc_gbk, full_gbk, outf])
+				find_inputs.append([bgc_gbk, full_gbk, outf, bgc_prediction_software])
 
 		p = multiprocessing.Pool(cpus)
 		p.map(findBGCInFullGenbank, find_inputs)
 		p.close()
 
-		loc_tuples = set([])
-		for f in os.listdir(locate_bgc_directory):
-			outf = locate_bgc_directory + f
-			bgc_gbk, sample = outf_to_info[outf]
-			count = 0
-			with open(outf) as of:
-				for i, line in enumerate(of):
-					scaff, start = line.strip().split('\t')
-					loc_tuple = tuple([sample, scaff, start])
-					count += 1
-					if loc_tuple in loc_tuples: continue
-					bgc_mappings[bgc_gbk] = [scaff, int(start)]
-					loc_tuples.add(loc_tuple)
-			if count == 0:
-				logObject.warning('Dropping BGC %s for sample %s because the BGC sequence did not match any scaffold directly which should not be the case!' % (bgc_gbk, sample))
-				bgcs_without_mappings_handle.write(sample + '\t' + bgc_gbk + '\n')
-			elif count > 1:
-				bgcs_with_multiple_mappings_handle.write(
-					sample + '\t' + bgc_gbk + '\t' + str(count) + '\t' + str(bgc_mappings[bgc_gbk]) + '\n')
+		loc_tuples = defaultdict(int)
+		with open(bgc_genbank_listing_file) as obglf:
+			for line in obglf:
+				line = line.strip()
+				sample, bgc_gbk = line.split('\t')
+				full_gbk = sample_genomes[sample]
+				outf = locate_bgc_directory + sample + '_BGC-ID_' + bgc_gbk.split('/')[-1] + '.txt'
+				if os.path.isfile(outf):
+					with open(outf) as of:
+						for i, line in enumerate(of):
+							scaff, start = line.strip().split('\t')
+							loc_tuple = tuple([sample, scaff, start])
+							loc_tuples[loc_tuple] += 1
 
+		with open(bgc_genbank_listing_file) as obglf:
+			for line in obglf:
+				line = line.strip()
+				sample, bgc_gbk = line.split('\t')
+				full_gbk = sample_genomes[sample]
+				outf = locate_bgc_directory + sample + '_BGC-ID_' + bgc_gbk.split('/')[-1] + '.txt'
+				if os.path.isfile(outf):
+					count = 0
+					conflict = False
+					with open(outf) as of:
+						for i, line in enumerate(of):
+							scaff, start = line.strip().split('\t')
+							loc_tuple = tuple([sample, scaff, start])
+							if loc_tuples[loc_tuple] == 1:
+								count += 1
+								bgc_mappings[bgc_gbk] = [scaff, int(start)]
+							elif loc_tuples[loc_tuple] > 1:
+								conflict = True
+
+					if count != 1 or conflict:
+						logObject.warning('Dropping BGC %s for sample %s because the BGC sequence did not match any scaffold directly and uniquely.' % (bgc_gbk, sample))
+						dropped_bgcs_handle.write(sample + '\t' + bgc_gbk + '\n')
+						try:
+							del bgc_mappings[bgc_gbk]
+						except:
+							pass
+				else:
+					logObject.warning('Dropping BGC %s for sample %s because of issues extracting coordinates.' % (bgc_gbk, sample))
+					dropped_bgcs_handle.write(sample + '\t' + bgc_gbk + '\n')
+		dropped_bgcs_handle.close()
 	except Exception as e:
 		logObject.error("Issues with parsing out protein sequences from BGC Genbanks.")
 		logObject.error(traceback.format_exc())
 		raise RuntimeError(traceback.format_exc())
-	bgcs_with_multiple_mappings_handle.close()
-	bgcs_without_mappings_handle.close()
 	return bgc_mappings
 
 
@@ -2500,15 +2555,7 @@ def parseVersionFromSetupPy():
 	"""
 	Parses version from setup.py program.
 	"""
-
-	setup_py_prog = main_dir + 'setup.py'
-	version = 'NA'
-	with open(setup_py_prog) as osppf:
-		for line in osppf:
-			line = line.strip()
-			if line.startswith('version='):
-				version = line.split('version=')[1]
-	return version
+	return(str(version))
 
 def createLoggerObject(log_file):
 	"""
