@@ -81,7 +81,7 @@ To use the latest Docker image, please: (1) install Docker and (2) download the 
 
 ```
 # download wrapper script
-wget https://raw.githubusercontent.com/Kalan-Lab/lsaBGC/develop/docker/run_LSABGC.sh
+wget https://raw.githubusercontent.com/Kalan-Lab/lsaBGC/main/docker/run_LSABGC.sh
 
 # change its permissions
 chmod +x run_LSABGC.sh
