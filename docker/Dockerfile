@@ -28,6 +28,8 @@ RUN apt-get update && apt-get install -y git wget && \
 WORKDIR /usr/src/lsaBGC/
 ENV PATH /usr/src/lsaBGC_conda_env/bin:$PATH
 RUN python setup.py install && pip install -e . && setup_annotation_dbs.py -nk -dsh && setup_bigscape.py && \
+    chmod a+w /usr/src/lsaBGC/external_tools/BiG-SCAPE-1.1.4/domains_color_file.tsv && \
+    chmod a+w /usr/src/lsaBGC/external_tools/BiG-SCAPE-1.1.4/Annotated_MIBiG_reference/ && \
     chmod -R 555 /usr/src/lsaBGC/ && chmod 777 /home
 
 USER 1000:1000
