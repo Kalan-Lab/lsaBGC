@@ -62,12 +62,11 @@ if __name__ == '__main__':
 		- lsaBGC-Euk-Easy: Run lsaBGC-Easy but specifically designed for fungal [small eukaryotic] genomes (experimental!)
 
 		Usage example:
-		lsaBGC-Easy.py -n "None" -g Directory_of_Genomes_in_FASTA/ -o Results/ -c 10
-		lsaBGC-Euk-Easy.py -g Directory_of_Genomes_in_GenBank/ -o Results/ -c 10
+		./run_LSABGC.sh lsaBGC-Easy.py -n "None" -g Directory_of_Genomes_in_FASTA/ -o Results/ -c 10
+		./run_LSABGC.sh lsaBGC-Euk-Easy.py -g Directory_of_Genomes_in_GenBank/ -o Results/ -c 10
 		
 		----------------------------------------------------------------------------------------------------------------------------
 		KEY NOTES:
-
 		----------------------------------------------------------------------------------------------------------------------------
 		* For lsaBGC-Easy.py (but not lsaBGC-Euk-Easy.py), the -n "None" is currently required.
 		* MEME (used in antiSMASH for CASSIS and RODEO) has been manually uninstalled in the antiSMASH conda environment within the 
