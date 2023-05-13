@@ -1369,7 +1369,7 @@ def findBGCInFullGenbank(inputs):
 					if line.startswith('LOCUS'):
 						bgc_scaffold = line.split()[1].strip()
 					elif line.startswith('Orig. start  ::'):
-						bgc_starts.append(int(line.split()[-1]))
+						bgc_starts.append(int(line.split()[-1].replace('>', '').replace('<', '')))			
 					elif line.startswith('Original ID  ::'):
 						bgc_scaffold = line.split()[-1].strip()
 
@@ -1413,7 +1413,7 @@ def findBGCInFullGenbank(inputs):
 		outf_handle.close()
 
 	except Exception as e:
-		raise RuntimeError(traceback.format_exc())
+		raise RuntimeWarning(traceback.format_exc())
 
 def mapBGCtoGenomeBySequence(bgc_genbank_listing_file, sample_genomes, outdir, bgc_prediction_software, logObject,
 							 cpus=1):
@@ -1423,7 +1423,6 @@ def mapBGCtoGenomeBySequence(bgc_genbank_listing_file, sample_genomes, outdir, b
 	dropped_bgcs_handle = open(outdir + 'BGCs_with_Problems_Mapping_to_Genome.txt', 'w')
 	setupReadyDirectory([locate_bgc_directory])
 	try:
-		outf_to_info = {}
 		find_inputs = []
 		with open(bgc_genbank_listing_file) as obglf:
 			for line in obglf:
@@ -1431,7 +1430,6 @@ def mapBGCtoGenomeBySequence(bgc_genbank_listing_file, sample_genomes, outdir, b
 				sample, bgc_gbk = line.split('\t')
 				full_gbk = sample_genomes[sample]
 				outf = locate_bgc_directory + sample + '_BGC-ID_' + bgc_gbk.split('/')[-1] + '.txt'
-				outf_to_info[outf] = [bgc_gbk, sample]
 				find_inputs.append([bgc_gbk, full_gbk, outf, bgc_prediction_software])
 
 		p = multiprocessing.Pool(cpus)
@@ -1448,28 +1446,35 @@ def mapBGCtoGenomeBySequence(bgc_genbank_listing_file, sample_genomes, outdir, b
 					loc_tuple = tuple([sample, scaff, start])
 					loc_tuples[loc_tuple] += 1
 
-		for f in os.listdir(locate_bgc_directory):
-			outf = locate_bgc_directory + f
-			bgc_gbk, sample = outf_to_info[outf]
-			count = 0
-			conflict = False
-			with open(outf) as of:
-				for i, line in enumerate(of):
-					scaff, start = line.strip().split('\t')
-					loc_tuple = tuple([sample, scaff, start])
-					if loc_tuples[loc_tuple] == 1:
-						count += 1
-						bgc_mappings[bgc_gbk] = [scaff, int(start)]
-					elif loc_tuples[loc_tuple] > 1:
-						conflict = True
+		with open(bgc_genbank_listing_file) as obglf:
+			for line in obglf:
+				line = line.strip()
+				sample, bgc_gbk = line.split('\t')
+				full_gbk = sample_genomes[sample]
+				outf = locate_bgc_directory + sample + '_BGC-ID_' + bgc_gbk.split('/')[-1] + '.txt'
+				if os.path.isfile(outf):
+					count = 0
+					conflict = False
+					with open(outf) as of:
+						for i, line in enumerate(of):
+							scaff, start = line.strip().split('\t')
+							loc_tuple = tuple([sample, scaff, start])
+							if loc_tuples[loc_tuple] == 1:
+								count += 1
+								bgc_mappings[bgc_gbk] = [scaff, int(start)]
+							elif loc_tuples[loc_tuple] > 1:
+								conflict = True
 
-			if count != 1 or conflict:
-				logObject.warning('Dropping BGC %s for sample %s because the BGC sequence did not match any scaffold directly and uniquely.' % (bgc_gbk, sample))
-				dropped_bgcs_handle.write(sample + '\t' + bgc_gbk + '\n')
-				try:
-					del bgc_mappings[bgc_gbk]
-				except:
-					pass
+					if count != 1 or conflict:
+						logObject.warning('Dropping BGC %s for sample %s because the BGC sequence did not match any scaffold directly and uniquely.' % (bgc_gbk, sample))
+						dropped_bgcs_handle.write(sample + '\t' + bgc_gbk + '\n')
+						try:
+							del bgc_mappings[bgc_gbk]
+						except:
+							pass
+				else:
+					logObject.warning('Dropping BGC %s for sample %s because of issues extracting coordinates.' % (bgc_gbk, sample))
+					dropped_bgcs_handle.write(sample + '\t' + bgc_gbk + '\n')
 		dropped_bgcs_handle.close()
 	except Exception as e:
 		logObject.error("Issues with parsing out protein sequences from BGC Genbanks.")
