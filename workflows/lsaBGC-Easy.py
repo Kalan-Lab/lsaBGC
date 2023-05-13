@@ -613,7 +613,7 @@ def lsaBGC_Easy():
 	if use_bigscape_flag and not os.path.isdir(bigscape_results_dir) and os.path.isfile(bigscape_prog_location):
 		bigscape_cmd = ['python', bigscape_prog_location, '-i', primary_bgc_pred_directory, '-o', bigscape_results_dir,
 						'-c', str(cpus), '--pfam_dir', pfam_directory, bigscape_options]
-		runCmdViaSubprocess(bigscape_cmd, logObject, check_directories=[bigscape_results_dir])
+		runCmdViaSubprocess(bigscape_cmd, logObject, check_directories=[bigscape_results_dir], stdout=outdir+'bigscape_stdout.log', stderr=outdir+'bigscape_stderr.log')
 		try:
 			assert (os.path.isdir(bigscape_results_dir + 'network_files/'))
 		except:
@@ -736,10 +736,10 @@ def lsaBGC_Easy():
 	sys.exit(0)
 
 
-def runCmdViaSubprocess(cmd, logObject, check_files=[], check_directories=[]):
+def runCmdViaSubprocess(cmd, logObject, check_files=[], check_directories=[], stdout=subprocess.DEVNULL, stderr=subprocss.DEVNULL):
 	logObject.info('Running %s' % ' '.join(cmd))
 	try:
-		subprocess.call(' '.join(cmd), shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+		subprocess.call(' '.join(cmd), shell=True, stdout=stdout, stderr=stderr,
 						executable='/bin/bash')
 		for cf in check_files:
 			assert (os.path.isfile(cf))
