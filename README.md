@@ -80,14 +80,14 @@ A docker image is provided for the `lsaBGC-Easy.py` and `lsaBGC-Euk-Easy.py` wor
 To use the latest Docker image, please: (1) install Docker and (2) download the wrapper script:
 
 ```
-# download
-wget https://github.com/Kalan-Lab/lsaBGC/blob/main/docker/run_LSABGC.sh
+# download wrapper script
+wget https://raw.githubusercontent.com/Kalan-Lab/lsaBGC/develop/docker/run_LSABGC.sh
 
-# change permissions
+# change its permissions
 chmod +x run_LSABGC.sh
 
 # run the wrapper script 
-./run_LSAbGC.sh 
+./run_LSABGC.sh 
 ```
    
 ## Acknowledgements:
