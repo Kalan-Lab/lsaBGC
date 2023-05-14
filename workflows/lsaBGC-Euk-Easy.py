@@ -113,7 +113,7 @@ def lsaBGC_Euk_Easy():
 
 	outdir = os.path.abspath(myargs.output_directory) + '/'
 	cpus = myargs.cpus
-	antismash_options = myargs.antismash_options
+	antismash_options = myargs.antismash_options.strip('"')
 	genomes_directory = myargs.genomes_directory
 	skip_dereplication_flag = myargs.skip_dereplication
 	include_incomplete_bgcs_flag = myargs.include_incomplete_bgcs
@@ -123,7 +123,7 @@ def lsaBGC_Euk_Easy():
 	run_coarse_orthofinder = myargs.run_coarse_orthofinder
 	orthofinder_mode = myargs.orthofinder_mode.upper()
 	use_bigscape_flag = myargs.use_bigscape
-	bigscape_options = myargs.bigscape_options
+	bigscape_options = myargs.bigscape_options.strip('"')
 	ignore_limits_flag = myargs.ignore_limits
 	lsabgc_cluster_inflation = myargs.lsabgc_cluster_inflation
 	lsabgc_cluster_jaccard = myargs.lsabgc_cluster_jaccard
