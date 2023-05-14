@@ -78,7 +78,7 @@ if __name__ == '__main__':
 		 
 		 ./run_LSABGC.sh lsaBGC-Easy.py -n "None" -g Directory_of_Genomes_in_FASTA/ -o Results/ -c 10 -b -bo "--include_singletons"
 
-		  will print:
+		  will try to run lsaBGC-Easy and report some error because of the quoted arguments, but at the end print the Docker command:
 		 
 		  docker run --volume /home/salamzade/lsaBGC_Development/Test_v1.37:/home/input:ro \
 		             --volume /home/salamzade/lsaBGC_Development/Test_v1.37:/home/output:rw \
@@ -86,7 +86,8 @@ if __name__ == '__main__':
 			     -n None -g /home/input/Directory_of_Genomes_in_FASTA -o /home/output/Results \
 			     -c 10 -b -bo --include_singletons --docker_mode
 		 
-		  which you can change to the following (note the arguments to the -bo/--bigscape_options argument) and run directly in shell:
+		  You can change this to the following (note the \" around values provided to -bo/--bigscape_options argument) and run it 
+		  directly in shell:
 		  
 		  docker run --volume /home/salamzade/lsaBGC_Development/Test_v1.37:/home/input:ro \
 		             --volume /home/salamzade/lsaBGC_Development/Test_v1.37:/home/output:rw \
