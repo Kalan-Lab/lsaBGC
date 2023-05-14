@@ -72,7 +72,7 @@ if __name__ == '__main__':
                 * MEME (used in antiSMASH for CASSIS and RODEO) has been manually uninstalled in the antiSMASH conda environment within the 
                   lsaBGC Docker image because it requires a commercial license.
                 * For arguments which you would provide quotes for if using the workflows directly, please preceed quotes with a backslash. E.g.:
-                 ./run_LSABGC.sh lsaBGC-Easy.py -n \"None\" -g Directory_of_Genomes_in_FASTA/ -o Results/ -c 10 -b -bo \\"--include_singletons\\"
+                 ./run_LSABGC.sh lsaBGC-Easy.py -n \\"None\\" -g Directory_of_Genomes_in_FASTA/ -o Results/ -c 10 -b -bo \\"--include_singletons\\"
 		""")
 	else:
 		os.system(' '.join([x.replace('"', '\\"').replace("'", "\\'") for x in args]))
