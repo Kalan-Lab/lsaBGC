@@ -1,4 +1,6 @@
 # Major Updates 
+* May 11, 2023 - v1.37 - Introduces changes to eventually have Docker working for lsaBGC-(Euk)-Easy workflows. Implemented less problematic parsing of BGC positions along genomes through prediction-software specific parsing of BGC GenBanks - important for BGC rich taxa. Switched from MAGUS to MUSCLE super5 for rapid multiple sequence alignment. 
+* May 5, 2023 - v1.36 - Improve checks for genome count in lsaBGC-(Euk)-Easy workflows, correct for issue related to PGAP database, simplify conda environment requirements.
 * Apr 17, 2023 - Set AutoExpansion to off by default in lsaBGC-(Euk)-Easy, introduced lsaBGC-ComprehenSeeIve, changed handling off primary genomes being rerun through lsaBGC-AutoExpansion.
 * Apr 14, 2023 - Introduced lsaBGC-MIBiGMapper.py, lsaBGC-Euk-Easy.py, visualize_BGC-ome.py, slight updates to plots, added automatic color formatting to spreadsheet, simplified README. 
 * Mar 2, 2023 - Added GSeeF analysis to the end of the lsaBGC-Easy workflow and added support for parsing annotations from DeepBGC and GECCO into GSeeF.

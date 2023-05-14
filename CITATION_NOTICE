@@ -19,18 +19,20 @@ lsaBGC is made possible by many other tools including:
 
 - Gene calling:
     - prodigal: https://bmcbioinformatics.biomedcentral.com/articles/10.1186/1471-2105-11-119
+    - pyrodigal: https://joss.theoj.org/papers/10.21105/joss.04296
 
-- If using BiG-SCAPE for clustering BGCs into GCFs or If you use CORASON to visually explore
+- If using BiG-SCAPE for clustering BGCs into GCFs or if you use CORASON to visually explore
   the context of multi-GCF homolog groups highlighted:
     - BiG-SCAPE/CORASON: https://pubmed.ncbi.nlm.nih.gov/31768033/
 
 - Annotation databases:
     - KOfam HMMs: https://academic.oup.com/bioinformatics/article/36/7/2251/5631907
     - PGAP HMMs: https://pubmed.ncbi.nlm.nih.gov/27342282/
+    - MIBiG DB: https://academic.oup.com/nar/article/51/D1/D603/6833236
 
 - Protein alignment and profile HMM construction:
     - MAFFT: https://academic.oup.com/mbe/article/30/4/772/1073398
-    - MAGUS: https://academic.oup.com/bioinformatics/article/37/12/1666/6012350
+    - MAGUS: https://academic.oup.com/bioinformatics/article/37/12/1666/6012350 (no longer used since v1.37)
     - MUSCLE (part of GToTree): https://www.biorxiv.org/content/10.1101/2021.06.20.449169v1.full
     
 - Visualization software:
