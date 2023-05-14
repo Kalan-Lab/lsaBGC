@@ -50,50 +50,29 @@ if __name__ == '__main__':
 		Program: LSABGC
 		Version: %s""" % (version))
 		print("""
-		Author: Rauf Salamzade
-		Affiliation: Kalan Lab, UW Madison, Department of Medical Microbiology and Immunology
+                Author: Rauf Salamzade
+                Affiliation: Kalan Lab, UW Madison, Department of Medical Microbiology and Immunology
 	
-		Wrapper for running 2 main workflows of the lsaBGC suite within Docker:
+                Wrapper for running 2 main workflows of the lsaBGC suite within Docker:
 		
-		- lsaBGC-Easy: Run lsaBGC-Easy for bacterial genomes from a common taxa (e.g. lineage, species or genus).
-			* NOTE: Only works if you have genomes downloaded - e.g. GTDB automatic download part does not work within Docker!
-			       The arguments: "-n None" will thus be appended to commands. 
+                - lsaBGC-Easy: Run lsaBGC-Easy for bacterial genomes from a common taxa (e.g. lineage, species or genus).
+                             * NOTE: Only works if you have genomes downloaded - e.g. GTDB automatic download part does not work within Docker!
+                               The arguments: "-n None" will thus be appended to commands. 
 			
-		- lsaBGC-Euk-Easy: Run lsaBGC-Easy but specifically designed for fungal [small eukaryotic] genomes (experimental!)
+                - lsaBGC-Euk-Easy: Run lsaBGC-Easy but specifically designed for fungal [small eukaryotic] genomes (experimental!)
 
-		Usage example:
-		./run_LSABGC.sh lsaBGC-Easy.py -n "None" -g Directory_of_Genomes_in_FASTA/ -o Results/ -c 10
-		./run_LSABGC.sh lsaBGC-Euk-Easy.py -g Directory_of_Genomes_in_GenBank/ -o Results/ -c 10
+                Usage example:
+                ./run_LSABGC.sh lsaBGC-Easy.py -n None -g Directory_of_Genomes_in_FASTA/ -o Results/ -c 10
+                ./run_LSABGC.sh lsaBGC-Euk-Easy.py -g Directory_of_Genomes_in_GenBank/ -o Results/ -c 10
 		
-		----------------------------------------------------------------------------------------------------------------------------
-		KEY NOTES:
-		----------------------------------------------------------------------------------------------------------------------------
-		* For lsaBGC-Easy.py (but not lsaBGC-Euk-Easy.py), the -n "None" is currently required.
-		* MEME (used in antiSMASH for CASSIS and RODEO) has been manually uninstalled in the antiSMASH conda environment within the 
-		  lsaBGC Docker image because it requires a commercial license.
-		* For arguments which you would provide quotes for if using the workflows directly, please manually add quotes preceeded by
-		  a backslash from the printed Docker command and run it.
-		  
-		  Eg. running: 
-		 
-		 ./run_LSABGC.sh lsaBGC-Easy.py -n "None" -g Directory_of_Genomes_in_FASTA/ -o Results/ -c 10 -b -bo "--include_singletons"
-
-		  will try to run lsaBGC-Easy and report some error because of the quoted arguments, but at the end print the Docker command:
-		 
-		  docker run --volume /home/salamzade/lsaBGC_Development/Test_v1.37:/home/input:ro \\
-		             --volume /home/salamzade/lsaBGC_Development/Test_v1.37:/home/output:rw \\
-			     --detach=false --rm --user=1010:1011 raufs/lsabgc:latest lsaBGC-Easy.py \\
-			     -n None -g /home/input/Directory_of_Genomes_in_FASTA -o /home/output/Results \\
-			     -c 10 -b -bo --include_singletons --docker_mode
-		 
-		  You can change this to the following (note the \" around values provided to -bo/--bigscape_options argument) and run it 
-		  directly in shell:
-		  
-		  docker run --volume /home/salamzade/lsaBGC_Development/Test_v1.37:/home/input:ro \
-		             --volume /home/salamzade/lsaBGC_Development/Test_v1.37:/home/output:rw \
-			     --detach=false --rm --user=1010:1011 raufs/lsabgc:latest lsaBGC-Easy.py \
-			     -n None -g /home/input/Directory_of_Genomes_in_FASTA -o /home/output/Results \
-			     -c 10 -b -bo \"--include_singletons\" --docker_mode
+                ----------------------------------------------------------------------
+                KEY NOTES:
+                ----------------------------------------------------------------------
+                * For lsaBGC-Easy.py (but not lsaBGC-Euk-Easy.py), the -n "None" is currently required.
+                * MEME (used in antiSMASH for CASSIS and RODEO) has been manually uninstalled in the antiSMASH conda environment within the 
+                  lsaBGC Docker image because it requires a commercial license.
+                * For arguments which you would provide quotes for if using the workflows directly, please preceed quotes with a backslash. E.g.:
+                 ./run_LSABGC.sh lsaBGC-Easy.py -n \"None\" -g Directory_of_Genomes_in_FASTA/ -o Results/ -c 10 -b -bo \"--include_singletons\"
 		""")
 	else:
 		os.system(' '.join([x.replace('"', '\\"').replace("'", "\\'") for x in args]))
