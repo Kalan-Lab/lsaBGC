@@ -124,10 +124,10 @@ def create_parser():
 def lsaBGC_Easy():
 	myargs = create_parser()
 
-	taxa_name = myargs.taxa_name.strip('"').strip()
+	taxa_name = myargs.taxa_name.strip('"')
 	outdir = os.path.abspath(myargs.output_directory) + '/'
 	cpus = myargs.cpus
-	antismash_options = myargs.antismash_options
+	antismash_options = myargs.antismash_options.strip('"')
 	user_genomes_directory = myargs.user_genomes_directory
 	bgc_prediction_software = myargs.bgc_prediction_software.upper()
 	gtotree_model = myargs.gtotree_model
@@ -139,7 +139,7 @@ def lsaBGC_Easy():
 	run_coarse_orthofinder = myargs.run_coarse_orthofinder
 	orthofinder_mode = myargs.orthofinder_mode.upper()
 	use_bigscape_flag = myargs.use_bigscape
-	bigscape_options = myargs.bigscape_options
+	bigscape_options = myargs.bigscape_options.strip('"')
 	ignore_limits_flag = myargs.ignore_limits
 	use_pyrodigal = myargs.use_pyrodigal
 	lsabgc_cluster_inflation = myargs.lsabgc_cluster_inflation
