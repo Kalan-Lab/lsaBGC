@@ -4,7 +4,8 @@
 # AFFILIATION: Kalan Lab, UW-Madison
 # run_LSABGC.sh - wrapper to run lsaBGC-Easy.py and lsaBGC-Euk-Easy.py
 
-# function
+# function to determine absolute paths taken from peterh's respone on StackOverflow:
+# https://stackoverflow.com/questions/3915040/how-to-obtain-the-absolute-path-of-a-file-via-shell-bash-zsh-sh
 get_abs_filename() {
   # $1 : relative filename
   filename=$1
@@ -71,7 +72,6 @@ elif [[ $1 == 'lsaBGC-Easy.py' ]]; then
   # run workflow
   docker pull raufs/lsabgc:latest
   docker run ${DOCKER_VOLUME_ARGS} --detach=false --rm --user=$(id -u):$(id -g) raufs/lsabgc:latest ${EASY_ARGS}
-  echo docker run ${DOCKER_VOLUME_ARGS} --detach=false --rm --user=$(id -u):$(id -g) raufs/lsabgc:latest ${EASY_ARGS}
   
 elif [[ $1 == 'lsaBGC-Euk-Easy.py' ]]; then
   set -o errexit
@@ -118,7 +118,7 @@ elif [[ $1 == 'lsaBGC-Euk-Easy.py' ]]; then
   # run workflow
   docker pull raufs/lsabgc:latest
   docker run ${DOCKER_VOLUME_ARGS} --detach=false --rm --user=$(id -u):$(id -g) raufs/lsabgc:latest ${EASY_ARGS}
-  echo docker run ${DOCKER_VOLUME_ARGS} --detach=false --rm --user=$(id -u):$(id -g) raufs/lsabgc:latest ${EASY_ARGS}
+
 else
 	docker pull raufs/lsabgc:latest
 	docker run \
