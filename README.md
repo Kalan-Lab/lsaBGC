@@ -1,9 +1,9 @@
 # *lsa*BGC
 ### Lineage Specific Analysis (*lsa*) of Biosynthetic Gene Clusters (BGC)
 
-[![Preprint](https://img.shields.io/badge/preprint-bioRxiv-darkblue?style=flat-square&maxAge=2678400)](https://www.biorxiv.org/content/10.1101/2022.04.20.488953v2)
-[![Documentation](https://img.shields.io/badge/documentation-wiki-darkgreen?style=flat-square&maxAge=2678400)](https://github.com/Kalan-Lab/lsaBGC/wiki)
-
+[![Manuscript](https://img.shields.io/badge/Manuscript-MGen-darkblue?style=flat-square&maxAge=2678400)](https://www.microbiologyresearch.org/content/journal/mgen/10.1099/mgen.0.000988)
+[![Documentation](https://img.shields.io/badge/Documentation-Wiki-darkgreen?style=flat-square&maxAge=2678400)](https://github.com/Kalan-Lab/lsaBGC/wiki)
+[![Docker](https://img.shields.io/badge/Docker-DockerHub-darkred?style=flat-square&maxAge=2678400)](https://hub.docker.com/r/raufs/lsabgc)
 
 *lsa*BGC offers modular programs, as well as workflows, designed for investigating and mining for biosynthetic gene cluster diversity across a focal lineage/taxa of interest. 
 
