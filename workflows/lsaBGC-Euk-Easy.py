@@ -92,7 +92,7 @@ def create_parser():
 	parser.add_argument('-x', '--ignore_limits', action='store_true', help="Ignore limitations on number of genomes allowed.\nE.g. allow for analyses of taxa with more than 2000 genomes available before dereplication and more than 100 genomes\nafter dereplication. Not recommend, be cautious!!! Also note,\nyou can always delete \"Dereplicated_Set_of_Genomes.txt\" in the results directory and redo\ndereplication with different threshold.")
 	parser.add_argument('-iib', '--include_incomplete_bgcs', action='store_true', help="Whether to account for incomplete BGCs prior to clustering -\nnot recommended.", default=False, required=False)
 	parser.add_argument('-b', '--use_bigscape', action='store_true', help="Use BiG-SCAPE for BGC clustering into GCFs instead of lsaBGC-Cluster.\nRecommended if you want to include incomplete BGCs for clustering and are using\nantiSMASH.", required=False, default=False)
-	parser.add_argument('-bo', '--bigscape_options', action='store_true', help="Options for BiG-SCAPE clustering of BGCs if requested (should be surrounded by quotes). [Default is \"--hybrids-off --include_singletons\"].", required=False, default="--hybrids-off --include_singletons")
+	parser.add_argument('-bo', '--bigscape_options', help="Options for BiG-SCAPE clustering of BGCs if requested (should be surrounded by quotes). [Default is \"--hybrids-off --include_singletons\"].", required=False, default="--hybrids-off --include_singletons")
 	parser.add_argument('-lci', '--lsabgc_cluster_inflation', type=float, help='Value for MCL inflation parameter to use in lsaBGC-Cluster [Default is 4.0].', required=False, default=4.0)
 	parser.add_argument('-lcj', '--lsabgc_cluster_jaccard', type=float, help='Minimal Jaccard Index cutoff to regard two BGCs as potentially homologous\nin lsaBGC-Cluster [Default is 20.0].', required=False, default=20.0)
 	parser.add_argument('-lcr', '--lsabgc_cluster_synteny', type=float, help='Minimal absolute correlation coefficient to measure syntenic similarity and\nregard two BGCs as potentially homologous in lsaBGC-Cluster [Default is 0.7].', required=False, default=0.7)
@@ -113,7 +113,7 @@ def lsaBGC_Euk_Easy():
 
 	outdir = os.path.abspath(myargs.output_directory) + '/'
 	cpus = myargs.cpus
-	antismash_options = myargs.antismash_options
+	antismash_options = myargs.antismash_options.strip('"')
 	genomes_directory = myargs.genomes_directory
 	skip_dereplication_flag = myargs.skip_dereplication
 	include_incomplete_bgcs_flag = myargs.include_incomplete_bgcs
@@ -123,7 +123,7 @@ def lsaBGC_Euk_Easy():
 	run_coarse_orthofinder = myargs.run_coarse_orthofinder
 	orthofinder_mode = myargs.orthofinder_mode.upper()
 	use_bigscape_flag = myargs.use_bigscape
-	bigscape_options = myargs.bigscape_options
+	bigscape_options = myargs.bigscape_options.strip('"')
 	ignore_limits_flag = myargs.ignore_limits
 	lsabgc_cluster_inflation = myargs.lsabgc_cluster_inflation
 	lsabgc_cluster_jaccard = myargs.lsabgc_cluster_jaccard
