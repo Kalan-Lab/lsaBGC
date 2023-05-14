@@ -69,9 +69,10 @@ elif [[ $1 == 'lsaBGC-Easy.py' ]]; then
 	fi
 
   # run workflow
-	docker pull raufs/lsabgc:latest
-	docker run ${DOCKER_VOLUME_ARGS} --detach=false --rm --user=$(id -u):$(id -g) raufs/lsabgc:latest ${EASY_ARGS}
-
+  docker pull raufs/lsabgc:latest
+  docker run ${DOCKER_VOLUME_ARGS} --detach=false --rm --user=$(id -u):$(id -g) raufs/lsabgc:latest ${EASY_ARGS}
+  echo docker run ${DOCKER_VOLUME_ARGS} --detach=false --rm --user=$(id -u):$(id -g) raufs/lsabgc:latest ${EASY_ARGS}
+  
 elif [[ $1 == 'lsaBGC-Euk-Easy.py' ]]; then
   set -o errexit
 	set -o nounset
@@ -115,9 +116,9 @@ elif [[ $1 == 'lsaBGC-Euk-Easy.py' ]]; then
 	fi
 
   # run workflow
-	docker pull raufs/lsabgc:latest
-	docker run ${DOCKER_VOLUME_ARGS} --detach=false --rm --user=$(id -u):$(id -g) raufs/lsabgc:latest ${EASY_ARGS}
-
+  docker pull raufs/lsabgc:latest
+  docker run ${DOCKER_VOLUME_ARGS} --detach=false --rm --user=$(id -u):$(id -g) raufs/lsabgc:latest ${EASY_ARGS}
+  echo docker run ${DOCKER_VOLUME_ARGS} --detach=false --rm --user=$(id -u):$(id -g) raufs/lsabgc:latest ${EASY_ARGS}
 else
 	docker pull raufs/lsabgc:latest
 	docker run \
