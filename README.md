@@ -92,7 +92,7 @@ chmod +x run_LSABGC.sh
 Check out how to use `lsaBGC-Easy.py` and `lsaBGC-Euk-Easy.py` on [their wiki page](https://github.com/Kalan-Lab/lsaBGC/wiki/14.-lsaBGC-Easy-Tutorial)!
 
 ![image](https://user-images.githubusercontent.com/4260723/181613839-df183cdc-1103-403f-b5d1-889484f52be9.png)
-
+***
 ![image](https://github.com/Kalan-Lab/lsaBGC/assets/4260723/d35875e5-4299-4c02-a874-50bbf8f1cf30)
    
 ## Acknowledgements:
