@@ -55,5 +55,5 @@ dependencies:
   - psutil
   - mypy
   - pip:
-        - cython==3.0.0a10
+        - Cython
         - sonicparanoid
