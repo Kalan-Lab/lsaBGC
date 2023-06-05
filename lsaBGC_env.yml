@@ -51,7 +51,6 @@ dependencies:
   - smart-open
   - tqdm
   - wheel
-  - cython
   - psutil
   - mypy
   - future
