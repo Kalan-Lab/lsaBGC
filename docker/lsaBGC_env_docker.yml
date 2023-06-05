@@ -54,7 +54,4 @@ dependencies:
   - wheel
   - psutil
   - mypy
-  - cython
-  - pip:
-        - cython==3.0.0a10 
-        - sonicparanoid==2.0.2
+  - future

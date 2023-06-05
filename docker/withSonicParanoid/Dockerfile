@@ -15,7 +15,7 @@ SHELL ["/bin/bash", "-c"]
 RUN apt-get update && apt-get install -y git wget libtiff5 gcc && \
     git clone https://github.com/Kalan-Lab/lsaBGC && rm -rf lsaBGC/test_case.tar.gz && \
     conda install -c conda-forge mamba && \
-    mamba env create -f /usr/src/lsaBGC/lsaBGC_env.yml -p /usr/src/lsaBGC_conda_env/ && \
+    mamba env create -f /usr/src/lsaBGC/docker/lsaBGC_env_docker.yml -p /usr/src/lsaBGC_conda_env/ && \
     mamba create -p /usr/src/antismash_conda_env/ -c bioconda -c conda-forge -c defaults antismash -y && \
     source activate /usr/src/antismash_conda_env/ && download-antismash-databases && \
     conda remove --force meme && conda deactivate && \
