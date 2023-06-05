@@ -3,15 +3,16 @@ If you use lsaBGC, please cite: https://www.biorxiv.org/content/10.1101/2022.04.
 lsaBGC is made possible by many other tools including:
 - BGC prediction software (can vary but please cite appropriately):
     - antiSMASH: https://academic.oup.com/nar/article/49/W1/W29/6274535
-    - GECCO: https://www.biorxiv.org/content/10.1101/2021.05.03.442509v1
+    - GECCO (still under review): https://www.biorxiv.org/content/10.1101/2021.05.03.442509v1
     - DeepBGC: https://academic.oup.com/nar/article/47/18/e110/5545735
 
 - Phylogeny construction & diversity estimation:
     - GToTree: https://academic.oup.com/bioinformatics/article/35/20/4162/5378708
     - MASH: https://genomebiology.biomedcentral.com/articles/10.1186/s13059-016-0997-x
 
-- Homolog group identification:
-    - OrthoFinder: https://genomebiology.biomedcentral.com/articles/10.1186/s13059-019-1832-y
+- Ortholog group identification:
+    - OrthoFinder2: https://genomebiology.biomedcentral.com/articles/10.1186/s13059-019-1832-y
+    - SonicParanoid2 (still under review): https://www.biorxiv.org/content/10.1101/2023.05.14.540736v1
 
 - General processing of sequencing data and phylogenies:
     - biopython: https://academic.oup.com/bioinformatics/article/25/11/1422/330687
@@ -32,9 +33,9 @@ lsaBGC is made possible by many other tools including:
 
 - Protein alignment and profile HMM construction:
     - MAFFT: https://academic.oup.com/mbe/article/30/4/772/1073398
-    - MAGUS: https://academic.oup.com/bioinformatics/article/37/12/1666/6012350 (no longer used since v1.37)
-    - MUSCLE (part of GToTree): https://www.biorxiv.org/content/10.1101/2021.06.20.449169v1.full
-    
+    - MAGUS (no longer used since v1.37): https://academic.oup.com/bioinformatics/article/37/12/1666/6012350
+    - MUSCLE: https://www.biorxiv.org/content/10.1101/2021.06.20.449169v1.full
+
 - Visualization software:
     - ggplot2: https://ggplot2-book.org/
     - ggtree: https://besjournals.onlinelibrary.wiley.com/doi/full/10.1111/2041-210X.12628

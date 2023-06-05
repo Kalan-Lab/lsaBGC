@@ -1707,9 +1707,8 @@ def performKOFamAndPGAPAnnotation(sample_bgc_proteins, bgc_prot_directory, annot
 		raise RuntimeError(traceback.format_exc())
 	return dict(sample_protein_annotations)
 
-
 def runOrthoFinder2Full(bgc_prot_directory, orthofinder_outdir, logObject, cpus=1):
-	result_file = orthofinder_outdir + 'Orthogroups_BGC_Comprehensive.tsv'
+	result_file = orthofinder_outdir + 'Final_Orthogroups.tsv'
 	try:
 		orthofinder_cmd = ['orthofinder', '-f', bgc_prot_directory, '-t', str(cpus)]
 
@@ -1790,7 +1789,7 @@ def runOrthoFinder2Full(bgc_prot_directory, orthofinder_outdir, logObject, cpus=
 
 
 def runOrthoFinder2(bgc_prot_directory, orthofinder_outdir, logObject, cpus=1):
-	result_file = orthofinder_outdir + 'Orthogroups_BGC_Comprehensive.tsv'
+	result_file = orthofinder_outdir + 'Final_Orthogroups.tsv'
 	try:
 		orthofinder_cmd = ['orthofinder', '-f', bgc_prot_directory, '-t', str(cpus), '-og']
 		logObject.info('Running the following command: %s' % ' '.join(orthofinder_cmd))
@@ -1819,6 +1818,75 @@ def runOrthoFinder2(bgc_prot_directory, orthofinder_outdir, logObject, cpus=1):
 		raise RuntimeError(traceback.format_exc())
 	return result_file
 
+
+def runSonicParanoid2(bgc_prot_directory, sonicparanoid_outdir, logObject, cpus=1):
+	result_file = sonicparanoid_outdir + 'Final_Orthogroups.tsv'
+	try:
+		sonicparanoid_cmd = ['sonicparanoid', '-i', bgc_prot_directory, '-o', sonicparanoid_outdir, '-p',
+							 'sonicparanoid2_for_lsabgc', '-t', str(cpus)]
+
+		logObject.info('Running the following command: %s' % ' '.join(sonicparanoid_cmd))
+		subprocess.call(' '.join(sonicparanoid_cmd), shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+						executable='/bin/bash')
+		logObject.info('Successfully ran SonicParanoid!')
+
+		main_orthology_subdir = sonicparanoid_outdir + 'runs/sonicparanoid2_for_lsabgc/ortholog_groups/'
+		main_file = main_orthology_subdir + 'flat.ortholog_groups.tsv'
+		singletons_file = main_orthology_subdir + 'not_assigned_genes.ortholog_groups.tsv'
+
+		result_handle = open(result_file, 'w')
+		genomes = []
+		hog_id = 0
+		with open(main_file) as omf:
+			for i, line in enumerate(omf):
+				line = line.strip('\n')
+				ls = line.split('\t')
+				if i == 0:
+					genomes = ['.'.join(f.split('.')[:-1]) for f in ls[1:]]
+					result_handle.write('Orthogroup\t' + '\t'.join(genomes) + '\n')
+				else:
+					hog = 'OG_' + ls[0]
+					hog_id = int(ls[0])
+					updated_row = [hog]
+					for val in ls[1:]:
+						valjoined = ''
+						if val.strip() != '*':
+							valsplit = val.split(',')
+							valjoined = ', '.join(valsplit)
+						updated_row.append(valjoined)
+					result_handle.write('\t'.join(updated_row) + '\n')
+
+		genome_singletons = defaultdict(list)
+		curr_genome = None
+		curr_genes = []
+		with open(singletons_file) as osf:
+			for line in osf:
+				line = line.strip()
+				if line == '': continue
+				if line.startswith('#'):
+					if len(curr_genes) > 0:
+						genome_singletons[curr_genome] = curr_genes
+					curr_genome = '.'.join(line[1:].split('.')[:-1])
+					curr_genes = []
+				else:
+					curr_genes.append(line)
+		if len(curr_genes) > 0:
+			genome_singletons[curr_genome] = curr_genes
+
+		for i, g in enumerate(genomes):
+			for gene in genome_singletons[g]:
+				hog_id += 1
+				printlist = ['OG_' + str(hog_id)]
+				printlist += ['']*i + [gene] + ['']*(len(genomes)-i-1)
+				result_handle.write('\t'.join(printlist) + '\n')
+		result_handle.close()
+
+		assert (os.path.isfile(result_file))
+	except Exception as e:
+		logObject.error("Problem with running SonicParanoid2 cmd: %s." % ' '.join(sonicparanoid_cmd))
+		logObject.error(traceback.format_exc())
+		raise RuntimeError(traceback.format_exc())
+	return result_file
 
 def determineParalogyThresholds(orthofinder_bgc_matrix_file, bgc_prot_directory, blast_directory, logObject, cpus=1):
 	paralogy_thresholds = defaultdict(
