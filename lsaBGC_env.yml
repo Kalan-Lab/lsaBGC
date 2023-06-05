@@ -4,7 +4,7 @@ channels:
   - bioconda
   - defaults
 dependencies:
-  - python=3.9
+  - python
   - pip=22.1.2
   - biopython=1.79
   - pysam=0.16.0.1
@@ -46,14 +46,15 @@ dependencies:
   - conda-forge::scikit-learn
   - scipy
   - numpy
-  - filetype=1.2.0
-  - gensim=4.2.0
-  - smart-open=6.3.0
-  - tqdm==4.64.1
-  - wheel==0.40.0
+  - filetype
+  - gensim
+  - smart-open
+  - tqdm
+  - wheel
   - cython
   - psutil
   - mypy
+  - future
   - pip:
         - cython==3.0.0a10
         - sonicparanoid==2.0.2
