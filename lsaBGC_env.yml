@@ -44,6 +44,9 @@ dependencies:
   - bioconda::n50
   - conda-forge::networkx
   - conda-forge::scikit-learn
+  - filetype=1.2.0
+  - gensim=4.2.0
+  - smart-open=6.3.0
   - pip:
-      - magus-msa
-
+        - cython==3.0.0a10
+        - sonicparanoid
