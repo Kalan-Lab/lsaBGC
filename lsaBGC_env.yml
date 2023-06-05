@@ -4,7 +4,7 @@ channels:
   - bioconda
   - defaults
 dependencies:
-  - python
+  - python=3.9
   - pip=22.1.2
   - biopython=1.79
   - pysam=0.16.0.1
@@ -55,5 +55,5 @@ dependencies:
   - psutil
   - mypy
   - pip:
-        - Cython
+        - cython==3.0.0a10
         - sonicparanoid
