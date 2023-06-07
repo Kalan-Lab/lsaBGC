@@ -537,7 +537,7 @@ def lsaBGC_Euk_Easy():
 			[f for f in os.listdir(lsabgc_ready_results_directory)]) <= 2:
 		os.system('rm -rf %s' % lsabgc_ready_directory)
 		lsabgc_ready_cmd = ['lsaBGC-Ready.py', '-i', primary_genomes_listing_file, '-l', primary_bgcs_listing_file,
-							'-o', lsabgc_ready_directory, '-c', str(cpus), '-p', 'antiSMASH', '-m', orthofinder_mode]
+							'-o', lsabgc_ready_directory, '-c', str(cpus), '-p', 'antiSMASH', '-om', ortholog_method]
 		if use_bigscape_flag and os.path.isdir(bigscape_results_dir):
 			lsabgc_ready_cmd += ['-b', bigscape_results_dir]
 		else:
