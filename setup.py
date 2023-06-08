@@ -42,6 +42,9 @@ setup(name='lsaBGC',
 try:
       os.system('pip install cython==3.0.0a10')
       os.system('pip install sonicparanoid==2.0.3')
+      os.system('sonicparanoid-get-test-data -o .')
+      os.system('sonicparanoid -i sonicparanoid_test/test_input -o sonicparanoid_test/test_output -p my_first_run')
+      os.system('rm -rf sonicparanoid_test/')
 except:
       sys.stderr.write('Warning: unable to install sonicparanoid!\n')
       sys.exit(1)
