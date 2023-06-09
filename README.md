@@ -79,11 +79,12 @@ To use the latest Docker image, please: (1) install Docker and (2) download the 
 
 ```
 # 1. download wrapper script for running image with SonicParanoid
-wget https://raw.githubusercontent.com/Kalan-Lab/lsaBGC/develop/docker/withSonicParanoid/run_LSABGC.sh
+wget https://raw.githubusercontent.com/Kalan-Lab/lsaBGC/main/docker/withSonicParanoid/run_LSABGC.sh
 
 # or
+
 # choose version with script for running image without SonicParanoid
-wget https://raw.githubusercontent.com/Kalan-Lab/lsaBGC/develop/docker/withoutSonicParanoid/run_LSABGC.sh
+wget https://raw.githubusercontent.com/Kalan-Lab/lsaBGC/main/docker/withoutSonicParanoid/run_LSABGC.sh
 
 # 2. run it
 bash run_LSABGC.sh
