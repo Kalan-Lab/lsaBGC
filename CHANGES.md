@@ -1,5 +1,6 @@
 # Major Updates 
-* May 14, 2023 - v1.37.1 corrects default options for antiSMASH in lsaBGC-Easy.py and introduces code to allow for providing arguments with spaces (e.g. for changing antiSMASH options or BiG-SCAPE options). 
+* Jun 08, 2023 - v1.38 - incorporate SonicParanoid as alternative to OrthoFinder.
+* May 14, 2023 - v1.37.1 - corrects default options for antiSMASH in lsaBGC-Easy.py and introduces code to allow for providing arguments with spaces (e.g. for changing antiSMASH options or BiG-SCAPE options). 
 * May 13*, 2023 - v1.37 - Introduces changes to eventually have Docker working for lsaBGC-(Euk)-Easy workflows. Implemented less problematic parsing of BGC positions along genomes through prediction-software specific parsing of BGC GenBanks - important for BGC rich taxa. Switched from MAGUS to MUSCLE super5 for rapid multiple sequence alignment. 
 * May 5, 2023 - v1.36 - Improve checks for genome count in lsaBGC-(Euk)-Easy workflows, correct for issue related to PGAP database, simplify conda environment requirements.
 * Apr 17, 2023 - Set AutoExpansion to off by default in lsaBGC-(Euk)-Easy, introduced lsaBGC-ComprehenSeeIve, changed handling off primary genomes being rerun through lsaBGC-AutoExpansion.
