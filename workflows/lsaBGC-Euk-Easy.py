@@ -89,21 +89,21 @@ def create_parser():
 
 	parser.add_argument('-g', '--genomes_directory', help='A directory with additional genomes, e.g. those recently sequenced by the\nuser, belonging to the taxa. Must be full GenBanks with gene-calling already performed and\nCDS features available.', required=True)
 	parser.add_argument('-o', '--output_directory', help='Parent output/workspace directory.', required=True)
-	parser.add_argument('-x', '--ignore_limits', action='store_true', help="Ignore limitations on number of genomes allowed.\nE.g. allow for analyses of taxa with more than 2000 genomes available before dereplication and more than 100 genomes\nafter dereplication. Not recommend, be cautious!!! Also note,\nyou can always delete \"Dereplicated_Set_of_Genomes.txt\" in the results directory and redo\ndereplication with different threshold.")
+	parser.add_argument('-x', '--ignore_limits', action='store_true', help="Ignore limitations on number of genomes allowed.\nE.g. allow for analyses of taxa with more than 2000 genomes available before\ndereplication and more than 100 genomes after dereplication. Not recommend, be\ncautious!!! Also note, you can always delete \"Dereplicated_Set_of_Genomes.txt\"\nin the results directory and redo dereplication with different threshold.")
 	parser.add_argument('-iib', '--include_incomplete_bgcs', action='store_true', help="Whether to account for incomplete BGCs prior to clustering -\nnot recommended.", default=False, required=False)
 	parser.add_argument('-b', '--use_bigscape', action='store_true', help="Use BiG-SCAPE for BGC clustering into GCFs instead of lsaBGC-Cluster.\nRecommended if you want to include incomplete BGCs for clustering and are using\nantiSMASH.", required=False, default=False)
-	parser.add_argument('-bo', '--bigscape_options', help="Options for BiG-SCAPE clustering of BGCs if requested (should be surrounded by quotes). [Default is \"--hybrids-off --include_singletons\"].", required=False, default="--hybrids-off --include_singletons")
+	parser.add_argument('-bo', '--bigscape_options', help="Options for BiG-SCAPE clustering of BGCs if requested (should be surrounded by quotes).\n[Default is \"--hybrids-off --include_singletons\"].", required=False, default="--hybrids-off --include_singletons")
 	parser.add_argument('-lci', '--lsabgc_cluster_inflation', type=float, help='Value for MCL inflation parameter to use in lsaBGC-Cluster [Default is 4.0].', required=False, default=4.0)
 	parser.add_argument('-lcj', '--lsabgc_cluster_jaccard', type=float, help='Minimal Jaccard Index cutoff to regard two BGCs as potentially homologous\nin lsaBGC-Cluster [Default is 20.0].', required=False, default=20.0)
 	parser.add_argument('-lcr', '--lsabgc_cluster_synteny', type=float, help='Minimal absolute correlation coefficient to measure syntenic similarity and\nregard two BGCs as potentially homologous in lsaBGC-Cluster [Default is 0.7].', required=False, default=0.7)
-	parser.add_argument('-pae', '--perform_auto_expansion', action='store_true', help="Perform lsaBGC-AutoExpansion.py to find missing pieces of BGCs due to assembly\nfragmentation. Will increase sensitivity at the potential cost of false positives, recommended for\ntaxa with <10 BGCs per genome or more constrained lineages/species. For genus-wide analyses,\nespecially of BGC-rich organisms, please use expansion manually and assess lsaBGC-See reports\nto filter false positives.", required=False, default=False)
+	parser.add_argument('-pae', '--perform_auto_expansion', action='store_true', help="Perform lsaBGC-AutoExpansion.py to find missing pieces of BGCs due to assembly\nfragmentation. Will increase sensitivity at the potential cost of false positives,\nrecommended for taxa with < ~10 BGCs per genome or more constrained\nlineages/species. For genus-wide analyses, especially of BGC-rich taxa, please use\nexpansion manually and assess lsaBGC-See reports to filter false positives.", required=False, default=False)
 	parser.add_argument('-dt', '--dereplicate_threshold', type=float, help="Amino acid similarity threshold of SCGs for considering\ntwo genomes as redundant [Default is 0.999].", default=0.999, required=False)
 	parser.add_argument('-sd', '--skip_dereplication', action='store_true', help="Whether to skip dereplication based on GToTree alignments of SCGs - not\nrecommended and can cause issues if there are a lot of genomes for the taxa\nof interest.", default=False, required=False)
 	parser.add_argument('-pt', '--population_threshold', type=float, help="Amino acid similarity threshold of SCGs for considering\ntwo genomes as belonging to the same population [Default is 0.99].", default=0.99, required=False)
-	parser.add_argument('-om', '--orthofinder_mode', help="Method for running OrthoFinder2. (Options: Genome_Wide, BGC_Only).\nDefault is Genome_Wide (BGC_Only is slightly experimental but much faster and should work\nespecially well for taxa with many BGCs).", default='Genome_Wide', required=False)
+	parser.add_argument('-om', '--ortholog_method', help="Software for inference of ortholog groups. (Options: OrthoFinder, SonicParanoid).\n[Default is OrthoFinder].", default='OrthoFinder', required=False)
 	parser.add_argument('-mc', '--run_coarse_orthofinder', action='store_true', help='Use coarse clustering of homolog groups in OrthoFinder instead\nof more resolute hierarchical determined homolog groups. There are some advantages to\ncoarse OGs, including their construction being deterministic.', required=False, default=False)
 	parser.add_argument('-c', '--cpus', type=int, help="Total number of CPUs to use [Default is 4].", required=False, default=4)
-	parser.add_argument('-ao', '--antismash_options', help="Options for antiSMASH prediction analysis (should be surrounded by\nquotes, in Docker - it is assumed each individual job will have 4 CPUs). [Default is\n\"--taxon fungi --genefinding-tool none --cpus 4\"]", required=False, default="--taxon fungi --genefinding-tool none --cpus 4")
+	parser.add_argument('-ao', '--antismash_options', help="Options for antiSMASH prediction analysis (should be surrounded by\nquotes, in Docker - it is assumed each individual job will have 4 CPUs).\n[Default is \"--taxon fungi --genefinding-tool none --cpus 4\"]", required=False, default="--taxon fungi --genefinding-tool none --cpus 4")
 	parser.add_argument('-d', '--docker_mode', action='store_true', help=argparse.SUPPRESS, required=False, default=False)
 	args = parser.parse_args()
 	return args
@@ -121,7 +121,7 @@ def lsaBGC_Euk_Easy():
 	dereplicate_threshold = myargs.dereplicate_threshold
 	population_threshold = myargs.population_threshold
 	run_coarse_orthofinder = myargs.run_coarse_orthofinder
-	orthofinder_mode = myargs.orthofinder_mode.upper()
+	ortholog_method = myargs.ortholog_method.upper()
 	use_bigscape_flag = myargs.use_bigscape
 	bigscape_options = myargs.bigscape_options.strip('"')
 	ignore_limits_flag = myargs.ignore_limits
@@ -131,9 +131,9 @@ def lsaBGC_Euk_Easy():
 	docker_mode = myargs.docker_mode
 
 	try:
-		assert (orthofinder_mode in set(['GENOME_WIDE', 'BGC_ONLY']))
+		assert (ortholog_method in set(['ORTHOFINDER', 'SONICPARANOID']))
 	except:
-		sys.stderr.write('BGC prediction software option is not a valid option.\n')
+		sys.stderr.write('Ortholog inference software specified is not a valid option.\n')
 		sys.exit(1)
 
 	if genomes_directory:
@@ -537,7 +537,7 @@ def lsaBGC_Euk_Easy():
 			[f for f in os.listdir(lsabgc_ready_results_directory)]) <= 2:
 		os.system('rm -rf %s' % lsabgc_ready_directory)
 		lsabgc_ready_cmd = ['lsaBGC-Ready.py', '-i', primary_genomes_listing_file, '-l', primary_bgcs_listing_file,
-							'-o', lsabgc_ready_directory, '-c', str(cpus), '-p', 'antiSMASH', '-m', orthofinder_mode]
+							'-o', lsabgc_ready_directory, '-c', str(cpus), '-p', 'antiSMASH', '-om', ortholog_method]
 		if use_bigscape_flag and os.path.isdir(bigscape_results_dir):
 			lsabgc_ready_cmd += ['-b', bigscape_results_dir]
 		else:

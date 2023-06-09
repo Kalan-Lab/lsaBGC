@@ -74,18 +74,17 @@ def create_parser():
     
 	ALGORITHMIC OVERVIEWS/CONSIDERATIONS:
 	***************************************************************************************************************** 
-    -*-  OrthoFinder2 modes:
-            * Genome_Wide: Run OrthoFinder2 as intended with all primary sample full genome-wide proteomes.
-              [DEFAULT; LOW-THROUGHPUT (<200 Genomes)]. 
-            * BGC_Only: OrthoFinder2 is run across samples/genomes accounting for only BGC embedded proteins. 
-              Genome-wide paralogs for orthogroups are subsequently identified by using orthogroup specific cutoffs
-              based on the percent identity and coverage thresholds determined for each orthogroup (the minimum 
-              perc. id and coverage observed within BGC proteins belonging to the same orthgroup). 
-              [MEDIUM-THROUGHPUT (>200 but <500 genomes)]. Note, this can result in the same protein
-              being assigned to multiple ortholog groups currently because of the parology search (will aim to fix
-              this soon, but should have minimal effects I believe).
-            * COMING SOON: palo - scalable genome-wide orthology determination.
-	   
+    -*-  Regardless of whether lsaBGC-Cluster.py or BiG-SCAPE is used for inference of GCFs, ortholog groups will need
+         to be inferred with either OrthoFinder or SonicParanoid.
+    -*-  SonicParanoid2 is still under review as of incorporation into lsaBGC, however, it features a "domain-based
+         orthology inference pipeline", which can allow scalability of lsaBGC beyond a single genus
+         or proper application to diverse & BGC-rich genera, where modular large enzymes could have evolved via HGT.
+    -*-  While not focused on BGCs, where large modular enzymes are likely enriched, benchmarking in the SonicParanoid2
+         paper showed that OrthoFinder still performs the best on standard benchmarking datasets. This is likely because
+         of the calculation of hierarchical ortholog groups, which are based on gene to species tree reconciliations 
+         performed in OrthoFinder and not SonicParanoid. Additionally, OrthoFinder features a gene-length normalization
+         technique, but this should be less of a factor differentiating OrthoFinder and SonicParanoid because of the
+         "domain-based orthology inference" pipeline.
     -*-  To avoid issues with processing BiG-SCAPE results (if used instead lsaBGC-Cluster.py), please use distinct 
          output prefices for each sample when running antiSMASH so that BGC names do not overlap across samples 
          (can happen if sample genomes were assembled by users and do not have unique identifiers). If issues persist
@@ -102,7 +101,7 @@ def create_parser():
     parser.add_argument('-p', '--bgc_prediction_software', help='Software used to predict BGCs (Options: antiSMASH, DeepBGC, GECCO).\n[Default is antiSMASH].', default='antiSMASH', required=False)
     parser.add_argument('-b', '--bigscape_results', help='Path to BiG-SCAPE results directory of antiSMASH/DeepBGC/GECCO results predicted\nin primary genomes. Please make sure the sample names match what is provided for "--genome_listings".', required=False, default=None)
     parser.add_argument('-o', '--output_directory', help='Parent output/workspace directory.', required=True)
-    parser.add_argument('-m', '--orthofinder_mode', help='Method for running OrthoFinder2. (Options: Genome_Wide,\nBGC_Only) [Default is Genome_Wide].', required=False, default='Genome_Wide')
+    parser.add_argument('-om', '--ortholog_method', help="Software for inference of ortholog groups. (Options: OrthoFinder, SonicParanoid).\n[Default is OrthoFinder].", default='OrthoFinder', required=False)
     parser.add_argument('-mc', '--run_coarse_orthofinder', action='store_true', help='Use coarse clustering of homolog groups in OrthoFinder instead of more\nresolute hierarchical determined homolog groups.', required=False, default=False)
     parser.add_argument('-a', '--annotate', action='store_true', help='Perform annotation of BGC proteins using KOfam and PGAP (including TIGR)\nHMM profiles.', required=False, default=False)
     parser.add_argument('-t', '--run_gtotree', action='store_true', help='Whether to create phylogeny and expected sample-vs-sample\ndivergence for downstream analyses using GToTree.', required=False, default=False)
@@ -162,7 +161,7 @@ def lsaBGC_Ready():
     bgc_prediction_software = myargs.bgc_prediction_software.upper()
     run_gtotree = myargs.run_gtotree
     gtotree_model = myargs.gtotree_model
-    orthofinder_mode = myargs.orthofinder_mode.upper()
+    ortholog_method = myargs.ortholog_method.upper()
     cpus = myargs.cpus
     bigscape_results_dir = myargs.bigscape_results
     annotate = myargs.annotate
@@ -177,14 +176,16 @@ def lsaBGC_Ready():
     lsabgc_cluster_synteny = myargs.lsabgc_cluster_synteny
 
     try:
-        assert(orthofinder_mode in set(['GENOME_WIDE', 'BGC_ONLY']))
+        assert (ortholog_method in set(['ORTHOFINDER', 'SONICPARANOID']))
     except:
-        raise RuntimeError('BGC prediction software option is not a valid option.')
+        sys.stderr.write('Ortholog inference software specified is not a valid option.\n')
+        sys.exit(1)
 
     try:
         assert(bgc_prediction_software in set(['ANTISMASH', 'DEEPBGC', 'GECCO']))
     except:
-        raise RuntimeError('BGC prediction software option is not a valid option.')
+        sys.stderr.write('BGC prediction software option is not a valid option.\n')
+        sys.exit(1)
 
     try:
         assert(gtotree_model in set(['Actinobacteria', 'Alphaproteobacteria', 'Bacteria', 'Archaea',
@@ -242,11 +243,11 @@ def lsaBGC_Ready():
     logObject.info("Saving parameters for future records.")
     parameters_file = outdir + 'Parameter_Inputs.txt'
     parameter_values = [genome_listing_file, bgc_genbank_listing_file, outdir, additional_genome_listing_file,
-                        bgc_prediction_software, orthofinder_mode, bigscape_results_dir, annotate, run_lsabgc_cluster,
+                        bgc_prediction_software, ortholog_method, bigscape_results_dir, annotate, run_lsabgc_cluster,
                         lsabgc_cluster_inflation, lsabgc_cluster_jaccard, lsabgc_cluster_synteny, run_lsabgc_expansion,
                         keep_intermediates, use_pyrodigal, cpus]
     parameter_names = ["Primary Genome Listing File", "BGC Predictions Genbanks Listing File", "Output Directory",
-                       "Additional Genome Listing File", "BGC Prediction Software", "OrthoFinder Mode",
+                       "Additional Genome Listing File", "BGC Prediction Software", "Orthology Inference Software",
                        "BiG-SCAPE Results Directory", "Perform KOfam/PGAP Annotation?", "Run lsaBGC-Cluster Analysis?",
                        "Inflation Parameter Value for MCL clustering in lsaBGC-Cluster",
                        "Jaccard Index Threshold for lsaBGC-Cluster", "Syntenic Similarity Threshold for lsaBGC-Cluster",
@@ -398,7 +399,7 @@ def lsaBGC_Ready():
         bgc_to_sample = bgc_to_sample_update
         sample_bgc_proteins = sample_bgc_proteins_update
 
-    orthofinder_directory = outdir + 'OrthoFinder2_Results/'
+    orthofinder_directory = outdir + 'Orthology_Inference_Results/'
 
     final_proteomes_directory = outdir + 'Predicted_Proteomes/'
     final_genbanks_directory = outdir + 'Genomic_Genbanks/'
@@ -407,36 +408,25 @@ def lsaBGC_Ready():
     primary_bgc_listing_file = int_outdir + 'Primary_Sample_BGC_Files.txt'
     primary_orthofinder_matrix_file = int_outdir + 'Orthogroups.tsv'
 
-    if orthofinder_mode.upper() == 'GENOME_WIDE':
-        # Step 6 - GW: Incorporate proteins only found in BGC Genbanks into genome-wide predicted proteomes + genbanks
-        util.incorporateBGCProteinsIntoProteomesAndGenbanks(sample_bgc_proteins, sample_genomes, protein_annotations,
-                                                            bgc_prot_directory, proteomes_directory, final_proteomes_directory,
-                                                            final_genbanks_directory, primary_sample_annotation_listing_file,
-                                                            primary_bgc_listing_file, logObject)
+    # Step 6 - Incorporate proteins only found in BGC Genbanks into genome-wide predicted proteomes + genbanks
+    util.incorporateBGCProteinsIntoProteomesAndGenbanks(sample_bgc_proteins, sample_genomes, protein_annotations,
+                                                        bgc_prot_directory, proteomes_directory,
+                                                        final_proteomes_directory,
+                                                        final_genbanks_directory,
+                                                        primary_sample_annotation_listing_file,
+                                                        primary_bgc_listing_file, logObject)
 
-        # Step 7 - GW: Run OrthoFinder2 with genome-wide predicted proteomes
+    if ortholog_method.upper() == 'ORTHOFINDER':
+        # Step 7 - OF: Run OrthoFinder2 with genome-wide predicted proteomes
         if run_coarse_orthofinder:
             orthofinder_bgc_matrix_file = util.runOrthoFinder2(final_proteomes_directory, orthofinder_directory, logObject, cpus=cpus)
         else:
             orthofinder_bgc_matrix_file = util.runOrthoFinder2Full(final_proteomes_directory, orthofinder_directory, logObject, cpus=cpus)
         os.system('mv %s %s' % (orthofinder_bgc_matrix_file, primary_orthofinder_matrix_file))
-    elif orthofinder_mode.upper() == 'BGC_ONLY':
-        # Step 6 - BO: Run OrthoFinder2 with Proteins from BGCs
-        orthofinder_bgc_matrix_file = util.runOrthoFinder2(bgc_prot_directory, orthofinder_directory, logObject, cpus=cpus)
-
-        # Step 7 - BO: Determine thresholds for finding genome-wide paralogs
-        blast_directory = outdir + 'BLASTing_of_Ortholog_Groups/'
-        util.setupReadyDirectory([blast_directory])
-        samp_hg_lts, lt_to_hg, paralogy_thresholds = util.determineParalogyThresholds(orthofinder_bgc_matrix_file,
-                                                                                      bgc_prot_directory, blast_directory,
-                                                                                      logObject, cpus=cpus)
-        # Step 8 - BO: Identify Paralogs and Consolidate Differences between BGC prediction software and lsaBGC-Ready Gene Calling
-        util.identifyParalogsAndCreateResultFiles(samp_hg_lts, lt_to_hg, sample_bgc_proteins, paralogy_thresholds,
-                                                  protein_annotations, bgc_prot_directory, blast_directory,
-                                                  proteomes_directory, sample_genomes, final_proteomes_directory,
-                                                  final_genbanks_directory, primary_sample_annotation_listing_file,
-                                                  primary_bgc_listing_file, primary_orthofinder_matrix_file, logObject,
-                                                  cpus=cpus)
+    elif ortholog_method.upper() == 'SONICPARANOID':
+        # Step 7 - SP: Run SonicParanoid2 with genome-wide predicted proteomes
+        orthofinder_bgc_matrix_file = util.runSonicParanoid2(final_proteomes_directory, orthofinder_directory, logObject, cpus=cpus)
+        os.system('mv %s %s' % (orthofinder_bgc_matrix_file, primary_orthofinder_matrix_file))
 
     prim_samps_with_bgcs = set([])
     additional_lines_to_append = []

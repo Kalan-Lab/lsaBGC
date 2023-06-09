@@ -40,6 +40,7 @@ conda env create -f lsaBGC_env.yml -p /path/to/lsaBGC_conda_env/
 conda activate /path/to/lsaBGC_conda_env/
 
 # 3. complete python installation with the following commands:
+# since version 1.38, setup.py includes code for pip install of sonicparanoid
 python setup.py install
 pip install -e .
 ```
@@ -72,19 +73,20 @@ The major outputs of the final `lsaBGC-AutoAnalyze.py` run are in the resulting 
    
 ### Using Docker (for major workflows only)
 
-A docker image is provided for the `lsaBGC-Easy.py` and `lsaBGC-Euk-Easy.py` workflows together with a wrapper script. The image is pretty large (~21Gb) but includes all the databases and dependencies needed for lsaBGC, BiG-SCAPE, antiSMASH, and GECCO analysis. For lsaBGC, to save space, the KOfam database is not included. For antiSMASH, MEME is not incldued, thus RODEO and CASSIS analyses are not available.
+A docker image is provided for the `lsaBGC-Easy.py` and `lsaBGC-Euk-Easy.py` workflows together with a wrapper script. The image is pretty large (~21Gb without SonicParanoid, ~32Gb with SonicParanoid) but includes all the databases and dependencies needed for lsaBGC, BiG-SCAPE, antiSMASH, and GECCO analysis. For lsaBGC, to save space, the KOfam database is not included. For antiSMASH, MEME is not incldued, thus RODEO and CASSIS analyses are not available.
    
 To use the latest Docker image, please: (1) install Docker and (2) download the wrapper script:
 
 ```
-# download wrapper script
-wget https://raw.githubusercontent.com/Kalan-Lab/lsaBGC/main/docker/run_LSABGC.sh
+# 1. download wrapper script for running image with SonicParanoid
+wget https://raw.githubusercontent.com/Kalan-Lab/lsaBGC/develop/docker/withSonicParanoid/run_LSABGC.sh
 
-# change its permissions
-chmod +x run_LSABGC.sh
+# or
+# choose version with script for running image without SonicParanoid
+wget https://raw.githubusercontent.com/Kalan-Lab/lsaBGC/develop/docker/withoutSonicParanoid/run_LSABGC.sh
 
-# run the wrapper script 
-./run_LSABGC.sh 
+# 2. run it
+bash run_LSABGC.sh
 ```
    
 ## Quick Start - using `lsaBGC-Easy.py` and `lsaBGC-Euk-Easy.py` 

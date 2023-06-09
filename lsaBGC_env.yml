@@ -6,6 +6,7 @@ channels:
 dependencies:
   - python
   - pip=22.1.2
+  - conda-forge::cxx-compiler
   - biopython=1.79
   - pysam=0.16.0.1
   - bioconda::bowtie2=2.4.5
@@ -44,6 +45,13 @@ dependencies:
   - bioconda::n50
   - conda-forge::networkx
   - conda-forge::scikit-learn
-  - pip:
-      - magus-msa
-
+  - scipy
+  - numpy
+  - filetype
+  - gensim
+  - smart-open
+  - tqdm
+  - wheel
+  - psutil
+  - mypy
+  - future

@@ -1,7 +1,9 @@
+import os
+import sys
 from setuptools import setup
 
 setup(name='lsaBGC',
-      version='1.37.1',
+      version='1.38',
       description='Suite for comparative genomic, population genetics and evolutionary analysis, as well as metagenomic mining of micro-evolutionary novelty in BGCs all in the context of a single lineage of interest.',
       url='http://github.com/Kalan-Lab/lsaBGC/',
       author='Rauf Salamzade',
@@ -37,3 +39,14 @@ setup(name='lsaBGC',
                'bin/lsaBGC-DiscoVary.py',
                'bin/lsaBGC-MIBiGMapper.py'],
       zip_safe=False)
+
+try:
+      os.system('pip install cython==3.0.0a10')
+      os.system('pip install sonicparanoid==2.0.2')
+      os.system('sonicparanoid-get-test-data -o .')
+      os.system('sonicparanoid -i sonicparanoid_test/test_input -o sonicparanoid_test/test_output -p my_first_run')
+      os.system('rm -rf sonicparanoid_test/')
+except:
+      sys.stderr.write('Warning: unable to install sonicparanoid!\n')
+      sys.exit(1)
+
