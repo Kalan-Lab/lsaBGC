@@ -28,7 +28,7 @@ Documentation can currently be found on this Github repo's wiki: https://github.
 
 ### Using Conda (for full usage of suite)
 
-Installation can be performed via conda (see below for Docker) and should take ~5-10 minutes and has been tested on both unix (specifically Ubuntu) and macOS. We are happy to attempt to address issues with installation if any arise, please open a Git Issues case:
+Installation can be performed via conda (see below for Docker) and should take ~5 minutes with mamba or ~10-20 minutes with conda and has been tested on both unix (specifically Ubuntu) and macOS. We are happy to attempt to address issues with installation if any arise, please open a Git Issues case:
 
 ```
 # 1. clone Git repo and cd into it!
@@ -36,6 +36,9 @@ git clone https://github.com/Kalan-Lab/lsaBGC
 cd lsaBGC/
 
 # 2. create conda environment using yaml file and activate it!
+# For a much faster installation replace "conda" in the following
+# commands with "mamba" (after installing mamba in your base conda
+# environment)
 conda env create -f lsaBGC_env.yml -p /path/to/lsaBGC_conda_env/
 conda activate /path/to/lsaBGC_conda_env/
 
