@@ -7,9 +7,9 @@
 
 *lsa*BGC offers modular programs, as well as workflows, designed for investigating and mining for biosynthetic gene cluster diversity across a focal lineage/taxa of interest. 
 
-Compatible with antiSMASH, GECCO, and DeepBGC. 
+Compatible with BGC predictions from antiSMASH, GECCO, and DeepBGC. 
 
-<image src="https://github.com/Kalan-Lab/lsaBGC/blob/main/docs/images/lsaBGC1.1_Simplified.png">
+![image](https://github.com/Kalan-Lab/lsaBGC/assets/4260723/aa0703e5-299b-4f1c-820a-f4ebae2b264d)
 
 ## Documentation and How to Get Started:
 
@@ -18,6 +18,7 @@ Documentation can currently be found on this Github repo's wiki: https://github.
 1. [Background on lsaBGC - what it does and does not do](https://github.com/Kalan-Lab/lsaBGC/wiki/00.-Background-&-Considerations)
 2. [An Overview of Final Results from lsaBGC](https://github.com/Kalan-Lab/lsaBGC/wiki/13.-Overview-of-lsaBGC-AutoAnalyze's-Final-Results)
 3. [Quick Start - Using the simple lsaBGC-Easy.py (bacterial) and lsaBGC-Euk-Easy.py (fungal) workflows](https://github.com/Kalan-Lab/lsaBGC/wiki/14.-lsaBGC-Easy-Tutorial)
+      - *Use on any platform in just 3 steps [via Docker](https://github.com/Kalan-Lab/lsaBGC#using-docker-for-major-workflows-only)* 
 4. [Modular Usage - Exploring BGCs in Cutibacterium](https://github.com/Kalan-Lab/lsaBGC/wiki/03.-Quick-Start-&-In-Depth-Tutorial:-Exploring-BGCs-in-Cutibacterium)
 5. [GSeeF - quick and simple visualization of GCFs/BGCs across a species phylogeny](https://github.com/Kalan-Lab/lsaBGC/wiki/17.-GSeeF---Visualizing-GCF-Cluster-Presence-and-Annotation-Along-a-Species-Phylogeny)
 6. [visualize_BGC-ome - quick and simple visualization of a sample's BGC-ome](https://github.com/Kalan-Lab/lsaBGC/wiki/19.-Plot-Sample-BGC-ome)
@@ -25,7 +26,9 @@ Documentation can currently be found on this Github repo's wiki: https://github.
 
 ## Installation:
 
-Installation can be performed via conda and should take ~5-10 minutes and has been tested on both unix (specifically Ubuntu) and macOS. We are happy to attempt to address issues with installation if any arise, please open a Git Issues case:
+### Using Conda (for full usage of suite)
+
+Installation can be performed via conda (see below for Docker) and should take ~5 minutes with mamba or ~10-20 minutes with conda and has been tested on both unix (specifically Ubuntu) and macOS. We are happy to attempt to address issues with installation if any arise, please open a Git Issues case:
 
 ```
 # 1. clone Git repo and cd into it!
@@ -33,10 +36,14 @@ git clone https://github.com/Kalan-Lab/lsaBGC
 cd lsaBGC/
 
 # 2. create conda environment using yaml file and activate it!
+# For a much faster installation replace "conda" in the following
+# commands with "mamba" (after installing mamba in your base conda
+# environment)
 conda env create -f lsaBGC_env.yml -p /path/to/lsaBGC_conda_env/
 conda activate /path/to/lsaBGC_conda_env/
 
 # 3. complete python installation with the following commands:
+# since version 1.38, setup.py includes code for pip install of sonicparanoid
 python setup.py install
 pip install -e .
 ```
@@ -67,28 +74,32 @@ There are also additional [test cases](https://github.com/Kalan-Lab/lsaBGC_Ckefi
 
 The major outputs of the final `lsaBGC-AutoAnalyze.py` run are in the resulting folder `test_case/lsaBGC_AutoAnalyze_Results/Final_Results/` and described on [this wiki page](https://github.com/Kalan-Lab/lsaBGC/wiki/13.-Overview-of-lsaBGC-AutoAnalyze's-Final-Results). Examples for the final AutoAnalyze results from an `lsaBGC-Easy.py` run on Cutibacterium avidum can be found [here on Google Drive](https://drive.google.com/drive/u/1/folders/1jHFFOUTd4SbIO-xiGG8MWTZaP1U4RF1j). 
    
+### Using Docker (for major workflows only)
+
+A docker image is provided for the `lsaBGC-Easy.py` and `lsaBGC-Euk-Easy.py` workflows together with a wrapper script. The image is pretty large (~21Gb without SonicParanoid, ~32Gb with SonicParanoid) but includes all the databases and dependencies needed for lsaBGC, BiG-SCAPE, antiSMASH, and GECCO analysis. For lsaBGC, to save space, the KOfam database is not included. For antiSMASH, MEME is not incldued, thus RODEO and CASSIS analyses are not available.
+   
+To use the latest Docker image, please: (1) install Docker and (2) download the wrapper script:
+
+```
+# 1. download wrapper script for running image with SonicParanoid
+wget https://raw.githubusercontent.com/Kalan-Lab/lsaBGC/main/docker/withSonicParanoid/run_LSABGC.sh
+
+# or
+
+# choose version with script for running image without SonicParanoid
+wget https://raw.githubusercontent.com/Kalan-Lab/lsaBGC/main/docker/withoutSonicParanoid/run_LSABGC.sh
+
+# 2. run it
+bash run_LSABGC.sh
+```
+   
 ## Quick Start - using `lsaBGC-Easy.py` and `lsaBGC-Euk-Easy.py` 
 
 Check out how to use `lsaBGC-Easy.py` and `lsaBGC-Euk-Easy.py` on [their wiki page](https://github.com/Kalan-Lab/lsaBGC/wiki/14.-lsaBGC-Easy-Tutorial)!
 
 ![image](https://user-images.githubusercontent.com/4260723/181613839-df183cdc-1103-403f-b5d1-889484f52be9.png)
-
-### Using Docker
-
-A docker image is provided for the `lsaBGC-Easy.py` and `lsaBGC-Euk-Easy.py` workflows together with a wrapper script. The image is pretty large (~21Gb) but includes all the databases and dependencies needed for lsaBGC, BiG-SCAPE, antiSMASH, and GECCO analysis. For lsaBGC, to save space, the KOfam database is not included. For antiSMASH, MEME is not incldued, thus RODEO and CASSIS analyses are not available.
-   
-To use the latest Docker image, please: (1) install Docker and (2) download the wrapper script:
-
-```
-# download wrapper script
-wget https://raw.githubusercontent.com/Kalan-Lab/lsaBGC/main/docker/run_LSABGC.sh
-
-# change its permissions
-chmod +x run_LSABGC.sh
-
-# run the wrapper script 
-./run_LSABGC.sh 
-```
+***
+![image](https://github.com/Kalan-Lab/lsaBGC/assets/4260723/d35875e5-4299-4c02-a874-50bbf8f1cf30)
    
 ## Acknowledgements:
 
