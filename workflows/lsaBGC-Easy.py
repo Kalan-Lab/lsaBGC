@@ -593,6 +593,11 @@ def lsaBGC_Easy():
 
 	primary_bgcs_listing_file = outdir + 'BGCs_in_Primary_Genomes.txt'
 	if not os.path.isfile(primary_bgcs_listing_file):
+		for s in os.listdir(primary_bgc_pred_directory):
+			samp_dir = primary_bgc_pred_directory + s + '/'
+			for f in os.listdir(samp_dir):
+				if f.endswith('.gbk') and '.region' in f:
+					os.system('mv %s %s' % (samp_dir + f, samp_dir + s + '.' + f))
 		list_primary_bgc_cmd = ['listAllBGCGenbanksInDirectory.py', '-i', primary_bgc_pred_directory, '-p',
 								bgc_prediction_software, '>', primary_bgcs_listing_file]
 		if not include_incomplete_bgcs_flag:
