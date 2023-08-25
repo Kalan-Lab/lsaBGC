@@ -82,8 +82,18 @@ def setup_annot_dbs():
             print('Setting up PGAP database!')
             os.system('wget https://ftp.ncbi.nlm.nih.gov/hmm/current/hmm_PGAP.HMM.tgz')
             os.system('wget https://ftp.ncbi.nlm.nih.gov/hmm/current/hmm_PGAP.tsv')
-            os.system('tar -zxvf hmm_PGAP.HMM.tgz')
 
+            extract_hmm_dir = 'hmm_PGAP.HMM/'
+            os.mkdir(extract_hmm_dir)
+            os.system(' '.join(['tar', '-zxf', 'hmm_PGAP.HMM.tgz', '-C', 'hmm_PGAP.HMM/']))
+            assert (os.path.isfile(pgap_info_file))
+            assert (os.path.isdir(download_path + 'hmm_PGAP.HMM/'))
+            for folder, subs, files in os.walk(extract_hmm_dir):
+                for filename in files:
+                    if filename.endswith('.HMM') or filename.endswith('.hmm'):
+                        hmm_file_path = os.path.abspath(folder + '/' + filename)
+                        os.system(' '.join(['cat', hmm_file_path, '>>', pgap_phmm_file]))
+						
             assert(os.path.isfile(pgap_info_file))
             assert(os.path.isdir(download_path + 'hmm_PGAP.HMM/'))
 
