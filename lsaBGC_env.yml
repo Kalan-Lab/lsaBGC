@@ -46,6 +46,7 @@ dependencies:
   - conda-forge::networkx
   - conda-forge::scikit-learn
   - scipy
+  - scikit-learn=1.2.2
   - numpy
   - filetype
   - gensim
