@@ -5,6 +5,7 @@ channels:
   - defaults
 dependencies:
   - python=3.9
+  - setuptools<=58.2.0
   - pip=22.1.2
   - conda-forge::cxx-compiler
   - biopython=1.79
