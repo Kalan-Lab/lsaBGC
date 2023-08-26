@@ -14,7 +14,7 @@ SHELL ["/bin/bash", "-c"]
 # and install lsaBGC
 RUN apt-get update && apt-get install -y git wget && \
     git clone https://github.com/Kalan-Lab/lsaBGC && rm -rf lsaBGC/test_case.tar.gz && \
-    conda install -c conda-forge mamba && \
+    conda install -c conda-forge mamba python=3.9 libarchive  && \
     mamba env create -f /usr/src/lsaBGC/lsaBGC_env.yml -p /usr/src/lsaBGC_conda_env/ && \
     mamba create -p /usr/src/antismash_conda_env/ -c bioconda -c conda-forge -c defaults antismash -y && \
     source activate /usr/src/antismash_conda_env/ && download-antismash-databases && \
