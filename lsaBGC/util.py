@@ -1724,7 +1724,35 @@ def runOrthoFinder2Full(bgc_prot_directory, orthofinder_outdir, logObject, cpus=
 		main_file = orthofinder_outdir + 'Orthogroups/Orthogroups.tsv'
 		singletons_file = orthofinder_outdir + 'Orthogroups/Orthogroups_UnassignedGenes.tsv'
 		n0_file = orthofinder_outdir + 'Phylogenetic_Hierarchical_Orthogroups/N0.tsv'
+		putative_xenologs_dir = 'Putative_Xenologs/'
+		phylo_misplaced_genes_dir = ''
 
+		gene_to_hog = {}
+		gene_to_og = {}
+		with open(n0_file) as n0f:
+			for i, line in enumerate(n0f):
+				line = line.strip('\n')
+				ls = line.split('\t')
+				if i == 0:
+					genomes = ls[3:]
+					result_handle.write('Orthogroup\t' + '\t'.join(genomes) + '\n')
+				else:
+					hog = ls[0].split('N0.')[1]
+					og = ls[1]
+					for j, gs in enumerate(ls[3:]):
+						genome = genomes[j]
+						for gene in gs.split(', '):
+							gene = gene.strip()
+							gene_to_hog[gene] = hog
+							gene_to_og[gene] = og
+							
+		for f in os.listdir(phylo_misplaced_genes_dir):
+			
+
+		close_genes 
+		for f in os.listdir(putative_xenologs_dir):
+			
+		
 		genomes = []
 		og_genes_in_hog = defaultdict(set)
 		result_handle = open(result_file, 'w')
