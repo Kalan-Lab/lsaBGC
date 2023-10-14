@@ -1707,6 +1707,26 @@ def performKOFamAndPGAPAnnotation(sample_bgc_proteins, bgc_prot_directory, annot
 		raise RuntimeError(traceback.format_exc())
 	return dict(sample_protein_annotations)
 
+def determineAsofName(asof_index):
+	asof_index_str = str(asof_index)
+	asof_name = None
+	if len(asof_index_str) == 1:
+		asof_name = '000000' + asof_index_str
+	elif len(asof_index_str) == 2:
+		asof_name = '00000' + asof_index_str
+	elif len(asof_index_str) == 3:
+		asof_name = '0000' + asof_index_str
+	elif len(asof_index_str) == 4:
+		asof_name = '000' + asof_index_str
+	elif len(asof_index_str) == 5:
+		asof_name = '00' + asof_index_str
+	elif len(asof_index_str) == 6:
+		asof_name = '0' + asof_index_str
+	else:
+		asoof_name = asof_index_str
+	assert(asof_name != None)
+	return(asof_name)
+
 def runOrthoFinder2Full(bgc_prot_directory, orthofinder_outdir, logObject, cpus=1):
 	result_file = orthofinder_outdir + 'Final_Orthogroups.tsv'
 	try:
@@ -1725,7 +1745,7 @@ def runOrthoFinder2Full(bgc_prot_directory, orthofinder_outdir, logObject, cpus=
 		singletons_file = orthofinder_outdir + 'Orthogroups/Orthogroups_UnassignedGenes.tsv'
 		n0_file = orthofinder_outdir + 'Phylogenetic_Hierarchical_Orthogroups/N0.tsv'
 		putative_xenologs_dir = 'Putative_Xenologs/'
-		phylo_misplaced_genes_dir = ''
+		phylo_misplaced_genes_dir = 'Phylogenetically_Misplaced_Genes/'
 
 		gene_to_hog = {}
 		gene_to_og = {}
@@ -1745,16 +1765,44 @@ def runOrthoFinder2Full(bgc_prot_directory, orthofinder_outdir, logObject, cpus=
 							gene = gene.strip()
 							gene_to_hog[gene] = hog
 							gene_to_og[gene] = og
-							
-		for f in os.listdir(phylo_misplaced_genes_dir):
-			
 
-		close_genes 
+		genome_misplaced_genes = defaultdict(set)
+		fg_to_genome = {}
+		for f in os.listdir(phylo_misplaced_genes_dir):
+			genome = f.split('.txt')[0]
+			with open(phylo_misplaced_genes_dir + f) as opmgdf:
+				for i, line in enumerate(opmgdf):
+					line = line.strip()
+					genome_misplaced_genomes[genome].add(line)
+					fg_to_genome[line] = genome
+					
+		close_hogs = defaultdict(lambda: defaultdict(int))
 		for f in os.listdir(putative_xenologs_dir):
-			
-		
+			genome = f.split('.tsv')[0]
+			with open(putative_xenologs_dir + f) as opxf:
+				for i, line in enumerate(opxf):
+					if i == 0: continue
+					line = line.strip()
+					og, focal_genes, other_genes = line.split('\t')
+					for fg in focal_genes.split(', '):
+						if not fg in genome_misplaced_genes[genomes]: continue
+						for otg in other_genes.split(', '):
+							if otg in gene_to_hog:
+								close_ogs[fg][gene_to_hog[otg]] += 1
+
+		hog_missing_to_add = defaultdict(lambda: defaultdict(set))
+		for fg in close_hogs:
+			max_value = max(lose_ogs[fg].values())
+			top_hits = 0 
+			top_hog = None
+			for hog in close_ogs[fg]:
+				if close_ogs[fg][hog] == max_value:
+					top_hog = hog
+					top_hits += 1
+			if top_hits == 1:
+				hog_missing_to_add[top_hog][genome].add(fg)
+
 		genomes = []
-		og_genes_in_hog = defaultdict(set)
 		result_handle = open(result_file, 'w')
 		with open(n0_file) as n0f:
 			for i, line in enumerate(n0f):
@@ -1766,15 +1814,32 @@ def runOrthoFinder2Full(bgc_prot_directory, orthofinder_outdir, logObject, cpus=
 				else:
 					hog = ls[0].split('N0.')[1]
 					og = ls[1]
+					printlist = []
 					for j, gs in enumerate(ls[3:]):
 						genome = genomes[j]
+						gss = set(gs.split(', '))
+						gss_with_missing = gss.union(hog_missing_to_add[hog][genome]) 
+						printlist.append(', '.join(sorted(gss_with_missing)))
+						for gene in gss_with_missing:
+							genome_genes_accounted[genome].add(gene)
+					result_handle.write(hog + '\t' + '\t'.join(printlist) + '\n')
+		
+		genomes_sf = []
+		with open(singletons_file) as osf:
+			for i, line in enumerate(osf):
+				line = line.strip('\n')
+				ls = line.split('\t')
+				if i == 0:
+					genomes_sf = ls[1:]
+				else:
+					for j, gs in enumerate(ls[1:]):
+						genome = genomes_sf[j]
 						for gene in gs.split(', '):
-							gene = gene.strip()
-							gene_genome_pair = tuple([gene, genome])
-							og_genes_in_hog[og].add(gene_genome_pair)
-					result_handle.write(hog + '\t' + '\t'.join(ls[3:]) + '\n')
+							genome_genes_accounted[genome].add(gene)
+					result_handle.write(line + '\n')
 
 		genomes_mf = []
+		asof_index = 0
 		with open(main_file) as omf:
 			for i, line in enumerate(omf):
 				line = line.strip('\n')
@@ -1787,24 +1852,15 @@ def runOrthoFinder2Full(bgc_prot_directory, orthofinder_outdir, logObject, cpus=
 					value_count = 0
 					for j, gs in enumerate(ls[1:]):
 						genome = genomes_mf[j]
-						updated_gs = []
 						for gene in gs.split(', '):
-							gene_genome_pair = tuple([gene, genome])
-							if not gene_genome_pair in og_genes_in_hog[og]:
-								updated_gs.append(gene)
-								value_count += 1
-						printlist.append(', '.join(updated_gs))
-					result_handle.write('\t'.join(printlist) + '\n')
-
-		genomes_sf = []
-		with open(singletons_file) as osf:
-			for i, line in enumerate(osf):
-				line = line.strip('\n')
-				ls = line.split('\t')
-				if i == 0:
-					genomes_sf = ls[1:]
-				else:
-					result_handle.write(line + '\n')
+							if not gene in genome_genes_accounted[genome]:
+								asof_name = 'ASOF' + determineAsofName(asof_index)	
+								printlist = [asof_name]
+								for gen in genomes_mf:
+									if gen == genome:
+										printlist.append(gene)
+								result_handle.write('\t'.join(printlist) + '\n')
+								asof_index += 1
 		result_handle.close()
 
 		assert (genomes == genomes_mf and genomes == genomes_sf)
