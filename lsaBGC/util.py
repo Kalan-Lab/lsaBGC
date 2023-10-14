@@ -1859,6 +1859,8 @@ def runOrthoFinder2Full(bgc_prot_directory, orthofinder_outdir, logObject, cpus=
 								for gen in genomes_mf:
 									if gen == genome:
 										printlist.append(gene)
+									else:
+										printlist.append('')
 								result_handle.write('\t'.join(printlist) + '\n')
 								asof_index += 1
 		result_handle.close()
