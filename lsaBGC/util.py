@@ -1776,7 +1776,7 @@ def runOrthoFinder2Full(bgc_prot_directory, orthofinder_outdir, logObject, cpus=
 			with open(phylo_misplaced_genes_dir + f) as opmgdf:
 				for i, line in enumerate(opmgdf):
 					line = line.strip()
-					genome_misplaced_genomes[genome].add(line)
+					genome_misplaced_genes[genome].add(line)
 					fg_to_genome[line] = genome
 					
 		close_hogs = defaultdict(lambda: defaultdict(int))
@@ -1788,18 +1788,18 @@ def runOrthoFinder2Full(bgc_prot_directory, orthofinder_outdir, logObject, cpus=
 					line = line.strip()
 					og, focal_genes, other_genes = line.split('\t')
 					for fg in focal_genes.split(', '):
-						if not fg in genome_misplaced_genes[genomes]: continue
+						if not fg in genome_misplaced_genes[genome]: continue
 						for otg in other_genes.split(', '):
 							if otg in gene_to_hog:
-								close_ogs[fg][gene_to_hog[otg]] += 1
+								close_hogs[fg][gene_to_hog[otg]] += 1
 
 		hog_missing_to_add = defaultdict(lambda: defaultdict(set))
 		for fg in close_hogs:
-			max_value = max(lose_ogs[fg].values())
+			max_value = max(close_hogs[fg].values())
 			top_hits = 0 
 			top_hog = None
-			for hog in close_ogs[fg]:
-				if close_ogs[fg][hog] == max_value:
+			for hog in close_hogs[fg]:
+				if close_hogs[fg][hog] == max_value:
 					top_hog = hog
 					top_hits += 1
 			if top_hits == 1:
