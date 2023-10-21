@@ -101,7 +101,7 @@ def create_parser():
     parser.add_argument('-p', '--bgc_prediction_software', help='Software used to predict BGCs (Options: antiSMASH, DeepBGC, GECCO).\n[Default is antiSMASH].', default='antiSMASH', required=False)
     parser.add_argument('-b', '--bigscape_results', help='Path to BiG-SCAPE results directory of antiSMASH/DeepBGC/GECCO results predicted\nin primary genomes. Please make sure the sample names match what is provided for "--genome_listings".', required=False, default=None)
     parser.add_argument('-o', '--output_directory', help='Parent output/workspace directory.', required=True)
-    parser.add_argument('-om', '--ortholog_method', help="Software for inference of ortholog groups. (Options: OrthoFinder, SonicParanoid).\n[Default is OrthoFinder].", default='OrthoFinder', required=False)
+    parser.add_argument('-om', '--ortholog_method', help="Software for inference of ortholog groups. (Options: OrthoFinder, SonicParanoid, & Panaroo).\n[Default is OrthoFinder].", default='OrthoFinder', required=False)
     parser.add_argument('-mc', '--run_coarse_orthofinder', action='store_true', help='Use coarse clustering of homolog groups in OrthoFinder instead of more\nresolute hierarchical determined homolog groups.', required=False, default=False)
     parser.add_argument('-a', '--annotate', action='store_true', help='Perform annotation of BGC proteins using KOfam and PGAP (including TIGR)\nHMM profiles.', required=False, default=False)
     parser.add_argument('-t', '--run_gtotree', action='store_true', help='Whether to create phylogeny and expected sample-vs-sample\ndivergence for downstream analyses using GToTree.', required=False, default=False)
@@ -176,7 +176,7 @@ def lsaBGC_Ready():
     lsabgc_cluster_synteny = myargs.lsabgc_cluster_synteny
 
     try:
-        assert (ortholog_method in set(['ORTHOFINDER', 'SONICPARANOID']))
+        assert (ortholog_method in set(['ORTHOFINDER', 'SONICPARANOID', 'PANAROO']))
     except:
         sys.stderr.write('Ortholog inference software specified is not a valid option.\n')
         sys.exit(1)
@@ -426,6 +426,12 @@ def lsaBGC_Ready():
     elif ortholog_method.upper() == 'SONICPARANOID':
         # Step 7 - SP: Run SonicParanoid2 with genome-wide predicted proteomes
         orthofinder_bgc_matrix_file = util.runSonicParanoid2(final_proteomes_directory, orthofinder_directory, logObject, cpus=cpus)
+        os.system('mv %s %s' % (orthofinder_bgc_matrix_file, primary_orthofinder_matrix_file))
+    elif ortholog_method.upper() == 'PANAROO':
+        # Step 7 - PA: Run Panaroo with genome-wide genbanks
+        panaroo_input_dir = outdir + 'Panaroo_Input_GFFs/'
+        util.setupReadyDirectory([orthofinder_directory, panaroo_input_dir])
+        orthofinder_bgc_matrix_file = util.runPanaroo(final_genbanks_directory, panaroo_input_dir, orthofinder_directory, logObject, cpus=cpus)
         os.system('mv %s %s' % (orthofinder_bgc_matrix_file, primary_orthofinder_matrix_file))
 
     prim_samps_with_bgcs = set([])

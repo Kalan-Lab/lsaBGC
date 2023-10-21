@@ -14,12 +14,15 @@ SHELL ["/bin/bash", "-c"]
 # and install lsaBGC
 RUN apt-get update && apt-get install -y git wget libtiff5 gcc && \
     git clone -b develop-v1.40 https://github.com/Kalan-Lab/lsaBGC && rm -rf lsaBGC/test_case.tar.gz && \
-    conda install -c conda-forge mamba python=3.9 libarchive && \
-    mamba env create -f /usr/src/lsaBGC/lsaBGC_env.yml -p /usr/src/lsaBGC_conda_env/ && \
-    mamba create -p /usr/src/antismash_conda_env/ -c bioconda -c conda-forge -c defaults antismash -y && \
-    source activate /usr/src/antismash_conda_env/ && download-antismash-databases && \
+    conda install -n base conda-libmamba-solver && conda config --set solver libmamba && \
+    conda env create -f /usr/src/lsaBGC/lsaBGC_env.yml -p /usr/src/lsaBGC_conda_env/ && \
+    conda create -p /usr/src/antismash_conda_env/ -c bioconda -c conda-forge -c defaults python=3.11 hmmer2 hmmer diamond fasttree prodigal blast muscle glimmerhmm cxx-compiler meme && \
+    source activate /usr/src/antismash_conda_env/ && \
+    wget https://dl.secondarymetabolites.org/releases/7.0.1/antismash-7.0.1.tar.gz && tar -zxf antismash-7.0.1.tar.gz && \
+    pip install ./antismash-7.0.1 && download-antismash-databases && \
+    download-antismash-databases && \
     conda remove --force meme && conda deactivate && \
-    conda clean --all -y && conda remove mamba && \
+    conda clean --all -y && \
     echo "source activate /usr/src/lsaBGC_conda_env/" > ~/.bashrc && source ~/.bashrc && \
     apt-get clean -y && apt-get autoclean -y && apt-get autoremove -y && \
     rm -rf /var/lib/apt/lists/*
@@ -37,4 +40,5 @@ ENV LC_ALL C.UTF-8
 
 ENTRYPOINT ["LSABGC"]
 CMD ["--help"]
+
 

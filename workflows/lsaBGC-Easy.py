@@ -77,6 +77,8 @@ def create_parser():
 	* Check out the considerations wiki page: https://github.com/Kalan-Lab/lsaBGC/wiki/00.-Background-&-Considerations  	
 	* If interested in running just a directory of genomes (you don't want to downoad genomes from Genbank for some taxa)
 	  then you can just set the required -n argument to "None".
+	* Using Panaroo for orthology will automatically result in turning on the '--ignore_limits' flag which will allow 
+	  up to 2000 genomes from proceeing from processing to lsaBGC-Ready and onwards.
 	*******************************************************************************************************************
 	OVERVIEW OF STEPS TAKEN:	
 		- Check number of genomes for taxa is not too crazy (<1000) or too small (>10)
@@ -113,7 +115,7 @@ def create_parser():
 	parser.add_argument('-dt', '--dereplicate_threshold', type=float, help="Amino acid similarity threshold of SCGs for considering\ntwo genomes as redundant [Default is 0.999].", default=0.999, required=False)
 	parser.add_argument('-pt', '--population_threshold', type=float, help="Amino acid similarity threshold of SCGs for considering\ntwo genomes as belonging to the same population [Default is 0.99].", default=0.99, required=False)
 	parser.add_argument('-py', '--use_pyrodigal', action='store_true', help='Use pyrodigal instead of prodigal.', required=False, default=False)
-	parser.add_argument('-om', '--ortholog_method', help="Software for inference of ortholog groups. (Options: OrthoFinder, SonicParanoid).\n[Default is OrthoFinder].", default='OrthoFinder', required=False)
+	parser.add_argument('-om', '--ortholog_method', help="Software for inference of ortholog groups. (Options: OrthoFinder, SonicParanoid, & Panaroo).\n[Default is OrthoFinder].", default='OrthoFinder', required=False)
 	parser.add_argument('-mc', '--run_coarse_orthofinder', action='store_true', help='Use coarse clustering of homolog groups in OrthoFinder instead of more\nresolute hierarchical determined homolog groups. There are some advantages to coarse\nOGs, including their construction being deterministic.', required=False, default=False)
 	parser.add_argument('-c', '--cpus', type=int, help="Total number of CPUs to use [Default is 4].", required=False, default=4)
 	parser.add_argument('-ao', '--antismash_options', help="Options for antiSMASH prediction analysis (should be surrounded by\nquotes, in Docker - it is assumed each individual job will have 4 CPUs).\n[Default is \"--taxon fungi --genefinding-tool none --cpus 4\"]", required=False, default="--taxon fungi --genefinding-tool none --cpus 4")
@@ -148,10 +150,15 @@ def lsaBGC_Easy():
 	docker_mode = myargs.docker_mode
 
 	try:
-		assert (ortholog_method in set(['ORTHOFINDER', 'SONICPARANOID']))
+		assert (ortholog_method in set(['ORTHOFINDER', 'SONICPARANOID', 'PANAROO']))
 	except:
 		sys.stderr.write('Ortholog inference software specified is not a valid option.\n')
 		sys.exit(1)
+
+	if ortholog_method == 'PANAROO':
+		sys.stderr.write('Panaroo requested for orthology determination - which is more scalable\nso the --ignore_limits argument will also be turned on.\n')
+		ignore_limits_flag = True
+		
 	try:
 		assert (bgc_prediction_software in set(['ANTISMASH', 'DEEPBGC', 'GECCO']))
 		if docker_mode:

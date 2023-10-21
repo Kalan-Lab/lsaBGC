@@ -1746,7 +1746,6 @@ def runOrthoFinder2Full(bgc_prot_directory, orthofinder_outdir, logObject, cpus=
 		n0_file = orthofinder_outdir + 'Phylogenetic_Hierarchical_Orthogroups/N0.tsv'
 		putative_xenologs_dir = orthofinder_outdir + 'Putative_Xenologs/'
 		phylo_misplaced_genes_dir = orthofinder_outdir + 'Phylogenetically_Misplaced_Genes/'
-
 		
 		result_handle = open(result_file, 'w')
 
@@ -1796,6 +1795,7 @@ def runOrthoFinder2Full(bgc_prot_directory, orthofinder_outdir, logObject, cpus=
 		hog_missing_to_add = defaultdict(lambda: defaultdict(set))
 		for fg in close_hogs:
 			max_value = max(close_hogs[fg].values())
+			if max_value == 0: continue
 			top_hits = 0 
 			top_hog = None
 			for hog in close_hogs[fg]:
@@ -1974,6 +1974,50 @@ def runSonicParanoid2(bgc_prot_directory, sonicparanoid_outdir, logObject, cpus=
 		assert (os.path.isfile(result_file))
 	except Exception as e:
 		logObject.error("Problem with running SonicParanoid2 cmd: %s." % ' '.join(sonicparanoid_cmd))
+		logObject.error(traceback.format_exc())
+		raise RuntimeError(traceback.format_exc())
+	return result_file
+
+def runPanaroo(genbanks_directory, panaroo_input_dir, results_directory, logObject, cpus=1, panaroo_options='--clean-mode moderate --remove-invalid-genes'):
+	result_file = results_directory + 'Final_Orthogroups.tsv'
+	try:
+		reformat_cmds = []
+		panaroo_inputs = []
+		for f in os.listdir(genbanks_directory):
+			inf = genbanks_directory + f
+			outf = panaroo_input_dir + '.'.join(f.split('.')[:-1]) + '.gff'
+			reformat_cmd = ['genbankToProkkaGFF.py', '-i', inf, '-o', outf, logObject]
+			reformat_cmds.append(reformat_cmd)
+			panaroo_inputs.append(outf)
+
+		p = multiprocessing.Pool(cpus)
+		p.map(multiProcess, reformat_cmds)
+		p.close()
+
+		panaroo_cmd = ['panaroo', '-t', str(cpus), panaroo_options, '-i', ' '.join(panaroo_inputs), '-o', results_directory]
+
+		logObject.info('Running the following command: %s' % ' '.join(panaroo_cmd))
+		subprocess.call(' '.join(panaroo_cmd), shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+						executable='/bin/bash')
+		logObject.info('Successfully ran Panaroo!')
+
+		main_ortho_file = results_directory + 'gene_presence_absence.csv'
+		
+		result_handle = open(result_file, 'w')
+		with open(main_ortho_file) as omof:
+			for i, line in enumerate(omof):
+				line = line.strip()
+				ls = line.split(',')
+				if i == 0: 
+					result_handle.write('\t'.join(['OrthoGroup'] + ls[3:]) + '\n')
+				else:
+					og_id = 'OG' + determineAsofName(i)
+					result_handle.write('\t'.join([og_id] + [', '.join(x.split(';')) for x in ls[3:]]) + '\n')
+		result_handle.close()
+
+		assert (os.path.isfile(result_file))
+	except Exception as e:
+		logObject.error("Problem with running Panaroo cmd: %s." % ' '.join(panaroo_cmd))
 		logObject.error(traceback.format_exc())
 		raise RuntimeError(traceback.format_exc())
 	return result_file

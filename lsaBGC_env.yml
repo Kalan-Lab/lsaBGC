@@ -32,9 +32,10 @@ dependencies:
   - r-data.table
   - r-plyr
   - r-gridextra
+  - panaroo
   - bioconda::orthofinder=2.5.4
   - bioconda::prodigal
-  - bioconda::pyrodigal
+  - bioconda::pyrodigal=2.3.0
   - conda-forge::tar
   - conda-forge::pandas=1.4.2
   - conda-forge::pomegranate=0.13.3
