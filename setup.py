@@ -41,6 +41,7 @@ setup(name='lsaBGC',
                'bin/lsaBGC-MIBiGMapper.py'],
       zip_safe=False)
 
+"""
 try:
       os.system('pip install cython==3.0.0a10')
       os.system('pip install sonicparanoid==2.0.2')
@@ -51,4 +52,4 @@ try:
 except:
       sys.stderr.write('Warning: unable to install sonicparanoid!\n')
       sys.exit(1)
-
+"""
