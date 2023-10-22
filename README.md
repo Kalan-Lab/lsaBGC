@@ -30,7 +30,7 @@ Documentation can currently be found on this Github repo's wiki: https://github.
 
 Installation can be performed via conda (see below for Docker) and should take ~5 minutes with mamba or ~10-20 minutes with conda and has been tested on both unix (specifically Ubuntu) and macOS. We are happy to attempt to address issues with installation if any arise, please open a Git Issues case:
 
-```
+```bash
 # 1. clone Git repo and cd into it!
 git clone https://github.com/Kalan-Lab/lsaBGC
 cd lsaBGC/
@@ -52,7 +52,7 @@ pip install -e .
 
 Optional, but recommended, command to download KOfams + PGAP HMMs + MIBiG protein FASTA for annotation:
 
-```
+```bash
 # Warning: can take >10 minutes! 
 # Can skip to run tests first to make sure things are working properly.
 # within lsaBGC Git repo with conda environment activated:
@@ -67,7 +67,7 @@ setup_bigscape.py
    
 A small test case is provided here and can be run after installation by simply issuing (takes around ~7 minutes using 4 cpus/threads):
 
-```
+```bash
 # Warning: uses 4 cpus/threads! 
 bash run_tests.sh
 ```
@@ -82,7 +82,7 @@ A docker image is provided for the `lsaBGC-Easy.py` and `lsaBGC-Euk-Easy.py` wor
    
 To use the latest Docker image, please: (1) install Docker and (2) download the wrapper script:
 
-```
+```bash
 # 1. download wrapper script for running image with SonicParanoid
 wget https://raw.githubusercontent.com/Kalan-Lab/lsaBGC/main/docker/withSonicParanoid/run_LSABGC.sh
 
