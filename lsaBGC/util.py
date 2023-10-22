@@ -1707,6 +1707,26 @@ def performKOFamAndPGAPAnnotation(sample_bgc_proteins, bgc_prot_directory, annot
 		raise RuntimeError(traceback.format_exc())
 	return dict(sample_protein_annotations)
 
+def determineAsofName(asof_index):
+	asof_index_str = str(asof_index)
+	asof_name = None
+	if len(asof_index_str) == 1:
+		asof_name = '000000' + asof_index_str
+	elif len(asof_index_str) == 2:
+		asof_name = '00000' + asof_index_str
+	elif len(asof_index_str) == 3:
+		asof_name = '0000' + asof_index_str
+	elif len(asof_index_str) == 4:
+		asof_name = '000' + asof_index_str
+	elif len(asof_index_str) == 5:
+		asof_name = '00' + asof_index_str
+	elif len(asof_index_str) == 6:
+		asof_name = '0' + asof_index_str
+	else:
+		asoof_name = asof_index_str
+	assert(asof_name != None)
+	return(asof_name)
+
 def runOrthoFinder2Full(bgc_prot_directory, orthofinder_outdir, logObject, cpus=1):
 	result_file = orthofinder_outdir + 'Final_Orthogroups.tsv'
 	try:
@@ -1724,10 +1744,13 @@ def runOrthoFinder2Full(bgc_prot_directory, orthofinder_outdir, logObject, cpus=
 		main_file = orthofinder_outdir + 'Orthogroups/Orthogroups.tsv'
 		singletons_file = orthofinder_outdir + 'Orthogroups/Orthogroups_UnassignedGenes.tsv'
 		n0_file = orthofinder_outdir + 'Phylogenetic_Hierarchical_Orthogroups/N0.tsv'
-
-		genomes = []
-		og_genes_in_hog = defaultdict(set)
+		putative_xenologs_dir = orthofinder_outdir + 'Putative_Xenologs/'
+		phylo_misplaced_genes_dir = orthofinder_outdir + 'Phylogenetically_Misplaced_Genes/'
+		
 		result_handle = open(result_file, 'w')
+
+		gene_to_hog = {}
+		gene_to_og = {}
 		with open(n0_file) as n0f:
 			for i, line in enumerate(n0f):
 				line = line.strip('\n')
@@ -1742,11 +1765,85 @@ def runOrthoFinder2Full(bgc_prot_directory, orthofinder_outdir, logObject, cpus=
 						genome = genomes[j]
 						for gene in gs.split(', '):
 							gene = gene.strip()
-							gene_genome_pair = tuple([gene, genome])
-							og_genes_in_hog[og].add(gene_genome_pair)
-					result_handle.write(hog + '\t' + '\t'.join(ls[3:]) + '\n')
+							gene_to_hog[gene] = hog
+							gene_to_og[gene] = og
+
+		genome_misplaced_genes = defaultdict(set)
+		fg_to_genome = {}
+		for f in os.listdir(phylo_misplaced_genes_dir):
+			genome = f.split('.txt')[0]
+			with open(phylo_misplaced_genes_dir + f) as opmgdf:
+				for i, line in enumerate(opmgdf):
+					line = line.strip()
+					genome_misplaced_genes[genome].add(line)
+					fg_to_genome[line] = genome
+					
+		close_hogs = defaultdict(lambda: defaultdict(int))
+		for f in os.listdir(putative_xenologs_dir):
+			genome = f.split('.tsv')[0]
+			with open(putative_xenologs_dir + f) as opxf:
+				for i, line in enumerate(opxf):
+					if i == 0: continue
+					line = line.strip()
+					og, focal_genes, other_genes = line.split('\t')
+					for fg in focal_genes.split(', '):
+						if not fg in genome_misplaced_genes[genome]: continue
+						for otg in other_genes.split(', '):
+							if otg in gene_to_hog:
+								close_hogs[fg][gene_to_hog[otg]] += 1
+
+		hog_missing_to_add = defaultdict(lambda: defaultdict(set))
+		for fg in close_hogs:
+			max_value = max(close_hogs[fg].values())
+			if max_value == 0: continue
+			top_hits = 0 
+			top_hog = None
+			for hog in close_hogs[fg]:
+				if close_hogs[fg][hog] == max_value:
+					top_hog = hog
+					top_hits += 1
+			if top_hits == 1:
+				hog_missing_to_add[top_hog][genome].add(fg)
+
+		genomes = []
+		genome_genes_accounted = defaultdict(set)
+		result_handle = open(result_file, 'w')
+		with open(n0_file) as n0f:
+			for i, line in enumerate(n0f):
+				line = line.strip('\n')
+				ls = line.split('\t')
+				if i == 0:
+					genomes = ls[3:]
+					result_handle.write('Orthogroup\t' + '\t'.join(genomes) + '\n')
+				else:
+					hog = ls[0].split('N0.')[1]
+					og = ls[1]
+					printlist = []
+					for j, gs in enumerate(ls[3:]):
+						genome = genomes[j]
+						gss = set(gs.split(', '))
+						gss_with_missing = gss.union(hog_missing_to_add[hog][genome]) 
+						printlist.append(', '.join(sorted(gss_with_missing)))
+						for gene in gss_with_missing:
+							genome_genes_accounted[genome].add(gene)
+					result_handle.write(hog + '\t' + '\t'.join(printlist) + '\n')
+		
+		genomes_sf = []
+		with open(singletons_file) as osf:
+			for i, line in enumerate(osf):
+				line = line.strip('\n')
+				ls = line.split('\t')
+				if i == 0:
+					genomes_sf = ls[1:]
+				else:
+					for j, gs in enumerate(ls[1:]):
+						genome = genomes_sf[j]
+						for gene in gs.split(', '):
+							genome_genes_accounted[genome].add(gene)
+					result_handle.write(line + '\n')
 
 		genomes_mf = []
+		asof_index = 0
 		with open(main_file) as omf:
 			for i, line in enumerate(omf):
 				line = line.strip('\n')
@@ -1759,24 +1856,17 @@ def runOrthoFinder2Full(bgc_prot_directory, orthofinder_outdir, logObject, cpus=
 					value_count = 0
 					for j, gs in enumerate(ls[1:]):
 						genome = genomes_mf[j]
-						updated_gs = []
 						for gene in gs.split(', '):
-							gene_genome_pair = tuple([gene, genome])
-							if not gene_genome_pair in og_genes_in_hog[og]:
-								updated_gs.append(gene)
-								value_count += 1
-						printlist.append(', '.join(updated_gs))
-					result_handle.write('\t'.join(printlist) + '\n')
-
-		genomes_sf = []
-		with open(singletons_file) as osf:
-			for i, line in enumerate(osf):
-				line = line.strip('\n')
-				ls = line.split('\t')
-				if i == 0:
-					genomes_sf = ls[1:]
-				else:
-					result_handle.write(line + '\n')
+							if not gene in genome_genes_accounted[genome]:
+								asof_name = 'ASOF' + determineAsofName(asof_index)	
+								printlist = [asof_name]
+								for gen in genomes_mf:
+									if gen == genome:
+										printlist.append(gene)
+									else:
+										printlist.append('')
+								result_handle.write('\t'.join(printlist) + '\n')
+								asof_index += 1
 		result_handle.close()
 
 		assert (genomes == genomes_mf and genomes == genomes_sf)
@@ -1884,6 +1974,50 @@ def runSonicParanoid2(bgc_prot_directory, sonicparanoid_outdir, logObject, cpus=
 		assert (os.path.isfile(result_file))
 	except Exception as e:
 		logObject.error("Problem with running SonicParanoid2 cmd: %s." % ' '.join(sonicparanoid_cmd))
+		logObject.error(traceback.format_exc())
+		raise RuntimeError(traceback.format_exc())
+	return result_file
+
+def runPanaroo(genbanks_directory, panaroo_input_dir, results_directory, logObject, cpus=1, panaroo_options='--clean-mode moderate --remove-invalid-genes'):
+	result_file = results_directory + 'Final_Orthogroups.tsv'
+	try:
+		reformat_cmds = []
+		panaroo_inputs = []
+		for f in os.listdir(genbanks_directory):
+			inf = genbanks_directory + f
+			outf = panaroo_input_dir + '.'.join(f.split('.')[:-1]) + '.gff'
+			reformat_cmd = ['genbankToProkkaGFF.py', '-i', inf, '-o', outf, logObject]
+			reformat_cmds.append(reformat_cmd)
+			panaroo_inputs.append(outf)
+
+		p = multiprocessing.Pool(cpus)
+		p.map(multiProcess, reformat_cmds)
+		p.close()
+
+		panaroo_cmd = ['panaroo', '-t', str(cpus), panaroo_options, '-i', ' '.join(panaroo_inputs), '-o', results_directory]
+
+		logObject.info('Running the following command: %s' % ' '.join(panaroo_cmd))
+		subprocess.call(' '.join(panaroo_cmd), shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+						executable='/bin/bash')
+		logObject.info('Successfully ran Panaroo!')
+
+		main_ortho_file = results_directory + 'gene_presence_absence.csv'
+		
+		result_handle = open(result_file, 'w')
+		with open(main_ortho_file) as omof:
+			for i, line in enumerate(omof):
+				line = line.strip()
+				ls = line.split(',')
+				if i == 0: 
+					result_handle.write('\t'.join(['OrthoGroup'] + ls[3:]) + '\n')
+				else:
+					og_id = 'OG' + determineAsofName(i)
+					result_handle.write('\t'.join([og_id] + [', '.join(x.split(';')) for x in ls[3:]]) + '\n')
+		result_handle.close()
+
+		assert (os.path.isfile(result_file))
+	except Exception as e:
+		logObject.error("Problem with running Panaroo cmd: %s." % ' '.join(panaroo_cmd))
 		logObject.error(traceback.format_exc())
 		raise RuntimeError(traceback.format_exc())
 	return result_file
