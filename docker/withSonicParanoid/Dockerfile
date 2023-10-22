@@ -31,7 +31,7 @@ RUN apt-get update && apt-get install -y git wget libtiff5 gcc && \
 WORKDIR /usr/src/lsaBGC/
 ENV PATH /usr/src/lsaBGC_conda_env/bin:$PATH
 RUN python setup.py install && pip install -e . && setup_annotation_dbs.py -nk -dsh && setup_bigscape.py && \
-    chmod -R 777 /usr/src/lsaBGC/ && chmod 777 /home 
+    pip install --force-reinstall -v "setuptools==58.2.0" && chmod -R 777 /usr/src/lsaBGC/ && chmod 777 /home 
 USER 1000:1000
 RUN mkdir /home/input /home/output
 WORKDIR /home
