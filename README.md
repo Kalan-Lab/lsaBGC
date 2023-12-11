@@ -40,7 +40,7 @@ cd lsaBGC/
 # commands with "mamba" (after installing mamba in your base conda
 # environment)
 mamba env create -f lsaBGC_env.yml -p /path/to/lsaBGC_conda_env/
-mamba activate /path/to/lsaBGC_conda_env/
+conda activate /path/to/lsaBGC_conda_env/
 
 # 3. complete python installation with the following commands:
 # since version 1.50, setup.py sonicparanoid no longer included
