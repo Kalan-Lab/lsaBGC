@@ -1616,7 +1616,7 @@ def performKOFamAndPGAPAnnotation(sample_bgc_proteins, bgc_prot_directory, annot
 					description = ls[-1]
 					ko_score_cutoffs[ko] = score_cutoff
 					ko_score_types[ko] = profile_type
-				ko_descriptions[ko] = description
+					ko_descriptions[ko] = description
 
 		if pgap_inf_list != None and pgap_hmm_file != None:
 			with open(pgap_inf_list) as opil:
