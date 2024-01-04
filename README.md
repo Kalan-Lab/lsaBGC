@@ -24,6 +24,10 @@ Documentation can currently be found on this Github repo's wiki: https://github.
 6. [visualize_BGC-ome - quick and simple visualization of a sample's BGC-ome](https://github.com/Kalan-Lab/lsaBGC/wiki/19.-Plot-Sample-BGC-ome)
 7. [***new***: Investigate a single cluster of related BGCs using the sibling suite *zol*](https://github.com/Kalan-Lab/zol)
 
+## IMPORTANT: PLEASE USE v1.52+:
+
+Please make sure to use v1.52+ of the pipeline - if you are using `lsaBGC-Easy.py` with antiSMASH, the default settings for antiSMASH based BGC prediction from v1.37.1 to v1.51 included the argument `--taxon fungi` by mistake. It should only be the default for the analagous `lsaBGC-Euk-Easy.py` program. 
+
 ## Installation:
 
 ### Using Conda (for full usage of suite)
