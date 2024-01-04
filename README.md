@@ -26,7 +26,7 @@ Documentation can currently be found on this Github repo's wiki: https://github.
 
 ## IMPORTANT: PLEASE USE v1.52+:
 
-Please make sure to use v1.52+ of the pipeline - if you are using `lsaBGC-Easy.py` with antiSMASH, the default settings for antiSMASH based BGC prediction from v1.37.1 to v1.51 included the argument `--taxon fungi` by mistake. It should only be the default for the analagous `lsaBGC-Euk-Easy.py` program. 
+Please make sure to use v1.52+ of the pipeline - if you are using `lsaBGC-Easy.py` with antiSMASH, the default settings for antiSMASH based BGC prediction from v1.38 to v1.51 included the argument `--taxon fungi` by mistake. It should only be the default for the analagous `lsaBGC-Euk-Easy.py` program. 
 
 ## Installation:
 
