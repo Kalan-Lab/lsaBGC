@@ -47,7 +47,7 @@ try:
       os.system('sonicparanoid-get-test-data -o .')
       os.system('sonicparanoid -i sonicparanoid_test/test_input -o sonicparanoid_test/test_output -p my_first_run')
       os.system('rm -rf sonicparanoid_test/')
-      os.system('pip install --force-reinstall -v "setuptools==58.2.0"')
+      os.system('pip install -q --force-reinstall -v "setuptools==58.2.0" 2> /dev/null')
 except:
       sys.stderr.write('Warning: unable to install sonicparanoid!\n')
       sys.exit(1)
