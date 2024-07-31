@@ -81,7 +81,7 @@ The major outputs of the final `lsaBGC-AutoAnalyze.py` run are in the resulting 
    
 ### Using Docker (for major workflows only)
 
-A docker image is provided for the `lsaBGC-Easy.py` and `lsaBGC-Euk-Easy.py` workflows together with a wrapper script. The image is pretty large (~25Gb without SonicParanoid, ~33Gb with SonicParanoid) but includes all the databases and dependencies needed for lsaBGC, BiG-SCAPE, antiSMASH, and GECCO analysis. For lsaBGC, to save space, the KOfam database is not included. For antiSMASH, MEME is not incldued, thus RODEO and CASSIS analyses are not available.
+A docker image is provided for the `lsaBGC-Easy.py` and `lsaBGC-Euk-Easy.py` workflows together with a wrapper script. The image is pretty large (~26Gb) but includes all the databases and dependencies needed for lsaBGC, BiG-SCAPE, antiSMASH, and GECCO analysis. For lsaBGC, to save space, the KOfam database is not included. For antiSMASH, MEME is not incldued (for licensing reasons), thus RODEO and CASSIS analyses are not available.
    
 To use the latest Docker image, please: (1) install Docker and (2) download the wrapper script:
 
