@@ -103,7 +103,7 @@ Check out how to use `lsaBGC-Easy.py` and `lsaBGC-Euk-Easy.py` on [their wiki pa
    
 ## Acknowledgements:
 
-We would like to thank members of the Kalan lab, Currie lab, Kwan lab, Anantharaman, and Pepperell labs at UW Madison for feedback on the development of lsaBGC.
+We would like to thank members of the Kalan lab, Currie lab, Kwan lab, Anantharaman lab, and Pepperell lab at UW Madison for feedback on the development of lsaBGC.
 
 ## Feedback:
 
