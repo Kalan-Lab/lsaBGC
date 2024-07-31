@@ -28,6 +28,8 @@ Documentation can currently be found on this Github repo's wiki: https://github.
 
 Please make sure to use v1.52+ of the pipeline - if you are using `lsaBGC-Easy.py` with antiSMASH, the default settings for antiSMASH based BGC prediction from v1.38 to v1.51 included the argument `--taxon fungi` by mistake. It should only be the default for the analagous `lsaBGC-Euk-Easy.py` program. 
 
+In v1.53, we added missing singleton CDS features that were regarded as faulty by Panaroo analysis but might correspond to BGCs according to BGC prediction software. We also added a separate processing for resolved hierarchical ortholog groups from OrthoFinder analysis when working with fungal genomes to more directly use the results as is, rather than performing customized processing developed for investigation of bacterial genomes.
+
 ## Installation:
 
 ### Using Conda (for full usage of suite)
@@ -47,9 +49,6 @@ mamba env create -f lsaBGC_env.yml -p /path/to/lsaBGC_conda_env/
 conda activate /path/to/lsaBGC_conda_env/
 
 # 3. complete python installation with the following commands:
-# since version 1.50, setup.py sonicparanoid no longer included
-# via pip based installation - to use SonicParanoid, please use
-# Docker - might incorporate as a conda installation in the future.
 python setup.py install
 pip install -e .
 ```
@@ -87,13 +86,8 @@ A docker image is provided for the `lsaBGC-Easy.py` and `lsaBGC-Euk-Easy.py` wor
 To use the latest Docker image, please: (1) install Docker and (2) download the wrapper script:
 
 ```bash
-# 1. download wrapper script for running image with SonicParanoid
-wget https://raw.githubusercontent.com/Kalan-Lab/lsaBGC/main/docker/withSonicParanoid/run_LSABGC.sh
-
-# or
-
-# choose version with script for running image without SonicParanoid
-wget https://raw.githubusercontent.com/Kalan-Lab/lsaBGC/main/docker/withoutSonicParanoid/run_LSABGC.sh
+# 1. download wrapper script for running image
+wget https://raw.githubusercontent.com/Kalan-Lab/lsaBGC/main/docker/run_LSABGC.sh
 
 # 2. run it
 bash run_LSABGC.sh
