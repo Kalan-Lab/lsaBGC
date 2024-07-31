@@ -62,7 +62,7 @@ def create_parser():
 	parser.add_argument('-r', '--syntenic_correlation_cutoff', type=float, help="Minimum absolute correlation coefficient between two BGCs [Default is 0.0].", required=False, default=0.0)
 	parser.add_argument('-s', '--split_by_annotation', action='store_true', help="Partition BGCs into groups based on annotation first.", required=False, default=False)
 	parser.add_argument('-t', '--run_parameter_tests', action='store_true', help="Run tests for selecting the best inflation parameter and jaccard for MCL analysis and exit.", required=False, default=False)
-	parser.add_argument('-c', '--cpus', type=int, help="Number of cpus to use for MCL step.", required=False, default=1)
+	parser.add_argument('-c', '--cpus', type=int, help="Number of threads to use for MCL step.", required=False, default=1)
 	args = parser.parse_args()
 	return args
 

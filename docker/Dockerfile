@@ -13,7 +13,7 @@ SHELL ["/bin/bash", "-c"]
 # Clone lsaBGC github repo and create conda environment, then create and activate conda environment,
 # and install lsaBGC
 RUN apt-get update && apt-get install -y git wget libtiff5 gcc && \
-    git clone -b develop-v1.40 https://github.com/Kalan-Lab/lsaBGC && rm -rf lsaBGC/test_case.tar.gz && \
+    git clone https://github.com/Kalan-Lab/lsaBGC && rm -rf lsaBGC/test_case.tar.gz && \
     conda install -n base conda-libmamba-solver && conda config --set solver libmamba && \
     conda env create -f /usr/src/lsaBGC/lsaBGC_env.yml -p /usr/src/lsaBGC_conda_env/ && \
     conda create -p /usr/src/antismash_conda_env/ -c bioconda -c conda-forge -c defaults python=3.11 hmmer2 hmmer diamond fasttree prodigal blast muscle glimmerhmm cxx-compiler meme && \

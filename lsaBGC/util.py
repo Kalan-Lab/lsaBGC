@@ -1878,6 +1878,79 @@ def runOrthoFinder2Full(bgc_prot_directory, orthofinder_outdir, logObject, cpus=
 	return result_file
 
 
+def runOrthoFinder2FullFungal(prot_directory, orthofinder_outdir, logObject, threads=1):
+	result_file = orthofinder_outdir + 'Final_Orthogroups.tsv'
+	try:
+		orthofinder_cmd = ['orthofinder', '-f', prot_directory, '-t', str(threads)]
+
+		logObject.info('Running the following command: %s' % ' '.join(orthofinder_cmd))
+		subprocess.call(' '.join(orthofinder_cmd), shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+						executable='/bin/bash')
+		logObject.info('Successfully ran OrthoFinder!')
+		tmp_orthofinder_dir = os.path.abspath(
+			[prot_directory + 'OrthoFinder/' + f for f in os.listdir(prot_directory + 'OrthoFinder/') if
+			 f.startswith('Results')][0]) + '/'
+
+		os.system('mv %s %s' % (tmp_orthofinder_dir, orthofinder_outdir))
+		n0_file = orthofinder_outdir + 'Phylogenetic_Hierarchical_Orthogroups/N0.tsv'
+		
+		result_handle = open(result_file, 'w')
+
+		hog_ids = set([])
+		hog_prots = set([])
+		genomes = []
+		with open(n0_file) as n0f:
+			for i, line in enumerate(n0f):
+				line = line.strip('\n')
+				ls = line.split('\t')
+				if i == 0:
+					genomes = ls[3:]
+					result_handle.write('Orthogroup\t' + '\t'.join(genomes) + '\n')
+				else:
+					hog = ls[0].split('N0.')[1]
+					hog_ids.add(int(hog.split('HOG')[1]))
+					result_handle.write('\t'.join([hog] + ls[3:]) + '\n')
+					for lts in ls[3:]:
+						for lt in lts.split(', '):
+							if lt.strip() != '':
+								hog_prots.add(lt)
+
+		hog_id_iter = max(hog_ids) + 1
+		for prot_file in os.listdir(prot_directory):
+			if not os.path.isfile(prot_directory + prot_file) or not prot_file.endswith('.faa'): continue
+			genome_id = '.faa'.join(prot_file.split('.faa')[:-1])
+			with open(prot_directory + prot_file) as opf:
+				for rec in SeqIO.parse(opf, 'fasta'):
+					if not rec.id in hog_prots:
+						hog_id_iter_str = 'HOG'
+						if (hog_id_iter) < 10:
+							hog_id_iter_str += '00000'+str(hog_id_iter)
+						elif (hog_id_iter) < 100:
+							hog_id_iter_str += '0000'+str(hog_id_iter)
+						elif (hog_id_iter) < 1000:
+							hog_id_iter_str += '000'+str(hog_id_iter)
+						elif (hog_id_iter) < 10000:
+							hog_id_iter_str += str(hog_id_iter)
+						elif (hog_id_iter) < 100000:
+							hog_id_iter_str += str(hog_id_iter)
+						else:
+							hog_id_iter_str += str(hog_id_iter)
+						printlist = [hog_id_iter_str]
+						hog_id_iter += 1
+						for genome_iter in genomes:
+							if genome_id == genome_iter:
+								printlist.append(rec.id)
+							else:
+								printlist.append('')
+						result_handle.write('\t'.join(printlist) + '\n')	
+		result_handle.close()
+	except Exception as e:
+		logObject.error("Problem with running OrthoFinder2 cmd: %s." % ' '.join(orthofinder_cmd))
+		logObject.error(traceback.format_exc())
+		raise RuntimeError(traceback.format_exc())
+	return result_file
+
+
 def runOrthoFinder2(bgc_prot_directory, orthofinder_outdir, logObject, cpus=1):
 	result_file = orthofinder_outdir + 'Final_Orthogroups.tsv'
 	try:
@@ -2004,15 +2077,44 @@ def runPanaroo(genbanks_directory, panaroo_input_dir, results_directory, logObje
 		main_ortho_file = results_directory + 'gene_presence_absence.csv'
 		
 		result_handle = open(result_file, 'w')
+		clustered_lts = set([])
+		cds_iter = 1
+		genomes = []
 		with open(main_ortho_file) as omof:
 			for i, line in enumerate(omof):
 				line = line.strip()
 				ls = line.split(',')
 				if i == 0: 
 					result_handle.write('\t'.join(['OrthoGroup'] + ls[3:]) + '\n')
+					genomes=  ls[3:]
 				else:
-					og_id = 'OG' + determineAsofName(i)
+					og_id = 'OG' + determineAsofName(cds_iter)
+					for lts in ls[3:]:
+						for lt in lts.split(';'):
+							lt = lt.strip()
+							if lt != '': clustered_lts.add(lt)				
 					result_handle.write('\t'.join([og_id] + [', '.join(x.split(';')) for x in ls[3:]]) + '\n')
+					cds_iter += 1
+
+		for f in os.listdir(genbanks_directory):
+			sample = '.'.join(f.split('.')[:-1])
+			genome_gbk = genbanks_directory + f
+			with open(genome_gbk) as ogg:
+				for rec in SeqIO.parse(ogg, 'genbank'):
+					for feat in rec.features:
+						if feat.type != "CDS": continue
+						lt = feat.qualifiers.get('locus_tag')[0]
+						if not lt in clustered_lts:
+							og_id = 'OG' + determineAsofName(cds_iter)
+							cds_iter += 1
+							printlist = [og_id]
+							for genome in genomes:
+								if genome == sample:
+									printlist.append(lt)
+								else:
+									printlist.append('')
+							result_handle.write('\t'.join(printlist) + '\n')
+	
 		result_handle.close()
 
 		assert (os.path.isfile(result_file))
@@ -2255,7 +2357,7 @@ def incorporateBGCProteinsIntoProteomesAndGenbanks(sample_bgc_proteins, sample_g
 							feature.qualifiers['product'] = 'hypothetical protein'
 						else:
 							feature.qualifiers['product'] = [protein_annotations[sample][prot_lt]]
-						feature.qualifiers.move_to_end('translation')
+						#feature.qualifiers.move_to_end('translation')
 						if prot_lt in sample_lts_to_prune: continue
 						updated_features.append(feature)
 						all_coords, start, end, direction, is_multi_part = parseCDSCoord(str(feature.location))
@@ -2268,7 +2370,7 @@ def incorporateBGCProteinsIntoProteomesAndGenbanks(sample_bgc_proteins, sample_g
 							feature.qualifiers['product'] = 'hypothetical protein'
 						else:
 							feature.qualifiers['product'] = [protein_annotations[sample][prot_lt]]
-						feature.qualifiers.move_to_end('translation')
+						#feature.qualifiers.move_to_end('translation')
 						updated_features.append(feature)
 						all_coords, start, end, direction, is_multi_part = parseCDSCoord(str(feature.location))
 						starts.append([cds_iter, start])
@@ -2447,7 +2549,7 @@ def identifyParalogsAndCreateResultFiles(samp_hg_lts, lt_to_hg, sample_bgc_prote
 							feature.qualifiers['product'] = 'hypothetical protein'
 						else:
 							feature.qualifiers['product'] = [protein_annotations[sample][prot_lt]]
-						feature.qualifiers.move_to_end('translation')
+						#feature.qualifiers.move_to_end('translation')
 						if prot_lt in sample_lts_to_prune: continue
 						updated_features.append(feature)
 						all_coords, start, end, direction, is_multi_part = parseCDSCoord(str(feature.location))
@@ -2460,7 +2562,7 @@ def identifyParalogsAndCreateResultFiles(samp_hg_lts, lt_to_hg, sample_bgc_prote
 							feature.qualifiers['product'] = 'hypothetical protein'
 						else:
 							feature.qualifiers['product'] = [protein_annotations[sample][prot_lt]]
-						feature.qualifiers.move_to_end('translation')
+						#feature.qualifiers.move_to_end('translation')
 						updated_features.append(feature)
 						all_coords, start, end, direction, is_multi_part = parseCDSCoord(str(feature.location))
 						starts.append([cds_iter, start])
@@ -2612,7 +2714,7 @@ def updateBGCGenbanksToIncludeAnnotations(protein_annotations, bgc_to_sample, sa
 							if feature.type == "CDS":
 								prot_lt = feature.qualifiers.get('locus_tag')[0]
 								feature.qualifiers['product'] = [protein_annotations[sample][prot_lt]]
-								feature.qualifiers.move_to_end('translation')
+								#feature.qualifiers.move_to_end('translation')
 								updated_features.append(feature)
 							else:
 								updated_features.append(feature)

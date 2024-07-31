@@ -65,7 +65,7 @@ def create_parser():
     parser.add_argument('-o', '--output_directory', help="Prefix for output files.", required=True)
     parser.add_argument('-k', '--sample_set', help="Sample set to keep in analysis. Should be file with\none sample id per line.", required=False)
     parser.add_argument('-n', '--use_codon', help="Expected sample to sample similarities are reflective of\nDNA distances instead of protein distances (e.g. if FastANI or\nMASH were used in computeGenomeWideDistances.py).", required=False, default=False)
-    parser.add_argument('-c', '--cpus', type=int, help="The number of CPUs to use [Default is 1].", required=False, default=1)
+    parser.add_argument('-c', '--cpus', type=int, help="The number of threads to use [Default is 1].", required=False, default=1)
     args = parser.parse_args()
 
     return args

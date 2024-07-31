@@ -77,7 +77,7 @@ def create_parser():
     parser.add_argument('-ph', '--protocore_homologs', nargs="+", help="List of homolog group identifiers comprising the core of the BGC/GCF of which at\nleast one is required for GCF to be reported. Please provide as space-seperated list\nwith quotes surrounding: \"OG1 OG2 ...\"", required=False, default=[])
     parser.add_argument('-ap', '--all_primary', action='store_true', help='Treat all known GCF instances as primary (use if BGC Genbanks\nwere not processed through lsaBGC-Ready).', required=False, default=False)
     parser.add_argument('-z', '--pickle_expansion_annotation_data', help="Pickle file with serialization of annotation data in the expansion\nlisting file.", required=False, default=None)
-    parser.add_argument('-c', '--cpus', type=int, help="The number of CPUs to use [Default is 1].", required=False, default=1)
+    parser.add_argument('-c', '--cpus', type=int, help="The number of threads to use [Default is 1].", required=False, default=1)
 
     args = parser.parse_args()
 

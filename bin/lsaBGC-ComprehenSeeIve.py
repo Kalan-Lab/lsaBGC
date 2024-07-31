@@ -70,7 +70,7 @@ def create_parser():
     parser.add_argument('-k', '--sample_set', help="Sample set to keep in analysis. Should be file with one sample id per line.", required=False)
     parser.add_argument('-y', '--create_gcf_phylogeny', action='store_true', help="Create phylogeny from sequences of homolog groups in GCF.", required=False, default=False)
     parser.add_argument('-f', '--only_scc', action='store_true', help="Use only single-copy-core homolog groups for constructing GCF phylogeny.", required=False, default=False)
-    parser.add_argument('-c', '--cpus', type=int, help="Number of CPUs to use for MCL step [Default is 1].", required=False, default=1)
+    parser.add_argument('-c', '--cpus', type=int, help="Number of threads to use for MCL step [Default is 1].", required=False, default=1)
 
 
     args = parser.parse_args()

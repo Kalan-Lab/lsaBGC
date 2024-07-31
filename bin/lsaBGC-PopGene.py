@@ -67,7 +67,7 @@ def create_parser():
     parser.add_argument('-e', '--each_pop', action='store_true', help='Run analyses individually for each population as well.', required=False, default=False)
     parser.add_argument('-t', '--filter_for_outliers', action='store_true', help='Filter instances of homolog groups which deviate too much from\nthe median gene length observed for the initial set of proteins.', required=False, default=False)
     parser.add_argument('-w', '--expected_similarities', help="Path to file listing expected similarities between genomes/samples. This is\ncomputed most easily by running lsaBGC-Ready.py with '-t' specified,\nwhich will estimate\nsample to sample similarities based on alignment used to create\nspecies phylogeny.", required=False, default=None)
-    parser.add_argument('-c', '--cpus', type=int, help="The number of CPUs to use [Default is 1].", required=False, default=1)
+    parser.add_argument('-c', '--cpus', type=int, help="The number of threads to use [Default is 1].", required=False, default=1)
     args = parser.parse_args()
 
     return args

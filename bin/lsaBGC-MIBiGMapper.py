@@ -70,7 +70,7 @@ def create_parser():
 	parser.add_argument('-sh', '--shared', type=int, help="Minimal number of homolog groups of representative BGC found in MIBiG\nBGC to consider potential match [Default is 5].", required=False, default=5)
 	parser.add_argument('-pr', '--syntenic_correlation_cutoff', type=float, help="Minimum absolute correlation coefficient of\nMIBiG BGC with representative BGC from GCF. Is not regarded if '--draft_mode' specified. [Default is 0.0].", required=False, default=0.0)
 	parser.add_argument('-d', '--draft_mode', action='store_true', help='BGCs in GCF listing are fragmented. Will assess MIBiG\nBGCs to all instances of GCF in sample - assuming multiple BGCs are due to assembly\nfragmentation.', default=False, required=False)
-	parser.add_argument('-c', '--cpus', type=int, help="Number of CPUs to use [Default is 1].", required=False, default=1)
+	parser.add_argument('-c', '--cpus', type=int, help="Number of threads to use [Default is 1].", required=False, default=1)
 	args = parser.parse_args()
 	return args
 

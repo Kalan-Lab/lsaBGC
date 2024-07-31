@@ -103,6 +103,7 @@ def create_parser():
     parser.add_argument('-o', '--output_directory', help='Parent output/workspace directory.', required=True)
     parser.add_argument('-om', '--ortholog_method', help="Software for inference of ortholog groups. (Options: OrthoFinder, SonicParanoid, & Panaroo).\n[Default is OrthoFinder].", default='OrthoFinder', required=False)
     parser.add_argument('-mc', '--run_coarse_orthofinder', action='store_true', help='Use coarse clustering of homolog groups in OrthoFinder instead of more\nresolute hierarchical determined homolog groups.', required=False, default=False)
+    parser.add_argument('-f', '--fungal', action='store_true', help='Whether to run orthology inference in fungal mode - used if determining hierarchical orthologs via OrthoFinder.', required=False, default=False)
     parser.add_argument('-a', '--annotate', action='store_true', help='Perform annotation of BGC proteins using KOfam and PGAP (including TIGR)\nHMM profiles.', required=False, default=False)
     parser.add_argument('-t', '--run_gtotree', action='store_true', help='Whether to create phylogeny and expected sample-vs-sample\ndivergence for downstream analyses using GToTree.', required=False, default=False)
     parser.add_argument('-gtm', '--gtotree_model', help='Set of core genes to use for phylogeny construction in GToTree\n[Default is Universal_Hug_et_al].', required=False, default="Universal_Hug_et_al")
@@ -114,7 +115,7 @@ def create_parser():
     parser.add_argument('-k', '--keep_intermediates', action='store_true', help='Keep intermediate directories / files which are likely not\nuseful for downstream analyses.', required=False, default=False)
     parser.add_argument('-spe', '--skip_primary_expansion', action='store_true', help='Skip expansion on primary genomes as well.', required=False, default=False)
     parser.add_argument('-py', '--use_pyrodigal', action='store_true', help='Use pyrodigal instead of prodigal.', required=False, default=False)
-    parser.add_argument('-c', '--cpus', type=int, help="Total number of CPUs to use [Default is 1].", required=False, default=1)
+    parser.add_argument('-c', '--cpus', type=int, help="Total number of threads to use [Default is 1].", required=False, default=1)
 
     args = parser.parse_args()
     return args
@@ -157,6 +158,7 @@ def lsaBGC_Ready():
 	PARSE OPTIONAL INPUTS
 	"""
 
+    fungal_flag = myargs.fungal
     additional_genome_listing_file = myargs.additional_genome_listing
     bgc_prediction_software = myargs.bgc_prediction_software.upper()
     run_gtotree = myargs.run_gtotree
@@ -245,14 +247,14 @@ def lsaBGC_Ready():
     parameter_values = [genome_listing_file, bgc_genbank_listing_file, outdir, additional_genome_listing_file,
                         bgc_prediction_software, ortholog_method, bigscape_results_dir, annotate, run_lsabgc_cluster,
                         lsabgc_cluster_inflation, lsabgc_cluster_jaccard, lsabgc_cluster_synteny, run_lsabgc_expansion,
-                        keep_intermediates, use_pyrodigal, cpus]
+                        keep_intermediates, fungal_flag, use_pyrodigal, cpus]
     parameter_names = ["Primary Genome Listing File", "BGC Predictions Genbanks Listing File", "Output Directory",
                        "Additional Genome Listing File", "BGC Prediction Software", "Orthology Inference Software",
                        "BiG-SCAPE Results Directory", "Perform KOfam/PGAP Annotation?", "Run lsaBGC-Cluster Analysis?",
                        "Inflation Parameter Value for MCL clustering in lsaBGC-Cluster",
                        "Jaccard Index Threshold for lsaBGC-Cluster", "Syntenic Similarity Threshold for lsaBGC-Cluster",
                        "Run lsaBGC-AutoExpansion Analysis?", "Keep Intermediate Files/Directories?",
-                       "Use pyrodigal instead of prodigal", "Number of CPUs"]
+                       "Fungal Mode?", "Use pyrodigal instead of prodigal", "Number of CPUs"]
     util.logParametersToFile(parameters_file, parameter_names, parameter_values)
     logObject.info("Done saving parameters!")
 
@@ -421,7 +423,10 @@ def lsaBGC_Ready():
         if run_coarse_orthofinder:
             orthofinder_bgc_matrix_file = util.runOrthoFinder2(final_proteomes_directory, orthofinder_directory, logObject, cpus=cpus)
         else:
-            orthofinder_bgc_matrix_file = util.runOrthoFinder2Full(final_proteomes_directory, orthofinder_directory, logObject, cpus=cpus)
+            if fungal_flag:
+                orthofinder_bgc_matrix_file = util.runOrthoFinder2Full(final_proteomes_directory, orthofinder_directory, logObject, cpus=cpus)
+            else:
+                orthofinder_bgc_matrix_file = util.runOrthoFinder2FullFungal(final_proteomes_directory, orthofinder_directory, logObject, threads=cpus)
         os.system('mv %s %s' % (orthofinder_bgc_matrix_file, primary_orthofinder_matrix_file))
     elif ortholog_method.upper() == 'SONICPARANOID':
         # Step 7 - SP: Run SonicParanoid2 with genome-wide predicted proteomes

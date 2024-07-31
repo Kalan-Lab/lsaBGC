@@ -67,7 +67,7 @@ def create_parser():
     parser.add_argument('-awl', '--ambiguity_window_length', help='Length around beginning, end and ambiguous sites in codon alignments to avoid calling SNVs on due to more challenging alignment for reads. Default is 50.', required=False, default=50)
     parser.add_argument('-ch', '--core_homologs', nargs="+", help="List of homolog group identifiers comprising the core of the BGC/GCF.", required=False, default=[])
     parser.add_argument('-ap', '--allow_phasing', action='store_true', help="Allow phasing with DESMAN. Requires manual installation of\nDESMAN (not through conda) and $PATH to be updated.", required=False, default=False)
-    parser.add_argument('-c', '--cpus', type=int, help="The number of CPUs to use [Default ", required=False, default=1)
+    parser.add_argument('-c', '--cpus', type=int, help="The number of threads to use [Default ", required=False, default=1)
 
     args = parser.parse_args()
 
