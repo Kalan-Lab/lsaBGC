@@ -423,7 +423,7 @@ def lsaBGC_Ready():
         if run_coarse_orthofinder:
             orthofinder_bgc_matrix_file = util.runOrthoFinder2(final_proteomes_directory, orthofinder_directory, logObject, cpus=cpus)
         else:
-            if fungal_flag:
+            if not fungal_flag:
                 orthofinder_bgc_matrix_file = util.runOrthoFinder2Full(final_proteomes_directory, orthofinder_directory, logObject, cpus=cpus)
             else:
                 orthofinder_bgc_matrix_file = util.runOrthoFinder2FullFungal(final_proteomes_directory, orthofinder_directory, logObject, threads=cpus)
