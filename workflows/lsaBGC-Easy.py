@@ -115,7 +115,7 @@ def create_parser():
 	parser.add_argument('-dt', '--dereplicate_threshold', type=float, help="Amino acid similarity threshold of SCGs for considering\ntwo genomes as redundant [Default is 0.999].", default=0.999, required=False)
 	parser.add_argument('-pt', '--population_threshold', type=float, help="Amino acid similarity threshold of SCGs for considering\ntwo genomes as belonging to the same population [Default is 0.99].", default=0.99, required=False)
 	parser.add_argument('-py', '--use_pyrodigal', action='store_true', help='Use pyrodigal instead of prodigal.', required=False, default=False)
-	parser.add_argument('-om', '--ortholog_method', help="Software for inference of ortholog groups. (Options: OrthoFinder, SonicParanoid, & Panaroo).\n[Default is OrthoFinder].", default='OrthoFinder', required=False)
+	parser.add_argument('-om', '--ortholog_method', help="Software for inference of ortholog groups. (Options: OrthoFinder & Panaroo).\n[Default is OrthoFinder].", default='OrthoFinder', required=False)
 	parser.add_argument('-mc', '--run_coarse_orthofinder', action='store_true', help='Use coarse clustering of homolog groups in OrthoFinder instead of more\nresolute hierarchical determined homolog groups. There are some advantages to coarse\nOGs, including their construction being deterministic.', required=False, default=False)
 	parser.add_argument('-c', '--cpus', type=int, help="Total number of CPUs to use [Default is 4].", required=False, default=4)
 	parser.add_argument('-ao', '--antismash_options', help="Options for antiSMASH prediction analysis (should be surrounded by\nquotes, in Docker - it is assumed each individual job will have 4 CPUs).\n[Default is \"--genefinding-tool none --cpus 4\"]", required=False, default="--genefinding-tool none --cpus 4")
@@ -150,7 +150,7 @@ def lsaBGC_Easy():
 	docker_mode = myargs.docker_mode
 
 	try:
-		assert (ortholog_method in set(['ORTHOFINDER', 'SONICPARANOID', 'PANAROO']))
+		assert (ortholog_method in set(['ORTHOFINDER', 'PANAROO']))
 	except:
 		sys.stderr.write('Ortholog inference software specified is not a valid option.\n')
 		sys.exit(1)

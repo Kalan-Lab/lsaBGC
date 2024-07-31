@@ -2357,7 +2357,7 @@ def incorporateBGCProteinsIntoProteomesAndGenbanks(sample_bgc_proteins, sample_g
 							feature.qualifiers['product'] = 'hypothetical protein'
 						else:
 							feature.qualifiers['product'] = [protein_annotations[sample][prot_lt]]
-						#feature.qualifiers.move_to_end('translation')
+						feature.qualifiers.move_to_end('translation')
 						if prot_lt in sample_lts_to_prune: continue
 						updated_features.append(feature)
 						all_coords, start, end, direction, is_multi_part = parseCDSCoord(str(feature.location))
@@ -2370,7 +2370,7 @@ def incorporateBGCProteinsIntoProteomesAndGenbanks(sample_bgc_proteins, sample_g
 							feature.qualifiers['product'] = 'hypothetical protein'
 						else:
 							feature.qualifiers['product'] = [protein_annotations[sample][prot_lt]]
-						#feature.qualifiers.move_to_end('translation')
+						feature.qualifiers.move_to_end('translation')
 						updated_features.append(feature)
 						all_coords, start, end, direction, is_multi_part = parseCDSCoord(str(feature.location))
 						starts.append([cds_iter, start])
@@ -2549,7 +2549,7 @@ def identifyParalogsAndCreateResultFiles(samp_hg_lts, lt_to_hg, sample_bgc_prote
 							feature.qualifiers['product'] = 'hypothetical protein'
 						else:
 							feature.qualifiers['product'] = [protein_annotations[sample][prot_lt]]
-						#feature.qualifiers.move_to_end('translation')
+						feature.qualifiers.move_to_end('translation')
 						if prot_lt in sample_lts_to_prune: continue
 						updated_features.append(feature)
 						all_coords, start, end, direction, is_multi_part = parseCDSCoord(str(feature.location))
@@ -2562,7 +2562,7 @@ def identifyParalogsAndCreateResultFiles(samp_hg_lts, lt_to_hg, sample_bgc_prote
 							feature.qualifiers['product'] = 'hypothetical protein'
 						else:
 							feature.qualifiers['product'] = [protein_annotations[sample][prot_lt]]
-						#feature.qualifiers.move_to_end('translation')
+						feature.qualifiers.move_to_end('translation')
 						updated_features.append(feature)
 						all_coords, start, end, direction, is_multi_part = parseCDSCoord(str(feature.location))
 						starts.append([cds_iter, start])
@@ -2714,7 +2714,7 @@ def updateBGCGenbanksToIncludeAnnotations(protein_annotations, bgc_to_sample, sa
 							if feature.type == "CDS":
 								prot_lt = feature.qualifiers.get('locus_tag')[0]
 								feature.qualifiers['product'] = [protein_annotations[sample][prot_lt]]
-								#feature.qualifiers.move_to_end('translation')
+								feature.qualifiers.move_to_end('translation')
 								updated_features.append(feature)
 							else:
 								updated_features.append(feature)

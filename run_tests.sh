@@ -19,11 +19,11 @@ FILE=../db/database_location_paths.txt
 if [ -f "$FILE" ]; then
     lsaBGC-Ready.py -i Primary_Genomes_Listing.txt -d Additional_Genomes_Listing.txt \
    	-l Primary_Genome_BGC_Genbanks_Listing.txt -p antiSMASH \
-	  -c 4 -t -a -lc -le -o lsaBGC_Ready_Results/ -om orthofinder -mc
+	  -c 4 -t -a -lc -le -o lsaBGC_Ready_Results/ -om orthofinder -f
 else
     lsaBGC-Ready.py -i Primary_Genomes_Listing.txt -d Additional_Genomes_Listing.txt \
         -l Primary_Genome_BGC_Genbanks_Listing.txt -p antiSMASH \
-          -c 4 -t -lc -le -o lsaBGC_Ready_Results/ -om orthofinder -mc
+          -c 4 -t -lc -le -o lsaBGC_Ready_Results/ -om orthofinder -f 
 fi
 
 # Step 4: run lsaBGC-AutoAnalyze.py - automatically run analytical programs for

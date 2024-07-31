@@ -4,11 +4,11 @@ channels:
   - bioconda
   - defaults
 dependencies:
-  - python=3.9
+  - python>=3.9
   - setuptools<=58.2.0
   - pip=22.1.2
   - conda-forge::cxx-compiler
-  - biopython=1.83
+  - biopython=1.79
   - pysam=0.16.0.1
   - bioconda::bowtie2=2.4.5
   - bioconda::samtools=1.12
@@ -18,7 +18,6 @@ dependencies:
   - bioconda::hmmer=3.3.2
   - bioconda::orthofinder=2.5.4
   - bioconda::panaroo
-  - bioconda::sonicparanoid>=2.0.2
   - bioconda::fasttree=2.1.11
   - conda-forge::ete3=3.1.2
   - bioconda::diamond=2.0.15
@@ -50,11 +49,3 @@ dependencies:
   - scipy
   - scikit-learn
   - numpy
-  - filetype
-  - gensim
-  - smart-open
-  - tqdm
-  - wheel
-  - psutil
-  - mypy
-  - future

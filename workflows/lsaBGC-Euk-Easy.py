@@ -100,7 +100,6 @@ def create_parser():
 	parser.add_argument('-dt', '--dereplicate_threshold', type=float, help="Amino acid similarity threshold of SCGs for considering\ntwo genomes as redundant [Default is 0.999].", default=0.999, required=False)
 	parser.add_argument('-sd', '--skip_dereplication', action='store_true', help="Whether to skip dereplication based on GToTree alignments of SCGs - not\nrecommended and can cause issues if there are a lot of genomes for the taxa\nof interest.", default=False, required=False)
 	parser.add_argument('-pt', '--population_threshold', type=float, help="Amino acid similarity threshold of SCGs for considering\ntwo genomes as belonging to the same population [Default is 0.99].", default=0.99, required=False)
-	parser.add_argument('-om', '--ortholog_method', help="Software for inference of ortholog groups. (Options: OrthoFinder, SonicParanoid).\n[Default is OrthoFinder].", default='OrthoFinder', required=False)
 	parser.add_argument('-mc', '--run_coarse_orthofinder', action='store_true', help='Use coarse clustering of homolog groups in OrthoFinder instead\nof more resolute hierarchical determined homolog groups. There are some advantages to\ncoarse OGs, including their construction being deterministic.', required=False, default=False)
 	parser.add_argument('-c', '--cpus', type=int, help="Total number of threads to use [Default is 4].", required=False, default=4)
 	parser.add_argument('-ao', '--antismash_options', help="Options for antiSMASH prediction analysis (should be surrounded by\nquotes, in Docker - it is assumed each individual job will have 4 CPUs).\n[Default is \"--taxon fungi --genefinding-tool none --cpus 4\"]", required=False, default="--taxon fungi --genefinding-tool none --cpus 4")
@@ -121,7 +120,6 @@ def lsaBGC_Euk_Easy():
 	dereplicate_threshold = myargs.dereplicate_threshold
 	population_threshold = myargs.population_threshold
 	run_coarse_orthofinder = myargs.run_coarse_orthofinder
-	ortholog_method = myargs.ortholog_method.upper()
 	use_bigscape_flag = myargs.use_bigscape
 	bigscape_options = myargs.bigscape_options.strip('"')
 	ignore_limits_flag = myargs.ignore_limits
@@ -130,11 +128,8 @@ def lsaBGC_Euk_Easy():
 	lsabgc_cluster_synteny = myargs.lsabgc_cluster_synteny
 	docker_mode = myargs.docker_mode
 
-	try:
-		assert (ortholog_method in set(['ORTHOFINDER', 'SONICPARANOID']))
-	except:
-		sys.stderr.write('Ortholog inference software specified is not a valid option.\n')
-		sys.exit(1)
+
+	ortholog_method = 'ORTHOFINDER'
 
 	if genomes_directory:
 		try:

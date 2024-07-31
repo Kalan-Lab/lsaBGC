@@ -65,11 +65,11 @@ def setup_annot_dbs():
         sys.exit(1)
 
     try:
-        bigscape_prog = bigscape_install_path + 'BiG-SCAPE-1.1.4/bigscape.py'
+        bigscape_prog = bigscape_install_path + 'BiG-SCAPE-1.1.9/bigscape.py'
         if not os.path.isfile(bigscape_prog):
             os.chdir(bigscape_install_path)
-            os.system('wget https://github.com/medema-group/BiG-SCAPE/archive/refs/tags/v1.1.4.tar.gz')
-            os.system('tar -zxvf v1.1.4.tar.gz')
+            os.system('wget https://github.com/medema-group/BiG-SCAPE/archive/refs/tags/v1.1.9.tar.gz')
+            os.system('tar -zxvf v1.1.9.tar.gz')
             assert(os.path.isfile(bigscape_prog))
     except:
         sys.stderr.write('Error: issues with installing BiG-SCAPE. Please post to Github issues if unable to figure out what the issue is!\n')

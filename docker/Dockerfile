@@ -12,7 +12,7 @@ SHELL ["/bin/bash", "-c"]
 
 # Clone lsaBGC github repo and create conda environment, then create and activate conda environment,
 # and install lsaBGC
-RUN apt-get update && apt-get install -y git wget libtiff5 gcc && \
+RUN apt-get update && apt-get install -y git wget gcc && \
     git clone https://github.com/Kalan-Lab/lsaBGC && rm -rf lsaBGC/test_case.tar.gz && \
     conda install -n base conda-libmamba-solver && conda config --set solver libmamba && \
     conda env create -f /usr/src/lsaBGC/lsaBGC_env.yml -p /usr/src/lsaBGC_conda_env/ && \
