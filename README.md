@@ -1,6 +1,6 @@
 # *lsa*BGC
 
-### :warning: *lsa*BGC is being supported (e.g. will aim to fix issues with usability, bugs) but is no longer under active development (no new features). We encourage users to check out [*lsa*BGC-Pan](https://github.com/Kalan-Lab/lsaBGC-Pan) - a new version which features many of the core programs from *lsa*BGC as well as new modules! Note, also, the bioconda package `lsabgc` corresponds to lsaBGC-Pan. 
+### :warning: *lsa*BGC is being supported (e.g. will aim to fix issues with usability, bugs) but is no longer under active development (expect no new features). We ask you to please instead check out [*lsa*BGC-Pan](https://github.com/Kalan-Lab/lsaBGC-Pan) - a new version which features many of the core programs from *lsa*BGC as well as new modules! Note, also, the bioconda package `lsabgc` corresponds to lsaBGC-Pan. 
 
 ### Lineage Specific Analysis (*lsa*) of Biosynthetic Gene Clusters (BGC)
 
