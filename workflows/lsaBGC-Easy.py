@@ -94,7 +94,7 @@ def create_parser():
 	GToTree taxa models available (more resolute taxonomic groups will have more genes to use for building phylogeny):
 	(1) Actinobacteria, (2) Alphaproteobacteria, (3) Archaea, (4) Bacteria, (5) Bacteria_and_Archaea, 
  	(6) Betaproteobacteria, (7) Chlamydiae, (8) Cyanobacteria, (9) Epsilonproteobacteria, (10) Firmicutes, 
- 	(11) Firmicutes, (12) Gammaproteobacteria, (13) Proteobacteria, (14) Tenericutes, (15) Universal_Hug_et_al
+ 	(11) Firmicutes, (12) Gammaproteobacteria, (13) Proteobacteria, (14) Tenericutes, (15) Universal-Hug-et-al
  	*******************************************************************************************************************
 	""", formatter_class=argparse.RawTextHelpFormatter)
 
