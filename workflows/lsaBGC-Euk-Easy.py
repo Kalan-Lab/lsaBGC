@@ -524,7 +524,7 @@ def lsaBGC_Euk_Easy():
 			
 	samples_with_pop_info = set([])
 	pop_lines = {}
-	with open(populations_file) as opf:
+	with open(population_file) as opf:
 		for line in opf:
 			line = line.strip()
 			ls = line.split('\t')
@@ -548,7 +548,7 @@ def lsaBGC_Euk_Easy():
 	
 	# recreate files with only final samples
 	bgc_handle = open(primary_bgcs_listing_file, 'w')
-	pop_handle = open(populations_file, 'w')
+	pop_handle = open(population_file, 'w')
 	der_handle = open(samples_to_keep_file, 'w')
 	for s in samples_with_bgcs:
 		samp_bgc_res = primary_bgc_pred_directory + s + '/'
