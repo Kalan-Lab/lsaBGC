@@ -618,13 +618,13 @@ def lsaBGC_Easy():
 
 	# Step 4.5: Check files before continuing to the bulk of the analysis
 	samples_with_bgcs = set([])
-	bgc_lines = {}
+	bgc_lines = defaultdict(list)
 	with open(primary_bgcs_listing_file) as opblf:
 		for line in opblf:
 			line = line.strip()
 			ls = line.split('\t')
 			samples_with_bgcs.add(ls[0])
-			bgc_lines[ls[0]] = line
+			bgc_lines[ls[0]].append(line)
 			
 	samples_with_pop_info = set([])
 	pop_lines = {}
@@ -660,7 +660,8 @@ def lsaBGC_Easy():
 	for s in samples_with_bgcs:
 		samp_bgc_res = primary_bgc_pred_directory + s + '/'
 		if s in final_sample_set:
-			bgc_handle.write(bgc_lines[s] + '\n')
+			for bl in bgc_lines[s]:
+				bgc_handle.write(bl + '\n')
 			pop_handle.write(pop_lines[s] + '\n')
 			der_handle.write(derep_lines[s] + '\n')
 		elif os.path.isdir(samp_bgc_res):
