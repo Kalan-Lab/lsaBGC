@@ -106,7 +106,7 @@ def create_parser():
     parser.add_argument('-f', '--fungal', action='store_true', help='Whether to run orthology inference in fungal mode - used if determining hierarchical orthologs via OrthoFinder.', required=False, default=False)
     parser.add_argument('-a', '--annotate', action='store_true', help='Perform annotation of BGC proteins using KOfam and PGAP (including TIGR)\nHMM profiles.', required=False, default=False)
     parser.add_argument('-t', '--run_gtotree', action='store_true', help='Whether to create phylogeny and expected sample-vs-sample\ndivergence for downstream analyses using GToTree.', required=False, default=False)
-    parser.add_argument('-gtm', '--gtotree_model', help='Set of core genes to use for phylogeny construction in GToTree\n[Default is Universal_Hug_et_al].', required=False, default="Universal_Hug_et_al")
+    parser.add_argument('-gtm', '--gtotree_model', help='Set of core genes to use for phylogeny construction in GToTree\n[Default is Universal-Hug-et-al].', required=False, default="Universal-Hug-et-al")
     parser.add_argument('-lc', '--lsabgc_cluster', action='store_true', help='Run lsaBGC-Cluster with default parameters. Note, we recommend running lsaBGC-Cluster\nmanually and exploring parameters through its ability to generate a user-report for setting\nclustering parameters.', required=False, default=False)
     parser.add_argument('-lci', '--lsabgc_cluster_inflation', type=float, help='Value for MCL inflation parameter to use in lsaBGC-Cluster [Default is 4.0].', required=False, default=4.0)
     parser.add_argument('-lcj', '--lsabgc_cluster_jaccard', type=float, help='Minimal Jaccard Index cutoff to regard two BGCs as potentially homologous\nin lsaBGC-Cluster [Default is 20.0].', required=False, default=20.0)
@@ -193,7 +193,7 @@ def lsaBGC_Ready():
         assert(gtotree_model in set(['Actinobacteria', 'Alphaproteobacteria', 'Bacteria', 'Archaea',
                                      'Bacteria_and_Archaea', 'Bacteroidetes', 'Betaproteobacteria', 'Chlamydiae',
                                      'Cyanobacteria', 'Epsilonproteobacteria', 'Firmicutes', 'Gammaproteobacteria',
-                                     'Proteobacteria', 'Tenericutes', 'Universal_Hug_et_al']))
+                                     'Proteobacteria', 'Tenericutes', 'Universal-Hug-et-al']))
     except:
         raise RuntimeError('Model for GToTree specified is not a valid model!')
 

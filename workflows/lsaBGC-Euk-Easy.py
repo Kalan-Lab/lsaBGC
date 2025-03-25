@@ -50,6 +50,7 @@ import resource
 from time import sleep
 from lsaBGC import util
 from ete3 import Tree
+import shutil
 
 os.environ['OMP_NUM_THREADS'] = '4'
 lsaBGC_main_directory = '/'.join(os.path.realpath(__file__).split('/')[:-2]) + '/'
@@ -285,10 +286,11 @@ def lsaBGC_Euk_Easy():
 	logObject.info('\n--------------------\nStep 3\n--------------------\nBeginning construction of species tree using GToTree.')
 	sys.stdout.write('--------------------\nStep 3\n--------------------\nBeginning construction of species tree using GToTree.\n')
 	if not os.path.isfile(species_tree_file) or not os.path.isfile(expected_similarities_file):
-		os.system('rm -rf %s' % gtotree_outdir)
+		if os.path.isdir(gtotree_outdir):
+			shutil.rmtree(gtotree_outdir)
 		universal_hmm_file = lsaBGC_main_directory + '/db/Universal_Hug_et_al.hmm'
 
-		gtotree_model_arg = "Universal_Hug_et_al"
+		gtotree_model_arg = "Universal-Hug-et-al"
 		if os.path.isfile(universal_hmm_file): gtotree_model_arg = universal_hmm_file
 
 		gtotree_cmd = ['GToTree', '-A', all_proteomes_listing_file, '-H', gtotree_model_arg, '-n', str(max([cpus, 4])),
@@ -510,6 +512,60 @@ def lsaBGC_Euk_Easy():
 	logObject.info("Primary BGC predictions appear successful and are listed for samples/genomes at:\n%s" % primary_bgcs_listing_file)
 	sys.stdout.write("Primary BGC predictions appear successful and are listed for samples/genomes at:\n%s\n" % primary_bgcs_listing_file)
 
+	# Step 4.5: Check files before continuing to the bulk of the analysis
+	samples_with_bgcs = set([])
+	bgc_lines = defaultdict(list)
+	with open(primary_bgcs_listing_file) as opblf:
+		for line in opblf:
+			line = line.strip()
+			ls = line.split('\t')
+			samples_with_bgcs.add(ls[0])
+			bgc_lines[ls[0]].append(line)
+			
+	samples_with_pop_info = set([])
+	pop_lines = {}
+	with open(population_file) as opf:
+		for line in opf:
+			line = line.strip()
+			ls = line.split('\t')
+			samples_with_pop_info.add(ls[0])
+			pop_lines[ls[0]] = line
+			
+	samples_kept_following_derep = set([])
+	derep_lines = {}
+	with open(samples_to_keep_file) as ostkf:
+		for line in ostkf:
+			line = line.strip()
+			ls = line.split('\t')
+			samples_kept_following_derep.add(ls[0])
+			derep_lines[ls[0]] = line
+			
+	final_sample_set = samples_with_bgcs.intersection(samples_with_pop_info).intersection(samples_kept_following_derep)
+
+	msg = 'After assessing samples to keep following dereplication, which samples\nhave population information, and which have BGC predictions performed successfully,\nthere are %d samples being considered for downstream analysis.' % len(final_sample_set)
+	sys.stdout.write(msg + '\n')
+	logObject.info(msg)
+
+	if len(final_sample_set) == 0: 
+		sys.exit(1)
+
+	# recreate files with only final samples
+	bgc_handle = open(primary_bgcs_listing_file, 'w')
+	pop_handle = open(population_file, 'w')
+	der_handle = open(samples_to_keep_file, 'w')
+	for s in samples_with_bgcs:
+		samp_bgc_res = primary_bgc_pred_directory + s + '/'
+		if s in final_sample_set:
+			for bl in bgc_lines[s]:
+				bgc_handle.write(bl + '\n')
+			pop_handle.write(pop_lines[s] + '\n')
+			der_handle.write(derep_lines[s] + '\n')
+		elif os.path.isdir(samp_bgc_res):
+			shutil.rmtree(samp_bgc_res)
+	bgc_handle.close()
+	pop_handle.close()
+	der_handle.close()
+	
 	# Step 5: Run lsaBGC-Ready.py with lsaBGC-Cluster or BiG-SCAPE
 	logObject.info('\n--------------------\nStep 5\n--------------------\nBeginning clustering of BGCs using either lsaBGC-Cluster (default) or BiG-SCAPE (can be requested).')
 	sys.stdout.write('--------------------\nStep 5\n--------------------\nBeginning clustering of BGCs using either lsaBGC-Cluster (default) or BiG-SCAPE (can be requested).\n')
@@ -536,7 +592,8 @@ def lsaBGC_Euk_Easy():
 	orthogroups_matrix_file = lsabgc_ready_results_directory + 'Orthogroups.tsv'
 	if not os.path.isdir(lsabgc_ready_results_directory) or len(
 			[f for f in os.listdir(lsabgc_ready_results_directory)]) <= 2:
-		os.system('rm -rf %s' % lsabgc_ready_directory)
+		if os.path.isdir(lsabgc_ready_directory):
+			shutil.rmtree(lsabgc_ready_directory)
 		lsabgc_ready_cmd = ['lsaBGC-Ready.py', '-i', primary_genomes_listing_file, '-l', primary_bgcs_listing_file,
 							'-o', lsabgc_ready_directory, '-c', str(cpus), '-p', 'antiSMASH', '-om', ortholog_method, 
 							'-f']
@@ -594,7 +651,8 @@ def lsaBGC_Euk_Easy():
 	lsabgc_autoanalyze_dir = outdir + 'lsaBGC_AutoAnalyze_Results/'
 	lsabgc_autoanalyze_results_dir = lsabgc_autoanalyze_dir + 'Final_Results/'
 	if not os.path.isdir(lsabgc_autoanalyze_results_dir):
-		os.system('rm -rf %s' % lsabgc_autoanalyze_dir)
+		if os.path.isdir(lsabgc_autoanalyze_dir):
+			shutil.rmtree(lsabgc_autoanalyze_dir)
 		lsabgc_autoanalyze_cmd = ['lsaBGC-AutoAnalyze.py', '-i', exp_annotation_listing_file, '-g', exp_gcf_listing_dir,
 								  '-m', exp_orthogroups_matrix_file, '-mb', '-s', species_tree_file, '-w',
 								  expected_similarities_file, '-k', samples_to_keep_file, '-c', str(cpus), '-o',
@@ -610,7 +668,8 @@ def lsaBGC_Euk_Easy():
 	gseef_results_dir = outdir + 'GSeeF_Results/'
 	gseef_final_results_dir = gseef_results_dir + 'Final_Results/'
 	if not os.path.isdir(gseef_results_dir):
-		os.system('rm -rf %s' % gseef_results_dir)
+		if os.path.isdir(gseef_results_dir):
+			shutil.rmtree(gseef_results_dir)
 
 		pruned_species_tree_file = outdir + 'Species_Tree.pruned.tre'
 		try:
