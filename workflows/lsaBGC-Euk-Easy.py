@@ -286,7 +286,8 @@ def lsaBGC_Euk_Easy():
 	logObject.info('\n--------------------\nStep 3\n--------------------\nBeginning construction of species tree using GToTree.')
 	sys.stdout.write('--------------------\nStep 3\n--------------------\nBeginning construction of species tree using GToTree.\n')
 	if not os.path.isfile(species_tree_file) or not os.path.isfile(expected_similarities_file):
-		shutil.rmtree(gtotree_outdir)
+		if os.path.isdir(gtotree_outdir):
+			shutil.rmtree(gtotree_outdir)
 		universal_hmm_file = lsaBGC_main_directory + '/db/Universal_Hug_et_al.hmm'
 
 		gtotree_model_arg = "Universal-Hug-et-al"
@@ -587,7 +588,8 @@ def lsaBGC_Euk_Easy():
 	orthogroups_matrix_file = lsabgc_ready_results_directory + 'Orthogroups.tsv'
 	if not os.path.isdir(lsabgc_ready_results_directory) or len(
 			[f for f in os.listdir(lsabgc_ready_results_directory)]) <= 2:
-		shutil.rmtree(lsabgc_ready_directory)
+		if os.path.isdir(lsabgc_ready_directory):
+			shutil.rmtree(lsabgc_ready_directory)
 		lsabgc_ready_cmd = ['lsaBGC-Ready.py', '-i', primary_genomes_listing_file, '-l', primary_bgcs_listing_file,
 							'-o', lsabgc_ready_directory, '-c', str(cpus), '-p', 'antiSMASH', '-om', ortholog_method, 
 							'-f']
@@ -645,7 +647,8 @@ def lsaBGC_Euk_Easy():
 	lsabgc_autoanalyze_dir = outdir + 'lsaBGC_AutoAnalyze_Results/'
 	lsabgc_autoanalyze_results_dir = lsabgc_autoanalyze_dir + 'Final_Results/'
 	if not os.path.isdir(lsabgc_autoanalyze_results_dir):
-		shutil.rmtree(lsabgc_autoanalyze_dir)
+		if os.path.isdir(lsabgc_autoanalyze_dir):
+			shutil.rmtree(lsabgc_autoanalyze_dir)
 		lsabgc_autoanalyze_cmd = ['lsaBGC-AutoAnalyze.py', '-i', exp_annotation_listing_file, '-g', exp_gcf_listing_dir,
 								  '-m', exp_orthogroups_matrix_file, '-mb', '-s', species_tree_file, '-w',
 								  expected_similarities_file, '-k', samples_to_keep_file, '-c', str(cpus), '-o',
@@ -661,7 +664,8 @@ def lsaBGC_Euk_Easy():
 	gseef_results_dir = outdir + 'GSeeF_Results/'
 	gseef_final_results_dir = gseef_results_dir + 'Final_Results/'
 	if not os.path.isdir(gseef_results_dir):
-		shutil.rmtree(gseef_results_dir)
+		if os.path.isdir(gseef_results_dir):
+			shutil.rmtree(gseef_results_dir)
 
 		pruned_species_tree_file = outdir + 'Species_Tree.pruned.tre'
 		try:
