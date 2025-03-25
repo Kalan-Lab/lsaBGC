@@ -372,12 +372,12 @@ def lsaBGC_Easy():
 
 		actino_hmm_file = lsaBGC_main_directory + '/db/Actinobacteria.hmm'
 		bacteria_hmm_file = lsaBGC_main_directory + '/db/Bacteria.hmm'
-		universal_hmm_file = lsaBGC_main_directory + '/db/Universal_et_al_Hug.hmm'
+		universal_hmm_file = lsaBGC_main_directory + '/db/Universal-et-al-Hug.hmm'
 
 		gtotree_model_arg = gtotree_model
 		if gtotree_model == 'Actinobacteria' and os.path.isfile(actino_hmm_file): gtotree_model_arg =  actino_hmm_file
 		elif gtotree_model == 'Bacteria' and os.path.isfile(bacteria_hmm_file): gtotree_model_arg = bacteria_hmm_file
-		elif gtotree_model == 'Universal_et_al_Hug' and os.path.isfile(universal_hmm_file): gtotree_model_arg = universal_hmm_file
+		elif gtotree_model == 'Universal-et-al-Hug' and os.path.isfile(universal_hmm_file): gtotree_model_arg = universal_hmm_file
 
 		gtotree_cmd = ['GToTree', '-A', all_proteomes_listing_file, '-H', gtotree_model_arg, '-n', str(max([cpus, 4])),
 					   '-j', str(parallel_jobs_4cpu), '-M', str(max([cpus, 4])), '-o', gtotree_outdir]
@@ -864,14 +864,14 @@ def checkModelIsValid(gtotree_model, docker_mode=False):
 			assert (gtotree_model in set(['Actinobacteria', 'Alphaproteobacteria', 'Bacteria', 'Archaea',
 										  'Bacteria_and_Archaea', 'Bacteroidetes', 'Betaproteobacteria', 'Chlamydiae',
 										  'Cyanobacteria', 'Epsilonproteobacteria', 'Firmicutes', 'Gammaproteobacteria',
-										  'Proteobacteria', 'Tenericutes', 'Universal_Hug_et_al']))
+										  'Proteobacteria', 'Tenericutes', 'Universal-Hug-et-al']))
 		except:
 			raise RuntimeError('Model for GToTree specified is not a valid model!')
 	else:
 		try:
-			assert (gtotree_model in set(['Actinobacteria', 'Bacteria', 'Universal_Hug_et_al']))
+			assert (gtotree_model in set(['Actinobacteria', 'Bacteria', 'Universal-Hug-et-al']))
 		except:
-			raise RuntimeError('Only GToTree SCC models for Actinobacteria, Bacteria, and Universal_Hug_et_al are available in Docker mode!\n')
+			raise RuntimeError('Only GToTree SCC models for Actinobacteria, Bacteria, and Universal-Hug-et-al are available in Docker mode!\n')
 
 def checkLsaBGCInputsExist(annotation_listing_file, gcf_listing_dir, orthogroups_matrix_file):
 	try:
