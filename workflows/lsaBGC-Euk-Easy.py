@@ -545,7 +545,10 @@ def lsaBGC_Euk_Easy():
 	msg = 'After assessing samples to keep following dereplication, which samples\nhave population information, and which have BGC predictions performed successfully,\nthere are %d samples being considered for downstream analysis.' % len(final_sample_set)
 	sys.stdout.write(msg + '\n')
 	logObject.info(msg)
-	
+
+	if len(final_sample_set) == 0: 
+		sys.exit(1)
+
 	# recreate files with only final samples
 	bgc_handle = open(primary_bgcs_listing_file, 'w')
 	pop_handle = open(population_file, 'w')
