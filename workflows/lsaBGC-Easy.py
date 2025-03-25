@@ -659,7 +659,7 @@ def lsaBGC_Easy():
 		if s in final_sample_set:
 			bgc_handle.write(bgc_lines[s] + '\n')
 			pop_handle.write(pop_lines[s] + '\n')
-			der_handle.write(der_lines[s] + '\n')
+			der_handle.write(derep_lines[s] + '\n')
 		elif os.path.isdir(samp_bgc_res):
 			shutil.rmtree(samp_bgc_res)
 	bgc_handle.close()
