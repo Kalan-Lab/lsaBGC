@@ -288,7 +288,7 @@ def lsaBGC_Euk_Easy():
 		os.system('rm -rf %s' % gtotree_outdir)
 		universal_hmm_file = lsaBGC_main_directory + '/db/Universal_Hug_et_al.hmm'
 
-		gtotree_model_arg = "Universal_Hug_et_al"
+		gtotree_model_arg = "Universal-Hug-et-al"
 		if os.path.isfile(universal_hmm_file): gtotree_model_arg = universal_hmm_file
 
 		gtotree_cmd = ['GToTree', '-A', all_proteomes_listing_file, '-H', gtotree_model_arg, '-n', str(max([cpus, 4])),
