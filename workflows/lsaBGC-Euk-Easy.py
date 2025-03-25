@@ -540,6 +540,10 @@ def lsaBGC_Euk_Easy():
 			derep_lines[ls[0]] = line
 			
 	final_sample_set = samples_with_bgcs.intersection(samples_with_pop_info).intersection(samples_kept_following_derep)
+
+	msg = 'After assessing samples to keep following dereplication, which samples\nhave population information, and which have BGC predictions performed successfully,\nthere are %d samples being considered for downstream analysis.' % len(final_sample_set)
+	sys.stdout.write(msg + '\n')
+	logObject.info(msg)
 	
 	# recreate files with only final samples
 	bgc_handle = open(primary_bgcs_listing_file, 'w')
