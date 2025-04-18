@@ -8,8 +8,8 @@ dependencies:
   - setuptools<=58.2.0
   - pip=22.1.2
   - conda-forge::cxx-compiler
-  - biopython=1.79
-  - pysam=0.16.0.1
+  - bioconda::biopython=1.79
+  - bioconda::pysam=0.16.0.1
   - bioconda::bowtie2=2.4.5
   - bioconda::samtools=1.12
   - bioconda::mafft=7.505
@@ -21,19 +21,19 @@ dependencies:
   - bioconda::fasttree=2.1.11
   - conda-forge::ete3=3.1.2
   - bioconda::diamond=2.0.15
-  - r-base
-  - r-ggplot2
-  - r-cowplot
-  - r-phytools
-  - r-ape
-  - r-scatterpie
-  - r-dplyr
-  - r-gggenes
-  - bioconductor-ggtree
-  - r-ggalluvial
-  - r-data.table
-  - r-plyr
-  - r-gridextra
+  - conda-forge::r-base
+  - conda-forge::r-ggplot2
+  - conda-forge::r-cowplot
+  - conda-forge::r-phytools
+  - conda-forge::r-ape
+  - conda-forge::r-scatterpie
+  - conda-forge::r-dplyr
+  - conda-forge::r-gggenes
+  - bioconda::bioconductor-ggtree
+  - conda-forge::r-ggalluvial
+  - conda-forge::r-data.table
+  - conda-forge::r-plyr
+  - conda-forge::r-gridextra
   - bioconda::prodigal
   - bioconda::pyrodigal=2.3.0
   - conda-forge::tar
@@ -46,6 +46,6 @@ dependencies:
   - bioconda::gecco
   - bioconda::n50
   - conda-forge::networkx
-  - scipy
-  - scikit-learn
-  - numpy
+  - conda-forge::scipy
+  - conda-forge::scikit-learn
+  - conda-forge::numpy
