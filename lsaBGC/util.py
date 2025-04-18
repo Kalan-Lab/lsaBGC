@@ -1296,7 +1296,7 @@ def processGenomesAsGenbanks(sample_genomes, proteomes_directory, genbanks_direc
 				continue
 			process_cmd = ['processAndReformatNCBIGenbanks.py', '-i', sample_genbank, '-s', sample,
 						   '-l', sample_locus_tag, '-g', genbanks_directory, '-p', proteomes_directory, '-n',
-						   gene_name_mapping_outdir, '-r', '-no-ent']
+						   gene_name_mapping_outdir, '-r', '-ent']
 			process_cmds.append(process_cmd + [logObject])
 
 		p = multiprocessing.Pool(cpus)
