@@ -431,9 +431,9 @@ def lsaBGC_Euk_Easy():
 			count_of_dereplicated_sample_set += 1
 	if (count_of_dereplicated_sample_set > 100) and (not ignore_limits_flag):
 		logObject.error(
-			"Currently not recommended to use lsaBGC-Easy for taxa with > 100 genomes after dereplication. In the future this will likely be updated to be a warning, but would rather not risk harming your computer/server!")
+			"Currently not recommended to use lsaBGC-Euk-Easy for taxa with > 100 genomes after dereplication. In the future this will likely be updated to be a warning, but would rather not risk harming your computer/server!")
 		sys.stderr.write(
-			"Currently not recommended to use lsaBGC-Easy for taxa with > 100 genomes\nafter dereplication. In the future this will likely be updated\nto be a warning, but would rather not risk harming\nyour computer/server!")
+			"Currently not recommended to use lsaBGC-Euk-Easy for taxa with > 100 genomes\nafter dereplication. In the future this will likely be updated\nto be a warning, but would rather not risk harming\nyour computer/server!")
 		sys.stderr.write(
 			'Exiting now, but you can move past this if you feel comfortable and are willing to wait for longer processing times using the -x flag.\n')
 		sys.exit(1)
@@ -504,8 +504,7 @@ def lsaBGC_Euk_Easy():
 				if f.endswith('.gbk') and '.region' in f:
 					os.system('mv %s %s' % (samp_dir + f, samp_dir + s + '.' + f))
 					
-		list_primary_bgc_cmd = ['listAllBGCGenbanksInDirectory.py', '-i', primary_bgc_pred_directory, '-p', 'antiSMASH',
-								'>', primary_bgcs_listing_file]
+		list_primary_bgc_cmd = ['listAllBGCGenbanksInDirectory.py', '-i', primary_bgc_pred_directory, '-p', 'antiSMASH', '>', primary_bgcs_listing_file]
 		if not include_incomplete_bgcs_flag:
 			list_primary_bgc_cmd += ['-f']
 		runCmdViaSubprocess(list_primary_bgc_cmd, logObject, check_files=[primary_bgcs_listing_file])
@@ -554,7 +553,7 @@ def lsaBGC_Euk_Easy():
 	bgc_handle = open(primary_bgcs_listing_file, 'w')
 	pop_handle = open(population_file, 'w')
 	der_handle = open(samples_to_keep_file, 'w')
-	for s in samples_with_bgcs:
+	for s in final_sample_set:
 		samp_bgc_res = primary_bgc_pred_directory + s + '/'
 		if s in final_sample_set:
 			for bl in bgc_lines[s]:
