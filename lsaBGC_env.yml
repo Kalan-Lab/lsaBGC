@@ -8,7 +8,7 @@ dependencies:
   - setuptools<=58.2.0
   - pip=22.1.2
   - conda-forge::cxx-compiler
-  - bioconda::biopython=1.79
+  - conda-forge::biopython=1.79
   - bioconda::pysam=0.16.0.1
   - bioconda::bowtie2=2.4.5
   - bioconda::samtools=1.12
