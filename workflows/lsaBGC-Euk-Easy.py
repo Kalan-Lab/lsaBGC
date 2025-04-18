@@ -539,8 +539,17 @@ def lsaBGC_Euk_Easy():
 			ls = line.split('\t')
 			samples_kept_following_derep.add(ls[0])
 			derep_lines[ls[0]] = line
-			
-	final_sample_set = samples_with_bgcs.intersection(samples_with_pop_info).intersection(samples_kept_following_derep)
+
+	samples_primary_genomes = set([])
+	primary_lines = {}
+	with open(primary_genomes_listing_file) as opglf:
+		for line in opglf:
+			line = line.strip()
+			ls = line.split('\t')
+			samples_primary_genomes.add(ls[0])
+			primary_lines[ls[0]] = line
+	
+	final_sample_set = samples_with_bgcs.intersection(samples_with_pop_info).intersection(samples_kept_following_derep).intersection(primary_lines)
 
 	msg = 'After assessing samples to keep following dereplication, which samples\nhave population information, and which have BGC predictions performed successfully,\nthere are %d samples being considered for downstream analysis.' % len(final_sample_set)
 	sys.stdout.write(msg + '\n')
@@ -550,21 +559,24 @@ def lsaBGC_Euk_Easy():
 		sys.exit(1)
 
 	# recreate files with only final samples
+	pg_handle = open(primary_genomes_listing_file, 'w')
 	bgc_handle = open(primary_bgcs_listing_file, 'w')
 	pop_handle = open(population_file, 'w')
 	der_handle = open(samples_to_keep_file, 'w')
-	for s in final_sample_set:
+	for s in samples_with_bgcs:
 		samp_bgc_res = primary_bgc_pred_directory + s + '/'
 		if s in final_sample_set:
 			for bl in bgc_lines[s]:
 				bgc_handle.write(bl + '\n')
 			pop_handle.write(pop_lines[s] + '\n')
 			der_handle.write(derep_lines[s] + '\n')
+			pg_handle.write(primary_lines[s] + '\n')
 		elif os.path.isdir(samp_bgc_res):
 			shutil.rmtree(samp_bgc_res)
 	bgc_handle.close()
 	pop_handle.close()
 	der_handle.close()
+	pg_handle.close()
 	
 	# Step 5: Run lsaBGC-Ready.py with lsaBGC-Cluster or BiG-SCAPE
 	logObject.info('\n--------------------\nStep 5\n--------------------\nBeginning clustering of BGCs using either lsaBGC-Cluster (default) or BiG-SCAPE (can be requested).')
