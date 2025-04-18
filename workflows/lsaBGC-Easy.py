@@ -653,7 +653,7 @@ def lsaBGC_Easy():
 			samples_primary_genomes.add(ls[0])
 			primary_lines[ls[0]] = line
 	
-	final_sample_set = samples_with_bgcs.intersection(samples_with_pop_info).intersection(samples_kept_following_derep)
+	final_sample_set = samples_with_bgcs.intersection(samples_with_pop_info).intersection(samples_kept_following_derep).intersection(samples_primary_genomes)
 
 	msg = 'After assessing samples to keep following dereplication, which samples\nhave population information, and which have BGC predictions performed successfully,\nthere are %d samples being considered for downstream analysis.' % len(final_sample_set)
 	sys.stdout.write(msg + '\n')
