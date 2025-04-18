@@ -40,8 +40,10 @@ In v1.53, we added missing singleton CDS features that were regarded as faulty b
 Installation can be performed via conda (see below for Docker) and should take ~5 minutes with mamba or ~10-20 minutes with conda and has been tested on both unix (specifically Ubuntu) and macOS. We are happy to attempt to address issues with installation if any arise, please open a Git Issues case:
 
 ```bash
-# 1. clone Git repo and cd into it!
-git clone https://github.com/Kalan-Lab/lsaBGC
+# 1. download latest release and uncompress
+curl -o lsaBGC.tar.gz https://github.com/Kalan-Lab/lsaBGC/archive/refs/tags/v1.55.tar.gz
+cd lsaBGC-1.54/
+
 cd lsaBGC/
 
 # 2. create conda environment using yaml file and activate it!
