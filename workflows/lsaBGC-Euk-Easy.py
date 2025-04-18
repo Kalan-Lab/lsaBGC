@@ -245,7 +245,8 @@ def lsaBGC_Euk_Easy():
 				except:
 					raise RuntimeError("Could not validate the genome for sample %s exists." % sample)
 				rpc = ['processAndReformatNCBIGenbanks.py', '-i', gbk, '-s', sample, '-g', genbank_directory,
-					   '-p', proteome_directory, '-n', namemapping_directory, '-l', sample_locus_tag, logObject]
+					   '-p', proteome_directory, '-n', namemapping_directory, '-l', sample_locus_tag, '-r',
+				       	   '-ent', logObject]
 				process_cmds.append(rpc)
 
 		p = multiprocessing.Pool(cpus)
