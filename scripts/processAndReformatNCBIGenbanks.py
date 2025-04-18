@@ -40,7 +40,7 @@ import sys
 import argparse
 from Bio import SeqIO
 import gzip
-from zol import util
+from lsaBGC import util
 import traceback
 import copy
 
