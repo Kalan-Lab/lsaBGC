@@ -129,15 +129,15 @@ def setup_annot_dbs():
             print('Setting up GToTree SCC HMMs!')
 
             if not os.path.isfile(actino_hmm_file):
-                os.system('wget https://zenodo.org/record/7860735/files/Actinobacteria.hmm?download=1 -O ' + actino_hmm_file)
+                os.system('wget https://zenodo.org/records/13858489/files/Actinobacteria.hmm?download=1 -O ' + actino_hmm_file)
                 assert (os.path.isfile(actino_hmm_file))
 
             if not os.path.isfile(bacteria_hmm_file):
-                os.system('wget https://zenodo.org/record/7860735/files/Bacteria.hmm?download=1 -O ' + bacteria_hmm_file)
+                os.system('wget https://zenodo.org/records/13858489/files/Bacteria.hmm?download=1 -O ' + bacteria_hmm_file)
                 assert (os.path.isfile(bacteria_hmm_file))
 
             if not os.path.isfile(universal_hmm_file):
-                os.system('wget https://zenodo.org/record/7860735/files/Universal-Hug-et-al.hmm?download=1 -O ' + universal_hmm_file)
+                os.system('wget https://zenodo.org/records/13858489/files/Universal-Hug-et-al.hmm?download=1 -O ' + universal_hmm_file)
                 assert (os.path.isfile(universal_hmm_file))
 
     except:
