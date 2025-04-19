@@ -16,7 +16,7 @@ RUN apt-get update && apt-get install -y git wget gcc && \
     git clone https://github.com/Kalan-Lab/lsaBGC && rm -rf lsaBGC/test_case.tar.gz && \
     conda install -n base conda-libmamba-solver && conda config --set solver libmamba && \
     conda env create -f /usr/src/lsaBGC/lsaBGC_env.yml -p /usr/src/lsaBGC_conda_env/ && \
-    conda create -p /usr/src/antismash_conda_env/ -c bioconda -c conda-forge -c defaults python=3.11 hmmer2 hmmer diamond fasttree prodigal blast muscle glimmerhmm cxx-compiler meme && \
+    conda create -p /usr/src/antismash_conda_env/ -c bioconda -c conda-forge -c defaults python=3.10 hmmer2 hmmer diamond fasttree prodigal blast muscle glimmerhmm cxx-compiler meme && \
     source activate /usr/src/antismash_conda_env/ && \
     wget https://dl.secondarymetabolites.org/releases/7.0.1/antismash-7.0.1.tar.gz && tar -zxf antismash-7.0.1.tar.gz && \
     pip install ./antismash-7.0.1 && download-antismash-databases && \
@@ -30,7 +30,7 @@ RUN apt-get update && apt-get install -y git wget gcc && \
 # Install lsaBGC
 WORKDIR /usr/src/lsaBGC/
 ENV PATH /usr/src/lsaBGC_conda_env/bin:$PATH
-RUN python setup.py install && pip install -e . && setup_annotation_dbs.py -nk -dsh && setup_bigscape.py && \
+RUN python setup.py install && pip install -e . && setup_annotation_dbs.py -nk -dsh && setup_bigscape.py && panaroo --version && \
     chmod -R 777 /usr/src/lsaBGC/ && chmod 777 /home 
 USER 1000:1000
 RUN mkdir /home/input /home/output
