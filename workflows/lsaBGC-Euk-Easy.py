@@ -289,7 +289,7 @@ def lsaBGC_Euk_Easy():
 	if not os.path.isfile(species_tree_file) or not os.path.isfile(expected_similarities_file):
 		if os.path.isdir(gtotree_outdir):
 			shutil.rmtree(gtotree_outdir)
-		universal_hmm_file = lsaBGC_main_directory + '/db/Universal_Hug_et_al.hmm'
+		universal_hmm_file = lsaBGC_main_directory + '/db/Universal-Hug-et-al.hmm'
 
 		gtotree_model_arg = "Universal-Hug-et-al"
 		if os.path.isfile(universal_hmm_file): gtotree_model_arg = universal_hmm_file
