@@ -9,7 +9,6 @@ LABEL maintainer="Rauf Salamzade - Kalan Lab, UW-Madison"
 WORKDIR /usr/src
 SHELL ["/bin/bash", "-c"]
 
-
 # Clone lsaBGC github repo and create conda environment, then create and activate conda environment,
 # and install lsaBGC
 RUN apt-get update && apt-get install -y git wget gcc && \

@@ -5,6 +5,8 @@ rm -rf test_case/
 tar -zxvf test_case.tar.gz 
 cd test_case/
 
+export PATH=/Users/raufs/Coding/lsaBGC/conda_env/bin/:$PATH
+
 # Step 1: create genome listing inputs for lsaBGC-Ready.py
 listAllGenomesInDirectory.py -i Primary_Genomes/ > Primary_Genomes_Listing.txt
 listAllGenomesInDirectory.py -i Additional_Genomes > Additional_Genomes_Listing.txt

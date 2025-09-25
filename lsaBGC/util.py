@@ -1368,9 +1368,9 @@ def findBGCInFullGenbank(inputs):
 					line = line.strip()
 					if line.startswith('LOCUS'):
 						bgc_scaffold = line.split()[1].strip()
-					elif line.startswith('Orig. start  ::'):
+					elif line.startswith('Orig. start') and '::' in line:
 						bgc_starts.append(int(line.split()[-1].replace('>', '').replace('<', '')))			
-					elif line.startswith('Original ID  ::'):
+					elif line.startswith('Original ID') and '::' in line:
 						bgc_scaffold = line.split()[-1].strip()
 
 		elif bgc_prediction_software == 'DEEPBGC':
