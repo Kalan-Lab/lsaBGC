@@ -132,9 +132,9 @@ def BGCome():
 						with open(bgc_gbk) as obg:
 							for line in obg:
 								line = line.strip()
-								if line.startswith('Orig. start '):
+								if line.startswith('Orig. start'):
 									bgc_start = line.split('::')[-1].strip()
-								elif line.startswith('Orig. end '):
+								elif line.startswith('Orig. end'):
 									bgc_end = line.split('::')[-1].strip()
 								if '/contig_edge="True"' in line:
 									contig_edge = "(near contig edge)"
