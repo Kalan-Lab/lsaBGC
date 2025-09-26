@@ -40,7 +40,7 @@ dependencies:
   - conda-forge::pandas
   - conda-forge::pomegranate=0.13.3
   - bioconda::mash
-  - bioconda::gtotree
+  - bioconda::gtotree=1.8.13
   - conda-forge::xlsxwriter=3.0.3
   - bioconda::ncbi-genome-download
   - bioconda::gecco
