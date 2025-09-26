@@ -17,7 +17,7 @@ dependencies:
   - bioconda::pal2nal=14.1
   - bioconda::hmmer=3.3.2
   - bioconda::orthofinder=2.5.4
-  - bioconda::panaroo
+  - bioconda::panaroo=1.5.2
   - bioconda::fasttree=2.1.11
   - conda-forge::ete3=3.1.2
   - bioconda::diamond=2.0.15
