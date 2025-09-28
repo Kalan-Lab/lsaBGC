@@ -9,6 +9,7 @@ LABEL maintainer="Rauf Salamzade - Kalan Lab, UW-Madison"
 WORKDIR /usr/src
 SHELL ["/bin/bash", "-c"]
 
+
 # Clone lsaBGC github repo and create conda environment, then create and activate conda environment,
 # and install lsaBGC
 RUN apt-get update && apt-get install -y git wget gcc && \
@@ -30,7 +31,7 @@ RUN apt-get update && apt-get install -y git wget gcc && \
 WORKDIR /usr/src/lsaBGC/
 ENV PATH /usr/src/lsaBGC_conda_env/bin:$PATH
 RUN python setup.py install && pip install -e . && setup_annotation_dbs.py -nk -dsh && setup_bigscape.py && panaroo --version && \
-    chmod -R 777 /usr/src/lsaBGC/ && chmod 777 /home 
+    chmod -R 777 /usr/src/lsaBGC/ && chmod 777 /home
 USER 1000:1000
 RUN mkdir /home/input /home/output
 WORKDIR /home
@@ -39,5 +40,3 @@ ENV LC_ALL C.UTF-8
 
 ENTRYPOINT ["LSABGC"]
 CMD ["--help"]
-
-
